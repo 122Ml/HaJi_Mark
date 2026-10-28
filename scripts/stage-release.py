@@ -64,8 +64,9 @@ from pathlib import Path
 p=Path('/opt/hajimark/releases')/release_id/'release.json'
 record=json.loads(p.read_text())
 for image in record['images']:
- actual=subprocess.check_output(['docker','image','inspect',image['tag'],'--format','{{.Id}}'],text=True).strip()
- assert actual==image['config_id']
+ actual=json.loads(subprocess.check_output(['docker','image','inspect',image['tag']],text=True))[0]
+ assert actual['Id'] in (image['local_image_id'],image['config_id'])
+ assert actual['Config']['Labels']['org.opencontainers.image.revision']==record['source_commit']
 print('REMOTE_IMAGES_MATCH')
 PY'''
         _, stdout, _ = target.exec_command(command, timeout=30)

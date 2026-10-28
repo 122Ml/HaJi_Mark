@@ -85,11 +85,12 @@ export function useLearning() {
   if (!c) throw new Error("LearningProvider required");
   return c;
 }
-export function useLiveQuery<T>(path: string, enabled = true) {
+export function useLiveQuery<T>(path: string, enabled = true, freshOnMount = false) {
   const { course } = useLearning();
   return useQuery({
     queryKey: ["live", course?.id, path],
     enabled: !!course && enabled,
+    refetchOnMount: freshOnMount ? "always" : true,
     queryFn: async () =>
       (await requestJSON<{ data: T }>(`/learning/courses/${course!.id}${path}`))
         .data,

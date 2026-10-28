@@ -161,7 +161,7 @@ export function AssignmentEditor({
   const original = useLiveQuery<{
     assignment: Assignment;
     questions: (Question & { correct_answer: string })[];
-  }>(`/assignments/${assignmentId}`, !!assignmentId);
+  }>(`/assignments/${assignmentId}`, !!assignmentId, true);
   const quiz = requestedQuiz || original.data?.assignment.type === "quiz";
   const points = useLiveQuery<{ points: Point[] }>("");
   const resources = useLiveQuery<Resource[]>("/resources");
@@ -187,6 +187,8 @@ export function AssignmentEditor({
   useEffect(() => {
     if (
       original.data &&
+      original.isFetchedAfterMount &&
+      !original.isFetching &&
       initializedAssignment.current !== original.data.assignment.id
     ) {
       initializedAssignment.current = original.data.assignment.id;
@@ -209,7 +211,7 @@ export function AssignmentEditor({
         })),
       );
     }
-  }, [original.data]);
+  }, [original.data, original.isFetchedAfterMount, original.isFetching]);
   async function save(publish: boolean) {
     const a = await action.run<Assignment>(
       savedId ? `/assignments/${savedId}` : "/assignments",

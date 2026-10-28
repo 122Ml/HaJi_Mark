@@ -1,0 +1,58 @@
+name: Repository checks
+
+on:
+  pull_request:
+    branches: [main, codex/integration]
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+  push:
+    branches: [codex/integration]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  collaboration-check:
+    name: collaboration-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check review owner and merge direction
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.ref }}
+          PR_HEAD: ${{ github.event.pull_request.head.ref }}
+          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          owners = [
+              line.strip()
+              for line in Path(".github/CODEOWNERS").read_text(encoding="utf-8").splitlines()
+              if line.strip() and not line.lstrip().startswith("#")
+          ]
+          if owners != ["* @122Ml"]:
+              raise SystemExit("All files must remain owned by @122Ml.")
+          if os.environ["EVENT_NAME"] == "pull_request" and os.environ["PR_BASE"] == "main":
+              if os.environ["PR_HEAD"] != "codex/integration" or os.environ["PR_HEAD_REPO"] != os.environ["REPOSITORY"]:
+                  raise SystemExit("Only this repository's codex/integration may be merged into main.")
+          print("Review owner and merge direction are valid.")
+          PY
+      - name: Check patch whitespace
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            git diff --check "$BASE_SHA" "$HEAD_SHA"
+          else
+            git show --format= --check HEAD
+          fi

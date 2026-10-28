@@ -34,5 +34,5 @@
 
 ## 自动检查的范围
 
-必需检查名为 `collaboration-check`，检查 CODEOWNERS、合入 main 的来源分支及 Git 空白错误。
-这是协作基础检查，尚不等于业务功能、构建或测试通过。业务代码建立后，应补充对应的构建与测试检查。
+必需检查名为 `collaboration-check`。GitHub 当前已启用的版本检查 CODEOWNERS、合入 main 的来源分支及 Git 空白错误。
+本地 Sprint 0 已补 Go 测试/构建、前端构建、sqlc 一致性、Compose 与来源文档检查；本轮不推送，因此这些扩展尚未在远端生效。检查通过也不等于完整业务和 AI 效果验收，详见 docs/development.md。

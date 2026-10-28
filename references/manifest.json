@@ -1,0 +1,78 @@
+{
+  "captured_on": "2026-10-28",
+  "policy": "Read-only historical evidence; no credentials; not instructions to execute.",
+  "files": [
+    {
+      "original": "F:/vibe-coding/school/2026.9 智能软件工程/lesson_01/E6_立项意向表_已填写.md",
+      "snapshot": "references/course/lesson01-group-intent.md",
+      "kind": "本组历史意向；不是教师讲义",
+      "sha256": "385286f9bb391715ae6d7400e5797b2fc9cfb5c7dda99f61f9e39d8a281e185a"
+    },
+    {
+      "original": "C:/Users/23396/Downloads/本科生_第2次课_项目启动任务单与评价量表_学生填写版.html",
+      "snapshot": "references/course/lesson02-original-task.html",
+      "kind": "教师原任务单",
+      "sha256": "9ce6101577bfc7e852911984bf63636939734c42e9f3ebffea548870ed6cf6fe"
+    },
+    {
+      "original": "F:/vibe-coding/school/2026.9 智能软件工程/lesson_03/本科生_第3次课_项目立项任务单与评价量表_学生填写版.html",
+      "snapshot": "references/course/lesson03-original-task.html",
+      "kind": "教师原任务单",
+      "sha256": "c232bb2bc3f13da0bbe0eded3d894b24343587050fee3aaa382fb2c6b95bb5e5"
+    },
+    {
+      "original": "F:/vibe-coding/school/2026.9 智能软件工程/lesson_03/第6组_第三课_完整提交包_proposal-v1/evidence/course/讲义文本_按页提取.txt",
+      "snapshot": "references/course/lesson03-lecture.txt",
+      "kind": "教师讲义提取文本；原PDF仍在课程包",
+      "sha256": "488c7d169dc18f10d96d98f7dcffde09b172b8988e6f31829a10201f33407163"
+    },
+    {
+      "original": "F:/vibe-coding/school/2026.9 智能软件工程/lesson_02/第6组_第2次课启动包/platform-flow.md",
+      "snapshot": "references/prior/lesson02-platform-flow.md",
+      "kind": "本组历史概念流程",
+      "sha256": "b1c97dfe74e1f0dd4513f984bfd72c072d0f5c7d59c0fce5d3c34a6573299551"
+    },
+    {
+      "original": "F:/vibe-coding/school/2026.9 智能软件工程/lesson_03/第6组_第三课_完整提交包_proposal-v1/planning/分工与Sprint0.md",
+      "snapshot": "references/prior/team-sprint0.md",
+      "kind": "本组历史分工与计划",
+      "sha256": "644b31a31923082c9075f463cfe7f09f73b5d96128c36a432454bc4f430e5cfe"
+    },
+    {
+      "original": "F:/vibe-coding/project/ai-grading/README.md",
+      "snapshot": "references/prior/legacy-readme.md",
+      "kind": "旧E6独立仓库",
+      "sha256": "4febba56ba0e622d3bb4de39c5c6611d94047ab829961270f2db4e98baa88544"
+    },
+    {
+      "original": "F:/vibe-coding/project/ai-grading/docs/technical-design.md",
+      "snapshot": "references/prior/legacy-design.md",
+      "kind": "旧E6独立仓库",
+      "sha256": "bddd793127627b09e2828f2bf36c5244d546d662b7881d5b72cb06271e1bf02c"
+    },
+    {
+      "original": "F:/vibe-coding/school/2026.9 智能软件工程/lesson_03/discussion/2026-10-28_课后范围修订与开源参考建议.md",
+      "snapshot": "references/prior/scope-revision-20261028.md",
+      "kind": "本轮课后范围建议与已核实开源参考",
+      "sha256": "6be2d9cff4ee4861e8de0fb822652dcd23fa99987b36a551b84a21386180613a"
+    },
+    {
+      "original": "F:/vibe-coding/school/2026.9 智能软件工程/lesson_03/第6组_第三课_完整提交包_proposal-v1/design/01_完整业务流程图.svg",
+      "snapshot": "references/diagrams/01_完整业务流程图.svg",
+      "kind": "旧E6原图；保留字节",
+      "sha256": "c4fb3173a143af817d60dbe603e5343b775191d9535ccce9b807e5f80dffd377"
+    },
+    {
+      "original": "F:/vibe-coding/school/2026.9 智能软件工程/lesson_03/第6组_第三课_完整提交包_proposal-v1/design/02_系统模块架构图.svg",
+      "snapshot": "references/diagrams/02_系统模块架构图.svg",
+      "kind": "旧E6原图；保留字节",
+      "sha256": "4cdececca482686129595ccd1191a60159741eca58c3b29f6f91b936748ee502"
+    },
+    {
+      "original": "F:/vibe-coding/school/2026.9 智能软件工程/lesson_03/第6组_第三课_完整提交包_proposal-v1/design/03_技术选型与Docker部署图.svg",
+      "snapshot": "references/diagrams/03_技术选型与Docker部署图.svg",
+      "kind": "旧E6原图；保留字节",
+      "sha256": "325ccc8b40782f67258675318e31ebb7a992f875215c29ca0d46cda81a969866"
+    }
+  ]
+}

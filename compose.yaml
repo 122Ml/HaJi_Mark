@@ -1,0 +1,74 @@
+name: hajimark
+
+x-backend: &backend
+  image: hajimark-backend:local
+  build: ./backend
+  environment: &backend-env
+    DATABASE_URL: postgres://${POSTGRES_USER:-hajimark}:${POSTGRES_PASSWORD:-local-dev-change-me}@postgres:5432/${POSTGRES_DB:-hajimark}?sslmode=disable
+    REDIS_ADDR: redis:6379
+    GIN_MODE: release
+
+services:
+  postgres:
+    image: postgres:18.1-alpine3.23
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hajimark}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-dev-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-hajimark}
+    volumes: [postgres-data:/var/lib/postgresql]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+  redis:
+    image: redis:7.4.10
+    command: [redis-server, --appendonly, 'yes']
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+  migrate:
+    <<: *backend
+    command: [./goose, -dir, db/migrations, up]
+    environment:
+      <<: *backend-env
+      GOOSE_DRIVER: postgres
+      GOOSE_DBSTRING: postgres://${POSTGRES_USER:-hajimark}:${POSTGRES_PASSWORD:-local-dev-change-me}@postgres:5432/${POSTGRES_DB:-hajimark}?sslmode=disable
+    depends_on:
+      postgres: {condition: service_healthy}
+  api:
+    <<: *backend
+    command: [./api]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+  worker:
+    <<: *backend
+    command: [./worker]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+  web:
+    image: hajimark-web:local
+    build: ./web
+    ports: ['127.0.0.1:${WEB_PORT:-18080}:80']
+    depends_on: [api]
+  seed:
+    profiles: [demo]
+    image: postgres:18.1-alpine3.23
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-local-dev-change-me}
+      PGUSER: ${POSTGRES_USER:-hajimark}
+      PGDATABASE: ${POSTGRES_DB:-hajimark}
+      PGHOST: postgres
+    volumes: [./backend/db/seeds/demo.sql:/demo.sql:ro]
+    command: [psql, -v, ON_ERROR_STOP=1, -f, /demo.sql]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+
+volumes:
+  postgres-data:
+  redis-data:

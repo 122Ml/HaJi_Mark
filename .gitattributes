@@ -1,0 +1,12 @@
+* text=auto eol=lf
+*.go text eol=lf
+*.sh text eol=lf
+*.sql text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.sum text eol=lf
+*.mod text eol=lf
+# Historical evidence is hashed against original bytes, including line endings.
+references/** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

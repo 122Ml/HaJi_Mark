@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2600" height="1970" viewBox="0 0 2600 1970">
+<rect width="100%" height="100%" fill="#f5f7fb"/>
+<text x="80" y="94" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="49" font-weight="700" fill="#19394b">AI辅助批改系统｜完整业务流程</text>
+<text x="80" y="150" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="30" font-weight="400" fill="#567080">首版教师端 · 单题多份作答、多任务 · 准备与复核可随时进入 · 批改按需发起</text>
+<rect x="660" y="200" width="1120" height="115" rx="17" fill="#e8f0f7" stroke="#adc3d2" stroke-width="2"/>
+<text x="1220.0" y="253.0" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="33" font-weight="700" fill="#19394b">教师任务工作区</text>
+<text x="1220.0" y="295.0" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="27" font-weight="400" fill="#567080">建立／打开任务；查看准备材料、批改进度或既有结果</text>
+<rect x="80" y="400" width="1400" height="485" rx="17" fill="#edf3f8" stroke="#adc3d2" stroke-width="2"/>
+<text x="120" y="469" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="36" font-weight="700" fill="#19394b">A 任务与数据准备</text>
+<text x="120" y="516" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="28" font-weight="400" fill="#567080">评分依据和学生作答独立维护，通过同一道题关联。</text>
+<rect x="115" y="550" width="635" height="285" rx="17" fill="white" stroke="#adc3d2" stroke-width="2"/>
+<text x="150" y="612" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="32" font-weight="700" fill="#19394b">评分依据</text>
+<text x="150" y="667" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="27" font-weight="400" fill="#19394b">题目、满分、参考答案／教学要求</text>
+<text x="150" y="718" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="27" font-weight="400" fill="#19394b">手填标准，或AI仅依据题目资料起草</text>
+<text x="150" y="769" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="27" font-weight="400" fill="#19394b">教师编辑、校验分值并确认采用标准</text>
+<text x="150" y="814" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="24" font-weight="400" fill="#b36523">AI起草失败：可重试或手填</text>
+<rect x="795" y="550" width="650" height="285" rx="17" fill="white" stroke="#adc3d2" stroke-width="2"/>
+<text x="830" y="612" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="32" font-weight="700" fill="#19394b">学生作答</text>
+<text x="830" y="667" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="27" font-weight="400" fill="#19394b">批量导入编号和文本，预览题目关联</text>
+<text x="830" y="718" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="27" font-weight="400" fill="#19394b">检查格式／重复编号，保留空白和原文</text>
+<text x="830" y="769" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="27" font-weight="400" fill="#19394b">导入有误：定位错误行，修正后重导</text>
+<text x="830" y="814" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="24" font-weight="400" fill="#567080">无需人工预先给每份作答打分</text>
+<rect x="1590" y="400" width="930" height="1290" rx="17" fill="#edf3f8" stroke="#adc3d2" stroke-width="2"/>
+<text x="1630" y="469" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="36" font-weight="700" fill="#19394b">C 结果复核与导出</text>
+<rect x="1630" y="525" width="850" height="140" rx="17" fill="white" stroke="#adc3d2" stroke-width="2"/>
+<text x="2055.0" y="590.5" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="32" font-weight="700" fill="#19394b">查看任务结果与进度</text>
+<text x="2055.0" y="631.5" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="26" font-weight="400" fill="#567080">处理中／调用失败／异常／待复核／已确认</text>
+<rect x="1630" y="745" width="850" height="150" rx="17" fill="white" stroke="#adc3d2" stroke-width="2"/>
+<text x="2055.0" y="816.0" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="32" font-weight="700" fill="#19394b">打开一份作答</text>
+<text x="2055.0" y="856.0" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="25" font-weight="400" fill="#567080">同屏对照题目、采用标准、原文、AI草稿和检查记录</text>
+<rect x="1630" y="995" width="400" height="120" rx="17" fill="white" stroke="#adc3d2" stroke-width="2"/>
+<text x="1830.0" y="1050.0" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="29" font-weight="700" fill="#19394b">查看并按需修改</text>
+<text x="1830.0" y="1089.0" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="24" font-weight="400" fill="#567080">保留AI原稿和人工修订</text>
+<rect x="2100" y="995" width="380" height="120" rx="17" fill="#fff6eb" stroke="#dcba91" stroke-width="2"/>
+<text x="2290.0" y="1050.0" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="29" font-weight="700" fill="#19394b">请求重新批改</text>
+<text x="2290.0" y="1089.0" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="24" font-weight="400" fill="#567080">教师选择需重评的作答</text>
+<rect x="1630" y="1190" width="400" height="115" rx="17" fill="white" stroke="#adc3d2" stroke-width="2"/>
+<text x="1830.0" y="1242.5" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="29" font-weight="700" fill="#19394b">保存并重新校验</text>
+<text x="1830.0" y="1281.5" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="24" font-weight="400" fill="#567080">分值、加和与原文依据</text>
+<rect x="1630" y="1400" width="400" height="120" rx="17" fill="#e7f4ef" stroke="#087f79" stroke-width="2"/>
+<text x="1830.0" y="1455.0" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="29" font-weight="700" fill="#19394b">教师逐份确认</text>
+<text x="1830.0" y="1494.0" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="24" font-weight="400" fill="#567080">更新结果状态与确认记录</text>
+<rect x="2100" y="1400" width="380" height="120" rx="17" fill="#e7f4ef" stroke="#087f79" stroke-width="2"/>
+<text x="2290.0" y="1437.5" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="29" font-weight="700" fill="#19394b">统一导出</text>
+<text x="2290.0" y="1475.5" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="23" font-weight="400" fill="#567080">选择已确认项</text>
+<text x="2290.0" y="1511.5" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="23" font-weight="400" fill="#567080">输出分数、依据与反馈</text>
+<text x="1630" y="1616" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="26" font-weight="400" fill="#567080">一份完成即可复核；已确认项可导出，其余继续处理。</text>
+<polyline points="1900,665 1900,745" fill="none" stroke="#3a739b" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="1900,745 1892.605585920109,729.6923992600045 1907.394414079891,729.6923992600045" fill="#3a739b"/>
+<polyline points="1900,895 1900,950 1830,950 1830,995" fill="none" stroke="#3a739b" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="1830,995 1822.605585920109,979.6923992600045 1837.394414079891,979.6923992600045" fill="#3a739b"/>
+<polyline points="1900,950 2290,950 2290,995" fill="none" stroke="#b36523" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="2290,995 2282.605585920109,979.6923992600045 2297.394414079891,979.6923992600045" fill="#b36523"/>
+<polyline points="1830,1115 1830,1190" fill="none" stroke="#3a739b" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="1830,1190 1822.605585920109,1174.6923992600045 1837.394414079891,1174.6923992600045" fill="#3a739b"/>
+<polyline points="1830,1305 1830,1400" fill="none" stroke="#087f79" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="1830,1400 1822.605585920109,1384.6923992600045 1837.394414079891,1384.6923992600045" fill="#087f79"/>
+<rect x="1843" y="1335" width="152.0" height="36" rx="5" fill="#edf3f8" stroke="#edf3f8" stroke-width="2"/>
+<text x="1850" y="1363" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="23" font-weight="400" fill="#087f79">通过后可确认</text>
+<polyline points="2030,1245 2060,1245 2060,1060 2030,1060" fill="none" stroke="#b36523" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="2030,1060 2045.3076007399955,1052.605585920109 2045.3076007399955,1067.394414079891" fill="#b36523"/>
+<rect x="2103" y="1275" width="190.0" height="35" rx="5" fill="#edf3f8" stroke="#edf3f8" stroke-width="2"/>
+<text x="2110" y="1302" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="22" font-weight="400" fill="#b36523">未通过：返回修改</text>
+<polyline points="2030,1460 2100,1460" fill="none" stroke="#087f79" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="2100,1460 2084.6923992600045,1467.394414079891 2084.6923992600045,1452.605585920109" fill="#087f79"/>
+<polyline points="2480,595 2500,595 2500,1460 2480,1460" fill="none" stroke="#087f79" stroke-width="4" stroke-linejoin="round" stroke-dasharray="11 9"/>
+<polygon points="2480,1460 2495.3076007399955,1452.605585920109 2495.3076007399955,1467.394414079891" fill="#087f79"/>
+<rect x="2173" y="685" width="230.0" height="37" rx="5" fill="#edf3f8" stroke="#edf3f8" stroke-width="2"/>
+<text x="2180" y="714" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="24" font-weight="400" fill="#087f79">已确认项可直接导出</text>
+<polyline points="950,315 950,355 780,355 780,400" fill="none" stroke="#3a739b" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="780,400 772.6055859201091,384.6923992600045 787.3944140798909,384.6923992600045" fill="#3a739b"/>
+<rect x="383" y="340" width="274.0" height="39" rx="5" fill="#f5f7fb" stroke="#f5f7fb" stroke-width="2"/>
+<text x="390" y="371" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="26" font-weight="400" fill="#3a739b">进入准备，可反复编辑</text>
+<polyline points="1780,258 2050,258 2050,400" fill="none" stroke="#3a739b" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="2050,400 2042.605585920109,384.6923992600045 2057.394414079891,384.6923992600045" fill="#3a739b"/>
+<rect x="1823" y="321" width="222.0" height="39" rx="5" fill="#f5f7fb" stroke="#f5f7fb" stroke-width="2"/>
+<text x="1830" y="352" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="26" font-weight="400" fill="#3a739b">直接查看已有结果</text>
+<rect x="80" y="1080" width="1400" height="610" rx="17" fill="#edf3f8" stroke="#adc3d2" stroke-width="2"/>
+<text x="120" y="1146" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="36" font-weight="700" fill="#19394b">B 智能批改</text>
+<rect x="140" y="1190" width="1230" height="90" rx="17" fill="#e8f0f7" stroke="#adc3d2" stroke-width="2"/>
+<text x="755.0" y="1250.5" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="31" font-weight="700" fill="#19394b">教师选择标准与作答，检查本次输入是否齐备</text>
+<polyline points="780,885 780,1190" fill="none" stroke="#3a739b" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="780,1190 772.6055859201091,1174.6923992600045 787.3944140798909,1174.6923992600045" fill="#3a739b"/>
+<rect x="798" y="940" width="230.0" height="40" rx="5" fill="#f5f7fb" stroke="#f5f7fb" stroke-width="2"/>
+<text x="805" y="972" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="27" font-weight="400" fill="#3a739b">教师主动发起批改</text>
+<rect x="798" y="985" width="364.0" height="38" rx="5" fill="#f5f7fb" stroke="#f5f7fb" stroke-width="2"/>
+<text x="805" y="1015" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="25" font-weight="400" fill="#567080">读取题目＋选定标准＋原始作答</text>
+<polyline points="140,1235 40,1235 40,733 80,733" fill="none" stroke="#b36523" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="80,733 64.69239926000449,740.3944140798909 64.69239926000449,725.6055859201091" fill="#b36523"/>
+<rect x="83" y="992" width="189.0" height="38" rx="5" fill="#f5f7fb" stroke="#f5f7fb" stroke-width="2"/>
+<text x="90" y="1022" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="25" font-weight="400" fill="#b36523">缺项：提示补充</text>
+<rect x="140" y="1380" width="550" height="115" rx="17" fill="white" stroke="#adc3d2" stroke-width="2"/>
+<text x="415.0" y="1433.0" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="31" font-weight="700" fill="#19394b">按份执行AI评阅</text>
+<text x="415.0" y="1473.0" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="25" font-weight="400" fill="#567080">逐评分点得分、引用、问题与建议</text>
+<rect x="820" y="1380" width="550" height="115" rx="17" fill="white" stroke="#adc3d2" stroke-width="2"/>
+<text x="1095.0" y="1433.0" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="31" font-weight="700" fill="#19394b">检查输出并汇总</text>
+<text x="1095.0" y="1473.0" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="25" font-weight="400" fill="#567080">字段、分值、引用定位；计算总分</text>
+<polyline points="755,1280 755,1325 415,1325 415,1380" fill="none" stroke="#3a739b" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="415,1380 407.6055859201091,1364.6923992600045 422.3944140798909,1364.6923992600045" fill="#3a739b"/>
+<polyline points="690,1438 820,1438" fill="none" stroke="#3a739b" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="820,1438 804.6923992600045,1445.394414079891 804.6923992600045,1430.605585920109" fill="#3a739b"/>
+<rect x="703" y="1391" width="102.0" height="35" rx="5" fill="#edf3f8" stroke="#edf3f8" stroke-width="2"/>
+<text x="710" y="1418" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="22" font-weight="400" fill="#3a739b">原始输出</text>
+<rect x="140" y="1560" width="550" height="95" rx="17" fill="#fff6eb" stroke="#dcba91" stroke-width="2"/>
+<text x="415.0" y="1602.5" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="28" font-weight="700" fill="#19394b">保留失败／异常原因</text>
+<text x="415.0" y="1640.5" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="23" font-weight="400" fill="#567080">不产生可直接导出的确认结果</text>
+<polyline points="415,1495 415,1560" fill="none" stroke="#b36523" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="415,1560 407.6055859201091,1544.6923992600045 422.3944140798909,1544.6923992600045" fill="#b36523"/>
+<rect x="428" y="1505" width="102.0" height="35" rx="5" fill="#edf3f8" stroke="#edf3f8" stroke-width="2"/>
+<text x="435" y="1532" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="22" font-weight="400" fill="#b36523">调用失败</text>
+<polyline points="1095,1495 1095,1608 690,1608" fill="none" stroke="#b36523" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="690,1608 705.3076007399955,1600.605585920109 705.3076007399955,1615.394414079891" fill="#b36523"/>
+<rect x="873" y="1560" width="129.0" height="36" rx="5" fill="#edf3f8" stroke="#edf3f8" stroke-width="2"/>
+<text x="880" y="1588" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="23" font-weight="400" fill="#b36523">核对未通过</text>
+<text x="770" y="1539" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="24" font-weight="400" fill="#567080">失败项可选定重试，已完成项保留</text>
+<polyline points="1370,1438 1520,1438 1520,595 1630,595" fill="none" stroke="#087f79" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="1630,595 1614.6923992600045,602.3944140798909 1614.6923992600045,587.6055859201091" fill="#087f79"/>
+<rect x="1478" y="910" width="58.0" height="35" rx="5" fill="#f5f7fb" stroke="#f5f7fb" stroke-width="2"/>
+<text x="1485" y="937" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="22" font-weight="400" fill="#087f79">逐份</text>
+<rect x="1478" y="948" width="58.0" height="35" rx="5" fill="#f5f7fb" stroke="#f5f7fb" stroke-width="2"/>
+<text x="1485" y="975" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="22" font-weight="400" fill="#087f79">草稿</text>
+<polyline points="415,1655 415,1670 1550,1670 1550,630 1630,630" fill="none" stroke="#b36523" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="1630,630 1614.6923992600045,637.3944140798909 1614.6923992600045,622.6055859201091" fill="#b36523"/>
+<rect x="1528" y="1015" width="58.0" height="35" rx="5" fill="#f5f7fb" stroke="#f5f7fb" stroke-width="2"/>
+<text x="1535" y="1042" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="22" font-weight="400" fill="#b36523">异常</text>
+<rect x="1528" y="1053" width="58.0" height="35" rx="5" fill="#f5f7fb" stroke="#f5f7fb" stroke-width="2"/>
+<text x="1535" y="1080" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="22" font-weight="400" fill="#b36523">状态</text>
+<polyline points="2290,1115 2290,1160" fill="none" stroke="#b36523" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="2290,1160 2282.605585920109,1144.6923992600045 2297.394414079891,1144.6923992600045" fill="#b36523"/>
+<rect x="2140" y="1160" width="300" height="70" rx="17" fill="#fff6eb" stroke="#dcba91" stroke-width="2"/>
+<text x="2290.0" y="1208.5" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="27" font-weight="700" fill="#19394b">R：选定项重评</text>
+<rect x="1390" y="1208" width="60" height="55" rx="27" fill="#fff6eb" stroke="#dcba91" stroke-width="2"/>
+<text x="1420" y="1247" text-anchor="middle" font-family="Microsoft YaHei,sans-serif" font-size="29" font-weight="700" fill="#b36523">R</text>
+<polyline points="1390,1235 1370,1235" fill="none" stroke="#b36523" stroke-width="4" stroke-linejoin="round"/>
+<polygon points="1370,1235 1385.3076007399955,1227.605585920109 1385.3076007399955,1242.394414079891" fill="#b36523"/>
+<rect x="713" y="1725" width="724.0" height="40" rx="5" fill="#f5f7fb" stroke="#f5f7fb" stroke-width="2"/>
+<text x="720" y="1757" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="27" font-weight="400" fill="#b36523">R：教师主动重评／重试，返回B的批改入口，记录新的结果</text>
+<rect x="80" y="1820" width="2440" height="100" rx="17" fill="#eef3f8" stroke="#c4d1db" stroke-width="2"/>
+<text x="115" y="1867" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="27" font-weight="400" fill="#19394b">关系约束：学生作答不参与标准起草；数据可独立维护；批改结果记录采用依据；导出仅含教师确认项。</text>
+<text x="115" y="1905" text-anchor="start" font-family="Microsoft YaHei,sans-serif" font-size="25" font-weight="400" fill="#567080">模型配置、教师身份、数据保存及错误记录由公共支撑提供。</text>
+</svg>

@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+coverage/
+*.test
+*.exe
+*.log
+.DS_Store
+.idea/
+.local/
+artifacts/

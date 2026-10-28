@@ -25,7 +25,7 @@ flowchart LR
 | --- | --- |
 | backend/internal/identity | bcrypt、8小时数据库会话、角色/课程/本人权限、CSRF与登录频率限制 |
 | backend/internal/learning | 课程/目录/资料/成员，作业/提交/评分，学情/路径/干预，互动和账号、教研/行业记录 |
-| backend/internal/store；backend/db | sqlc类型查询，Goose迁移00001—00007；原文和修订的唯一事实源 |
+| backend/internal/store；backend/db | sqlc类型查询，Goose迁移00001—00008；原文和修订的唯一事实源 |
 | web/src/live | course/curriculum/graph/notes、assessment、insight/path、communication、account、assistant |
 | web/src/shared | API、会话与错误恢复；原课程示例保留但不作为活动主入口 |
 | backend/internal/course | 兼容公开的已发布课程摘要；不包含学生数据 |
@@ -51,10 +51,14 @@ Compose 运行 Nginx Web、Gin API、PostgreSQL、Redis、worker；migrate 一�
 
 提交与评分使用 request_id 去重；并发提交/评分通过行锁串行分配版本。其他状态转换使用预期旧状态条件。学生看不到评分草稿、内部标准答案和他人原文/笔记/路径。所有业务对象重新核对课程归属；角色路由不是权限边界。
 
+CO-01/AS-01已按[贡献映射](../references/contributions/README.md)适配到learning/live。资料来源同时支持source_note说明和source_url链接，新增资料至少具备一项；locator必填。00008保留历史原文并增加学习对象版本，正式提交与submission.submitted事件同事务落库，已有提交回填对应历史事件；重试不多写事件。/activity用于本人或教师授权学生时间线；/assignments/:id/roster按选课名单返回已交/部分/未交，与评分独立。
+
+公网运行使用[独立生产Compose](../deploy/README.md)，OpenResty终止HTTPS→回环Web→API，数据库与Redis只在私网。PUBLIC_ORIGIN绑定公网HTTPS来源，Secure cookie；本地Compose仍沿用本地HTTP配置。AI保持关闭。
+
 ## 评据与未完成范围
 
 教师评分同屏查看冻结题目标准、学生原文、资料版本/段落/来源；已发布结果保留submission/revision/resource ID。资料由教师录入并审核，平台不证明内容的学术正确性。知识点表现为得分/满分汇总并展示证据，不等于真实能力；无记录显示证据不足。
 
 本轮AI按用户要求关闭，课程助手明确未配置，人工答疑/评分不受影响。兼容模型适配入口存在但未实测、未授权启用；没有AI评阅、结构化rubric逐点引用核查、E6效果实验。知识点图谱为依赖卡片，教研和行业功能为人工记录CRUD，没有招聘采集/自动能力推断；资料目前支持文本和外部链接，没有文件上传/OCR/视频处理。班级表现与证据下钻已经可用，E4错因分类与独立研究评测仍是后续研究任务。
 
-尚未配置公网TLS、邮件/找回密码或多机构管理，未做大规模并发/安全审计。当前按本地课堂试用验收，不声称与参考平台所有高级菜单或视觉完全等价。备份与隔离恢复见 [development](development.md)，历史三图保留在 references/diagrams。
+公网域名采用OpenResty/Let's Encrypt TLS，邮件/找回密码和多机构管理仍未配置，未做大规模并发/安全审计。当前按课堂试用验收，不声称与参考平台所有高级菜单或视觉完全等价。备份与隔离恢复见 [development](development.md)，历史三图保留在 references/diagrams。

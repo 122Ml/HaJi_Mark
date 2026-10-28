@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { ActivityTimeline } from "./activity";
 import { useSession } from "../shared/session";
 import { useLiveQuery, useAction, Feedback, names, when } from "./context";
 import type { Resource } from "./course";
@@ -52,7 +53,9 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
     !teacher,
   );
   const points = useLiveQuery<{ points: Point[] }>("");
-  const [studentFilter, setStudentFilter] = useState("");
+  const [params, setParams] = useSearchParams();
+  const studentFilter = params.get("student") || "";
+  const setStudentFilter = (id: string) => setParams(id ? { student: id } : {});
   const rows = (evidence.data || []).filter(
     (r) => !studentFilter || r.student_id === studentFilter,
   );
@@ -221,7 +224,7 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
               <tbody>
                 {overview.data?.map((s) => (
                   <tr key={s.id}>
-                    <td>{s.display_name}</td>
+                    <td><button className="ghost-btn" onClick={() => setStudentFilter(s.id)}>{s.display_name}</button></td>
                     <td>{s.completed_events}</td>
                     <td>{s.submitted_assignments}</td>
                     <td>{s.pending_interventions}</td>
@@ -264,6 +267,7 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
             ))}
         </section>
       )}
+      <ActivityTimeline teacher={teacher} studentID={teacher ? studentFilter : ""} />
       <section className="card-panel">
         <h2>正式评分证据</h2>
         {!rows.length ? (

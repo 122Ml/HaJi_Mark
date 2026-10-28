@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"net/url"
+	"strings"
 )
 
 func text(s string) pgtype.Text { return pgtype.Text{String: s, Valid: s != ""} }
@@ -22,6 +23,7 @@ func (h *Handler) createResource(c *gin.Context) {
 		Title            string `json:"title"`
 		Content          string `json:"content"`
 		SourceURL        string `json:"source_url"`
+		SourceNote       string `json:"source_note"`
 		Locator          string `json:"locator"`
 		KnowledgePointID string `json:"knowledge_point_id"`
 	}
@@ -30,6 +32,11 @@ func (h *Handler) createResource(c *gin.Context) {
 	}
 	if !validText(in.Title, 500) || !validText(in.Content, 200000) || !validText(in.Locator, 500) {
 		invalid(c, "请填写资料标题、原文与段落定位")
+		return
+	}
+	in.SourceNote = strings.TrimSpace(in.SourceNote)
+	if (in.SourceURL == "" && in.SourceNote == "") || len([]rune(in.SourceNote)) > 200 || len(in.SourceURL) > 2000 {
+		invalid(c, "请登记资料来源说明或原始链接；来源说明不超过200字")
 		return
 	}
 	if in.SourceURL != "" {
@@ -65,7 +72,7 @@ func (h *Handler) createResource(c *gin.Context) {
 		if !scope(c, old.CourseID) {
 			return
 		}
-		v, e := h.q.CreateResourceRevision(c.Request.Context(), store.CreateResourceRevisionParams{ID: uuid.NewString(), Title: in.Title, Content: in.Content, SourceUrl: in.SourceURL, Locator: in.Locator, CreatedBy: identity.Current(c).ID, ID_2: old.ID})
+		v, e := h.q.CreateResourceRevision(c.Request.Context(), store.CreateResourceRevisionParams{ID: uuid.NewString(), Title: in.Title, Content: in.Content, SourceUrl: in.SourceURL, SourceNote: in.SourceNote, Locator: in.Locator, CreatedBy: identity.Current(c).ID, ID_2: old.ID})
 		if e != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(e, &pgErr) && pgErr.Code == "23505" {
@@ -76,7 +83,7 @@ func (h *Handler) createResource(c *gin.Context) {
 		result(c, v, e)
 		return
 	}
-	v, e := h.q.CreateBusinessResource(c.Request.Context(), store.CreateBusinessResourceParams{ID: uuid.NewString(), CourseID: c.Param("courseID"), Title: in.Title, Content: in.Content, SourceUrl: in.SourceURL, Locator: in.Locator, CreatedBy: identity.Current(c).ID, KnowledgePointID: text(in.KnowledgePointID)})
+	v, e := h.q.CreateBusinessResource(c.Request.Context(), store.CreateBusinessResourceParams{ID: uuid.NewString(), CourseID: c.Param("courseID"), Title: in.Title, Content: in.Content, SourceUrl: in.SourceURL, SourceNote: in.SourceNote, Locator: in.Locator, CreatedBy: identity.Current(c).ID, KnowledgePointID: text(in.KnowledgePointID)})
 	result(c, v, e)
 }
 func (h *Handler) publishResource(c *gin.Context) {
@@ -86,6 +93,10 @@ func (h *Handler) publishResource(c *gin.Context) {
 		return
 	}
 	if !scope(c, r.CourseID) {
+		return
+	}
+	if r.Status != "draft" {
+		identity.Fail(c, 409, "state_conflict", "资料已发布，修改须另存新版本")
 		return
 	}
 	v, e := h.q.PublishBusinessResource(c.Request.Context(), store.PublishBusinessResourceParams{ID: r.ID, ReviewedBy: text(identity.Current(c).ID)})
@@ -115,7 +126,7 @@ func (h *Handler) event(c *gin.Context) {
 		identity.Fail(c, 403, "forbidden", "资料未发布")
 		return
 	}
-	v, e := h.q.AddLearningEvent(c.Request.Context(), store.AddLearningEventParams{ID: uuid.NewString(), CourseID: r.CourseID, ActorID: identity.Current(c).ID, ResourceID: text(r.ID), Verb: in.Verb, RequestID: in.RequestID})
+	v, e := h.q.AddLearningEvent(c.Request.Context(), store.AddLearningEventParams{ID: uuid.NewString(), CourseID: r.CourseID, ActorID: identity.Current(c).ID, ResourceID: text(r.ID), Verb: in.Verb, RequestID: in.RequestID, ObjectVersion: r.Version})
 	if errors.Is(e, pgx.ErrNoRows) {
 		v, e = h.q.GetLearningEventByRequest(c.Request.Context(), store.GetLearningEventByRequestParams{ActorID: identity.Current(c).ID, RequestID: in.RequestID})
 		if e == nil && (v.ResourceID.String != r.ID || v.Verb != in.Verb) {

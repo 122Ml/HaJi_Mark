@@ -1,0 +1,105 @@
+name: hajimark-production
+
+x-logging: &logging
+  driver: json-file
+  options: {max-size: 20m, max-file: '3'}
+x-backend: &backend
+  image: ${BACKEND_IMAGE:?Set the immutable backend image tag}
+  environment: &environment
+    DATABASE_URL: postgres://hajimark:${POSTGRES_PASSWORD:?Set database password}@postgres:5432/hajimark?sslmode=disable
+    REDIS_ADDR: redis:6379
+    GIN_MODE: release
+    SESSION_COOKIE_SECURE: 'true'
+    PUBLIC_ORIGIN: https://hajistudy.online
+    AI_ENABLED: 'false'
+    GOMAXPROCS: '2'
+    GOMEMLIMIT: 128MiB
+  logging: *logging
+  networks: [private]
+  mem_limit: 192m
+
+services:
+  postgres:
+    image: postgres:18.1-alpine3.23
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hajimark
+      POSTGRES_DB: hajimark
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set database password}
+    command: [postgres, -c, shared_buffers=64MB, -c, max_connections=50]
+    volumes: [postgres-data:/var/lib/postgresql]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 384m
+    logging: *logging
+    networks: [private]
+  redis:
+    image: redis:7.4.10
+    restart: unless-stopped
+    command: [redis-server, --appendonly, 'yes', --maxmemory, 64mb, --maxmemory-policy, noeviction]
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 96m
+    logging: *logging
+    networks: [private]
+  migrate:
+    <<: *backend
+    restart: 'no'
+    command: [./goose, -dir, db/migrations, up]
+    environment:
+      <<: *environment
+      GOOSE_DRIVER: postgres
+      GOOSE_DBSTRING: postgres://hajimark:${POSTGRES_PASSWORD:?Set database password}@postgres:5432/hajimark?sslmode=disable
+    depends_on:
+      postgres: {condition: service_healthy}
+  api:
+    <<: *backend
+    restart: unless-stopped
+    command: [./api]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:8080/api/v1/health/ready]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+  worker:
+    <<: *backend
+    restart: unless-stopped
+    command: [./worker]
+    mem_limit: 96m
+    environment:
+      <<: *environment
+      GOMEMLIMIT: 64MiB
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+  web:
+    image: ${WEB_IMAGE:?Set the immutable web image tag}
+    restart: unless-stopped
+    ports: ['127.0.0.1:18080:80']
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1/]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    depends_on:
+      api: {condition: service_healthy}
+    mem_limit: 64m
+    logging: *logging
+    networks: [private]
+
+volumes:
+  postgres-data:
+  redis-data:
+networks:
+  private:

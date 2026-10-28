@@ -9,6 +9,7 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -72,7 +73,11 @@ func SameOrigin(c *gin.Context) bool {
 	if c.Request.TLS != nil {
 		scheme = "https"
 	}
-	if err != nil || parsed.User != nil || parsed.Host != c.Request.Host || parsed.Scheme != scheme || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+	expectedOrigin := scheme + "://" + c.Request.Host
+	if configured := os.Getenv("PUBLIC_ORIGIN"); configured != "" {
+		expectedOrigin = configured
+	}
+	if err != nil || parsed.User != nil || parsed.Host != c.Request.Host || origin != expectedOrigin || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
 		Fail(c, http.StatusForbidden, "origin_forbidden", "请求来源不匹配")
 		return false
 	}

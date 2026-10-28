@@ -27,6 +27,7 @@ export interface Resource {
   title: string;
   content: string;
   source_url: string;
+  source_note: string;
   locator: string;
   status: string;
   version: number;
@@ -64,6 +65,7 @@ export function CourseWorkspace() {
     title: "",
     content: "",
     source_url: "",
+    source_note: "",
     locator: "第1段",
     knowledge_point_id: "",
   });
@@ -257,6 +259,7 @@ export function CourseWorkspace() {
                   </p>
                   <article className="live-prose">{view.content}</article>
                   {!teacher && <ResourceNotes resourceId={view.id} />}
+                  <p>资料来源：{view.source_note || view.source_url || "尚未登记来源"}</p>
                   {view.source_url && (
                     <p>
                       <a
@@ -349,6 +352,7 @@ export function CourseWorkspace() {
                                   title: r.title,
                                   content: r.content,
                                   source_url: r.source_url,
+                                  source_note: r.source_note,
                                   locator: r.locator,
                                   knowledge_point_id:
                                     r.knowledge_point_id || "",
@@ -429,6 +433,18 @@ export function CourseWorkspace() {
                       value={resource.content}
                       onChange={(e) =>
                         setResource({ ...resource, content: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label>
+                    来源说明
+                    <input
+                      maxLength={200}
+                      required={!resource.source_url}
+                      placeholder="如：教师自编讲义，2026年10月版"
+                      value={resource.source_note}
+                      onChange={(e) =>
+                        setResource({ ...resource, source_note: e.target.value })
                       }
                     />
                   </label>
@@ -541,7 +557,7 @@ export function CourseWorkspace() {
           {!teacher && (
             <section className="card-panel">
               <h2>学习记录</h2>
-              {events.data?.slice(0, 20).map((e) => (
+              {events.data?.filter((e) => e.resource_id).slice(0, 20).map((e) => (
                 <p key={e.id}>
                   {e.verb === "completed" ? "完成" : "打开"}：
                   {resources.data?.find((r) => r.id === e.resource_id)?.title ||

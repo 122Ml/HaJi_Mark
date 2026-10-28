@@ -29,6 +29,8 @@ HttpOnly、SameSiteStrict、Path=/api/v1、8小时cookie，DB仅存token哈希�
 | GET /assignments/:id；POST /assignments/:id/state | TS读/T写 | assignment/questions；state=published/closed；学生不读rubric/correct_answer |
 | GET/PUT /assignments/:id/questions/:questionID/draft | S本人 | answer_text；可变草稿与正式原文分开 |
 | GET/POST /assignments/:id/submissions | TS各自范围读/S写 | question_id/answer_text/request_id；attempt、hash、assignment_version，原文不可覆盖 |
+| GET /assignments/:id/roster | T | total/submitted/partial/not_submitted/rows；未提交原文为空、无评分字段 |
+| GET /activity?student_id=... | T或本人 | 真实学习/提交事件、时间/对象版本/来源；学生不准查询他人；最近500条 |
 | GET /submissions/:id | T/提交者 | submission/question/revisions；学生仅released修订 |
 | POST /submissions/:id/revisions；POST /revisions/:id/state | T | score/feedback/request_id；draft→confirmed→released，只允许最新修订 |
 | GET /evidence；GET /overview | TS各自范围/T | 去重正式结果；班级学习事件/作业提交/待执行任务 |
@@ -118,7 +120,7 @@ HttpOnly、SameSiteStrict、Path=/api/v1、8小时cookie，DB仅存token哈希�
 }
 ```
 
-course 产生 resource.opened/completed；assessment 产生 submission.submitted/objective.graded；grading 产生 grade.released/grade.superseded；insight 产生 intervention.assigned/submitted/reviewed。事件与业务同事务提交，不通过浏览器分别调两次接口。消费者用 event_id 去重；成绩替代按 submission 的当前有效发布修订重算，不能一份学生答案计数两次。队列只传 ID，数据库持久事实不放 Redis。
+目标事件约定：course产生resource.opened/completed；assessment产生submission.submitted/objective.graded；grading产生grade.released/grade.superseded；insight产生intervention.assigned/submitted/reviewed。当前实际learning_events保存opened/completed与submission.submitted，含resource_id或submission_id、object_version、actor/course/time。提交事件已与提交同事务落库；客观评分、评分修订与干预当前从业务表读取，还未另存全量事件/outbox，不把目标约定当已实现队列。消费者按事件ID去重；正式成绩按当前有效发布修订重算，不重复计分。
 
 ## 先实现的一条数据交接
 

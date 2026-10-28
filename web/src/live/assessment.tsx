@@ -231,6 +231,11 @@ export function AssignmentEditor({
       return;
     navigate(quiz ? "/teacher/quiz" : "/teacher/homework");
   }
+  if (assignmentId && initializedAssignment.current !== assignmentId) {
+    return original.error
+      ? <Feedback error={original.error} />
+      : <p role="status">正在读取作业草稿…</p>;
+  }
   return (
     <div className="live-page">
       <header className="live-heading">
@@ -626,8 +631,13 @@ export function SubmissionList() {
     assignment: Assignment;
     questions: Question[];
   }>(`/assignments/${assignmentId}`);
-  const members =
-    useLiveQuery<{ id: string; display_name: string }[]>("/members");
+  const roster = useLiveQuery<{
+    total: number;
+    submitted: number;
+    partial: number;
+    not_submitted: number;
+    rows: { student_id: string; display_name: string; submitted_questions: number; total_questions: number }[];
+  }>(`/assignments/${assignmentId}/roster`);
   const [onlyPending, setOnlyPending] = useState(false);
   return (
     <div className="live-page">
@@ -635,23 +645,20 @@ export function SubmissionList() {
         <h1>学生提交与批改</h1>
         <Link to="/teacher/homework">返回作业列表</Link>
       </header>
-      <Feedback error={q.error || detail.error || members.error} />
-      {detail.data && members.data && q.data && (
+      <Feedback error={q.error || detail.error || roster.error} />
+      {detail.data && roster.data && (
         <section className="card-panel">
           <h2>{detail.data.assignment.title} · 提交覆盖</h2>
-          {members.data.map((member) => {
-            const submitted = new Set(
-              q.data
-                .filter((s) => s.student_id === member.id)
-                .map((s) => s.question_id),
-            ).size;
+          <p>共 {roster.data.total} 人 · 已全部提交 {roster.data.submitted} 人 · 部分提交 {roster.data.partial} 人 · 未提交 {roster.data.not_submitted} 人</p>
+          {roster.data.rows.map((member) => {
+            const submitted = member.submitted_questions;
             return (
-              <p key={member.id}>
-                {member.display_name} · {submitted} /{" "}
-                {detail.data!.questions.length} 题 ·{" "}
+              <p key={member.student_id}>
+                <Link to={`/teacher/dashboard?student=${member.student_id}`}>{member.display_name}</Link> · {submitted} /{" "}
+                {member.total_questions} 题 ·{" "}
                 {submitted === 0
                   ? "未提交"
-                  : submitted === detail.data!.questions.length
+                  : submitted === member.total_questions
                     ? "已全部提交"
                     : "部分提交"}
               </p>
@@ -772,6 +779,7 @@ export function GradePage() {
                         {source.version}
                       </summary>
                       <p className="live-prose">{source.content}</p>
+                      <p>资料来源：{source.source_note || source.source_url || "尚未登记来源"}</p>
                       {source.source_url && (
                         <a
                           href={source.source_url}

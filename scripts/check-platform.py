@@ -15,10 +15,13 @@ import uuid
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--base', default='http://127.0.0.1:18080')
 parser.add_argument('--resume', action='store_true')
+parser.add_argument('--allow-remote', action='store_true', help='Explicitly allow the deployed hajistudy.online service')
+parser.add_argument('--accounts', default='.local/s1-accounts.json')
+parser.add_argument('--output', default='.local/platform-check.json')
 args = parser.parse_args()
-if not args.base.startswith(('http://127.0.0.1:', 'http://localhost:')):
+if not args.base.startswith(('http://127.0.0.1:', 'http://localhost:')) and not (args.allow_remote and args.base == 'https://hajistudy.online'):
     raise SystemExit('Only a loopback service may be tested')
-fixtures = json.loads(Path('.local/s1-accounts.json').read_text(encoding='utf8'))
+fixtures = json.loads(Path(args.accounts).read_text(encoding='utf8'))
 accounts = {a['username']: a for a in fixtures['accounts']}
 
 class Client:
@@ -55,7 +58,7 @@ u = Client('s1-teacher-other')
 clients = (t, a, b, u)
 try:
     if args.resume:
-        ids = json.loads(Path('.local/platform-check.json').read_text(encoding='utf8'))
+        ids = json.loads(Path(args.output).read_text(encoding='utf8'))
         prefix = '/learning/courses/' + ids['course_id']
         result = a.call('GET', prefix + '/submissions/' + ids['submission_id'])
         assert result['submission']['answer_text'] == ids['answer_text']
@@ -87,11 +90,11 @@ try:
         path=a.call('GET',prefix+'/path')
         assert [i['knowledge_point_id'] for i in path['items']]==[point['id'],next_point['id']]
         assert b.call('GET',prefix+'/path') is None
-        resource = t.call('POST', prefix + '/resources', {'title': '构造资料：数据质量检查', 'content': '完整性指字段齐全；准确性需核对原始来源。', 'source_url': '', 'locator': '第1段', 'knowledge_point_id': point['id']})
+        resource = t.call('POST', prefix + '/resources', {'title': '构造资料：数据质量检查', 'content': '完整性指字段齐全；准确性需核对原始来源。', 'source_note': '自动验收自编资料，非教师实授材料', 'source_url': '', 'locator': '第1段', 'knowledge_point_id': point['id']})
         assert a.call('GET', prefix + '/resources') == []
         a.call('POST', prefix + '/resources/' + resource['id'] + '/events', {'verb': 'opened', 'request_id': uid()}, expected=403)
         t.call('POST', prefix + '/resources/' + resource['id'] + '/publish', {})
-        updated_resource=t.call('POST',prefix+'/resources/'+resource['id']+'/revisions',{'title':'构造资料修订','content':'补充质量核查记录，旧原文仍保留。','source_url':'','locator':'第2段'})
+        updated_resource=t.call('POST',prefix+'/resources/'+resource['id']+'/revisions',{'title':'构造资料修订','content':'补充质量核查记录，旧原文仍保留。','source_note':'自动验收自编修订资料','source_url':'','locator':'第2段'})
         assert updated_resource['version']==2 and updated_resource['supersedes_id']==resource['id']
         assert len(a.call('GET',prefix+'/resources'))==1
         t.call('POST',prefix+'/resources/'+updated_resource['id']+'/publish',{})
@@ -136,6 +139,17 @@ try:
         b.call('GET', sp, expected=403)
         assert len(b.call('GET', ap + '/submissions')) == 0
         assert t.call('GET', sp)['submission']['answer_text'] == answer
+
+        roster = t.call('GET', ap + '/roster')
+        assert (roster['total'], roster['submitted'], roster['not_submitted']) == (2, 1, 1)
+        assert next(r for r in roster['rows'] if r['student_id'] == accounts['s1-student-b']['id'])['submission_id'] == ''
+        activity = t.call('GET', prefix + '/activity?student_id=' + accounts['s1-student-a']['id'])
+        submission_events = [e for e in activity if e['verb'] == 'submission.submitted']
+        assert len(submission_events) == 2 and {e['submission_id'] for e in submission_events} == {submission['id'], another['id']}
+        b.call('GET', prefix + '/activity?student_id=' + accounts['s1-student-a']['id'], expected=403)
+        assert b.call('GET', prefix + '/activity') == []
+        assert resource['source_note'] and updated_resource['source_note']
+        print('PASS: CO-01 source provenance, AS-01 submitted/unsubmitted roster and S1 student activity before grading')
         t.call('POST', sp + '/revisions', {'score': 11, 'feedback': '不合法', 'request_id': uid()}, expected=422)
         grade_body = {'score': 8, 'feedback': '方法正确，补充记录。', 'request_id': uid()}
         grade = t.call('POST', sp + '/revisions', grade_body)
@@ -232,9 +246,9 @@ try:
         overdue_question = a.call('GET', overdue_path)['questions'][0]
         a.call('POST', overdue_path + '/submissions', {'question_id': overdue_question['id'], 'answer_text': '不应提交', 'request_id': uid()}, expected=409)
         other_prefix = '/learning/courses/' + template_course['id']
-        foreign_resource = t.call('POST', other_prefix + '/resources', {'title': '另一课程资料', 'content': '隔离验收', 'locator': '第1段'})
+        foreign_resource = t.call('POST', other_prefix + '/resources', {'title': '另一课程资料', 'content': '隔离验收', 'source_note': '自动验收自编资料', 'locator': '第1段'})
         t.call('POST', other_prefix + '/resources/' + foreign_resource['id'] + '/publish', {})
-        t.call('POST', prefix + '/resources/' + foreign_resource['id'] + '/revisions', {'title': '越界修订', 'content': '不能跨课程', 'locator': '第1段'}, expected=403)
+        t.call('POST', prefix + '/resources/' + foreign_resource['id'] + '/revisions', {'title': '越界修订', 'content': '不能跨课程', 'source_note': '自动验收自编资料', 'locator': '第1段'}, expected=403)
         a.call('PUT', prefix + '/resources/' + foreign_resource['id'] + '/note', {'note': '越界笔记', 'favorite': False}, expected=403)
         t.call('POST', prefix + '/assignments', {'title': '越界依据', 'questions': [{'prompt': '错误资料绑定', 'max_score': 10, 'rubric': '测试', 'resource_id': foreign_resource['id']}]}, expected=403)
         t.call('POST', prefix + '/interventions', {'student_id': accounts['s1-student-a']['id'], 'title': '越界补学', 'description': '不应创建', 'resource_id': foreign_resource['id']}, expected=403)
@@ -244,7 +258,7 @@ try:
         assert not a.call('GET',prefix+'/assist')['configured']
         a.call('POST',prefix+'/assist',{'topic':'解释数据质量'},expected=503)
         print('PASS: curriculum hierarchy, dependency cycle rejection, persistent paths, immutable resource history and AI disabled state')
-        Path('.local/platform-check.json').write_text(json.dumps({'course_id': course['id'], 'assignment_id': assignment['id'], 'submission_id': submission['id'], 'resource_id': resource['id'], 'knowledge_point_id': point['id'], 'answer_text': answer}, ensure_ascii=False, indent=2), encoding='utf8')
+        Path(args.output).write_text(json.dumps({'course_id': course['id'], 'assignment_id': assignment['id'], 'submission_id': submission['id'], 'resource_id': resource['id'], 'knowledge_point_id': point['id'], 'answer_text': answer, 's1_handoff': {'student_id': submission['student_id'], 'question_id': question['id'], 'attempt': submission['attempt'], 'assignment_version': submission['assignment_version'], 'answer_sha256': submission['answer_sha256'], 'submitted_at': submission['submitted_at'], 'resource_version': resource['version'], 'source_note': resource['source_note'], 'locator': resource['locator'], 'event_count_before_grading': len(activity), 'roster_before_grading': {'total': roster['total'], 'submitted': roster['submitted'], 'not_submitted': roster['not_submitted']}}}, ensure_ascii=False, indent=2), encoding='utf8')
         print('Real test IDs saved locally for browser/restart checks; labelled test course retained.')
 finally:
     for client in clients:

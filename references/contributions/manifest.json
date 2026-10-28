@@ -1,0 +1,20 @@
+{
+  "format": 1,
+  "baseline": "ad0b91f",
+  "files": [
+    {
+      "path": "CO-01-original.patch.gz",
+      "owner": "徐铂尧",
+      "sha256": "fddb2d74edc19c9136b978a52b69ab4def58a82b2928771137b5d3da9c7ae6da",
+      "source_zip_sha256": "1df36c374e7b027f00a76a8e6a64c1d753b78982f07354ba76f20a76a1f4c0bd",
+      "uncompressed_sha256": "70cf18b984edee853112a17959b16b68d5b54f78bea7a9de9d6b6dc550b7a031"
+    },
+    {
+      "path": "AS-01-original.patch.gz",
+      "owner": "张俊超",
+      "sha256": "17e81a91496553e6956d52f991a514b0ac719989f8a75ae08114d08dde7686e3",
+      "source_zip_sha256": "2617281773cbbfe2f9a8073fc481eeacf70f8a3b37e06ceda1b01c1f62513b89",
+      "uncompressed_sha256": "7adad91667cda77fb4439ffc549d72972bcd18155881cf42a707c604cee8d2e4"
+    }
+  ]
+}

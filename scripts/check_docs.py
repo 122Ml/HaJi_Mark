@@ -22,6 +22,11 @@ for item in manifest["files"]:
     source = root / item["snapshot"]
     if hashlib.sha256(source.read_bytes()).hexdigest() != item["sha256"]:
         errors.append(f"Changed historical snapshot: {item['snapshot']}")
+contributions = root / 'references/contributions/manifest.json'
+if contributions.exists():
+    for item in json.loads(contributions.read_text(encoding='utf-8'))['files']:
+        if hashlib.sha256((contributions.parent / item['path']).read_bytes()).hexdigest() != item['sha256']:
+            errors.append(f"Changed contribution patch: {item['path']}")
 for name in ("course", "assessment", "grading", "insight"):
     for relative in (f"web/src/features/{name}/index.tsx", f"backend/internal/{name}/README.md"):
         if not (root / relative).exists():

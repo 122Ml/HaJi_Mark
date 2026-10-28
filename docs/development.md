@@ -10,6 +10,8 @@
 
 ## 锁定基线
 
+本次用户已授权hajistudy.online服务器部署，具体步骤与入口见[生产部署](../deploy/README.md)。生产使用独立Compose和随机数据库/账号凭据；本地HTTP开发命令保持不变。S1收口适配合并见[贡献来源](../references/contributions/README.md)。本次不包含GitHub同步。
+
 Go 1.26.1、Node 22.22.0；Gin 1.11.0、pgx 5.7.6、Asynq 0.25.1；Goose 3.26.0、sqlc 1.30.0；PostgreSQL 18.1（挂载/var/lib/postgresql）、Redis 7.4.10。数据库镜像复用本机已有的明确版本，避免首次验证重复下载。React/Ant Design/Vite等精确版本在package.json及锁文件。Docker使用明确版本标签，不使用latest；未宣称这些是2026年最新版本。
 
 依赖属于最小工程支持：Gin路由、pgx/sqlc数据、Goose迁移、Asynq队列、React Router路由、Query服务端缓存、Ant Design表单/表格。不开向量库/Agent编排框架。升级依赖由李然集中处理，三人不要分别让AI重写锁文件。

@@ -66,17 +66,18 @@ func (q *Queries) AddCourseEdge(ctx context.Context, arg AddCourseEdgeParams) (C
 }
 
 const addLearningEvent = `-- name: AddLearningEvent :one
-INSERT INTO learning_events(id,course_id,actor_id,resource_id,verb,request_id)
-VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(actor_id,request_id) DO NOTHING RETURNING id, course_id, actor_id, resource_id, verb, request_id, occurred_at
+INSERT INTO learning_events(id,course_id,actor_id,resource_id,verb,request_id,object_version)
+VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(actor_id,request_id) DO NOTHING RETURNING id, course_id, actor_id, resource_id, verb, request_id, occurred_at, submission_id, object_version
 `
 
 type AddLearningEventParams struct {
-	ID         string      `json:"id"`
-	CourseID   string      `json:"course_id"`
-	ActorID    string      `json:"actor_id"`
-	ResourceID pgtype.Text `json:"resource_id"`
-	Verb       string      `json:"verb"`
-	RequestID  string      `json:"request_id"`
+	ID            string      `json:"id"`
+	CourseID      string      `json:"course_id"`
+	ActorID       string      `json:"actor_id"`
+	ResourceID    pgtype.Text `json:"resource_id"`
+	Verb          string      `json:"verb"`
+	RequestID     string      `json:"request_id"`
+	ObjectVersion int32       `json:"object_version"`
 }
 
 func (q *Queries) AddLearningEvent(ctx context.Context, arg AddLearningEventParams) (LearningEvent, error) {
@@ -87,6 +88,7 @@ func (q *Queries) AddLearningEvent(ctx context.Context, arg AddLearningEventPara
 		arg.ResourceID,
 		arg.Verb,
 		arg.RequestID,
+		arg.ObjectVersion,
 	)
 	var i LearningEvent
 	err := row.Scan(
@@ -97,6 +99,8 @@ func (q *Queries) AddLearningEvent(ctx context.Context, arg AddLearningEventPara
 		&i.Verb,
 		&i.RequestID,
 		&i.OccurredAt,
+		&i.SubmissionID,
+		&i.ObjectVersion,
 	)
 	return i, err
 }
@@ -122,9 +126,99 @@ func (q *Queries) AddStudyPathItem(ctx context.Context, arg AddStudyPathItemPara
 	return err
 }
 
+const addSubmissionEvent = `-- name: AddSubmissionEvent :exec
+INSERT INTO learning_events(id,course_id,actor_id,submission_id,verb,request_id,object_version,occurred_at)
+VALUES($1,$2,$3,$4,'submission.submitted',$5,$6,$7)
+`
+
+type AddSubmissionEventParams struct {
+	ID            string             `json:"id"`
+	CourseID      string             `json:"course_id"`
+	ActorID       string             `json:"actor_id"`
+	SubmissionID  pgtype.Text        `json:"submission_id"`
+	RequestID     string             `json:"request_id"`
+	ObjectVersion int32              `json:"object_version"`
+	OccurredAt    pgtype.Timestamptz `json:"occurred_at"`
+}
+
+func (q *Queries) AddSubmissionEvent(ctx context.Context, arg AddSubmissionEventParams) error {
+	_, err := q.db.Exec(ctx, addSubmissionEvent,
+		arg.ID,
+		arg.CourseID,
+		arg.ActorID,
+		arg.SubmissionID,
+		arg.RequestID,
+		arg.ObjectVersion,
+		arg.OccurredAt,
+	)
+	return err
+}
+
+const assignmentSubmissionRoster = `-- name: AssignmentSubmissionRoster :many
+SELECT u.id AS student_id,u.display_name,
+ (SELECT count(DISTINCT s.question_id)::integer FROM submissions s WHERE s.assignment_id=$1 AND s.student_id=u.id) AS submitted_questions,
+ (SELECT count(*)::integer FROM questions q WHERE q.assignment_id=$1) AS total_questions,
+ COALESCE(latest.id,'')::text AS submission_id,COALESCE(latest.attempt,0)::integer AS attempt,
+ COALESCE(latest.answer_text,'')::text AS answer_text,COALESCE(latest.answer_sha256,'')::text AS answer_sha256,latest.submitted_at
+FROM enrollments e JOIN users u ON u.id=e.student_id
+LEFT JOIN LATERAL (
+ SELECT s.id,s.attempt,s.answer_text,s.answer_sha256,s.submitted_at FROM submissions s
+ WHERE s.assignment_id=$1 AND s.student_id=u.id
+ ORDER BY s.submitted_at DESC,s.id DESC LIMIT 1
+) latest ON true
+WHERE e.course_id=$2 ORDER BY u.display_name,u.id
+`
+
+type AssignmentSubmissionRosterParams struct {
+	AssignmentID string `json:"assignment_id"`
+	CourseID     string `json:"course_id"`
+}
+
+type AssignmentSubmissionRosterRow struct {
+	StudentID          string             `json:"student_id"`
+	DisplayName        string             `json:"display_name"`
+	SubmittedQuestions int32              `json:"submitted_questions"`
+	TotalQuestions     int32              `json:"total_questions"`
+	SubmissionID       string             `json:"submission_id"`
+	Attempt            int32              `json:"attempt"`
+	AnswerText         string             `json:"answer_text"`
+	AnswerSha256       string             `json:"answer_sha256"`
+	SubmittedAt        pgtype.Timestamptz `json:"submitted_at"`
+}
+
+func (q *Queries) AssignmentSubmissionRoster(ctx context.Context, arg AssignmentSubmissionRosterParams) ([]AssignmentSubmissionRosterRow, error) {
+	rows, err := q.db.Query(ctx, assignmentSubmissionRoster, arg.AssignmentID, arg.CourseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AssignmentSubmissionRosterRow{}
+	for rows.Next() {
+		var i AssignmentSubmissionRosterRow
+		if err := rows.Scan(
+			&i.StudentID,
+			&i.DisplayName,
+			&i.SubmittedQuestions,
+			&i.TotalQuestions,
+			&i.SubmissionID,
+			&i.Attempt,
+			&i.AnswerText,
+			&i.AnswerSha256,
+			&i.SubmittedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const businessOverview = `-- name: BusinessOverview :many
 SELECT u.id,u.display_name,
- (SELECT count(*) FROM learning_events l WHERE l.course_id=e.course_id AND l.actor_id=u.id AND l.verb='completed')::integer AS completed_events,
+ (SELECT count(DISTINCT resource_id) FROM learning_events l WHERE l.course_id=e.course_id AND l.actor_id=u.id AND l.verb='completed')::integer AS completed_events,
  (SELECT count(DISTINCT s.assignment_id) FROM submissions s WHERE s.course_id=e.course_id AND s.student_id=u.id)::integer AS submitted_assignments,
  (SELECT count(*) FROM interventions i WHERE i.course_id=e.course_id AND i.student_id=u.id AND i.status='assigned')::integer AS pending_interventions
 FROM enrollments e JOIN users u ON u.id=e.student_id WHERE e.course_id=$1 ORDER BY u.display_name,u.id
@@ -433,8 +527,8 @@ func (q *Queries) CreateBusinessQuestion(ctx context.Context, arg CreateBusiness
 }
 
 const createBusinessResource = `-- name: CreateBusinessResource :one
-INSERT INTO resources(id,course_id,title,content,source_url,locator,created_by,knowledge_point_id)
-VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, course_id, knowledge_point_id, title, content, source_url, locator, version, status, created_by, reviewed_by, created_at, published_at, supersedes_id
+INSERT INTO resources(id,course_id,title,content,source_url,locator,created_by,knowledge_point_id,source_note)
+VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id, course_id, knowledge_point_id, title, content, source_url, locator, version, status, created_by, reviewed_by, created_at, published_at, supersedes_id, source_note
 `
 
 type CreateBusinessResourceParams struct {
@@ -446,6 +540,7 @@ type CreateBusinessResourceParams struct {
 	Locator          string      `json:"locator"`
 	CreatedBy        string      `json:"created_by"`
 	KnowledgePointID pgtype.Text `json:"knowledge_point_id"`
+	SourceNote       string      `json:"source_note"`
 }
 
 func (q *Queries) CreateBusinessResource(ctx context.Context, arg CreateBusinessResourceParams) (Resource, error) {
@@ -458,6 +553,7 @@ func (q *Queries) CreateBusinessResource(ctx context.Context, arg CreateBusiness
 		arg.Locator,
 		arg.CreatedBy,
 		arg.KnowledgePointID,
+		arg.SourceNote,
 	)
 	var i Resource
 	err := row.Scan(
@@ -475,6 +571,7 @@ func (q *Queries) CreateBusinessResource(ctx context.Context, arg CreateBusiness
 		&i.CreatedAt,
 		&i.PublishedAt,
 		&i.SupersedesID,
+		&i.SourceNote,
 	)
 	return i, err
 }
@@ -638,18 +735,19 @@ func (q *Queries) CreateResearchRecord(ctx context.Context, arg CreateResearchRe
 }
 
 const createResourceRevision = `-- name: CreateResourceRevision :one
-INSERT INTO resources(id,course_id,knowledge_point_id,title,content,source_url,locator,version,created_by,supersedes_id)
-SELECT $1,r.course_id,r.knowledge_point_id,$2,$3,$4,$5,r.version+1,$6,r.id FROM resources r WHERE r.id=$7 AND r.status='published' RETURNING id, course_id, knowledge_point_id, title, content, source_url, locator, version, status, created_by, reviewed_by, created_at, published_at, supersedes_id
+INSERT INTO resources(id,course_id,knowledge_point_id,title,content,source_url,locator,version,created_by,supersedes_id,source_note)
+SELECT $1,r.course_id,r.knowledge_point_id,$2,$3,$4,$5,r.version+1,$6,r.id,$8 FROM resources r WHERE r.id=$7 AND r.status='published' RETURNING id, course_id, knowledge_point_id, title, content, source_url, locator, version, status, created_by, reviewed_by, created_at, published_at, supersedes_id, source_note
 `
 
 type CreateResourceRevisionParams struct {
-	ID        string `json:"id"`
-	Title     string `json:"title"`
-	Content   string `json:"content"`
-	SourceUrl string `json:"source_url"`
-	Locator   string `json:"locator"`
-	CreatedBy string `json:"created_by"`
-	ID_2      string `json:"id_2"`
+	ID         string `json:"id"`
+	Title      string `json:"title"`
+	Content    string `json:"content"`
+	SourceUrl  string `json:"source_url"`
+	Locator    string `json:"locator"`
+	CreatedBy  string `json:"created_by"`
+	ID_2       string `json:"id_2"`
+	SourceNote string `json:"source_note"`
 }
 
 func (q *Queries) CreateResourceRevision(ctx context.Context, arg CreateResourceRevisionParams) (Resource, error) {
@@ -661,6 +759,7 @@ func (q *Queries) CreateResourceRevision(ctx context.Context, arg CreateResource
 		arg.Locator,
 		arg.CreatedBy,
 		arg.ID_2,
+		arg.SourceNote,
 	)
 	var i Resource
 	err := row.Scan(
@@ -678,6 +777,7 @@ func (q *Queries) CreateResourceRevision(ctx context.Context, arg CreateResource
 		&i.CreatedAt,
 		&i.PublishedAt,
 		&i.SupersedesID,
+		&i.SourceNote,
 	)
 	return i, err
 }
@@ -1025,7 +1125,7 @@ func (q *Queries) GetBusinessQuestion(ctx context.Context, id string) (Question,
 }
 
 const getBusinessResource = `-- name: GetBusinessResource :one
-SELECT id, course_id, knowledge_point_id, title, content, source_url, locator, version, status, created_by, reviewed_by, created_at, published_at, supersedes_id FROM resources WHERE id=$1
+SELECT id, course_id, knowledge_point_id, title, content, source_url, locator, version, status, created_by, reviewed_by, created_at, published_at, supersedes_id, source_note FROM resources WHERE id=$1
 `
 
 func (q *Queries) GetBusinessResource(ctx context.Context, id string) (Resource, error) {
@@ -1046,6 +1146,7 @@ func (q *Queries) GetBusinessResource(ctx context.Context, id string) (Resource,
 		&i.CreatedAt,
 		&i.PublishedAt,
 		&i.SupersedesID,
+		&i.SourceNote,
 	)
 	return i, err
 }
@@ -1117,7 +1218,7 @@ func (q *Queries) GetKnowledgePoint(ctx context.Context, id string) (KnowledgePo
 }
 
 const getLearningEventByRequest = `-- name: GetLearningEventByRequest :one
-SELECT id, course_id, actor_id, resource_id, verb, request_id, occurred_at FROM learning_events WHERE actor_id=$1 AND request_id=$2
+SELECT id, course_id, actor_id, resource_id, verb, request_id, occurred_at, submission_id, object_version FROM learning_events WHERE actor_id=$1 AND request_id=$2
 `
 
 type GetLearningEventByRequestParams struct {
@@ -1136,6 +1237,8 @@ func (q *Queries) GetLearningEventByRequest(ctx context.Context, arg GetLearning
 		&i.Verb,
 		&i.RequestID,
 		&i.OccurredAt,
+		&i.SubmissionID,
+		&i.ObjectVersion,
 	)
 	return i, err
 }
@@ -1528,7 +1631,7 @@ func (q *Queries) ListBusinessQuestions(ctx context.Context, assignmentID string
 }
 
 const listBusinessResources = `-- name: ListBusinessResources :many
-SELECT id, course_id, knowledge_point_id, title, content, source_url, locator, version, status, created_by, reviewed_by, created_at, published_at, supersedes_id FROM resources WHERE course_id=$1 AND ($2::boolean OR status='published') ORDER BY created_at,id
+SELECT id, course_id, knowledge_point_id, title, content, source_url, locator, version, status, created_by, reviewed_by, created_at, published_at, supersedes_id, source_note FROM resources WHERE course_id=$1 AND ($2::boolean OR status='published') ORDER BY created_at,id
 `
 
 type ListBusinessResourcesParams struct {
@@ -1560,6 +1663,7 @@ func (q *Queries) ListBusinessResources(ctx context.Context, arg ListBusinessRes
 			&i.CreatedAt,
 			&i.PublishedAt,
 			&i.SupersedesID,
+			&i.SourceNote,
 		); err != nil {
 			return nil, err
 		}
@@ -1673,6 +1777,76 @@ func (q *Queries) ListBusinessSubmissions(ctx context.Context, arg ListBusinessS
 	return items, nil
 }
 
+const listCourseActivity = `-- name: ListCourseActivity :many
+SELECT e.id,e.actor_id,u.display_name,e.verb,e.resource_id,e.submission_id,e.object_version,e.occurred_at,
+ COALESCE(r.title,a.title,'')::text AS title,COALESCE(r.locator,'')::text AS locator,
+ COALESCE(r.source_note,'')::text AS source_note,COALESCE(r.source_url,'')::text AS source_url,
+ COALESCE(s.attempt,0)::integer AS attempt,COALESCE(s.answer_sha256,'')::text AS answer_sha256
+FROM learning_events e JOIN users u ON u.id=e.actor_id
+LEFT JOIN resources r ON r.id=e.resource_id
+LEFT JOIN submissions s ON s.id=e.submission_id
+LEFT JOIN assignments a ON a.id=s.assignment_id
+WHERE e.course_id=$1 AND ($2::text='' OR e.actor_id=$2)
+ORDER BY e.occurred_at DESC,e.id DESC LIMIT 500
+`
+
+type ListCourseActivityParams struct {
+	CourseID  string `json:"course_id"`
+	StudentID string `json:"student_id"`
+}
+
+type ListCourseActivityRow struct {
+	ID            string             `json:"id"`
+	ActorID       string             `json:"actor_id"`
+	DisplayName   string             `json:"display_name"`
+	Verb          string             `json:"verb"`
+	ResourceID    pgtype.Text        `json:"resource_id"`
+	SubmissionID  pgtype.Text        `json:"submission_id"`
+	ObjectVersion int32              `json:"object_version"`
+	OccurredAt    pgtype.Timestamptz `json:"occurred_at"`
+	Title         string             `json:"title"`
+	Locator       string             `json:"locator"`
+	SourceNote    string             `json:"source_note"`
+	SourceUrl     string             `json:"source_url"`
+	Attempt       int32              `json:"attempt"`
+	AnswerSha256  string             `json:"answer_sha256"`
+}
+
+func (q *Queries) ListCourseActivity(ctx context.Context, arg ListCourseActivityParams) ([]ListCourseActivityRow, error) {
+	rows, err := q.db.Query(ctx, listCourseActivity, arg.CourseID, arg.StudentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCourseActivityRow{}
+	for rows.Next() {
+		var i ListCourseActivityRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ActorID,
+			&i.DisplayName,
+			&i.Verb,
+			&i.ResourceID,
+			&i.SubmissionID,
+			&i.ObjectVersion,
+			&i.OccurredAt,
+			&i.Title,
+			&i.Locator,
+			&i.SourceNote,
+			&i.SourceUrl,
+			&i.Attempt,
+			&i.AnswerSha256,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listCourseEdges = `-- name: ListCourseEdges :many
 SELECT course_id, from_id, to_id FROM course_edges WHERE course_id=$1 ORDER BY from_id,to_id
 `
@@ -1765,7 +1939,7 @@ func (q *Queries) ListLearningNotes(ctx context.Context, arg ListLearningNotesPa
 }
 
 const listMyLearningEvents = `-- name: ListMyLearningEvents :many
-SELECT id, course_id, actor_id, resource_id, verb, request_id, occurred_at FROM learning_events WHERE course_id=$1 AND actor_id=$2 ORDER BY occurred_at DESC
+SELECT id, course_id, actor_id, resource_id, verb, request_id, occurred_at, submission_id, object_version FROM learning_events WHERE course_id=$1 AND actor_id=$2 ORDER BY occurred_at DESC
 `
 
 type ListMyLearningEventsParams struct {
@@ -1790,6 +1964,8 @@ func (q *Queries) ListMyLearningEvents(ctx context.Context, arg ListMyLearningEv
 			&i.Verb,
 			&i.RequestID,
 			&i.OccurredAt,
+			&i.SubmissionID,
+			&i.ObjectVersion,
 		); err != nil {
 			return nil, err
 		}
@@ -1962,7 +2138,7 @@ func (q *Queries) PublishBusinessCourse(ctx context.Context, arg PublishBusiness
 }
 
 const publishBusinessResource = `-- name: PublishBusinessResource :one
-UPDATE resources SET status='published',reviewed_by=$2,published_at=now() WHERE id=$1 AND status='draft' RETURNING id, course_id, knowledge_point_id, title, content, source_url, locator, version, status, created_by, reviewed_by, created_at, published_at, supersedes_id
+UPDATE resources SET status='published',reviewed_by=$2,published_at=now() WHERE id=$1 AND status='draft' RETURNING id, course_id, knowledge_point_id, title, content, source_url, locator, version, status, created_by, reviewed_by, created_at, published_at, supersedes_id, source_note
 `
 
 type PublishBusinessResourceParams struct {
@@ -1988,6 +2164,7 @@ func (q *Queries) PublishBusinessResource(ctx context.Context, arg PublishBusine
 		&i.CreatedAt,
 		&i.PublishedAt,
 		&i.SupersedesID,
+		&i.SourceNote,
 	)
 	return i, err
 }

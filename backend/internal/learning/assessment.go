@@ -1,8 +1,6 @@
 package learning
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
@@ -229,7 +227,7 @@ func (h *Handler) submit(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
-	if !validText(in.Answer, 200000) || !validText(in.RequestID, 128) {
+	if blank(in.Answer) || len(in.Answer) > 200000 || !validText(in.RequestID, 128) {
 		invalid(c, "请填写答案和有效请求号")
 		return
 	}
@@ -285,9 +283,12 @@ func (h *Handler) submit(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
-	sum := sha256.Sum256([]byte(in.Answer))
-	v, e := q.CreateBusinessSubmission(ctx, store.CreateBusinessSubmissionParams{ID: uuid.NewString(), AssignmentID: a.ID, AssignmentVersion: a.Version, QuestionID: question.ID, CourseID: a.CourseID, StudentID: identity.Current(c).ID, Attempt: attempt, AnswerText: in.Answer, AnswerSha256: hex.EncodeToString(sum[:]), RequestID: in.RequestID})
+	v, e := q.CreateBusinessSubmission(ctx, store.CreateBusinessSubmissionParams{ID: uuid.NewString(), AssignmentID: a.ID, AssignmentVersion: a.Version, QuestionID: question.ID, CourseID: a.CourseID, StudentID: identity.Current(c).ID, Attempt: attempt, AnswerText: in.Answer, AnswerSha256: hashAnswer(in.Answer), RequestID: in.RequestID})
 	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	if e = q.AddSubmissionEvent(ctx, store.AddSubmissionEventParams{ID: uuid.NewString(), CourseID: a.CourseID, ActorID: v.StudentID, SubmissionID: text(v.ID), RequestID: "submission:" + v.ID, ObjectVersion: a.Version, OccurredAt: v.SubmittedAt}); e != nil {
 		result(c, nil, e)
 		return
 	}

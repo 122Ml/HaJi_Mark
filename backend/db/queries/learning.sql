@@ -31,15 +31,19 @@ SELECT * FROM resources WHERE course_id=$1 AND (sqlc.arg(teacher)::boolean OR st
 SELECT * FROM resources WHERE id=$1;
 
 -- name: CreateBusinessResource :one
-INSERT INTO resources(id,course_id,title,content,source_url,locator,created_by,knowledge_point_id)
-VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *;
+INSERT INTO resources(id,course_id,title,content,source_url,locator,created_by,knowledge_point_id,source_note)
+VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *;
 
 -- name: PublishBusinessResource :one
 UPDATE resources SET status='published',reviewed_by=$2,published_at=now() WHERE id=$1 AND status='draft' RETURNING *;
 
 -- name: AddLearningEvent :one
-INSERT INTO learning_events(id,course_id,actor_id,resource_id,verb,request_id)
-VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(actor_id,request_id) DO NOTHING RETURNING *;
+INSERT INTO learning_events(id,course_id,actor_id,resource_id,verb,request_id,object_version)
+VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(actor_id,request_id) DO NOTHING RETURNING *;
+
+-- name: AddSubmissionEvent :exec
+INSERT INTO learning_events(id,course_id,actor_id,submission_id,verb,request_id,object_version,occurred_at)
+VALUES($1,$2,$3,$4,'submission.submitted',$5,$6,$7);
 
 -- name: GetLearningEventByRequest :one
 SELECT * FROM learning_events WHERE actor_id=$1 AND request_id=$2;
@@ -165,7 +169,7 @@ INSERT INTO interactions(id,course_id,actor_id,kind,title,content,parent_id) VAL
 
 -- name: BusinessOverview :many
 SELECT u.id,u.display_name,
- (SELECT count(*) FROM learning_events l WHERE l.course_id=e.course_id AND l.actor_id=u.id AND l.verb='completed')::integer AS completed_events,
+ (SELECT count(DISTINCT resource_id) FROM learning_events l WHERE l.course_id=e.course_id AND l.actor_id=u.id AND l.verb='completed')::integer AS completed_events,
  (SELECT count(DISTINCT s.assignment_id) FROM submissions s WHERE s.course_id=e.course_id AND s.student_id=u.id)::integer AS submitted_assignments,
  (SELECT count(*) FROM interventions i WHERE i.course_id=e.course_id AND i.student_id=u.id AND i.status='assigned')::integer AS pending_interventions
 FROM enrollments e JOIN users u ON u.id=e.student_id WHERE e.course_id=$1 ORDER BY u.display_name,u.id;
@@ -229,8 +233,34 @@ SELECT * FROM study_paths WHERE course_id=$1 AND student_id=$2 ORDER BY created_
 SELECT i.*,k.title,k.description FROM study_path_items i JOIN knowledge_points k ON k.id=i.knowledge_point_id WHERE path_id=$1 ORDER BY i.position;
 
 -- name: CreateResourceRevision :one
-INSERT INTO resources(id,course_id,knowledge_point_id,title,content,source_url,locator,version,created_by,supersedes_id)
-SELECT $1,r.course_id,r.knowledge_point_id,$2,$3,$4,$5,r.version+1,$6,r.id FROM resources r WHERE r.id=$7 AND r.status='published' RETURNING *;
+INSERT INTO resources(id,course_id,knowledge_point_id,title,content,source_url,locator,version,created_by,supersedes_id,source_note)
+SELECT $1,r.course_id,r.knowledge_point_id,$2,$3,$4,$5,r.version+1,$6,r.id,$8 FROM resources r WHERE r.id=$7 AND r.status='published' RETURNING *;
+
+-- name: AssignmentSubmissionRoster :many
+SELECT u.id AS student_id,u.display_name,
+ (SELECT count(DISTINCT s.question_id)::integer FROM submissions s WHERE s.assignment_id=sqlc.arg(assignment_id) AND s.student_id=u.id) AS submitted_questions,
+ (SELECT count(*)::integer FROM questions q WHERE q.assignment_id=sqlc.arg(assignment_id)) AS total_questions,
+ COALESCE(latest.id,'')::text AS submission_id,COALESCE(latest.attempt,0)::integer AS attempt,
+ COALESCE(latest.answer_text,'')::text AS answer_text,COALESCE(latest.answer_sha256,'')::text AS answer_sha256,latest.submitted_at
+FROM enrollments e JOIN users u ON u.id=e.student_id
+LEFT JOIN LATERAL (
+ SELECT s.id,s.attempt,s.answer_text,s.answer_sha256,s.submitted_at FROM submissions s
+ WHERE s.assignment_id=sqlc.arg(assignment_id) AND s.student_id=u.id
+ ORDER BY s.submitted_at DESC,s.id DESC LIMIT 1
+) latest ON true
+WHERE e.course_id=sqlc.arg(course_id) ORDER BY u.display_name,u.id;
+
+-- name: ListCourseActivity :many
+SELECT e.id,e.actor_id,u.display_name,e.verb,e.resource_id,e.submission_id,e.object_version,e.occurred_at,
+ COALESCE(r.title,a.title,'')::text AS title,COALESCE(r.locator,'')::text AS locator,
+ COALESCE(r.source_note,'')::text AS source_note,COALESCE(r.source_url,'')::text AS source_url,
+ COALESCE(s.attempt,0)::integer AS attempt,COALESCE(s.answer_sha256,'')::text AS answer_sha256
+FROM learning_events e JOIN users u ON u.id=e.actor_id
+LEFT JOIN resources r ON r.id=e.resource_id
+LEFT JOIN submissions s ON s.id=e.submission_id
+LEFT JOIN assignments a ON a.id=s.assignment_id
+WHERE e.course_id=sqlc.arg(course_id) AND (sqlc.arg(student_id)::text='' OR e.actor_id=sqlc.arg(student_id))
+ORDER BY e.occurred_at DESC,e.id DESC LIMIT 500;
 
 -- name: LockBusinessCourse :one
 SELECT id FROM courses WHERE id=$1 FOR UPDATE;

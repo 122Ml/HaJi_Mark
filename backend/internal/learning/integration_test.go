@@ -25,6 +25,7 @@ func TestTeachingLoop(t *testing.T) {
 		t.Skip("TEST_DATABASE_URL is not set")
 	}
 	t.Setenv("AI_ENABLED", "false")
+	t.Setenv("PUBLIC_ORIGIN", "")
 	ctx := context.Background()
 	admin, err := pgxpool.New(ctx, dsn)
 	if err != nil {
@@ -182,6 +183,100 @@ func TestTeachingLoop(t *testing.T) {
 		sid = current
 	}
 	sp := base + "/submissions/" + sid
+	t.Run("AS01_submission_roster_activity_and_exact_text", func(t *testing.T) {
+		var snapshot struct {
+			Submission struct {
+				AnswerText string `json:"answer_text"`
+				Hash       string `json:"answer_sha256"`
+			} `json:"submission"`
+		}
+		if e := json.Unmarshal(call(teacher, "GET", sp, nil, 200), &snapshot); e != nil {
+			t.Fatal(e)
+		}
+		if snapshot.Submission.AnswerText != input["answer_text"] || len(snapshot.Submission.Hash) != 64 {
+			t.Fatal("original answer or hash lost")
+		}
+		changed := map[string]string{"question_id": input["question_id"], "answer_text": "changed", "request_id": input["request_id"]}
+		call(student, "POST", ap+"/submissions", changed, 409)
+		secondID := id(call(teacher, "POST", base+"/assignments", map[string]any{"title": "second", "questions": []any{map[string]any{"prompt": "other question", "max_score": 10, "rubric": "evidence"}}}, 200))
+		secondPath := base + "/assignments/" + secondID
+		call(teacher, "POST", secondPath+"/state", map[string]string{"state": "published"}, 200)
+		var second struct {
+			Questions []struct {
+				ID string `json:"id"`
+			} `json:"questions"`
+		}
+		if e := json.Unmarshal(call(student, "GET", secondPath, nil, 200), &second); e != nil {
+			t.Fatal(e)
+		}
+		changed["question_id"] = second.Questions[0].ID
+		call(student, "POST", secondPath+"/submissions", changed, 409)
+		var roster struct {
+			Total, Submitted int
+			Pending          int `json:"not_submitted"`
+			Rows             []struct {
+				StudentID    string `json:"student_id"`
+				SubmissionID string `json:"submission_id"`
+			} `json:"rows"`
+		}
+		if e := json.Unmarshal(call(teacher, "GET", ap+"/roster", nil, 200), &roster); e != nil {
+			t.Fatal(e)
+		}
+		if roster.Total != 2 || roster.Submitted != 1 || roster.Pending != 1 {
+			t.Fatalf("incorrect roster: %+v", roster)
+		}
+		call(student, "GET", ap+"/roster", nil, 403)
+		var activity []struct {
+			SubmissionID *string `json:"submission_id"`
+			Verb         string  `json:"verb"`
+			ActorID      string  `json:"actor_id"`
+		}
+		if e := json.Unmarshal(call(teacher, "GET", base+"/activity?student_id=student", nil, 200), &activity); e != nil {
+			t.Fatal(e)
+		}
+		if len(activity) != 1 || activity[0].SubmissionID == nil || *activity[0].SubmissionID != sid || activity[0].Verb != "submission.submitted" {
+			t.Fatalf("retry created duplicate or missing event: %+v", activity)
+		}
+		call(peer, "GET", base+"/activity?student_id=student", nil, 403)
+		if e := json.Unmarshal(call(peer, "GET", base+"/activity", nil, 200), &activity); e != nil || len(activity) != 0 {
+			t.Fatal("peer activity leaked")
+		}
+	})
+	t.Run("CO01_sources_versions_and_learning_events", func(t *testing.T) {
+		missing := map[string]string{"title": "notes", "content": "original", "locator": "paragraph-1"}
+		call(teacher, "POST", base+"/resources", missing, 422)
+		missing["source_note"] = "教师自编讲义，验收构造资料"
+		rid := id(call(teacher, "POST", base+"/resources", missing, 200))
+		path := base + "/resources/" + rid
+		call(teacher, "POST", path+"/publish", map[string]string{}, 200)
+		call(teacher, "POST", path+"/publish", map[string]string{}, 409)
+		missing["content"] = "revised"
+		v2 := id(call(teacher, "POST", path+"/revisions", missing, 200))
+		call(teacher, "POST", base+"/resources/"+v2+"/publish", map[string]string{}, 200)
+		call(teacher, "POST", path+"/publish", map[string]string{}, 409)
+		call(student, "POST", path+"/events", map[string]string{"verb": "opened", "request_id": "learn"}, 200)
+		call(student, "POST", path+"/events", map[string]string{"verb": "completed", "request_id": "learn"}, 409)
+		for _, key := range []string{"complete-1", "complete-1", "complete-2"} {
+			call(student, "POST", path+"/events", map[string]string{"verb": "completed", "request_id": key}, 200)
+		}
+		var overview []struct {
+			ID        string `json:"id"`
+			Completed int    `json:"completed_events"`
+		}
+		if e := json.Unmarshal(call(teacher, "GET", base+"/overview", nil, 200), &overview); e != nil {
+			t.Fatal(e)
+		}
+		for _, row := range overview {
+			if row.ID == "student" && row.Completed != 1 {
+				t.Fatal("completion count duplicated")
+			}
+		}
+		if _, e := db.Exec(ctx, `INSERT INTO courses(id,title,teacher_id,status) VALUES('draft-course','draft','teacher','draft'); INSERT INTO enrollments(course_id,student_id) VALUES('draft-course','student')`); e != nil {
+			t.Fatal(e)
+		}
+		call(student, "GET", "/learning/courses/draft-course/resources", nil, 403)
+		call(student, "GET", "/learning/courses/draft-course/assignments", nil, 403)
+	})
 	call(peer, "GET", sp, nil, 403)
 	call(teacher, "GET", "/learning/courses/foreign/submissions/"+sid, nil, 403)
 	call(teacher, "POST", sp+"/revisions", map[string]any{"score": 11, "feedback": "too high", "request_id": "bad"}, 422)

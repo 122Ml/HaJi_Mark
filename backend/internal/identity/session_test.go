@@ -10,6 +10,7 @@ import (
 )
 
 func TestCSRFAndOrigin(t *testing.T) {
+	t.Setenv("PUBLIC_ORIGIN", "")
 	gin.SetMode(gin.TestMode)
 	h := New(nil, false)
 	for _, tc := range []struct {
@@ -37,6 +38,34 @@ func TestCSRFAndOrigin(t *testing.T) {
 				t.Fatalf("got %d: %s", w.Code, w.Body.String())
 			}
 		})
+	}
+}
+
+func TestPublicHTTPSOriginBehindProxy(t *testing.T) {
+	t.Setenv("PUBLIC_ORIGIN", "https://hajistudy.online")
+	for _, tc := range []struct {
+		host, origin, forwarded string
+		status                  int
+	}{
+		{"hajistudy.online", "https://hajistudy.online", "http", 200},
+		{"hajistudy.online", "http://hajistudy.online", "https", 403},
+		{"evil.example", "https://hajistudy.online", "https", 403},
+		{"hajistudy.online", "https://evil.example", "https", 403},
+	} {
+		r := gin.New()
+		r.POST("/", func(c *gin.Context) {
+			if SameOrigin(c) {
+				c.Status(200)
+			}
+		})
+		req := httptest.NewRequest("POST", "http://"+tc.host+"/", nil)
+		req.Header.Set("Origin", tc.origin)
+		req.Header.Set("X-Forwarded-Proto", tc.forwarded)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != tc.status {
+			t.Fatalf("origin %s host %s: got %d", tc.origin, tc.host, w.Code)
+		}
 	}
 }
 

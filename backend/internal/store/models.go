@@ -114,13 +114,15 @@ type KnowledgePoint struct {
 }
 
 type LearningEvent struct {
-	ID         string             `json:"id"`
-	CourseID   string             `json:"course_id"`
-	ActorID    string             `json:"actor_id"`
-	ResourceID pgtype.Text        `json:"resource_id"`
-	Verb       string             `json:"verb"`
-	RequestID  string             `json:"request_id"`
-	OccurredAt pgtype.Timestamptz `json:"occurred_at"`
+	ID            string             `json:"id"`
+	CourseID      string             `json:"course_id"`
+	ActorID       string             `json:"actor_id"`
+	ResourceID    pgtype.Text        `json:"resource_id"`
+	Verb          string             `json:"verb"`
+	RequestID     string             `json:"request_id"`
+	OccurredAt    pgtype.Timestamptz `json:"occurred_at"`
+	SubmissionID  pgtype.Text        `json:"submission_id"`
+	ObjectVersion int32              `json:"object_version"`
 }
 
 type LearningNote struct {
@@ -169,6 +171,7 @@ type Resource struct {
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	PublishedAt      pgtype.Timestamptz `json:"published_at"`
 	SupersedesID     pgtype.Text        `json:"supersedes_id"`
+	SourceNote       string             `json:"source_note"`
 }
 
 type Session struct {

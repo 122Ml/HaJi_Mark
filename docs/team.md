@@ -15,6 +15,8 @@
 
 ## 降低同时开发冲突
 
+本轮前端复刻入口位于 `web/src/replica`，原 `features` 骨架保留。后续接入按纵向流程领取页面，职责映射见 [复刻记录](research/frontend-rebuild.md)：徐铂尧负责学生 `course.tsx`、教师分析 `course.tsx` 中课程/资源；张俊超负责学生 `assessment.tsx` 与教师流程 `assessment.tsx` 中作业/测验/提交；李然负责其中 `HomeworkGrade`、评分反馈及共享 `App/ui/demo/styles`；葛炫毅负责学生 Home/Twin/learning、任务及教师 dashboard/interventions。共享文件多人需要改时由李然协调；不要同时整文件覆盖。教研与行业页面先保持可演示，服务端不抢占基础闭环优先级。
+
 - 日常只改自己模块的目录与 query 文件。组件先在模块内写，不抢先建立“通用组件库”。
 - `go.mod/go.sum`、`web/package*.json`、全局路由、`internal/store` 生成物、Compose、CI、身份中间件和迁移序号由李然汇总；需要修改时在 PR 写明必要性。
 - 一张卡对应一个小分支/PR。不要四人各复制一份仓库到 A/B/C/D 再人工覆盖合并。

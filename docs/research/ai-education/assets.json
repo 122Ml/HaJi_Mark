@@ -1,0 +1,30 @@
+{
+  "referenceOrigin": "http://139.9.243.199",
+  "observedAt": "2026-10-28",
+  "template": {
+    "url": "https://github.com/JCodesMore/ai-website-cloner-template",
+    "commit": "ee3f5a2f31fd549b9593fa4f7cf6d2955ee593bb",
+    "usage": "canonical clone-website workflow; existing React/Vite retained",
+    "license": "MIT (template only)"
+  },
+  "assets": [
+    {
+      "source": "http://139.9.243.199/assets/login-academic-bg-8bjZeSdt.png",
+      "local": "web/public/sites/ai-education/login-academic-bg-8bjZeSdt.png",
+      "sha256": "2b75403247081062430d1d32f833113c52f0f66054a4432a0ddeb87b280cc1a6",
+      "bytes": 1496403,
+      "type": "image/png",
+      "license": "reference-site asset; no separate license observed"
+    }
+  ],
+  "styles": {
+    "local": "web/src/replica/styles/reference.css",
+    "source": "reference index/login and per-page CSS; Vue scope attributes adapted to React page scopes"
+  },
+  "excluded": [
+    "production JavaScript bundles",
+    "credentials/session data",
+    "signed media URLs",
+    "historical assistant conversations"
+  ]
+}

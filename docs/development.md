@@ -50,7 +50,7 @@ npm.cmd run typecheck
 npm.cmd run build
 ```
 
-Windows使用npm.cmd避免PowerShell执行策略问题。web开发服务器可用于界面开发，业务运行验收仍以Compose为准。当前没有登录；不要把开发导航预览暴露到公网，也不要先加入真实学生数据。
+Windows使用npm.cmd避免PowerShell执行策略问题。web开发服务器可用于界面开发，运行验收以Compose为准。当前登录页只切换演示角色，业务交互仅存本机浏览器；真实会话与授权尚未实现，不加入真实学生数据。前端页路由与复验见 [复刻记录](research/frontend-rebuild.md)。
 
 ## 本地检查与CI
 

@@ -11,7 +11,7 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, sta
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ConfigProvider locale={zhCN} theme={{ token: { colorPrimary: '#0f766e', borderRadius: 8, fontFamily: '"Microsoft YaHei", system-ui, sans-serif' } }}>
+    <ConfigProvider locale={zhCN} theme={{ token: { colorPrimary: '#4f46e5', borderRadius: 10, fontFamily: 'Inter, "Segoe UI", sans-serif' } }}>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter><App /></BrowserRouter>
       </QueryClientProvider>

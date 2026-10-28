@@ -1,0 +1,292 @@
+{
+  "method": "grayscale Gaussian SSIM; K1=.01 K2=.03; no resizing before scoring",
+  "viewport": [
+    1440,
+    1000
+  ],
+  "count": 20,
+  "meanViewportSsim": 0.9809,
+  "meanSharedHeightSsim": 0.9645,
+  "pages": [
+    {
+      "page": "login",
+      "sourceSize": [
+        1440,
+        1000
+      ],
+      "localSize": [
+        1440,
+        1000
+      ],
+      "viewportSsim": 0.9787,
+      "sharedHeightSsim": 0.9787,
+      "heightAgreement": 1.0
+    },
+    {
+      "page": "student-course-content",
+      "sourceSize": [
+        1425,
+        1272
+      ],
+      "localSize": [
+        1425,
+        1251
+      ],
+      "viewportSsim": 0.9709,
+      "sharedHeightSsim": 0.9763,
+      "heightAgreement": 0.9835
+    },
+    {
+      "page": "student-home",
+      "sourceSize": [
+        1425,
+        2750
+      ],
+      "localSize": [
+        1425,
+        2750
+      ],
+      "viewportSsim": 0.9982,
+      "sharedHeightSsim": 0.9853,
+      "heightAgreement": 1.0
+    },
+    {
+      "page": "student-homework",
+      "sourceSize": [
+        1425,
+        1861
+      ],
+      "localSize": [
+        1425,
+        1840
+      ],
+      "viewportSsim": 0.9931,
+      "sharedHeightSsim": 0.9537,
+      "heightAgreement": 0.9887
+    },
+    {
+      "page": "student-interaction",
+      "sourceSize": [
+        1440,
+        1000
+      ],
+      "localSize": [
+        1440,
+        1000
+      ],
+      "viewportSsim": 0.9983,
+      "sharedHeightSsim": 0.9983,
+      "heightAgreement": 1.0
+    },
+    {
+      "page": "student-intervention",
+      "sourceSize": [
+        1440,
+        1000
+      ],
+      "localSize": [
+        1440,
+        1000
+      ],
+      "viewportSsim": 0.9618,
+      "sharedHeightSsim": 0.9618,
+      "heightAgreement": 1.0
+    },
+    {
+      "page": "student-learning",
+      "sourceSize": [
+        1425,
+        3783
+      ],
+      "localSize": [
+        1425,
+        3783
+      ],
+      "viewportSsim": 0.9983,
+      "sharedHeightSsim": 0.9996,
+      "heightAgreement": 1.0
+    },
+    {
+      "page": "student-profile",
+      "sourceSize": [
+        1425,
+        1268
+      ],
+      "localSize": [
+        1425,
+        1268
+      ],
+      "viewportSsim": 0.9969,
+      "sharedHeightSsim": 0.9976,
+      "heightAgreement": 1.0
+    },
+    {
+      "page": "student-quiz",
+      "sourceSize": [
+        1440,
+        1000
+      ],
+      "localSize": [
+        1440,
+        1000
+      ],
+      "viewportSsim": 0.9547,
+      "sharedHeightSsim": 0.9547,
+      "heightAgreement": 1.0
+    },
+    {
+      "page": "student-student-twin",
+      "sourceSize": [
+        1425,
+        5332
+      ],
+      "localSize": [
+        1425,
+        5332
+      ],
+      "viewportSsim": 0.9393,
+      "sharedHeightSsim": 0.9886,
+      "heightAgreement": 1.0
+    },
+    {
+      "page": "teacher-course-twin",
+      "sourceSize": [
+        1425,
+        5431
+      ],
+      "localSize": [
+        1425,
+        5419
+      ],
+      "viewportSsim": 0.9971,
+      "sharedHeightSsim": 0.8851,
+      "heightAgreement": 0.9978
+    },
+    {
+      "page": "teacher-dashboard",
+      "sourceSize": [
+        1425,
+        1666
+      ],
+      "localSize": [
+        1425,
+        1666
+      ],
+      "viewportSsim": 0.9994,
+      "sharedHeightSsim": 0.9166,
+      "heightAgreement": 1.0
+    },
+    {
+      "page": "teacher-homework",
+      "sourceSize": [
+        1425,
+        1107
+      ],
+      "localSize": [
+        1425,
+        1107
+      ],
+      "viewportSsim": 0.9994,
+      "sharedHeightSsim": 0.9995,
+      "heightAgreement": 1.0
+    },
+    {
+      "page": "teacher-homework-new",
+      "sourceSize": [
+        1425,
+        1893
+      ],
+      "localSize": [
+        1425,
+        1893
+      ],
+      "viewportSsim": 0.9943,
+      "sharedHeightSsim": 0.997,
+      "heightAgreement": 1.0
+    },
+    {
+      "page": "teacher-industry-intelligence",
+      "sourceSize": [
+        1425,
+        3865
+      ],
+      "localSize": [
+        1425,
+        3818
+      ],
+      "viewportSsim": 0.9276,
+      "sharedHeightSsim": 0.8729,
+      "heightAgreement": 0.9878
+    },
+    {
+      "page": "teacher-interaction",
+      "sourceSize": [
+        1425,
+        1915
+      ],
+      "localSize": [
+        1425,
+        1911
+      ],
+      "viewportSsim": 0.9335,
+      "sharedHeightSsim": 0.8768,
+      "heightAgreement": 0.9979
+    },
+    {
+      "page": "teacher-intervention",
+      "sourceSize": [
+        1425,
+        1315
+      ],
+      "localSize": [
+        1425,
+        1315
+      ],
+      "viewportSsim": 0.9994,
+      "sharedHeightSsim": 0.9996,
+      "heightAgreement": 1.0
+    },
+    {
+      "page": "teacher-quiz",
+      "sourceSize": [
+        1440,
+        1000
+      ],
+      "localSize": [
+        1440,
+        1000
+      ],
+      "viewportSsim": 0.9805,
+      "sharedHeightSsim": 0.9805,
+      "heightAgreement": 1.0
+    },
+    {
+      "page": "teacher-research",
+      "sourceSize": [
+        1425,
+        1409
+      ],
+      "localSize": [
+        1425,
+        1353
+      ],
+      "viewportSsim": 0.9975,
+      "sharedHeightSsim": 0.9689,
+      "heightAgreement": 0.9603
+    },
+    {
+      "page": "teacher-teacher-twin-drilldown",
+      "sourceSize": [
+        1425,
+        1272
+      ],
+      "localSize": [
+        1425,
+        1272
+      ],
+      "viewportSsim": 0.9982,
+      "sharedHeightSsim": 0.9986,
+      "heightAgreement": 1.0
+    }
+  ]
+}

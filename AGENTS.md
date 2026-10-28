@@ -2,7 +2,8 @@
 
 先读 README.md、docs/architecture.md、docs/team.md、docs/backlog.md，再读自己模块的 README。
 
-- 当前为本地 Sprint 0 初始化；未发布完整业务。历史教师端 E6 设计见 references，当前范围包含基础师生闭环和 E6/E4。
+- 当前为本地 Sprint 0 与参考平台前端复刻；26 个页面路由及浏览器本地闭环已实现，真实业务后端尚未接入。入口见 docs/research/frontend-rebuild.md。历史教师端 E6 设计见 references，当前范围包含基础师生闭环和 E6/E4。
+- web/src/replica 是本轮师生界面；localStorage 只作显式演示，服务端接入不得据此放松身份/班级授权。参考站密码、生产 bundle、历史聊天与签名媒体地址不提交。模板工作流沿用现有 React/Vite，不迁到 Next.js。
 - 保留 Go/Gin、React/TypeScript/Ant Design、PostgreSQL、pgx/sqlc、Goose、Redis/Asynq、Docker Compose。一个应用按业务模块组织，不拆微服务。
 - 每人负责一个业务纵切面的页面、接口、数据保存与自测。共享基础、依赖、全局路由、迁移编号由李然协调；不得覆盖其他成员代码。
 - 课程资料、rubric、原始作答、AI 原稿、人工确认、独立评测参照分别记录。标准起草不读取待评答案；正式成绩只来自教师确认。引用可定位不等于语义正确。

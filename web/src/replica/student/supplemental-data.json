@@ -1,0 +1,34 @@
+[
+  {
+    "title": "数据质量 第7期：数据质量评估全实操：量化评分 + 问题清单 + 质量报告",
+    "reason": "按知识点关键词从 B 站检索，并优先选择标题相关的视频。",
+    "kind": "Bilibili · 视频",
+    "score": "77%",
+    "url": "https://search.bilibili.com/all?keyword=数据质量 第7期：数据质量评估全实操：量化评分 + 问题清单 + 质量报告",
+    "video": true
+  },
+  {
+    "title": "大数据教程（10.3）web日志数据清洗",
+    "reason": "按知识点关键词从 CSDN 检索，适合作为文字补充资料。",
+    "kind": "CSDN · 文章",
+    "score": "75%",
+    "url": "https://blog.csdn.net/weixin_33895475/article/details/92258779",
+    "video": false
+  },
+  {
+    "title": "009 课程环境搭建 实时数据采集流程介绍 rec",
+    "reason": "按知识点关键词从 YouTube 检索，并优先选择标题相关的视频。",
+    "kind": "YouTube · 视频",
+    "score": "72%",
+    "url": "https://www.youtube.com/watch?v=058oY_M8UXk",
+    "video": false
+  },
+  {
+    "title": "数据仓库知识点总结（数仓分层建模、维度建模等）",
+    "reason": "按知识点关键词从 CSDN 检索，适合作为文字补充资料。",
+    "kind": "CSDN · 文章",
+    "score": "70%",
+    "url": "https://blog.csdn.net/leaeason/article/details/120737977",
+    "video": false
+  }
+]

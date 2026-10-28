@@ -1,0 +1,82 @@
+[
+  {
+    "title": "数据质量评估",
+    "mastery": "掌握度 38.0%",
+    "resources": [
+      {
+        "title": "【亲测免费】 YData Quality：一款优秀的数据质量评估开源项目",
+        "kind": "CSDN · 文章",
+        "score": "70%",
+        "reason": "按知识点关键词从 CSDN 检索，适合作为文字补充资料。",
+        "url": "https://blog.csdn.net/gitblog_00490/article/details/145002875"
+      },
+      {
+        "title": "【深度学习 搞笑教程】05 数据集划分：训练集 验证集 测试集 | 草履虫都能听懂 零基础入门 | 持续更新",
+        "kind": "Bilibili · 视频",
+        "score": "65%",
+        "reason": "按知识点关键词从 B 站检索，并优先选择标题相关的视频。",
+        "url": "https://search.bilibili.com/all?keyword=数据质量评估"
+      }
+    ]
+  },
+  {
+    "title": "日志数据清洗",
+    "mastery": "掌握度 46.0%",
+    "resources": [
+      {
+        "title": "大数据教程（10.3）web日志数据清洗",
+        "kind": "CSDN · 文章",
+        "score": "75%",
+        "reason": "按知识点关键词从 CSDN 检索，适合作为文字补充资料。",
+        "url": "https://blog.csdn.net/weixin_33895475/article/details/92258779"
+      },
+      {
+        "title": "谷歌 数据清洗工具 openrefine 教程",
+        "kind": "Bilibili · 视频",
+        "score": "60%",
+        "reason": "按知识点关键词从 B 站检索，并优先选择标题相关的视频。",
+        "url": "https://search.bilibili.com/all?keyword=日志数据清洗"
+      }
+    ]
+  },
+  {
+    "title": "数据采集流程",
+    "mastery": "掌握度 48.0%",
+    "resources": [
+      {
+        "title": "2026 Web Scraping 教程：用 Codex + Bright Data 构建 Agent 原生数据采集流程",
+        "kind": "CSDN · 文章",
+        "score": "75%",
+        "reason": "按知识点关键词从 CSDN 检索，适合作为文字补充资料。",
+        "url": "https://blog.csdn.net/weixin_47343544/article/details/164139113"
+      },
+      {
+        "title": "【办公软件实操】Excel、Word自学教程 从小白到高手 零基础入门起步 表格/EXCEL函数/EXCEL技巧/数据分析/办公软件教学",
+        "kind": "Bilibili · 视频",
+        "score": "65%",
+        "reason": "按知识点关键词从 B 站检索，并优先选择标题相关的视频。",
+        "url": "https://search.bilibili.com/all?keyword=数据采集流程"
+      }
+    ]
+  },
+  {
+    "title": "数仓分层建模",
+    "mastery": "掌握度 56.0%",
+    "resources": [
+      {
+        "title": "【入门精讲】数据仓库原理&实战",
+        "kind": "Bilibili · 视频",
+        "score": "70%",
+        "reason": "按知识点关键词从 B 站检索，并优先选择标题相关的视频。",
+        "url": "https://search.bilibili.com/all?keyword=数仓分层建模"
+      },
+      {
+        "title": "大数据技术之新能源汽车数仓 视频教程 下载",
+        "kind": "CSDN · 文章",
+        "score": "53%",
+        "reason": "按知识点关键词从 CSDN 检索，适合作为文字补充资料。",
+        "url": "https://blog.csdn.net/chaochao1984a/article/details/140086015"
+      }
+    ]
+  }
+]

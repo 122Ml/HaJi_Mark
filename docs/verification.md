@@ -1,5 +1,30 @@
 # 工程与前端验证记录
 
+## 2026-10-28 S1李然本地身份与契约交付
+
+实现提交`5b2fdbd5dd3b7b1b17c6d6a42d47ec2a20e9bf31`，本地分支`codex/s1-liran`，基于`ad0b91f`。用户本轮要求仅本地开发，未fetch/push、未建远端PR、未运行远端CI；以下为本地实际执行结果。未代填成员人工审核、工时或教师验收。
+
+| 检查 | 实际结果 |
+| --- | --- |
+| Docker后端构建 | API/worker/seed-s1/Goose镜像构建通过。第一次依赖下载长时间无输出后停止本任务构建，改为go mod download -x；第二次下载约358秒、应用编译45秒、Goose约46秒后成功，构建串行；未改全局代理 |
+| 迁移与种子 | 00001保留，00002执行成功，DB版本2；seed-s1连续两次成功，4账号仍为同一ID/凭据，密码列均为bcrypt；无明文密码入库或终端输出 |
+| Docker Go测试/vet | `docker compose --profile test build backend-test`及`run --rm backend-test`通过；TEST_DATABASE_URL实际指向PostgreSQL，独立schema跑迁移/会话/归属回归，结束后auth_test_*残留0。普通未带DB环境的本机定向测试也通过，但未用它替代集成结果 |
+| 会话与权限 | `python scripts/check-s1.py --save-session`通过：错误/未知凭据401、外源登录403；学生A/B隔离、跨课程/教师角色/草稿访问拒绝；教师不能查另一教师课程；缺失/伪造/另一会话CSRF及外源写入403；有效CSRF返回授权示例且persisted=false |
+| 撤销、旋转、过期 | HTTP退出后复用旧cookie401；Go集成覆盖重新登录旋转旧token、过期401、另一会话保持有效、Secure配置及DB仅存token哈希；无凭据/会话泄露到响应 |
+| API重启 | 保存会话后`docker compose restart api`，冒烟就绪后`check-s1.py --resume-session`仍识别学生A；验证后退出并删除本次测试cookie文件，保留数据卷 |
+| 前端/Docker Web | TypeScript检查、Docker内tsc/Vite构建通过；Nginx保留Host端口，实际浏览器JSON登录和CSRF写检查通过 |
+| 浏览器真实身份 | 本机Playwright运行`check-s1-browser.cjs`通过：匿名跳登录、错误密码拒绝、故意选择相反角色仍按DB跳工作台、刷新恢复、课程读取/CSRF、学生改教师URL拒绝、退出后/me为401 |
+| 原前端回归 | 26路由×1440/390px共52次，无页面横向溢出、无pageerror；作业草稿隔离→发布→提交→终审→反馈、干预全流程、公告、测验均通过。这些业务仍为localStorage演示，不计真实S1提交/评分完成 |
+| 验证工具修正 | Playwright MCP调用超时300秒，改用桌面附带Node/Playwright＋独立Edge无痕上下文。首次回归脚本仅等待h1，因既有部分页面用h2/h3超时；改为等待业务标题并排除新课程卡后全部通过，无需修改业务页面 |
+| 生成代码/资料 | Docker sqlc1.30.0重生成前后哈希一致；check_docs通过23份当前文档链接、12份不可变副本及模块入口，三个原SVG未修改 |
+| 工程治理 | Compose配置、Git空白检查及工作区check/audit通过。导航首次检查提示seed入口不在identity模块目录，已归入runtime后复验通过；只说明元数据纳管，不表示生产可发布 |
+
+S1-L1/L2实现及本地自动化验证完成，成员交叉复验仍待执行。S1-L3已交付[评分契约](contracts.md#s1-l3交给s2的人工评分契约)与[evidence](evidence.md)，包括rubric、原文hash/版本、逐点请求/返回、code point引用、确认发布和反馈过滤边界。尚无assessment正式提交服务及course资料版本服务，真实submission_id联调未完成；GR-01/S1全链路不能记为已完成。
+
+真实构造课程ID为`89bc8c28-80fa-4571-acca-53e62c5c450a`，其余实际ID见本地`.local/s1-handoff.json`，`actual_submission_id/actual_rubric_version`保持null。密码仅见被忽略的`.local/s1-accounts.json`，重复seed不重置。上游提交到位后按contracts清单再核对实际submission/资源、记录上游SHA及重启结果。
+
+本轮开始前Windows可用内存约14.8GiB，应用构建串行，Go GOMAXPROCS=2/GOMEMLIMIT=768MiB；未测峰值。未调用模型、不写参考站、不操作其他Compose项目、不删除卷。预览保留运行在`http://127.0.0.1:18080/login`，可按README停止本项目并保留数据。下方记录为各历史阶段事实，以本节作为当前S1状态。
+
 ## 2026-10-28 GitHub初始化同步
 
 用户已授权将必要成果上传。初始化内容通过 [PR #2](https://github.com/122Ml/HaJi_Mark/pull/2) 从codex/bootstrap进入codex/integration；main保留e4c096e稳定基线，不直接推送受保护分支，不修改审核与必需检查规则。

@@ -34,5 +34,5 @@
 
 ## 自动检查的范围
 
-必需检查名为 `collaboration-check`，检查 CODEOWNERS、合入 main 的来源分支及 Git 空白错误。
-这是协作基础检查，尚不等于业务功能、构建或测试通过。业务代码建立后，应补充对应的构建与测试检查。
+必需检查名为 `collaboration-check`，保留 CODEOWNERS、合入 main 的来源分支和 Git 空白检查，并包含 Go 测试/vet/构建、sqlc 生成一致性、前端类型/生产构建、Compose 配置与文档来源检查。初始化同步通过任务分支PR执行检查，合入codex/integration后由push事件再次触发；是否通过以对应SHA的Actions结果为准。
+检查通过也不等于完整业务和 AI 效果验收，详见 docs/development.md。本轮同步授权不意味着自动发布main或部署服务。

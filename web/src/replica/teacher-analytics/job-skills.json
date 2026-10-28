@@ -1,0 +1,12 @@
+[
+  ["Power BI", "Java", "Python", "+5"],
+  ["Python", "SQL", "数据可视化工具", "+3"],
+  ["运筹优化", "博弈论", "因果推断", "+7"],
+  ["Python", "Hadoop", "Spark", "+1"],
+  ["SQL"],
+  ["SQL", "Python", "Power BI", "+4"],
+  ["程序化SEO(pSEO)", "Agentic SEO", "Next.js", "+6"],
+  ["Kubernetes", "PyTorch", "Python", "+9"],
+  ["Python", "LangChain", "LangGraph", "+15"],
+  ["RAG", "Cursor", "Claude Code", "+1"]
+]

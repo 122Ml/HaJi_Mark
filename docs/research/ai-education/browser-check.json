@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-28",
+  "environment": "Docker web 127.0.0.1:18080",
+  "routes": 26,
+  "viewports": [
+    [
+      1440,
+      1000
+    ],
+    [
+      390,
+      844
+    ]
+  ],
+  "routeVisits": 52,
+  "pageErrors": 0,
+  "horizontalOverflow": false,
+  "flows": {
+    "assignmentDraftHiddenPublishSubmitReleaseFeedback": "passed",
+    "interventionDraftPushAnswerReview": "passed",
+    "announcementTeacherToStudent": "passed",
+    "quizPublishAnswerResult": "passed"
+  },
+  "sourceWrites": false,
+  "realModelCalls": false,
+  "remotePush": false,
+  "note": "SVG charts and local storage demo; real backend business remains unimplemented"
+}

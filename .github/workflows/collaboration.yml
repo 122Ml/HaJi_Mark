@@ -15,7 +15,7 @@ jobs:
   collaboration-check:
     name: collaboration-check
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -56,3 +56,32 @@ jobs:
           else
             git show --format= --check HEAD
           fi
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Backend checks
+        working-directory: backend
+        env:
+          GOMAXPROCS: '2'
+          GOFLAGS: '-p=2'
+        run: |
+          go test ./...
+          go vet ./...
+          go build ./cmd/api ./cmd/worker
+          docker run --rm -v "$PWD:/src" -w /src sqlc/sqlc:1.30.0 generate
+          git diff --exit-code -- internal/store
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Frontend checks
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+      - name: Documents and Compose
+        run: |
+          python scripts/check_docs.py
+          docker compose config --quiet

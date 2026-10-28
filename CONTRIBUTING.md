@@ -34,5 +34,5 @@
 
 ## 自动检查的范围
 
-必需检查名为 `collaboration-check`。GitHub 当前已启用的版本检查 CODEOWNERS、合入 main 的来源分支及 Git 空白错误。
-本地 Sprint 0 已补 Go 测试/构建、前端构建、sqlc 一致性、Compose 与来源文档检查；本轮不推送，因此这些扩展尚未在远端生效。检查通过也不等于完整业务和 AI 效果验收，详见 docs/development.md。
+必需检查名为 `collaboration-check`，保留 CODEOWNERS、合入 main 的来源分支和 Git 空白检查，并包含 Go 测试/vet/构建、sqlc 生成一致性、前端类型/生产构建、Compose 配置与文档来源检查。初始化同步通过任务分支PR执行检查，合入codex/integration后由push事件再次触发；是否通过以对应SHA的Actions结果为准。
+检查通过也不等于完整业务和 AI 效果验收，详见 docs/development.md。本轮同步授权不意味着自动发布main或部署服务。

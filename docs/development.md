@@ -1,10 +1,10 @@
 # 本地开发与验证
 
-## Git 本地约束
+## Git 手动同步约定
 
-本仓库继承 GitHub 历史，当前任务分支 `codex/bootstrap` 从 `origin/codex/integration@53909b0` 建立；本地 main 指向原初始提交。origin fetch URL 保留便于辨认，push URL 为 `disabled://local-only`，`push.default=nothing`。没有后台同步任务、自动推送或自动远端PR。
+本仓库继承 GitHub 历史，初始化任务分支 `codex/bootstrap` 从 `origin/codex/integration@53909b0` 建立。2026-10-28用户已授权同步整个初始化成果，解除原本地push URL阻断，经任务分支→PR→检查→codex/integration合入；main保留稳定基线。保留 `push.default=nothing`，推送必须显式指定任务分支，不配置后台同步。
 
-本轮只做本地提交。未来用户明确要求上传时才解除：`git config --unset remote.origin.pushurl`，然后明确执行相应分支的push和PR；不要顺手推 main/integration，也不启用定时同步。团队正式协作仍以 GitHub 保护规则为准，本地禁推不是服务器安全策略。
+成员先fetch最新codex/integration，再创建各自任务分支；工作树干净时用 `git merge --ff-only origin/codex/integration` 更新本地集成分支。提交前排除 `.env`、密钥、node_modules、dist、.local研究下载、日志和本地验证缓存。已追踪源码、锁文件、迁移、Compose、课程历史来源、必要文档及截图对照正常提交。不得强推或绕过检查；仅在现有管理员审核例外适用时处理本人PR，必需状态检查仍须通过。
 
 ## 锁定基线
 
@@ -60,7 +60,7 @@ git diff --check
 python -B F:/vibe-coding/scripts/workspace.py check --repo F:/vibe-coding/school/HaJi_Mark
 ```
 
-本地CI定义沿用必需检查名 `collaboration-check`，补Go测试/构建、前端类型/构建、sqlc生成一致性、Compose配置和文档来源检查。所有步骤必须通过该job才成功；未推送前远端仍运行原有基础检查，不把本地修改写成GitHub已生效。
+CI沿用必需检查名 `collaboration-check`，覆盖Go测试/vet/构建、前端类型/构建、sqlc生成一致性、Compose配置和文档来源检查。所有步骤必须通过该job才成功；每次以PR或集成分支对应SHA的远端执行为准，本地成功不替代远端执行记录。
 
 冒烟验证覆盖静态入口/深路由、live、ready、已发布构造课程/草稿过滤；它只说明工程骨架链路。业务验收与AI效果按backlog和evidence另做。Docker没启动时报告未验证，不以静态页面截图代替数据库运行结果。
 

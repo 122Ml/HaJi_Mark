@@ -36,6 +36,7 @@ export function ResourceNotes({ resourceId }: { resourceId: string }) {
       <label>
         我的笔记
         <textarea
+          aria-label="我的笔记"
           rows={5}
           disabled={!query.isSuccess}
           value={note}

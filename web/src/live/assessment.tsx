@@ -257,6 +257,7 @@ export function AssignmentEditor({
           <label>
             任务说明
             <textarea
+              aria-label="任务说明"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
@@ -276,6 +277,7 @@ export function AssignmentEditor({
               <label>
                 题目要求
                 <textarea
+                  aria-label="题目要求"
                   required
                   rows={4}
                   value={q.prompt}
@@ -310,6 +312,7 @@ export function AssignmentEditor({
               <label>
                 评分标准
                 <textarea
+                  aria-label="评分标准"
                   required
                   rows={3}
                   value={q.rubric}
@@ -375,6 +378,7 @@ export function AssignmentEditor({
                   <label>
                     选项（每行一个）
                     <textarea
+                      aria-label="选项（每行一个）"
                       required
                       value={q.options.join("\n")}
                       onChange={(e) =>
@@ -849,6 +853,7 @@ export function GradePage() {
                 <label>
                   终审评语
                   <textarea
+                    aria-label="终审评语"
                     required
                     rows={5}
                     value={feedback}

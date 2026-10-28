@@ -28,6 +28,7 @@ export function LearningAssistant() {
             <label>
               问题或起草要求
               <textarea
+                aria-label="问题或起草要求"
                 required
                 rows={3}
                 value={topic}

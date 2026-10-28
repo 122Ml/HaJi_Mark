@@ -180,6 +180,7 @@ export function RecordsPage({ industry = false }: { industry?: boolean }) {
               <label>
                 技能要求
                 <textarea
+                  aria-label="技能要求"
                   required
                   rows={5}
                   value={form.skills}
@@ -191,6 +192,7 @@ export function RecordsPage({ industry = false }: { industry?: boolean }) {
             <label>
               教研内容
               <textarea
+                aria-label="教研内容"
                 required
                 rows={6}
                 value={form.content}
@@ -239,9 +241,20 @@ export function RecordsPage({ industry = false }: { industry?: boolean }) {
             <button
               className="ghost-btn"
               disabled={action.busy}
-              onClick={() => {
-                if (confirm(`删除记录“${r.title}”？`))
-                  void action.run(`${path}/${r.id}`, {}, "DELETE");
+              onClick={async () => {
+                if (
+                  confirm(`删除记录“${r.title}”？`) &&
+                  (await action.run(`${path}/${r.id}`, {}, "DELETE")) &&
+                  editing === r.id
+                ) {
+                  setEditing("");
+                  setForm({
+                    title: "",
+                    content: "",
+                    source_url: "",
+                    skills: "",
+                  });
+                }
               }}
             >
               删除

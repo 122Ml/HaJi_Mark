@@ -88,7 +88,7 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
       </header>
       <main id="main-content" className="page-container">
         {error && <p role="alert">{error}</p>}
-        <LearningProvider>
+        <LearningProvider key={session?.user.id}>
           <LiveRoutes teacher={teacher} />
         </LearningProvider>
       </main>

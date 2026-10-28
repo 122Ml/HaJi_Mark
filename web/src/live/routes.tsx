@@ -22,7 +22,7 @@ export function LiveRoutes({ teacher }: { teacher: boolean }) {
       <p>尚未加入课程，请联系教师添加账号后刷新。</p>
     );
   return (
-    <Routes key={course?.id}>
+    <Routes key={`${course?.id}:${location.pathname}`}>
       <Route path="profile" element={<ProfilePage />} />
       <Route path="research" element={<RecordsPage />} />
       <Route path="industry-intelligence" element={<RecordsPage industry />} />

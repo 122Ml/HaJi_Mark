@@ -368,6 +368,7 @@ export function InterventionPage() {
             <label>
               补学资料、练习及完成要求
               <textarea
+                aria-label="补学资料、练习及完成要求"
                 required
                 rows={5}
                 value={form.description}
@@ -488,6 +489,7 @@ export function InterventionPage() {
               <label>
                 {teacher ? "复查意见" : "执行结果与新学习证据"}
                 <textarea
+                  aria-label={teacher ? "复查意见" : "执行结果与新学习证据"}
                   required
                   rows={5}
                   value={answers[i.id] || ""}

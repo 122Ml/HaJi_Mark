@@ -223,6 +223,24 @@ try:
         assert student.call('GET', '/me')['user']['display_name'] == '自动验收新学生（更新）'
         student.call('DELETE', '/sessions/current', expected=204)
         print('PASS: teacher provisioning, profile persistence, password change and session revocation')
+        wrong = b.call('POST', qp + '/submissions', {'question_id': q['id'], 'answer_text': '窗口颜色', 'request_id': uid()})
+        assert b.call('GET', prefix + '/submissions/' + wrong['id'])['revisions'][0]['score'] == 0
+        assert b.call('GET', prefix + '/evidence')[0]['score'] == 0
+        overdue = t.call('POST', prefix + '/assignments', {'title': '截止时间验收', 'due_at': '2020-01-01T00:00:00Z', 'questions': [{'prompt': '过期作业', 'max_score': 10, 'rubric': '测试'}]})
+        overdue_path = prefix + '/assignments/' + overdue['id']
+        t.call('POST', overdue_path + '/state', {'state': 'published'})
+        overdue_question = a.call('GET', overdue_path)['questions'][0]
+        a.call('POST', overdue_path + '/submissions', {'question_id': overdue_question['id'], 'answer_text': '不应提交', 'request_id': uid()}, expected=409)
+        other_prefix = '/learning/courses/' + template_course['id']
+        foreign_resource = t.call('POST', other_prefix + '/resources', {'title': '另一课程资料', 'content': '隔离验收', 'locator': '第1段'})
+        t.call('POST', other_prefix + '/resources/' + foreign_resource['id'] + '/publish', {})
+        t.call('POST', prefix + '/resources/' + foreign_resource['id'] + '/revisions', {'title': '越界修订', 'content': '不能跨课程', 'locator': '第1段'}, expected=403)
+        a.call('PUT', prefix + '/resources/' + foreign_resource['id'] + '/note', {'note': '越界笔记', 'favorite': False}, expected=403)
+        t.call('POST', prefix + '/assignments', {'title': '越界依据', 'questions': [{'prompt': '错误资料绑定', 'max_score': 10, 'rubric': '测试', 'resource_id': foreign_resource['id']}]}, expected=403)
+        t.call('POST', prefix + '/interventions', {'student_id': accounts['s1-student-a']['id'], 'title': '越界补学', 'description': '不应创建', 'resource_id': foreign_resource['id']}, expected=403)
+        foreign_post = t.call('POST', other_prefix + '/interactions', {'kind': 'discussion', 'title': '另一课程', 'content': '独立讨论'})
+        a.call('POST', prefix + '/interactions', {'kind': 'reply', 'parent_id': foreign_post['id'], 'content': '不能跨课程回复'}, expected=403)
+        print('PASS: zero-score evidence differs from no result, deadline enforcement and cross-course reference isolation')
         assert not a.call('GET',prefix+'/assist')['configured']
         a.call('POST',prefix+'/assist',{'topic':'解释数据质量'},expected=503)
         print('PASS: curriculum hierarchy, dependency cycle rejection, persistent paths, immutable resource history and AI disabled state')

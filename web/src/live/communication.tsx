@@ -73,6 +73,7 @@ export function InteractionPage() {
           <label>
             内容
             <textarea
+              aria-label="内容"
               required
               rows={4}
               value={form.content}

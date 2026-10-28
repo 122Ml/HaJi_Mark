@@ -423,6 +423,7 @@ export function CourseWorkspace() {
                   <label>
                     资料原文
                     <textarea
+                      aria-label="资料原文"
                       required
                       rows={7}
                       value={resource.content}

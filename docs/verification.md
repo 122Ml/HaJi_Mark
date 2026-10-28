@@ -1,5 +1,25 @@
 # 工程与前端验证记录
 
+## 2026-10-28 S1再次自检
+
+按用户“自检一遍”要求，基于`24e4c28`逐项核对S1-L1/L2/L3、代码、数据库、契约和开发入口。结论：L1/L2实现与本地自动化复验通过，L3契约已就绪但真实提交/资料联调未完成；不能确认李然S1三项全部完成，也不能把前端演示当真实业务验收。成员人工交叉复验未代填。
+
+本次发现并修复开发入口遗漏：vite.config.ts将/api指向宿主8080，但Compose只开放18080。复现时Compose的/health/live为200、临时Vite入口15173为500，Vite日志显示ECONNREFUSED 127.0.0.1:8080。改为代理本机18080网关并保留Host，避免破坏Origin校验；用`python scripts/check-s1.py --base http://127.0.0.1:15173`验证登录、授权、CSRF、课程查询和退出通过。开发说明补启动前提，临时Vite服务验证后停止。course入口中旧“没有登录”说明已校正为由公共identity提供。
+
+| 本轮实际复验 | 结果 |
+| --- | --- |
+| Docker backend-test：全包Go测试与vet，实际PostgreSQL环境 | 通过；独立schema清理后残留0，未改业务表 |
+| Compose HTTP：错误登录、角色/学生/课程隔离、CSRF、退出撤销 | 通过；有效写检查仍明确persisted=false |
+| API重启留存及既有冒烟 | 保存会话→restart api→就绪冒烟→恢复身份通过；测试cookie清除 |
+| Docker Web的TypeScript/Vite构建 | 通过；更新的开发代理配置纳入构建检查 |
+| 独立Edge/Playwright | 真实身份验证及26路由×1440/390px通过；无横向溢出、无pageerror，原四条演示流程通过 |
+| sqlc/Docker配置/文档历史/Git空白 | 重生成与跟踪代码一致；Compose配置通过；23份当前文档、12份历史副本与三个原图保留；空白检查通过 |
+| 凭据与工作区 | 4个S1账号密码列均为bcrypt；.env/.local未追踪，账号/交接文件被忽略；工作区check通过 |
+
+阻塞证据：backend/internal/assessment只有README；迁移仅00001/00002；public schema没有submission/resource相关表；本地交接中的actual_submission_id与actual_rubric_version仍为null。缺S1-A2/A3的不可变原始提交及C1/C2的可定位资料版本。李然需在上游到位后核对实际submission_id、attempt、题目/作业版本、原文hash、资料片段和课程归属并记录上游SHA。目前不应实现一份替身提交来填完成率，亦不提前实现S2评分。交接脚本的blocked_by已更正为这两个S1依赖，避免把S2 rubric持久化误写成S1完成门槛。
+
+本轮Windows可用内存约14.3GiB；构建串行，无模型/参考站业务调用和GitHub同步。已有Compose数据卷和其他项目未操作。
+
 ## 2026-10-28 S1李然本地身份与契约交付
 
 实现提交`5b2fdbd5dd3b7b1b17c6d6a42d47ec2a20e9bf31`，本地分支`codex/s1-liran`，基于`ad0b91f`。用户本轮要求仅本地开发，未fetch/push、未建远端PR、未运行远端CI；以下为本地实际执行结果。未代填成员人工审核、工时或教师验收。

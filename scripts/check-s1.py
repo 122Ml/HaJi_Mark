@@ -112,7 +112,7 @@ for client in (teacher, foreign_teacher):
 
 handoff = {'course_id': course, 'knowledge_point_ids': fixtures['knowledge_point_ids'], 'student_a_id': a_id,
            'actual_submission_id': None, 'actual_rubric_version': None,
-           'blocked_by': 'S1-A2/A3 submission service and S2-L1 rubric persistence are not implemented',
+           'blocked_by': 'S1-A2/A3 submission service and S1-C1/C2 resource version service are not implemented',
            'ready': ['session_actor', 'course_authorization', 'request_helper', 'grading_contract']}
 (args.accounts.parent / 's1-handoff.json').write_text(json.dumps(handoff, ensure_ascii=False, indent=2), encoding='utf-8')
 print('L3 handoff: real course/student IDs saved locally; actual submission integration remains pending')

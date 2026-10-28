@@ -55,6 +55,8 @@ npm.cmd run build
 
 Windows使用npm.cmd避免PowerShell执行策略问题。web开发服务器可用于界面开发，运行验收以Compose为准。登录现使用真实会话和课程授权；学习/作业/评分等业务仍仅存本机浏览器，不加入真实学生数据。前端页路由与复验见 [复刻记录](research/frontend-rebuild.md)。
 
+运行`npm.cmd run dev`前先按上方步骤启动Compose与生成S1账号。Vite将`/api`代理到本机`http://127.0.0.1:18080`的网关，保留浏览器Host供同源校验；API的8080没有映射到宿主机，不应直接代理该端口。使用本地默认WEB_PORT=18080；若手动调整该端口，同时更新vite.config.ts中的代理目标。
+
 ## S1本地账号、身份与成员接入
 
 启动迁移后执行`pwsh -File scripts/seed-s1.ps1`，生成四个账号与随机密码，保存在被Git忽略的`.local/s1-accounts.json`；终端不打印密码。教师T/U分别为`s1-teacher`/`s1-teacher-other`，学生A/B为`s1-student-a`/`s1-student-b`。两名学生选同一门发布课程；另有不归属课程、教师草稿、两个知识点。旧demo账号不具备登录密码。重复seed复用本地文件和数据库，不覆盖已有身份；丢失文件时不要删除数据卷或强行重置密码，由李然核对后处理。

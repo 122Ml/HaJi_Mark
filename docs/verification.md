@@ -1,5 +1,15 @@
 # 工程与前端验证记录
 
+## 2026-10-28 GitHub初始化同步
+
+用户已授权将必要成果上传。初始化内容通过 [PR #2](https://github.com/122Ml/HaJi_Mark/pull/2) 从codex/bootstrap进入codex/integration；main保留e4c096e稳定基线，不直接推送受保护分支，不修改审核与必需检查规则。
+
+- 上传前检查146份跟踪文件及3个未发布成果提交：约3.82MiB，常见密钥格式、签名资源链接、运行缓存路径和超大文件未发现命中；这是有限规则检查，不声称可证明所有敏感内容不存在。研究下载、凭据封装、.env、node_modules、dist和日志均保持忽略。
+- 提交2002f37的 [GitHub Actions](https://github.com/122Ml/HaJi_Mark/actions/runs/40653380851) 已实际通过collaboration-check：审核归属/合并方向、Git空白、Go测试/vet/构建、sqlc重生成一致性、前端安装/构建、文档及Compose检查。
+- 当前容器冒烟再次通过：live/ready、课程发布过滤和SPA深路由。没有新增模型调用或参考站业务写入。
+- 同步时若新增提交，必须等最新SHA的PR检查通过才合入；集成分支push后的最终运行结果以 [Actions](https://github.com/122Ml/HaJi_Mark/actions) 为准。下方初始化/前端阶段的“未上传”记录保留为当时事实。
+- 本地已解除原push URL阻断，保留push.default=nothing，不配置后台同步。源码、文档、截图对照和历史副本正常纳入Git；只清理由本次工作创建且已合并的临时分支，未合并成员分支不清理。
+
 ## 2026-10-28 前端复刻增补
 
 沿用指定 ai-website-cloner-template 的观察／实现／比较流程，具体范围和差异见 [复刻记录](research/frontend-rebuild.md)。本轮只修改前端、验证脚本及文档，Go 业务没有新增实装。

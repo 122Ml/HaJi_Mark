@@ -2,9 +2,9 @@ FROM golang:1.26.1-alpine AS build
 ENV GOMAXPROCS=2 GOMEMLIMIT=768MiB GOFLAGS=-p=2
 WORKDIR /src
 COPY go.mod go.sum ./
-RUN go mod download
+RUN go mod download -x
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -o /out/api ./cmd/api && CGO_ENABLED=0 go build -trimpath -o /out/worker ./cmd/worker
+RUN CGO_ENABLED=0 go build -trimpath -o /out/api ./cmd/api && CGO_ENABLED=0 go build -trimpath -o /out/worker ./cmd/worker && CGO_ENABLED=0 go build -trimpath -o /out/seed-s1 ./cmd/seed-s1
 
 FROM build AS migration-tools
 RUN GOBIN=/out go install -tags='no_clickhouse no_mssql no_mysql no_sqlite3 no_vertica no_ydb no_libsql' github.com/pressly/goose/v3/cmd/goose@v3.26.0
@@ -12,7 +12,7 @@ RUN GOBIN=/out go install -tags='no_clickhouse no_mssql no_mysql no_sqlite3 no_v
 FROM alpine:3.22 AS runtime
 RUN apk add --no-cache ca-certificates && addgroup -S app && adduser -S -G app app
 WORKDIR /app
-COPY --from=build /out/api /out/worker ./
+COPY --from=build /out/api /out/worker /out/seed-s1 ./
 COPY --from=migration-tools /out/goose ./
 COPY db/migrations ./db/migrations
 USER app

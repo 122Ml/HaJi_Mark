@@ -10,6 +10,8 @@ import {
 } from "react-router-dom";
 import { Login } from "../replica/Login";
 import { Modal, Button } from "../replica/ui";
+import { SessionProvider, RequireSession, useSession } from '../shared/session';
+import { SessionCourses } from '../shared/SessionCourses';
 
 const StudentRoutes = lazy(() =>
   import("../replica/student").then((m) => ({ default: m.StudentRoutes })),
@@ -53,6 +55,8 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [help, setHelp] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
+  const {session, logout} = useSession();
   const root = teacher ? "/teacher" : "/student";
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -94,21 +98,21 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
             </select>
           )}
           {teacher ? (
-            <span className="nav-user-name">teacher</span>
+            <span className="nav-user-name">{session?.user.display_name}</span>
           ) : (
             <Link
               className="nav-user-name nav-profile-link"
               to="/student/profile"
             >
-              曾懿涵
+              {session?.user.display_name}
             </Link>
           )}
           <button
             type="button"
             className="ghost-btn"
-            onClick={() => {
-              sessionStorage.removeItem("haji-demo:role");
-              navigate("/login");
+            onClick={async () => {
+              try { await logout(); navigate('/login',{replace:true}); }
+              catch(err) {setLogoutError(err instanceof Error?err.message:'退出失败，请重试');}
             }}
           >
             退出登录
@@ -116,6 +120,8 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
         </div>
       </header>
       <main className="page-container" id="main-content">
+        {logoutError && <p role="alert">{logoutError}</p>}
+        <SessionCourses />
         <Suspense fallback={<p className="replica-empty">正在加载页面…</p>}>
           {teacher ? <TeacherPages /> : <StudentRoutes />}
         </Suspense>
@@ -130,11 +136,10 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
       {help && (
         <Modal title="本地前端演示" onClose={() => setHelp(false)}>
           <p>
-            此版本复刻参考平台的学生端与教师端界面。作业、批改、任务与公告保存在当前浏览器；切换角色后可以接续演示。
+            登录和“我的真实课程”已连接服务端。下方作业、批改、任务与公告仍保存在当前浏览器，为构造演示。
           </p>
           <p>
-            登录仅切换演示身份，图表为样例数据，AI
-            按钮生成固定演示草稿。未接入真实身份认证、模型服务或参考站业务接口。
+            图表为样例数据，AI按钮生成固定演示草稿。切换真实角色需要退出后使用对应账户登录；未接入模型服务或参考站业务接口。
           </p>
           <div className="replica-actions">
             <Button
@@ -143,7 +148,7 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
                 navigate("/student/home");
               }}
             >
-              学生端
+              查看学生端（需学生账户）
             </Button>
             <Button
               onClick={() => {
@@ -151,7 +156,7 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
                 navigate("/teacher/dashboard");
               }}
             >
-              教师端
+              查看教师端（需教师账户）
             </Button>
             <Button
               onClick={() => {
@@ -185,7 +190,7 @@ function TeacherPages() {
     <TeacherWorkflowRoutes />
   );
 }
-export function App() {
+function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Navigate replace to="/login" />} />
@@ -226,8 +231,8 @@ export function App() {
         path="/teacher/grading"
         element={<Navigate replace to="/teacher/homework" />}
       />
-      <Route path="/student/*" element={<Shell />} />
-      <Route path="/teacher/*" element={<Shell teacher />} />
+      <Route path="/student/*" element={<RequireSession role="student"><Shell /></RequireSession>} />
+      <Route path="/teacher/*" element={<RequireSession role="teacher"><Shell teacher /></RequireSession>} />
       <Route
         path="/development/catalog"
         element={
@@ -250,3 +255,5 @@ export function App() {
     </Routes>
   );
 }
+
+export function App() { return <SessionProvider><AppRoutes /></SessionProvider>; }

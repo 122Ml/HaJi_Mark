@@ -4,16 +4,16 @@
 
 ## 项目初始化状态
 
-2026-10-28，Sprint 0＋示例平台前端复刻。开工代码在 [codex/integration](https://github.com/122Ml/HaJi_Mark/tree/codex/integration)，成员从该分支创建任务分支；`main` 保留稳定基线。本轮用户已授权将初始化代码、前端与每周计划通过任务分支和 PR 同步到 GitHub；后续仍按明确任务执行同步，不启用后台自动上传。
+2026-10-28，Sprint 0＋前端复刻＋S1身份接入。远端开工基线在 [codex/integration](https://github.com/122Ml/HaJi_Mark/tree/codex/integration)，成员从该分支创建任务分支；`main` 保留稳定基线。当前S1工作仅保存在本地`codex/s1-liran`，按用户本轮要求不上传GitHub，不启用后台同步。
 
 | 已建立 | 尚待迭代实现 |
 | --- | --- |
-| Go/Gin API、存活/依赖就绪检查、sqlc 课程查询、Goose 初始迁移 | 登录/授权、课程编辑发布、学习记录、答疑 |
-| React 师生端 26 个页面路由、本地作业／批改／任务／互动／测验演示、课程摘要查询 | 业务接入服务端：认证、持久化、授权、真实画像与推荐 |
+| Go/Gin API、健康检查、sqlc课程查询、Goose迁移；密码哈希、数据库会话、身份/角色/课程/本人授权与CSRF | 课程编辑发布、学习记录、答疑及业务对象行级授权 |
+| React师生端26页面；真实登录/退出、本人课程与授权示例；本地作业／批改／任务／互动／测验演示 | 真实提交、人工评分、画像与推荐的服务端持久化 |
 | API/Worker 同镜像、PostgreSQL/Redis、Compose、本地示例种子 | Asynq 业务处理器、真实模型接入、独立评测与效果验证 |
 | 分工、六周72项小任务、接口/证据契约、CI 定义和开工提示 | 成员真实贡献、课堂验收与真实业务后端接入 |
 
-前端已按指定的 ai-website-cloner-template 工作流复刻参考平台，见 [页面映射、截图对照与差异](docs/research/frontend-rebuild.md)。本地预览从登录页进入，任意非空账号／密码可选择学生或教师角色；不会连接参考站账号。业务操作保存在当前浏览器，右下角“本地演示”可切换角色或重置。当前公共课程 API 仍只返回发布元数据；本地交互不等于真实后端已经实现。
+前端已按指定的 ai-website-cloner-template 工作流复刻参考平台，见 [页面映射、截图对照与差异](docs/research/frontend-rebuild.md)。登录现接真实服务端，角色由数据库确定；使用下方生成的S1账号，不连接参考站。页首“我的真实课程”读取数据库并演示归属/CSRF检查；下方作业、评分、画像等仍保存于当前浏览器，明确标记构造演示。右下角可重置演示数据；切换身份须退出后用对应账号登录。
 
 ## 开始运行
 
@@ -24,11 +24,12 @@ Copy-Item .env.example .env
 docker compose config --quiet
 docker compose build
 docker compose up -d
+pwsh -File scripts/seed-s1.ps1
 docker compose --profile demo run --rm seed
 pwsh -File scripts/smoke.ps1 -ExpectDemo
 ```
 
-浏览器打开 http://127.0.0.1:18080 。未执行 seed 时课程列表应为空；seed 仅插入构造示例，draft 课程不可见。停止使用 `docker compose down`，不加 `-v`，保留数据。首次构建需要下载镜像和依赖。
+浏览器打开 http://127.0.0.1:18080 。登录账号见本地`.local/s1-accounts.json`（已忽略，勿提交）：s1-teacher、s1-teacher-other、s1-student-a/b，密码随机生成。重复seed复用账号，保留已有数据。学生只见选课的发布课程，教师可见本人草稿；公开摘要不含草稿。停止使用 `docker compose down`，不加 `-v`，保留数据。首次构建需要下载镜像和依赖。
 
 验证结果及当前环境限制见 [本轮验证](docs/verification.md)。详细命令、锁定工具版本及手动同步约定见 [开发说明](docs/development.md)。不要使用参考站账号作为本项目默认账号。
 

@@ -2,6 +2,8 @@
 
 2026-10-28。参考站：[AI-Education](http://139.9.243.199)。本地预览：[Docker Web](http://127.0.0.1:18080)。本次只修改本地项目，不推送 GitHub，不写入参考站。
 
+S1增补：下文保留复刻阶段的观察和视觉验收；当前登录已改接真实服务端，不能再用任意非空密码或前端切换授予角色。页首新增“我的真实课程”显示授权查询与检查，业务演示仍标记为构造数据。复刻阶段SSIM不代表这次新增内容重新测量，当前验收见[验证记录](../verification.md)。
+
 ## 使用指定模板的方式
 
 采用 [JCodesMore/ai-website-cloner-template](https://github.com/JCodesMore/ai-website-cloner-template) 的 canonical `clone-website` 工作流：路由映射、真实页面观察、提取样式与资产、可编辑组件实现、同尺寸截图对照、交互回归。所读版本为 `ee3f5a2f31fd549b9593fa4f7cf6d2955ee593bb`；其工作流明确要求沿用现有应用约定。因此保留 React/Vite/TypeScript、Go 与 Compose，没有另起 Next.js 应用。
@@ -14,7 +16,7 @@
 
 | 入口 | 路径 | 主要状态 |
 | --- | --- | --- |
-| 登录 | `/login` | 学生／教师选择、空字段提示、本地身份演示 |
+| 登录 | `/login` | 学生／教师选择、空字段/错误凭据提示、真实服务端身份（S1更新） |
 | 学生首页 | `/student/home` | 优先任务、计划、知识图谱点选、画像、学习定位 |
 | 学习中心 | `/student/course-content` | 完整观测目录、知识点选择、资源分类、笔记、收藏、助教演示 |
 | 个性化路径 | `/student/learning` | 4 个正式节点、4 个补充项、目标、排序、版本、开始／完成 |

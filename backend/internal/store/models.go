@@ -29,8 +29,17 @@ type KnowledgePoint struct {
 	Position int32  `json:"position"`
 }
 
+type Session struct {
+	TokenHash string             `json:"token_hash"`
+	UserID    string             `json:"user_id"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type User struct {
-	ID          string `json:"id"`
-	DisplayName string `json:"display_name"`
-	Role        string `json:"role"`
+	ID           string      `json:"id"`
+	DisplayName  string      `json:"display_name"`
+	Role         string      `json:"role"`
+	Username     pgtype.Text `json:"username"`
+	PasswordHash pgtype.Text `json:"password_hash"`
 }

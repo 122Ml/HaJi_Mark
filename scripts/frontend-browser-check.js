@@ -1,13 +1,36 @@
-// Playwright MCP browser_run_code_unsafe filename entry. Restores local demo storage.
+// Called by check-s1-browser.cjs with ignored local accounts. Restores demo storage.
 // Run against the locally built Docker web service, not the remote reference site.
-async (page) => {
+async (page, accounts) => {
+  if (!accounts) throw new Error('Run scripts/check-s1-browser.cjs with S1 local accounts.');
   const context = page.context();
   const test = await context.newPage();
   const errors = [];
   test.on('pageerror', error => errors.push(String(error)));
   const base = 'http://127.0.0.1:18080';
   const routes = ['login', 'student/home', 'student/course-content', 'student/learning', 'student/student-twin', 'student/homework', 'student/homework/7bcfeeef0a1e4363a7a348d9c42e85cc', 'student/intervention', 'student/intervention/showcase_pkg_zyh', 'student/interaction', 'student/profile', 'student/quiz', 'teacher/dashboard', 'teacher/course-twin', 'teacher/homework', 'teacher/homework/new', 'teacher/homework/7bcfeeef0a1e4363a7a348d9c42e85cc/edit', 'teacher/homework/7bcfeeef0a1e4363a7a348d9c42e85cc/submissions', 'teacher/homework/submissions/sub-clean/grade', 'teacher/intervention', 'teacher/intervention/showcase_pkg_zyh', 'teacher/interaction', 'teacher/research', 'teacher/industry-intelligence', 'teacher/quiz', 'teacher/teacher-twin/drilldown'];
-  const goto = async route => { await test.goto(`${base}/${route}`); await test.locator('h1,h2,h3').first().waitFor({ state: 'visible' }); };
+  let currentRole = '';
+  const authenticate = async role => {
+    if (currentRole === role) return;
+    const me = await test.request.get(`${base}/api/v1/me`);
+    if (me.ok()) await test.request.delete(`${base}/api/v1/sessions/current`, {headers:{'X-CSRF-Token':(await me.json()).data.csrf_token}});
+    const account = accounts.find(a => a.username === (role === 'teacher' ? 's1-teacher' : 's1-student-a'));
+    await test.goto(`${base}/login`);
+    await test.getByLabel('用户名', {exact:true}).fill(account.username);
+    await test.getByLabel('密码', {exact:true}).fill(account.password);
+    // Deliberately choose the opposite role: only the DB role may grant access.
+    await test.getByLabel('用户类型', {exact:true}).selectOption(role === 'teacher' ? 'student' : 'teacher');
+    await test.getByRole('button', {name:'登录',exact:true}).click();
+    await test.waitForURL(`${base}/${role}/${role === 'teacher' ? 'dashboard' : 'home'}`);
+    await test.getByRole('heading', {name:'我的真实课程',exact:true}).waitFor();
+    currentRole = role;
+  };
+  const goto = async route => {
+    if (route.startsWith('teacher/')) await authenticate('teacher');
+    if (route.startsWith('student/')) await authenticate('student');
+    await test.goto(`${base}/${route}`);
+    await test.locator('h1,h2,h3').filter({hasNotText:'我的真实课程'}).first().waitFor({state:'visible'});
+    console.log(`Checked ${route}`);
+  };
   const click = async locator => { await locator.evaluate(element => element.click()); };
   const assert = (value, message) => { if (!value) throw new Error(message); };
   const results = [];
@@ -16,6 +39,27 @@ async (page) => {
   await test.evaluate(() => { Object.keys(localStorage).filter(key => key.startsWith('haji-demo:')).forEach(key => localStorage.removeItem(key)); });
   try {
     await test.bringToFront();
+    await test.goto(`${base}/student/home`);
+    await test.waitForURL(`${base}/login`);
+    await test.getByLabel('用户名',{exact:true}).fill('s1-student-a');
+    await test.getByLabel('密码',{exact:true}).fill('wrong-password');
+    await test.getByRole('button',{name:'登录',exact:true}).click();
+    await test.getByRole('alert').filter({hasText:'用户名或密码错误'}).waitFor();
+    await authenticate('student');
+    await test.reload();
+    await test.getByRole('heading',{name:'我的真实课程',exact:true}).waitFor();
+    await test.getByRole('button',{name:'读取课程',exact:true}).first().click();
+    await test.getByRole('status').filter({hasText:'已从服务端读取授权课程信息'}).waitFor();
+    await test.getByRole('button',{name:'校验写请求',exact:true}).first().click();
+    await test.getByRole('status').filter({hasText:'CSRF校验通过'}).waitFor();
+    await test.goto(`${base}/teacher/dashboard`);
+    await test.getByRole('heading',{name:'无权访问该角色页面'}).waitFor();
+    await test.goto(`${base}/student/home`);
+    await test.getByRole('button',{name:'退出登录',exact:true}).click();
+    await test.waitForURL(`${base}/login`);
+    assert((await test.request.get(`${base}/api/v1/me`)).status() === 401,'Logout did not revoke session');
+    currentRole = '';
+    results.push({authentication:'anonymous → failed login → DB role → reload → real course/CSRF → role denial → logout',passed:true});
     for (const width of [1440, 390]) {
       await test.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
       for (const route of routes) {
@@ -94,6 +138,8 @@ async (page) => {
     assert(errors.length === 0, errors.join('\n'));
     return { results, runtimeErrors: errors, restoresDemoStorage: true };
   } finally {
+    const me = await test.request.get(`${base}/api/v1/me`);
+    if (me.ok()) await test.request.delete(`${base}/api/v1/sessions/current`, {headers:{'X-CSRF-Token':(await me.json()).data.csrf_token}});
     await test.evaluate(saved => { Object.keys(localStorage).filter(key => key.startsWith('haji-demo:')).forEach(key => localStorage.removeItem(key)); Object.entries(saved).forEach(([key, value]) => localStorage.setItem(key, value)); }, saved);
     await test.close();
   }

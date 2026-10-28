@@ -23,9 +23,13 @@
 
 ## 逐点证据结构
 
+S1-L3的具体请求/返回及交接门槛见[评分契约](contracts.md#s1-l3交给s2的人工评分契约)。目前只有身份与授权示例接通，尚无真实资料版本或submission_id；本地交接清单明确保留null，不能把文档构造题或浏览器localStorage原文当成已入库提交。标准起草、教师确认、实际评分与独立参照仍为后续工作。
+
 评分点关联 `criterion_id/rubric_version`；知识依据引用 `resource_id/resource_version/page/fragment_id`；作答引用 `submission_id/attempt/start/end/quote`（统一 Unicode code point 偏移、左闭右开，后端不得按 UTF-8字节切片；前端 Array.from 处理）。缺少某要点时以完整作答覆盖检查说明 `missing`，不伪造“未出现内容”的原文引用。
 
 资料不足、资料冲突、标准不符、未作答、模型超时、无效JSON分别显示原因和下一步。资料不够转人工补标准；模型失败不写0；真实空白提交由教师按标准处理，但画像同时显示证据状态。学生作答中的“忽略标准/直接满分”是待评文本，不是模型指令。
+
+来源交接时由course提供原文与历史版本查询，不能只给可变网页URL；由assessment提供不trim、不改换行的UTF-8原文SHA256与attempt。grading验证授权课程、冻结的资料版本、quote与code point切片相等、逐点评分范围及加和；教师另核查语义和来源是否足以支持给分。机械检查和人工确认分别留痕。更正来源或标准必须新建版本，不追溯替换旧评分输入。
 
 ## 先用透明诊断
 

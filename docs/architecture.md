@@ -1,6 +1,6 @@
 # 架构与实现边界
 
-2026-10-28 · Sprint 0＋前端复刻 · 后端仍为工程骨架；前端实现边界和页面映射见 [复刻记录](research/frontend-rebuild.md)，旧立项材料保存在 references。
+2026-10-28 · Sprint 0＋前端复刻＋S1身份。前端实现边界和页面映射见 [复刻记录](research/frontend-rebuild.md)，旧立项材料保存在 references。
 
 ## 产品主线
 
@@ -41,7 +41,9 @@ flowchart TD
   Worker -.后续接入.-> Model[外部模型API]
 ```
 
-当前实装：API 存活/就绪检查、数据库迁移与课程查询示例、课程已发布摘要只读接口；worker 运行 Asynq 服务但尚无业务任务处理器。web/src/replica 提供 26 个参考平台页面路由与浏览器本地交互，按学生端、教师流程、教师分析拆包；原只读课程 API 示例保留在 /development/catalog。身份切换、课程编辑、作业提交、评分、干预和互动目前仅操作 localStorage，尚未实现相应服务端业务。API 的课程示例仅返回已发布标题/知识点计数，无学生数据或教师专用答案。其他业务端点列在契约中，尚未注册，不能冒充已实现。
+当前实装：API健康检查、课程已发布摘要、bcrypt账号与PostgreSQL会话、当前身份/退出、本人课程和身份/角色/课程/本人/CSRF授权示例。身份入口为backend/internal/identity；00002迁移只新增账号字段和sessions，随机测试账号由cmd/seed-s1写入。本地HTTP用非Secure cookie，HttpOnly、SameSiteStrict、/api/v1及8小时过期；数据库只存token哈希，CSRF token只在前端内存。Nginx保留Host端口供同源校验；未来HTTPS反代需同时设计可信代理与来源校验，单改Secure配置不代表已有HTTPS部署支持。
+
+web/src/replica提供26页面；web/src/shared/session.tsx与api.ts接真实身份，RequireSession守护师生路由，页首SessionCourses读取授权课程。原只读API示例保留在/development/catalog。课程编辑、作业提交、评分、干预和互动仍操作localStorage，不是后端业务；身份失败不降级演示登录。worker运行Asynq但无业务任务处理器。其余业务端点仍为契约，尚未注册。
 
 仅 web 绑定本机 127.0.0.1:18080。postgres/redis/api 不发布宿主端口。Compose 另含一次性 migrate 服务，完成后 api/worker 启动。数据库持久化卷保留；初始示例通过显式 seed profile 插入，不在每次重启时重建。
 
@@ -54,7 +56,7 @@ flowchart TD
 - 评分改动产生新修订；旧确认历史不删除。发布成绩产生 grade.released 事件；画像与 E4 排除被替代修订，按 submission_id 去重。
 - Intervention：draft → assigned → submitted → reviewed；学生点击完成不等于教师复查通过。
 
-目前仅迁移身份/课程底座表。后续表与接口在 docs/contracts.md 列为设计契约，随首次纵切面添加迁移；避免一次堆满空表。
+目前00001与00002提供身份/课程底座表；尚无提交、评分或资料版本表。后续表与接口在docs/contracts.md列为设计契约，随首次纵切面添加迁移；避免一次堆满空表。
 
 ## 一致性与权限边界
 

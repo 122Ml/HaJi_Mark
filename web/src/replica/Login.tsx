@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSession, homeFor } from '../shared/session';
 
 const loop = [
   [
@@ -29,6 +30,8 @@ export function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const { login } = useSession();
   return (
     <div className="login-shell">
       <div className="login-locale">
@@ -93,16 +96,16 @@ export function Login() {
         <p className="login-desc">请使用平台账号登录对应工作台。</p>
         <form
           className="login-form"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
             if (!username.trim() || !password) {
               setError("请输入用户名和密码");
               return;
             }
-            sessionStorage.setItem("haji-demo:role", role);
-            navigate(
-              role === "teacher" ? "/teacher/dashboard" : "/student/home",
-            );
+            setBusy(true); setError('');
+            try { const user = await login(username.trim(), password); setPassword(''); navigate(homeFor(user),{replace:true}); }
+            catch(err) { setError(err instanceof Error ? err.message : '登录失败，请重试'); }
+            finally { setBusy(false); }
           }}
         >
           <label>
@@ -154,13 +157,14 @@ export function Login() {
           )}
           <button
             type="submit"
+            disabled={busy}
             className="el-button el-button--primary el-button--large full-width"
           >
-            <span>登录</span>
+            <span>{busy ? '正在登录…' : '登录'}</span>
           </button>
         </form>
         <p className="login-demo-hint">
-          本地前端演示 · 任意非空账号进入所选角色，不连接参考站账号。
+          使用本地生成的 S1 测试账号。实际角色以服务端账户为准，用户类型选择不会授予权限；不连接参考站账号。
         </p>
       </section>
     </div>

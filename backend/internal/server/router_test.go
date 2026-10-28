@@ -8,7 +8,7 @@ import (
 )
 
 func TestUnavailableDependenciesDoNotReportReady(t *testing.T) {
-	router := New(nil, nil)
+	router := New(nil, nil, false)
 	for _, tc := range []struct {
 		path   string
 		status int

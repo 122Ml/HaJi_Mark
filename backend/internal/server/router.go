@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/122Ml/HaJi_Mark/backend/internal/course"
+	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 )
 
-func New(db *pgxpool.Pool, cache *redis.Client) *gin.Engine {
+func New(db *pgxpool.Pool, cache *redis.Client, secureCookie bool) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery())
 	r.GET("/api/v1/health/live", func(c *gin.Context) {
@@ -29,5 +30,8 @@ func New(db *pgxpool.Pool, cache *redis.Client) *gin.Engine {
 		c.JSON(status, gin.H{"database": databaseOK, "redis": redisOK})
 	})
 	course.Register(r.Group("/api/v1"), db)
+	auth := identity.New(db, secureCookie)
+	auth.Register(r.Group("/api/v1"))
+	auth.RegisterContext(r.Group("/api/v1"))
 	return r
 }

@@ -1,7 +1,7 @@
-# 测验与作业 · 张俊超
+# assessment 责任导航
 
-当前未实现业务。按 docs/team.md 与 docs/contracts.md 开工。
+当前活动业务在 `backend/internal/learning` 与 `web/src/live`，定位：assessment.go、drafts.go；assessment.tsx的作业与提交。本目录保留原纵向责任入口，不另外注册重复服务。
 
-纵切面：教师建题/发布 → 学生保存/提交 → 不可变提交版本＋事件 → 教师看提交 → 学生查状态。客观题按已发布答案规则判分；主观题交 grading，不写正式成绩。首次任务 AS-01，先一道文本题的提交和刷新留存。
+课程/提交/评分/路径/干预均已接PostgreSQL，实际契约见 docs/contracts.md；每个对象校验课程和本人权限，认证写操作校验CSRF。查询在learning.sql，经sqlc生成store；迁移00001—00007已使用。AI按用户要求关闭，不返回假模型结果。
 
-新增代码按 http.go、service.go 和 db/queries/assessment.sql 起步，有需要才拆更多文件。相关前端在 web/src/features/assessment。迁移编号由李然分配，不修改已应用迁移。
+后续按docs/team.md领取垂直改进，修改后运行相应真实HTTP/Go/浏览器验收。结构化rubric、E6模型评阅和独立实验仍未完成，不能把整题人工评分或规则路径当作AI能力。

@@ -164,7 +164,7 @@ export function Login() {
           </button>
         </form>
         <p className="login-demo-hint">
-          使用本地生成的 S1 测试账号。实际角色以服务端账户为准，用户类型选择不会授予权限；不连接参考站账号。
+          使用教师发放的账号登录。身份由账户确定；如无账号或忘记密码，请联系课程教师。
         </p>
       </section>
     </div>

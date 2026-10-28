@@ -1,5 +1,7 @@
-# 学情与干预 · 葛炫毅
+# insight 责任导航
 
-当前未实现业务。首次 IN-01 从已发布成绩读取证据列表和规则表现，不把所有学生都显示成风险。后续完成班级下钻 → 人工干预 → 学生执行 → 教师复查；E4 先准确计数再探索带证据的摘要。
+当前活动业务在 `backend/internal/learning` 与 `web/src/live`，定位：path.go、feedback.go的干预；insight/path.tsx。本目录保留原纵向责任入口，不另外注册重复服务。
 
-每个结论关联 submission_id、released_revision_id、knowledge_point_id、公式版本和样本数。无数据、未作答、模型失败与零分分开。相关前端在 web/src/features/insight。
+课程/提交/评分/路径/干预均已接PostgreSQL，实际契约见 docs/contracts.md；每个对象校验课程和本人权限，认证写操作校验CSRF。查询在learning.sql，经sqlc生成store；迁移00001—00007已使用。AI按用户要求关闭，不返回假模型结果。
+
+后续按docs/team.md领取垂直改进，修改后运行相应真实HTTP/Go/浏览器验收。结构化rubric、E6模型评阅和独立实验仍未完成，不能把整题人工评分或规则路径当作AI能力。

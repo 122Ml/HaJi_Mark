@@ -1,0 +1,242 @@
+.live-page {
+  display: grid;
+  gap: 24px;
+}
+.live-graph {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.live-graph-node {
+  border: 1px solid #cbd9ec;
+  border-radius: 10px;
+  padding: 16px;
+  background: #f8fbff;
+}
+.live-graph-node p,
+.live-graph-node small {
+  color: #53667d;
+  overflow-wrap: anywhere;
+}
+.live-performance {
+  display: grid;
+  gap: 14px;
+}
+.live-performance progress {
+  display: block;
+  width: 100%;
+  height: 16px;
+  accent-color: #3267b1;
+}
+.live-node {
+  overflow-wrap: anywhere;
+}
+.live-course-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.live-course-bar label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.live-course-bar select {
+  max-width: 70vw;
+  min-height: 40px;
+}
+.live-heading {
+  padding: 24px 0;
+}
+.live-heading h1 {
+  font-size: 28px;
+  margin: 8px 0;
+}
+.live-heading > p:first-child {
+  color: #64748b;
+  font-size: 14px;
+}
+.live-heading > .primary-link {
+  display: inline-block;
+  margin-top: 16px;
+}
+.live-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(0, 3fr);
+  gap: 24px;
+  align-items: start;
+}
+.live-grid > .card-panel {
+  min-width: 0;
+}
+.live-form {
+  display: grid;
+  gap: 16px;
+}
+.live-form label,
+.live-page > section > label {
+  display: grid;
+  gap: 8px;
+}
+.live-page input:not([type="radio"]):not([type="checkbox"]),
+.live-page textarea,
+.live-page select {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 42px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 10px;
+  background: #fff;
+  color: #182337;
+  font: inherit;
+}
+.live-page textarea {
+  resize: vertical;
+}
+.live-inline {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.live-inline > label {
+  flex: 1;
+  min-width: 160px;
+}
+.live-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+.card-panel.live-row {
+  padding: 24px;
+}
+.live-row > div {
+  min-width: 0;
+}
+.live-node {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  text-align: left;
+  border: 0;
+  background: #f8fafc;
+  border-radius: 6px;
+  color: #334155;
+}
+.live-node.active {
+  background: #e8f0fd;
+  color: #1752aa;
+}
+.live-prose {
+  white-space: pre-wrap;
+  line-height: 1.9;
+  overflow-wrap: anywhere;
+}
+.live-id {
+  overflow-wrap: anywhere;
+  font-family: monospace;
+  font-size: 12px;
+}
+.live-meta {
+  font-size: 13px;
+  color: #526176;
+}
+.live-error {
+  padding: 16px;
+  color: #991b1b;
+  background: #fef2f2;
+  border-radius: 6px;
+}
+.live-message {
+  padding: 16px;
+  color: #166534;
+  background: #f0fdf4;
+  border-radius: 6px;
+}
+.live-page fieldset {
+  display: grid;
+  gap: 14px;
+  border: 1px solid #dbe3ee;
+  border-radius: 8px;
+  padding: 20px;
+  min-width: 0;
+}
+.live-page h2 {
+  font-size: 20px;
+  margin: 0 0 16px;
+}
+.live-page h3 {
+  font-size: 16px;
+}
+.live-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+}
+.live-metrics strong {
+  display: block;
+  font-size: 30px;
+  margin-top: 12px;
+}
+.live-option {
+  display: flex !important;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+}
+.live-revision {
+  padding: 16px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+.live-page blockquote {
+  border-left: 3px solid #9bb4d4;
+  margin: 16px 0;
+  padding-left: 16px;
+}
+.live-page button {
+  cursor: pointer;
+}
+.live-page button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+.live-page a:focus-visible,
+.live-page button:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 3px;
+}
+@media (max-width: 760px) {
+  .live-grid {
+    grid-template-columns: 1fr;
+  }
+  .live-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .live-row {
+    display: block;
+  }
+  .live-row > .live-inline {
+    margin-top: 16px;
+  }
+  .live-course-bar label {
+    display: grid;
+  }
+  .live-heading h1 {
+    font-size: 24px;
+  }
+  .live-page .card-panel {
+    padding: 18px;
+  }
+  .live-page {
+    gap: 18px;
+  }
+}

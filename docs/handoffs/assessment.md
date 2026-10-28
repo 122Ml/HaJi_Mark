@@ -1,5 +1,8 @@
 # 给张俊超的AI工具
 
+> 当前平台基线在本地codex/platform-completion，尚未同步GitHub。后续接续前先读README/architecture和实际learning/live入口；下方原开工步骤/迁移预约为历史计划，00003—00007已使用，不得照抄创建重复接口或覆盖表。本轮整体实现不自动计入任何成员贡献。
+
+
 只主责测验作业纵切面。先读AGENTS.md、docs/team.md、docs/contracts.md和backend/internal/assessment/README.md。
 
 先从docs/backlog.md选择当前一周的一项小任务，不一次实现六周。S1-A1/A2/A3依次是教师创建发布一道文本题、学生草稿/正式提交、教师列表/学生状态；S2做客观测验，S3接后测。每份正式提交有独立attempt与原文；重试同request_id不重复入库；未作答不设0分。为李然交submission_id/题目版本，不自己实现AI评分。

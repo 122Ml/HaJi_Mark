@@ -7,6 +7,7 @@ import (
 
 	"github.com/122Ml/HaJi_Mark/backend/internal/course"
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
+	"github.com/122Ml/HaJi_Mark/backend/internal/learning"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
@@ -33,5 +34,6 @@ func New(db *pgxpool.Pool, cache *redis.Client, secureCookie bool) *gin.Engine {
 	auth := identity.New(db, secureCookie)
 	auth.Register(r.Group("/api/v1"))
 	auth.RegisterContext(r.Group("/api/v1"))
+	learning.Register(r.Group("/api/v1"), db, auth)
 	return r
 }

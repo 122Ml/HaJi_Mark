@@ -1,17 +1,16 @@
 # HaJi Mark 开工入口
 
-先读 README.md、docs/architecture.md、docs/team.md、docs/backlog.md，再读自己模块的 README。
+先读 README.md、docs/architecture.md、docs/team.md、docs/backlog.md，再沿工作区导航读取实际模块。
 
-- 当前为本地Sprint 0、26页前端复刻与S1真实身份/课程授权接入。登录/退出、会话、本人课程及授权示例已实现；学习、提交、评分、画像等业务仍为浏览器演示。入口见docs/architecture.md与docs/research/frontend-rebuild.md。历史教师端E6设计见references，当前范围包含基础师生闭环和E6/E4。
-- web/src/replica 是本轮师生界面；localStorage 只作显式演示，服务端接入不得据此放松身份/班级授权。参考站密码、生产 bundle、历史聊天与签名媒体地址不提交。模板工作流沿用现有 React/Vite，不迁到 Next.js。
-- 保留 Go/Gin、React/TypeScript/Ant Design、PostgreSQL、pgx/sqlc、Goose、Redis/Asynq、Docker Compose。一个应用按业务模块组织，不拆微服务。
-- 每人负责一个业务纵切面的页面、接口、数据保存与自测。共享基础、依赖、全局路由、迁移编号由李然协调；不得覆盖其他成员代码。
-- 课程资料、rubric、原始作答、AI 原稿、人工确认、独立评测参照分别记录。标准起草不读取待评答案；正式成绩只来自教师确认。引用可定位不等于语义正确。
-- 草稿不对学生公开；业务端点上线前必须实现服务端身份、班级归属与行级授权。前端学生/教师导航不是权限控制。
-- 未作答、零分、资料不足、模型失败分别处理。画像/E4 只用有效的已确认记录，保留证据 ID 与算法版本。
-- 新增迁移不修改已执行迁移；SQL 查询交给 sqlc 生成，生成文件不手改。模块间只通过明确契约调用，不跨模块直接更新表。
-- identity中间件与web/src/shared/session.tsx、api.ts是S1公共入口。先RequireSession再RequireRole/RequireCourse；业务对象必须从存储对象取得course/student归属，不能只检查请求body课程。所有认证写操作再RequireCSRF；access-check只作无副作用示例。后续成员按各自业务补行级检查。
-- 真实模型调用须有本轮明确授权、密钥和预算；默认不调用，不把固定样例、历史探查或 AI 自评分当教师真值。
-- 验证优先 Docker；没有 Docker daemon 时可做静态构建和定向测试，但必须说明尚未运行容器。本项目启动/停止脚本只作用于 hajimark Compose 项目，不删除卷。
-- 本地提交可以进行；初始化成果已同步，当前S1任务用户明确要求仅本地开发、不上传GitHub。保持codex/s1-liran，不fetch/push或发远端PR；后续同步按届时明确授权执行。手动同步与push.default约定见docs/development.md。
-- 文档、代码和实际状态不一致时同步修订当前文档；references 的历史材料与三个原流程图保留，不把旧范围当本次排除基础模块的理由。
+- 当前为真实师生平台完善阶段。活动入口是 web/src/live 与 backend/internal/learning；identity 提供数据库会话和权限，store 由 sqlc 生成。web/src/replica 保留历史复刻源码和目录模板，未作为活动业务路由，不能把 localStorage 演示当数据库事实。
+- 保留 Go/Gin、React/TypeScript、PostgreSQL、pgx/sqlc、Goose、Redis/Asynq、Docker Compose；一个应用内组织业务，不拆微服务。worker 目前没有业务任务处理器。
+- 用户本轮授权跨原分工完善整个前后端；旧周计划和模块责任不阻止本轮改动。不冒充成员贡献、独立人工审核或教师验收。后续多人仍按纵向流程分支协作，共享入口先协调。
+- 当前本地分支 codex/platform-completion，仅本地开发；不 fetch/push、不开远端 PR、不发 GitHub 消息。push.default 与审核规则见 docs/development.md。
+- 用户明确要求先完成平台，AI 保持未配置。AI_ENABLED 默认 false；本轮不接真实模型、不填密钥、不用固定样例伪装AI响应。后续真实调用需另有明确授权、密钥与预算。
+- RequireSession→RequireRole/RequireCourse；所有认证写请求再 RequireCSRF。对象 ID 要从数据库读取课程/学生归属，不只检查请求 body。学生不能读别人提交、笔记、路径、评分草稿，教师只能访问本人课程。
+- 题目/标准发布后冻结，原始作答保存 attempt、assignment_version、原文 SHA256。评分新增修订，教师确认后单独发布；客观题使用教师答案规则判分。知识点表现只用已发布、去重结果，不把无证据当零分或能力概率。
+- 资料修订新增版本并保留旧文，题目绑定确切 resource_id；干预关联学习/练习时验证下发之后的新证据。状态转换和相关写入在数据库事务中完成。
+- 新增迁移不得修改已执行迁移；当前 00001—00007 已分配，后续从 00008 开始。先修改 db/queries，再用 sqlc 生成 store，不手改生成物。
+- 验证优先 Docker；构建串行、分步输出。当前入口为 check-platform.py、check-platform-browser.cjs、backend-test、backup.py 与 check_docs.py。测试保留有标签的业务数据，不清空表、不删除卷、不影响其他 Compose 项目。
+- .env/.local/账号/备份不提交。历史 references 副本和三个原 SVG 保留。代码、文档、工作区 navigation 与实际状态随本轮结构同步维护。
+- 不宣称生产就绪、90%视觉复刻或AI效果，除非有对应当前版本的证据；历史截图与旧SSIM不证明当前真实平台视觉。

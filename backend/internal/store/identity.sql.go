@@ -226,7 +226,7 @@ func (q *Queries) GetSessionUser(ctx context.Context, tokenHash string) (GetSess
 }
 
 const listActorCourses = `-- name: ListActorCourses :many
-SELECT c.id, c.title, c.status, c.version, count(k.id)::int AS knowledge_point_count
+SELECT c.id, c.title, c.status, c.version, count(k.id) FILTER (WHERE k.kind='point')::int AS knowledge_point_count
 FROM courses c LEFT JOIN knowledge_points k ON k.course_id = c.id
 WHERE ($1::text = 'teacher' AND c.teacher_id = $2) OR
  ($1::text = 'student' AND c.status = 'published' AND EXISTS (

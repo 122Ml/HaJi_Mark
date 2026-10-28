@@ -23,7 +23,7 @@
 
 ## 逐点证据结构
 
-S1-L3的具体请求/返回及交接门槛见[评分契约](contracts.md#s1-l3交给s2的人工评分契约)。目前只有身份与授权示例接通，尚无真实资料版本或submission_id；本地交接清单明确保留null，不能把文档构造题或浏览器localStorage原文当成已入库提交。标准起草、教师确认、实际评分与独立参照仍为后续工作。
+S1-L3的具体请求/返回及交接门槛见[评分契约](contracts.md#s1-l3交给s2的人工评分契约)。当前真实资料、submission、人工评分修订与正式反馈已落库，实际测试ID保存在忽略的.local/platform-check.json。题目绑定知识点和确切resource_id，资料有原文、版本、段落、来源和审核者；作答保留attempt/assignment_version/原文hash。当前标准为随题目发布冻结的教师文本，评分为整题整数及反馈；下方逐点结构、AI引用校验与独立参照为后续目标，尚未实现。旧.local/s1-handoff.json只是身份阶段历史，不再用作现有业务进度清单。
 
 评分点关联 `criterion_id/rubric_version`；知识依据引用 `resource_id/resource_version/page/fragment_id`；作答引用 `submission_id/attempt/start/end/quote`（统一 Unicode code point 偏移、左闭右开，后端不得按 UTF-8字节切片；前端 Array.from 处理）。缺少某要点时以完整作答覆盖检查说明 `missing`，不伪造“未出现内容”的原文引用。
 

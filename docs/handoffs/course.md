@@ -1,5 +1,8 @@
 # 给徐铂尧的AI工具
 
+> 当前平台基线在本地codex/platform-completion，尚未同步GitHub。后续接续前先读README/architecture和实际learning/live入口；下方原开工步骤/迁移预约为历史计划，00003—00007已使用，不得照抄创建重复接口或覆盖表。本轮整体实现不自动计入任何成员贡献。
+
+
 你在HaJi_Mark课程项目中，只主责课程与学习纵切面。先读AGENTS.md、docs/team.md、docs/contracts.md、docs/evidence.md及backend/internal/course/README.md。
 
 先从docs/backlog.md选择当前一周的一项小任务，不一次实现六周。S1-C1/C2/C3依次是教师保存资料草稿、发布并供学生查询、保存opened/completed记录。每项预计1—2小时；后续周沿同一课程学习纵切面推进，状态和验收回填原计划。

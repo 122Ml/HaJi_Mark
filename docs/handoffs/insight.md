@@ -1,5 +1,8 @@
 # 给葛炫毅的AI工具
 
+> 当前平台基线在本地codex/platform-completion，尚未同步GitHub。后续接续前先读README/architecture和实际learning/live入口；下方原开工步骤/迁移预约为历史计划，00003—00007已使用，不得照抄创建重复接口或覆盖表。本轮整体实现不自动计入任何成员贡献。
+
+
 只主责学情与干预纵切面。先读AGENTS.md、docs/team.md、docs/contracts.md、docs/evidence.md和backend/internal/insight/README.md。
 
 先从docs/backlog.md选择当前一周的一项小任务，不一次实现六周。S1-I1/I2/I3依次是需求缺口、教师已提交/未提交名单、学生真实学习/提交记录；S1不等待评分才开工。S2在李然发布评分后接证据画像；S3做规则路径与任务复查。无记录显示证据不足；表现结果附题数、时间、规则版本和released_revision_id。

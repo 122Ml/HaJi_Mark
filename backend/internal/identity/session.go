@@ -35,10 +35,11 @@ type Handler struct {
 	db           *pgxpool.Pool
 	queries      *store.Queries
 	secureCookie bool
+	limiter      *loginLimiter
 }
 
 func New(db *pgxpool.Pool, secureCookie bool) *Handler {
-	return &Handler{db: db, queries: store.New(db), secureCookie: secureCookie}
+	return &Handler{db: db, queries: store.New(db), secureCookie: secureCookie, limiter: newLoginLimiter()}
 }
 
 func Fail(c *gin.Context, status int, code, message string) {
@@ -115,6 +116,11 @@ func (h *Handler) login(c *gin.Context) {
 	}
 	if h.db == nil {
 		Fail(c, http.StatusServiceUnavailable, "service_unavailable", "身份服务暂不可用")
+		return
+	}
+	if !h.limiter.allow(strings.TrimSpace(input.Username), time.Now()) {
+		c.Header("Retry-After", "60")
+		Fail(c, 429, "too_many_requests", "该账号登录请求过于频繁，请稍后重试")
 		return
 	}
 	user, err := h.queries.GetLoginUser(c.Request.Context(), pgtype.Text{String: strings.TrimSpace(input.Username), Valid: true})

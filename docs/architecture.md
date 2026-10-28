@@ -1,69 +1,60 @@
 # 架构与实现边界
 
-2026-10-28 · Sprint 0＋前端复刻＋S1身份。前端实现边界和页面映射见 [复刻记录](research/frontend-rebuild.md)，旧立项材料保存在 references。
+2026-10-28 · 本地整个平台完善。当前实现以本页和 [接口契约](contracts.md) 为准；旧立项范围与历史复刻证据保留在 references 和 research。
 
-## 产品主线
+## 主流程与调用链
 
-一门课程的一个章节先跑通：教师发布知识点资料与作业 → 学生学习、提问、提交 → 客观题规则判分／主观题教师评分 → 正式反馈 → 有证据的表现画像与规则路径 → 教师查看、下发补学补练 → 学生执行并产生新证据。基础流程完整后深化 E6 有据主观题评阅和 E4 班级共性难点。
+教师发布课程、审核资料、发布作业/测验 → 学生阅读/笔记/作答 → 原文提交 → 客观题规则结果或教师评分草稿 → 教师确认并发布 → 学生反馈与知识点表现 → 规则学习路径或教师补学补练任务 → 新学习/新提交 → 教师复查。
 
 ```mermaid
 flowchart LR
-  A[教师发布课程 资源 题目] --> B[学生学习 提问 作答]
-  B --> C[原始提交与学习事件]
-  C --> D[规则评分或E6草稿]
-  D --> E[教师复核并发布正式反馈]
-  E --> F[画像 推荐与E4难点]
-  F --> G[教师核查并下发干预]
-  G --> B
+  Web[web/src/live 师生页面] --> Session[shared/session 与 identity]
+  Session --> API[learning 已授权业务接口]
+  API --> SQL[sqlc/store]
+  SQL --> DB[(PostgreSQL)]
+  API --> Evidence[已发布结果与学习记录]
+  Evidence --> Path[规则路径 / 教师干预]
+  Path --> Web
 ```
 
-## 四个业务包
+`App.tsx` 装配角色路由；`LearningProvider` 读取本人课程和课程选择。Query 缓存来自 API，sessionStorage 只保存当前账号选中的课程ID；业务数据不从浏览器演示存储恢复。身份切换清空查询缓存，401 回到会话检查。页面异常边界允许重新加载。
 
-| 模块 | 前后端目录 | 提供给下一环 | 主责 |
-| --- | --- | --- | --- |
-| 课程与学习 course | web/src/features/course；backend/internal/course | 已发布课程/知识点/资源片段、学习记录与提问 | 徐铂尧 |
-| 测验作业 assessment | web/src/features/assessment；backend/internal/assessment | 题目、原始提交版本、提交事件、客观题结果 | 张俊超 |
-| 有据评阅 grading | web/src/features/grading；backend/internal/grading | rubric 版本、AI 原稿、检查与教师确认修订 | 李然 |
-| 学情与干预 insight | web/src/features/insight；backend/internal/insight | 证据画像、推荐路径、班级下钻、干预和复查 | 葛炫毅 |
+## 模块位置
 
-各包均包含学生/教师所需界面、HTTP、业务逻辑和查询；不按前端/后端分人。identity、platform、应用装配和部署为李然维护的共享基础，不算替代纵向模块。课程答疑先做教师维护资料片段检索＋无依据明确提示，模型解释在后续有授权时添加。
+| 位置 | 当前职责 |
+| --- | --- |
+| backend/internal/identity | bcrypt、8小时数据库会话、角色/课程/本人权限、CSRF与登录频率限制 |
+| backend/internal/learning | 课程/目录/资料/成员，作业/提交/评分，学情/路径/干预，互动和账号、教研/行业记录 |
+| backend/internal/store；backend/db | sqlc类型查询，Goose迁移00001—00007；原文和修订的唯一事实源 |
+| web/src/live | course/curriculum/graph/notes、assessment、insight/path、communication、account、assistant |
+| web/src/shared | API、会话与错误恢复；原课程示例保留但不作为活动主入口 |
+| backend/internal/course | 兼容公开的已发布课程摘要；不包含学生数据 |
+| backend/internal/assessment、grading、insight；web/src/features | 原责任入口与文档，实际共享实现定位到 learning/live；没有重复业务服务 |
+| web/src/replica | 历史26页复刻源码、登录样式和课程目录模板；原演示不再挂到活动路由 |
 
-## 运行拓扑
+本轮为跨模块完整实现，集中在 learning 以避免同时造四套身份/状态处理；后续按真实协作需求渐进拆分，不凭目录名称宣称模块已实现。原纵向负责人见 [team](team.md)，不代记贡献。
 
-```mermaid
-flowchart TD
-  Browser[浏览器] --> Web[web Nginx React]
-  Web --> API[api Gin]
-  API --> DB[(PostgreSQL 业务事实源)]
-  API --> Queue[(Redis Asynq 作业ID)]
-  Queue --> Worker[worker 同一后端镜像]
-  Worker --> DB
-  Worker -.后续接入.-> Model[外部模型API]
-```
+## 运行与数据
 
-当前实装：API健康检查、课程已发布摘要、bcrypt账号与PostgreSQL会话、当前身份/退出、本人课程和身份/角色/课程/本人/CSRF授权示例。身份入口为backend/internal/identity；00002迁移只新增账号字段和sessions，随机测试账号由cmd/seed-s1写入。本地HTTP用非Secure cookie，HttpOnly、SameSiteStrict、/api/v1及8小时过期；数据库只存token哈希，CSRF token只在前端内存。Nginx保留Host端口供同源校验；未来HTTPS反代需同时设计可信代理与来源校验，单改Secure配置不代表已有HTTPS部署支持。
+Compose 运行 Nginx Web、Gin API、PostgreSQL、Redis、worker；migrate 一次性执行，API就绪后Web启动。仅Web绑定 `127.0.0.1:18080`，数据库/API/Redis无宿主端口。Nginx通过Docker DNS更新API地址，保留Host端口供同源校验；API有读写/空闲超时。Redis/Asynq和worker仍是保留基础，目前学习业务同步写PostgreSQL，没有已接入的评分队列或outbox。
 
-web/src/replica提供26页面；web/src/shared/session.tsx与api.ts接真实身份，RequireSession守护师生路由，页首SessionCourses读取授权课程。原只读API示例保留在/development/catalog。课程编辑、作业提交、评分、干预和互动仍操作localStorage，不是后端业务；身份失败不降级演示登录。worker运行Asynq但无业务任务处理器。其余业务端点仍为契约，尚未注册。
+| 对象 | 实际状态与版本 |
+| --- | --- |
+| Course / Resource | draft→published；资源审核发布，修订新增 v+1 并链到旧ID，旧资料仍可查 |
+| Curriculum | chapter/section/point＋parent_id，知识点依赖有向无环；空课程可原子导入参考目录 |
+| Assignment / Question | draft可编辑并递增版本；published→closed；发布后题目/标准冻结 |
+| AnswerDraft / Submission | 私人草稿可更新；每题正式提交新attempt，原文/哈希/作业版本不可覆盖，截止或关闭后拒绝新提交 |
+| GradingRevision | draft→confirmed→released；每次改分新增修订，仅最新可确认/发布；客观规则直接产生released |
+| Evidence | 每学生/题目选择最新有发布结果的attempt，再取其最新released修订；新未评分attempt不会抹去旧正式结果 |
+| StudyPath | 按无证据或表现低于60%的知识点及其前置依赖生成，保存顺序/理由/规则版本，不把规则称为模型预测 |
+| Intervention | draft→assigned→submitted→reviewed；关联资源须有下发后completed，关联作业须逐题有下发后新提交 |
 
-仅 web 绑定本机 127.0.0.1:18080。postgres/redis/api 不发布宿主端口。Compose 另含一次性 migrate 服务，完成后 api/worker 启动。数据库持久化卷保留；初始示例通过显式 seed profile 插入，不在每次重启时重建。
+提交与评分使用 request_id 去重；并发提交/评分通过行锁串行分配版本。其他状态转换使用预期旧状态条件。学生看不到评分草稿、内部标准答案和他人原文/笔记/路径。所有业务对象重新核对课程归属；角色路由不是权限边界。
 
-## 状态与数据归属
+## 评据与未完成范围
 
-- Course/Resource：draft → published；教师草稿和发布快照分开，旧发布版本仍可追溯。正式学习内容按课程发布版本查询。
-- Assignment：draft → published → closed；Submission 保存 immutable attempt，草稿编辑与正式提交分开。
-- Rubric：draft → confirmed（不可原地覆盖）；评分绑定题目、标准、资料片段、原始提交四类版本。
-- Job：queued/running/succeeded/failed，仅代表执行；GradingRevision：needs_review/confirmed/released，代表人工决策。成功调用不是确认成绩。
-- 评分改动产生新修订；旧确认历史不删除。发布成绩产生 grade.released 事件；画像与 E4 排除被替代修订，按 submission_id 去重。
-- Intervention：draft → assigned → submitted → reviewed；学生点击完成不等于教师复查通过。
+教师评分同屏查看冻结题目标准、学生原文、资料版本/段落/来源；已发布结果保留submission/revision/resource ID。资料由教师录入并审核，平台不证明内容的学术正确性。知识点表现为得分/满分汇总并展示证据，不等于真实能力；无记录显示证据不足。
 
-目前00001与00002提供身份/课程底座表；尚无提交、评分或资料版本表。后续表与接口在docs/contracts.md列为设计契约，随首次纵切面添加迁移；避免一次堆满空表。
+本轮AI按用户要求关闭，课程助手明确未配置，人工答疑/评分不受影响。兼容模型适配入口存在但未实测、未授权启用；没有AI评阅、结构化rubric逐点引用核查、E6效果实验。知识点图谱为依赖卡片，教研和行业功能为人工记录CRUD，没有招聘采集/自动能力推断；资料目前支持文本和外部链接，没有文件上传/OCR/视频处理。班级表现与证据下钻已经可用，E4错因分类与独立研究评测仍是后续研究任务。
 
-## 一致性与权限边界
-
-业务变更与事件/outbox 同 PostgreSQL 事务提交，队列消息只带 job_id；worker 幂等领取，检查任务状态和输入快照，不能覆盖教师确认。Redis 断线时保存 pending 派发记录，不丢失业务提交。此策略是后续任务，不是当前已验证能力。
-
-服务端使用会话身份与 enrollment 验证归属，不信任客户端传入 student_id/teacher_id。教师只能访问授权课程，学生只能读本人作答、反馈与任务；参考答案、rubric 内部反例和未发布反馈不可通过学生接口读取。不要用 URL 角色或前端切换当登录。
-
-## 先不引入
-
-微服务、向量库、复杂 Agent、模型训练、知识追踪神经网络、多模态/OCR、外部平台运行时依赖。先人工绑定审核片段和透明规则，再按实际问题增加能力。三个历史业务/模块/部署图只说明旧 E6 子系统，保留见 references/diagrams，不删除。
+尚未配置公网TLS、邮件/找回密码或多机构管理，未做大规模并发/安全审计。当前按本地课堂试用验收，不声称与参考平台所有高级菜单或视觉完全等价。备份与隔离恢复见 [development](development.md)，历史三图保留在 references/diagrams。

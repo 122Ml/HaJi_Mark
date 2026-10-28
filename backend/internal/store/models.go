@@ -8,6 +8,28 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AnswerDraft struct {
+	StudentID  string             `json:"student_id"`
+	QuestionID string             `json:"question_id"`
+	AnswerText string             `json:"answer_text"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+}
+
+type Assignment struct {
+	ID          string             `json:"id"`
+	CourseID    string             `json:"course_id"`
+	Title       string             `json:"title"`
+	Description string             `json:"description"`
+	Type        string             `json:"type"`
+	Status      string             `json:"status"`
+	Version     int32              `json:"version"`
+	MaxScore    int32              `json:"max_score"`
+	DueAt       pgtype.Timestamptz `json:"due_at"`
+	CreatedBy   string             `json:"created_by"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	PublishedAt pgtype.Timestamptz `json:"published_at"`
+}
+
 type Course struct {
 	ID        string             `json:"id"`
 	Title     string             `json:"title"`
@@ -17,16 +39,136 @@ type Course struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type CourseEdge struct {
+	CourseID string `json:"course_id"`
+	FromID   string `json:"from_id"`
+	ToID     string `json:"to_id"`
+}
+
 type Enrollment struct {
 	CourseID  string `json:"course_id"`
 	StudentID string `json:"student_id"`
 }
 
+type GradingRevision struct {
+	ID           string             `json:"id"`
+	SubmissionID string             `json:"submission_id"`
+	Revision     int32              `json:"revision"`
+	Score        int32              `json:"score"`
+	Feedback     string             `json:"feedback"`
+	Method       string             `json:"method"`
+	State        string             `json:"state"`
+	ReviewerID   string             `json:"reviewer_id"`
+	RequestID    string             `json:"request_id"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	ReleasedAt   pgtype.Timestamptz `json:"released_at"`
+}
+
+type IndustryRecord struct {
+	ID        string             `json:"id"`
+	CourseID  string             `json:"course_id"`
+	Title     string             `json:"title"`
+	SourceUrl string             `json:"source_url"`
+	Skills    string             `json:"skills"`
+	TeacherID string             `json:"teacher_id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type Interaction struct {
+	ID        string             `json:"id"`
+	CourseID  string             `json:"course_id"`
+	ActorID   string             `json:"actor_id"`
+	Kind      string             `json:"kind"`
+	Title     string             `json:"title"`
+	Content   string             `json:"content"`
+	ParentID  pgtype.Text        `json:"parent_id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type Intervention struct {
+	ID           string             `json:"id"`
+	CourseID     string             `json:"course_id"`
+	StudentID    string             `json:"student_id"`
+	Title        string             `json:"title"`
+	Description  string             `json:"description"`
+	Status       string             `json:"status"`
+	TeacherID    string             `json:"teacher_id"`
+	AnswerText   string             `json:"answer_text"`
+	ReviewNote   string             `json:"review_note"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	AssignedAt   pgtype.Timestamptz `json:"assigned_at"`
+	SubmittedAt  pgtype.Timestamptz `json:"submitted_at"`
+	ReviewedAt   pgtype.Timestamptz `json:"reviewed_at"`
+	ResourceID   pgtype.Text        `json:"resource_id"`
+	AssignmentID pgtype.Text        `json:"assignment_id"`
+}
+
 type KnowledgePoint struct {
-	ID       string `json:"id"`
-	CourseID string `json:"course_id"`
-	Title    string `json:"title"`
-	Position int32  `json:"position"`
+	ID          string      `json:"id"`
+	CourseID    string      `json:"course_id"`
+	Title       string      `json:"title"`
+	Position    int32       `json:"position"`
+	ParentID    pgtype.Text `json:"parent_id"`
+	Kind        string      `json:"kind"`
+	Description string      `json:"description"`
+}
+
+type LearningEvent struct {
+	ID         string             `json:"id"`
+	CourseID   string             `json:"course_id"`
+	ActorID    string             `json:"actor_id"`
+	ResourceID pgtype.Text        `json:"resource_id"`
+	Verb       string             `json:"verb"`
+	RequestID  string             `json:"request_id"`
+	OccurredAt pgtype.Timestamptz `json:"occurred_at"`
+}
+
+type LearningNote struct {
+	ActorID    string             `json:"actor_id"`
+	ResourceID string             `json:"resource_id"`
+	Note       string             `json:"note"`
+	Favorite   bool               `json:"favorite"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+}
+
+type Question struct {
+	ID               string      `json:"id"`
+	AssignmentID     string      `json:"assignment_id"`
+	Prompt           string      `json:"prompt"`
+	Type             string      `json:"type"`
+	MaxScore         int32       `json:"max_score"`
+	Rubric           string      `json:"rubric"`
+	Options          []string    `json:"options"`
+	CorrectAnswer    string      `json:"correct_answer"`
+	Position         int32       `json:"position"`
+	KnowledgePointID pgtype.Text `json:"knowledge_point_id"`
+	ResourceID       pgtype.Text `json:"resource_id"`
+}
+
+type ResearchRecord struct {
+	ID        string             `json:"id"`
+	CourseID  string             `json:"course_id"`
+	TeacherID string             `json:"teacher_id"`
+	Title     string             `json:"title"`
+	Content   string             `json:"content"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type Resource struct {
+	ID               string             `json:"id"`
+	CourseID         string             `json:"course_id"`
+	KnowledgePointID pgtype.Text        `json:"knowledge_point_id"`
+	Title            string             `json:"title"`
+	Content          string             `json:"content"`
+	SourceUrl        string             `json:"source_url"`
+	Locator          string             `json:"locator"`
+	Version          int32              `json:"version"`
+	Status           string             `json:"status"`
+	CreatedBy        string             `json:"created_by"`
+	ReviewedBy       pgtype.Text        `json:"reviewed_by"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	PublishedAt      pgtype.Timestamptz `json:"published_at"`
+	SupersedesID     pgtype.Text        `json:"supersedes_id"`
 }
 
 type Session struct {
@@ -34,6 +176,36 @@ type Session struct {
 	UserID    string             `json:"user_id"`
 	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type StudyPath struct {
+	ID          string             `json:"id"`
+	CourseID    string             `json:"course_id"`
+	StudentID   string             `json:"student_id"`
+	RuleVersion string             `json:"rule_version"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
+type StudyPathItem struct {
+	PathID           string `json:"path_id"`
+	KnowledgePointID string `json:"knowledge_point_id"`
+	Position         int32  `json:"position"`
+	Reason           string `json:"reason"`
+}
+
+type Submission struct {
+	ID                string             `json:"id"`
+	AssignmentID      string             `json:"assignment_id"`
+	QuestionID        string             `json:"question_id"`
+	CourseID          string             `json:"course_id"`
+	StudentID         string             `json:"student_id"`
+	Attempt           int32              `json:"attempt"`
+	AnswerText        string             `json:"answer_text"`
+	AnswerSha256      string             `json:"answer_sha256"`
+	Status            string             `json:"status"`
+	RequestID         string             `json:"request_id"`
+	SubmittedAt       pgtype.Timestamptz `json:"submitted_at"`
+	AssignmentVersion int32              `json:"assignment_version"`
 }
 
 type User struct {

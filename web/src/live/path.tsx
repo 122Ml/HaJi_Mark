@@ -1,0 +1,96 @@
+import { Link } from "react-router-dom";
+import { useLiveQuery, useAction, Feedback, when } from "./context";
+import type { Resource } from "./course";
+interface PathData {
+  path: { id: string; created_at: string; rule_version: string };
+  items: {
+    knowledge_point_id: string;
+    title: string;
+    description: string;
+    reason: string;
+    position: number;
+  }[];
+}
+export function StudyPath() {
+  const query = useLiveQuery<PathData | null>("/path");
+  const resources = useLiveQuery<Resource[]>("/resources");
+  const events =
+    useLiveQuery<{ resource_id: string; verb: string }[]>("/events");
+  const action = useAction();
+  return (
+    <div className="live-page">
+      <header className="live-heading">
+        <p>学习规划</p>
+        <h1>个性化学习路径</h1>
+        <p>
+          依据已发布评分，优先补充未覆盖或低表现知识点，并保留前置学习顺序。
+        </p>
+        <button
+          className="primary-link"
+          disabled={action.busy}
+          onClick={() => action.run("/path")}
+        >
+          {query.data ? "重新规划" : "生成学习路径"}
+        </button>
+      </header>
+      <Feedback error={query.error} message={action.message} />
+      {query.data ? (
+        <>
+          <section className="card-panel">
+            <h2>当前路径</h2>
+            <p>规划于 {when(query.data.path.created_at)}</p>
+            <p>优先学习尚无评分或表现低于60%的知识点，依次补齐前置知识。</p>
+            <details>
+              <summary>查看规划依据</summary>
+              <p>{query.data.path.rule_version}</p>
+            </details>
+          </section>
+          {!query.data.items.length && (
+            <section className="card-panel">
+              <p>当前已覆盖知识点均达到规则阈值，可继续完成教师安排的练习。</p>
+            </section>
+          )}
+          {query.data.items.map((p, i) => {
+            const linked =
+              resources.data?.filter(
+                (r) => r.knowledge_point_id === p.knowledge_point_id,
+              ) || [];
+            return (
+              <section className="card-panel" key={p.knowledge_point_id}>
+                <h2>
+                  {i + 1}. {p.title}
+                </h2>
+                <p>{p.reason}</p>
+                <p>{p.description}</p>
+                {linked.length ? (
+                  linked.map((r) => (
+                    <p key={r.id}>
+                      <Link
+                        to={`/student/course-content?node=${p.knowledge_point_id}`}
+                      >
+                        {r.title} · {r.locator}
+                      </Link>{" "}
+                      ·{" "}
+                      {events.data?.some(
+                        (e) => e.resource_id === r.id && e.verb === "completed",
+                      )
+                        ? "已完成学习"
+                        : "待学习"}
+                    </p>
+                  ))
+                ) : (
+                  <p>当前缺少已审核的对应学习资料，请联系教师补充。</p>
+                )}
+                <Link to="/student/homework">查看相关作业与反馈</Link>
+              </section>
+            );
+          })}
+        </>
+      ) : (
+        <section className="card-panel">
+          <p>尚未生成路径，可先完成作业，也可从无证据知识点开始学习。</p>
+        </section>
+      )}
+    </div>
+  );
+}

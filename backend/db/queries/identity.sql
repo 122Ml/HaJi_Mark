@@ -26,7 +26,7 @@ SELECT EXISTS (
 ) AS allowed;
 
 -- name: ListActorCourses :many
-SELECT c.id, c.title, c.status, c.version, count(k.id)::int AS knowledge_point_count
+SELECT c.id, c.title, c.status, c.version, count(k.id) FILTER (WHERE k.kind='point')::int AS knowledge_point_count
 FROM courses c LEFT JOIN knowledge_points k ON k.course_id = c.id
 WHERE (sqlc.arg(actor_role)::text = 'teacher' AND c.teacher_id = sqlc.arg(actor_id)) OR
  (sqlc.arg(actor_role)::text = 'student' AND c.status = 'published' AND EXISTS (

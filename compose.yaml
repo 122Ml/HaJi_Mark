@@ -8,6 +8,10 @@ x-backend: &backend
     REDIS_ADDR: redis:6379
     GIN_MODE: release
     SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+    AI_BASE_URL: ${AI_BASE_URL:-}
+    AI_API_KEY: ${AI_API_KEY:-}
+    AI_MODEL: ${AI_MODEL:-}
+    AI_ENABLED: ${AI_ENABLED:-false}
 
 services:
   postgres:
@@ -43,6 +47,12 @@ services:
   api:
     <<: *backend
     command: [./api]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:8080/api/v1/health/ready]
+      interval: 3s
+      timeout: 3s
+      retries: 12
+      start_period: 3s
     depends_on:
       migrate: {condition: service_completed_successfully}
       redis: {condition: service_healthy}
@@ -56,7 +66,8 @@ services:
     image: hajimark-web:local
     build: ./web
     ports: ['127.0.0.1:${WEB_PORT:-18080}:80']
-    depends_on: [api]
+    depends_on:
+      api: {condition: service_healthy}
   backend-test:
     profiles: [test]
     build:

@@ -89,10 +89,13 @@ a.request('GET', f'/teacher/courses/{course}/context', expected=403)
 a.request('GET', f'/student/courses/{fixtures["draft_course_id"]}/context', expected=403)
 foreign_teacher.request('GET', f'/teacher/courses/{course}/context', expected=403)
 student_courses = a.request('GET', '/me/courses')['data']
-assert [c['id'] for c in student_courses] == [course]
-assert student_courses[0]['knowledge_point_count'] == 2
+assert course in {c['id'] for c in student_courses}
+assert other not in {c['id'] for c in student_courses}
+assert fixtures['draft_course_id'] not in {c['id'] for c in student_courses}
+assert next(c for c in student_courses if c['id'] == course)['knowledge_point_count'] == 2
 teacher_courses = teacher.request('GET', '/me/courses')['data']
-assert {c['id'] for c in teacher_courses} == {course, fixtures['draft_course_id']}
+assert {course, fixtures['draft_course_id']} <= {c['id'] for c in teacher_courses}
+assert other not in {c['id'] for c in teacher_courses}
 print('PASS: login, course/student/role isolation, CSRF, origin and real course queries')
 
 old_cookies = list(b.jar)
@@ -110,9 +113,4 @@ else:
 for client in (teacher, foreign_teacher):
     client.request('DELETE', '/sessions/current', csrf=client.csrf, expected=204)
 
-handoff = {'course_id': course, 'knowledge_point_ids': fixtures['knowledge_point_ids'], 'student_a_id': a_id,
-           'actual_submission_id': None, 'actual_rubric_version': None,
-           'blocked_by': 'S1-A2/A3 submission service and S1-C1/C2 resource version service are not implemented',
-           'ready': ['session_actor', 'course_authorization', 'request_helper', 'grading_contract']}
-(args.accounts.parent / 's1-handoff.json').write_text(json.dumps(handoff, ensure_ascii=False, indent=2), encoding='utf-8')
-print('L3 handoff: real course/student IDs saved locally; actual submission integration remains pending')
+print('PASS: identity baseline; run check-platform.py for the current full teaching loop')

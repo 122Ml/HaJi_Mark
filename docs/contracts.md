@@ -1,68 +1,58 @@
 # 接口、数据与状态契约
 
-v0.2 · S1 李然交接。只有标“已实现”的接口当前可调用；其余是下次纵切面的输入输出约定。标识采用服务端生成的字符串 UUID；demo- 前缀仅构造种子使用。时间 RFC3339 UTC，界面按本地时区展示；成绩用整数 point 或明确的定点精度，不用浮点比较决定通过。
+v0.3 · 2026-10-28，当前真实平台。以下为已注册接口；后半节结构化rubric/E6为研究目标，不能据此调用旧规划路径。
 
-## HTTP 共识
+## 共识与身份
 
-前缀 `/api/v1`，JSON。成功 `{data: ...}`；错误 `{error:{code,message}}`。400格式/字段、401未登录、403不属于本人/课程、404对象不存在、409状态或版本冲突、422依据/业务条件不足、503依赖不可用。已实现身份由 HttpOnly 会话 cookie 提供；服务端从会话确定 actor，不采信请求中的角色/学生ID。
+前缀 `/api/v1`，JSON成功 `{data: ...}`，错误 `{error:{code,message}}`。400格式、401登录失效、403身份/课程/本人/CSRF拒绝、404对象不存在或条件更新无结果、409版本/状态冲突、422业务条件不足、429频率或容量限制、503数据库/模型不可用。服务端从cookie取得角色，不采信body中的teacher_id/student_id身份声明。
 
-列表后续统一 limit/cursor（默认20、最大100）。当前仅有限构造课程摘要，扩展真实多课程前补列表分页。提交、评分确认和干预下发写接口带客户端 request_id，唯一约束 actor_id/request_id，重复请求返回原结果。后端校验对象的课程归属，不接受仅靠外键存在的跨课程引用。
+`POST /sessions` 接username/password返回user/csrf_token；`GET /me`恢复会话；`DELETE /sessions/current`退出204；`GET /me/courses`返回本人课程。公开 `GET /courses`只返回发布课程元数据。live/ready分别检查进程、数据库和Redis。原 `/student|teacher/courses/:courseID/context` 与 access-check授权示例保留，不写业务。
 
-## 当前可调用
+HttpOnly、SameSiteStrict、Path=/api/v1、8小时cookie，DB仅存token哈希；CSRF token在前端内存。所有认证写请求使用 `X-CSRF-Token` 并检查Origin。登录按用户名限制每分钟30次、最多10000个活跃窗口，限流在进程内；不是分布式公网防护。姓名/改密走 `PUT /learning/profile|password`；改密12—72字节，需原密码，成功撤销该账号所有会话。
 
-| 方法/路径 | 返回 | 说明 |
+## 教学业务（已实现）
+
+除 `POST /learning/courses` 外，下表相对路径均位于 `/learning/courses/:courseID`。读写先校验课程归属；学生只读已发布课程，教师仅本人课程。T=教师、S=学生、TS=双方。
+
+| 方法/相对路径 | 权限 | 输入/结果 |
 | --- | --- | --- |
-| GET /health/live | `{status:"ok"}` | 已实现；不说明依赖可用 |
-| GET /health/ready | `{database:true,redis:true}` | 已实现；依赖失效返回503，不回显连接字符串 |
-| GET /courses | `{data:[{id,title,version,knowledge_point_count}]}` | 已实现；仅公开已发布元数据，不包含成员/答案/草稿 |
-| POST /sessions | `{username,password}` → `{data:{user,csrf_token}}` | 已实现；JSON、同源、bcrypt验证；角色从DB读取，成功旋转会话 |
-| GET /me | `{data:{user:{id,username,display_name,role},csrf_token}}` | 已实现；会话过期/撤销401，数据库不可用503 |
-| DELETE /sessions/current | 204，无响应体 | 已实现；会话＋CSRF；销毁DB会话并清cookie |
-| GET /me/courses | `{data:[{id,title,status,version,knowledge_point_count}]}` | 已实现；教师仅本人课程，学生仅已选且发布课程 |
-| GET /student/courses/:courseID/context；GET /teacher/courses/:courseID/context | `{data:{id,title,status,version}}` | 已实现；依次校验会话、角色、课程归属 |
-| POST /student/courses/:courseID/access-check；POST /teacher/courses/:courseID/access-check | `{data:{course_id,actor_id,authorized:true,persisted:false,purpose:"authorization_example"}}` | 已实现；增加CSRF校验的复用示例，不写业务数据 |
-| GET /student/users/:studentID/context | `{data:{id,username,display_name,role}}` | 已实现；仅本人；教师无通用绕过权限 |
+| GET 空路径；PUT 空路径 | TS读/T写 | 课程/目录；title重命名 |
+| POST /publish | T | 发布课程 |
+| POST /curriculum | T | chapters[{title,sections[{title,points:string[]}]}]；仅空课程、原子导入、上限1000节点 |
+| POST /points；GET /graph；POST /edges | T写/TS读 | title/kind/parent_id/position；nodes/edges；from_id/to_id，拒绝成环 |
+| GET /members；POST /members；POST /students | T | 成员；用username选课；username/display_name/password创建学生并选课，重复账号409 |
+| GET /resources；POST /resources | TS读/T写 | title/content/source_url/locator/knowledge_point_id；学生过滤草稿 |
+| POST /resources/:id/publish；POST /resources/:id/revisions | T | 教师审核；修订新增ID及version+1，旧文保留，只允许一条后继链 |
+| GET /events；POST /resources/:id/events | TS本人读/S写 | 本人记录；verb=opened/completed、request_id |
+| GET /notes；PUT /resources/:id/note | S本人 | note/favorite，私人保存，不进入班级问答 |
+| GET /assignments；POST /assignments；PUT /assignments/:id | TS读/T写 | title/type(subjective/code/quiz)/description/due_at/questions；草稿编辑递增version |
+| GET /assignments/:id；POST /assignments/:id/state | TS读/T写 | assignment/questions；state=published/closed；学生不读rubric/correct_answer |
+| GET/PUT /assignments/:id/questions/:questionID/draft | S本人 | answer_text；可变草稿与正式原文分开 |
+| GET/POST /assignments/:id/submissions | TS各自范围读/S写 | question_id/answer_text/request_id；attempt、hash、assignment_version，原文不可覆盖 |
+| GET /submissions/:id | T/提交者 | submission/question/revisions；学生仅released修订 |
+| POST /submissions/:id/revisions；POST /revisions/:id/state | T | score/feedback/request_id；draft→confirmed→released，只允许最新修订 |
+| GET /evidence；GET /overview | TS各自范围/T | 去重正式结果；班级学习事件/作业提交/待执行任务 |
+| GET/POST /path | S本人 | 保存的路径/items；按正式表现与前置依赖生成新路径 |
+| GET/POST /interventions；POST /interventions/:id/state | TS按范围/T创建 | student_id/title/description/可选resource_id/assignment_id；draft→assigned→submitted→reviewed |
+| GET/POST /interactions | TS | kind/title/content/parent_id；学生question/reply，教师另有announcement/discussion；同课程回复 |
+| GET/POST/PUT/DELETE /research[/:id]；/industry[/:id] | T | 教研title/content；行业title/source_url/skills；按课程管理记录 |
+| GET/POST /assist | TS | configured；topic请求。AI_ENABLED=false时503 model_not_configured，不返回假答案 |
 
-会话 cookie 为 `haji_session`：HttpOnly、SameSite=Strict、Path=/api/v1、8小时，DB只存SHA256 token摘要；`SESSION_COOKIE_SECURE=false`仅本机HTTP使用。CSRF token只放前端内存，由登录或/me返回；所有已认证写请求带`X-CSRF-Token`，校验同源与会话绑定。重新登录旋转旧会话，退出/过期返回401。数据库故障不得降级到浏览器演示登录。JSON登录禁止跨源Origin（缺少Content-Type返回415）。尚未提供注册、找回密码或生产防暴力破解设施。
+`questions` 每项包含prompt/max_score/rubric/knowledge_point_id/resource_id，quiz另含options/correct_answer。资料引用只能绑定当前课程已审核发布记录。发布后题目/标准禁止原地更新。当前每个正式submission对应一道题，多题作业逐题提交；教师提交覆盖按不同question_id计数，partial与未提交分开。分值为整数，不隐式四舍五入。
 
-## 按责任实现的业务端点（全部待实现）
+提交/学习事件/评分草稿的request_id对同一actor唯一；同号同输入返回原记录，改输入409。提交在作业行锁内分配attempt，评分在提交行锁内分配revision。确认/发布/干预使用预期旧状态更新，重复状态请求返回冲突/无结果，前端刷新后继续；没有声称所有POST均可重放。关联干预资料要有assigned_at之后completed；关联作业所有题都需assigned_at之后新提交；教师复查另填review_note。
 
-| 所属 | 端点 | 核心输入 → 输出 |
-| --- | --- | --- |
-| course | POST /teacher/courses；POST /teacher/courses/:id/publish | 标题、章节、知识点、resource_version → 课程发布版本 |
-| course | GET /student/courses/:id/resources；POST /student/resources/:id/events | 授权课程 → 已发布片段；opened/completed＋request_id → 事件ID |
-| course | POST /student/courses/:id/questions | 问题、knowledge_point_id → answer/draft/insufficient_sources 与 source_refs |
-| assessment | POST /teacher/courses/:id/assignments；POST /teacher/assignments/:id/publish | 题目版本/知识点/截止时间 → 作业ID及发布状态 |
-| assessment | PUT /student/assignments/:id/draft；POST /student/assignments/:id/submissions | answer_text、assignment_version、request_id → submission_id/attempt，原文独立保存 |
-| assessment | GET /teacher/assignments/:id/submissions | 本课程 → 提交列表/未提交名单；两类分开 |
-| grading | POST /teacher/questions/:id/rubrics；POST /teacher/rubrics/:id/confirm | 总分、评分点、资料出处 → 确认标准版本 |
-| grading | POST /teacher/submissions/:id/revisions | rubric_version、逐点分/证据/反馈 → needs_review 修订；先人工实现 |
-| grading | POST /teacher/revisions/:id/confirm；POST /teacher/revisions/:id/release | revision_version、request_id → confirmed/released；并发修改返回409 |
-| grading | GET /student/submissions/:id/feedback | 本人 → 当前 released 修订；不返回原始模型调用和教师隐藏备注 |
-| grading | POST /teacher/grading/jobs；GET /teacher/grading/jobs/:id | submission_id、rubric_version → job_id/执行状态；输入快照不可变 |
-| insight | GET /student/profile；GET /teacher/courses/:id/overview | 有效确认记录 → 样本数/表现/来源ID；无数据显式 insufficient_evidence |
-| insight | GET /student/path；POST /teacher/interventions | 目标知识点、resource_version、followup_assignment_id → 教师草稿 |
-| insight | POST /teacher/interventions/:id/assign；POST /student/interventions/:id/submit；POST /teacher/interventions/:id/review | 证据ID、版本、request_id → assigned/submitted/reviewed |
-| insight | GET /teacher/courses/:id/difficulties | 去重后的已发布评分 → 知识点/错因统计、分母、证据列表、规则版本 |
+正式证据每学生/题目只取最新有released结果的attempt及其最新released修订；新未评分attempt保留旧有效结果。画像与路径只聚合这些结果；知识点无评分显示证据不足，不写零分。路径规则版本 `released-performance-prerequisite-v1`，阈值60%，保留生成时的顺序、理由和规则版本，非AI输出。
 
-## 核心对象与写权限
+## 持久化与实现限制
 
-| 对象 | 必备字段/约束 | 唯一写入方 |
-| --- | --- | --- |
-| Course/KnowledgePoint/ResourceVersion | course_id、owner、发布版本；片段有 text/page/locator/审核者 | course；身份/选课由公共基础 |
-| Assignment/QuestionVersion | course_id、knowledge_point_ids、题型、满分、题目快照；教师答案另表 | assessment |
-| Submission | student_id、course_id、assignment_version、attempt、原始文本、source(platform/csv)、submitted_at | assessment；提交后不可更新原文 |
-| LearningEvent | event_id、actor、verb、object/version、course_id、occurred_at、producer、request_id | 各业务通过同事务事件接口；共享表由公共基础维护 |
-| RubricVersion/Criterion | question_version、confirmed_by、point_max、条件/部分分/反例、knowledge_point_id、source_refs | grading |
-| GradeJob/Attempt | 固定输入快照/hash、模型/提示版本、原稿、时延/token、失败类别 | grading worker；无模型权限写确认状态 |
-| GradingRevision | submission_id、rubric_version、points、evidence、feedback、state、reviewer、supersedes_id | grading；每次修订新增 |
-| Profile/Path/Intervention | evidence_revision_ids、knowledge_point_id、rule_version、样本数/分母；干预有资源/练习/复查条件 | insight；不能跨模块改原成绩 |
+迁移00001底座、00002身份、00003学习/作业/评分/干预/互动、00004草稿与资料绑定/笔记、00005课程层级/依赖/路径、00006资料历史、00007干预关联。SQL在learning.sql等queries中，store由sqlc生成。
 
-当前迁移00001建 users/courses/enrollments/knowledge_points，00002补账号密码哈希与sessions；以上其他对象按第一张卡落地，不声明已存在数据库表。
+当前是整题人工标准文本与整数评分，没有criterion表、独立rubric确认版本、AI原稿/任务或逐点quote偏移校验；题目冻结使标准随assignment_version保持不变。资料修订以resource_id绑定不可变版本。列表当前未分页，适合本地小规模课程；批量导入/高并发/大文件尚未验收。AI适配器默认关闭，未测试真实提供商，不能据此宣称E6已完成。
 
-## S1-L3：交给S2的人工评分契约
+## S1-L3交给S2的人工评分契约
 
-下列JSON是文档样例，`<...>`为待上游返回的真实ID，不可拿它们调用接口或认定联调通过。评分端点尚未实现；本轮不调用模型。先固定10分整数制（4＋6分），有小数需求时另行确认最小分值单位，不隐式四舍五入。
+本节保留早期结构化逐点评分目标，不是当前HTTP契约；上游提交和整题人工评分现已实现。下列JSON是文档样例，`<...>`为待上游返回的真实ID，不可拿它们调用接口或认定联调通过。逐点结构化端点尚未实现；当前整题整数评分走上表接口，本轮不调用模型。先固定10分整数制（4＋6分），有小数需求时另行确认最小分值单位，不隐式四舍五入。
 
 **上游交接必须齐全**：assessment交付`submission_id/student_id/course_id/assignment_id/assignment_version/question_id/question_version/attempt/answer_text/answer_sha256/submitted_at/source`，并提供按ID读取不可变快照的内部查询。哈希为原文UTF-8的SHA256小写hex；不先trim、不改换行。第一轮一道文本题，每个submission绑定唯一question版本；以后多题须增加answer_id，不能复用整份作业的引用区间。course交付知识点所属课程、已审核资料`resource_id/resource_version/fragment_id/text/source_uri/locator/reviewed_by/published_at`及历史版本查询。
 
@@ -109,9 +99,9 @@ v0.2 · S1 李然交接。只有标“已实现”的接口当前可调用；其
 
 ### 实际联调门槛与当前阻塞
 
-已就绪：真实会话actor、授权课程/知识点ID、统一请求与CSRF示例。`scripts/check-s1.py`写本地`.local/s1-handoff.json`，只登记真实存在的ID；尚无提交时`actual_submission_id:null`，不生成假提交。S1-A2/A3及C1/C2未落地，真实submission/资料版本联调未完成，S1-L3保持部分完成。
+历史身份阶段的.local/s1-handoff.json保留当时null字段，现由scripts/check-platform.py生成.local/platform-check.json登记真实course/assignment/submission/resource等ID。当前整题评分联调已完成，结构化逐点评阅仍需另行实现，不能把旧交接文件当实时进度。
 
-上游到位后李然须逐项核对：①教师查同一submission原文，学生B/另一教师拒绝；②题目/作业版本、attempt、原文hash齐全，旧attempt不覆盖；③资料可按版本与片段定位且同课程；④将实际ID代入本节样例，确认逐点满分/证据可供S2使用；⑤记录assessment/course提交SHA和Compose重启后读取结果。当前没有成员待审PR，不编造人工审核记录或远端PR；本轮仅本地集成。
+后续扩展到本节结构化逐点评阅时，李然仍须逐项核对：①教师查同一submission原文，学生B/另一教师拒绝；②题目/作业版本、attempt、原文hash齐全，旧attempt不覆盖；③资料可按版本与片段定位且同课程；④将实际ID代入本节样例，确认逐点满分/证据可供S2使用；⑤记录assessment/course提交SHA和Compose重启后读取结果。当前没有成员待审PR，不编造人工审核记录或远端PR；本轮仅本地集成。
 
 ## 事件例子与消费者
 

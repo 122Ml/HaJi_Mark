@@ -273,7 +273,7 @@
 .live-page > .live-inline > label { flex: 0 1 360px; }
 .live-shortcuts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin-bottom: 24px; }
 .live-shortcut { display: flex; flex-direction: column; padding: 8px; border-radius: 16px; border: 1px solid #f0f3f1; background: white; color: var(--ink); box-shadow: var(--shadow); transition: box-shadow .18s; }
-.live-shortcut:hover { color: var(--teal); text-decoration: none; box-shadow: 0 5px 3px #0b2b2914, 0 12px 20px #0b2b2912; }
+.live-shortcut:hover { color: var(--teal); text-decoration: none; box-shadow: 0 3px 6px #0b2b290c, 0 8px 20px #0b2b290a; }
 .live-shortcut strong { display: flex; align-items: center; gap: 8px; padding: 16px 16px 20px; font-size: 22px; font-weight: 500; }
 .live-shortcut strong > span { color: #718780; }
 .shortcut-art { display: grid; place-items: center; min-height: 140px; border-radius: 12px; background: linear-gradient(115deg, #8be6b0, #69d9b6); }

@@ -19,6 +19,8 @@ export const palette = {
 export const theme: ThemeConfig = {
   token: {
     colorPrimary: palette.teal,
+    colorPrimaryHover: palette.tealDeep,
+    colorPrimaryActive: "#083e3b",
     colorInfo: palette.teal,
     colorSuccess: palette.success,
     colorError: palette.danger,
@@ -33,7 +35,7 @@ export const theme: ThemeConfig = {
       'Inter, "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif',
   },
   components: {
-    Button: { primaryShadow: "0 3px 5px #003c4426", fontWeight: 500, borderRadius: 8 },
+    Button: { primaryShadow: "0 1px 2px #003c4414", fontWeight: 500, borderRadius: 8 },
     Input: { activeShadow: `0 0 0 3px ${palette.mint}` },
     Card: { borderRadiusLG: 16 },
   },

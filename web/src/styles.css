@@ -12,7 +12,7 @@
   --mint: #e0f8f0;
   --line: #e9efed;
   --canvas: #fff;
-  --shadow: 0 3px 2px #0b2b2910, 0 8px 12px #0b2b2908;
+  --shadow: 0 2px 4px #0b2b290a, 0 6px 16px #0b2b2906;
 }
 * { box-sizing: border-box; }
 body { margin: 0; font-size: 15px; line-height: 1.65; }
@@ -52,8 +52,9 @@ p { margin: 0 0 16px; }
 .page-container:focus { outline: none; }
 .card-panel { background: white; border: 1px solid var(--line); border-radius: 16px; padding: 28px; box-shadow: var(--shadow); min-width: 0; }
 .primary-link, .ghost-btn { display: inline-flex; justify-content: center; align-items: center; min-height: 42px; border: 1px solid var(--line); border-radius: 8px; padding: 9px 20px; font-size: 14px; font-weight: 500; line-height: 1.5; transition: background .18s, box-shadow .18s; text-align: center; }
-.primary-link, .ant-btn-primary { background: linear-gradient(180deg, #0d8888, #00403f); color: white; border-color: transparent; box-shadow: 0 3px 5px #003c4426, inset 0 1px 0 #ffffff20; }
-.primary-link:hover { background: var(--teal-deep); color: white; text-decoration: none; }
+.primary-link { background: var(--teal); color: white; border-color: transparent; box-shadow: 0 1px 2px #003c4414; }
+.primary-link:hover:not(:disabled) { background: var(--teal-deep); color: white; text-decoration: none; }
+.primary-link:active:not(:disabled) { background: #083e3b; }
 .ghost-btn { color: var(--teal-deep); background: white; border-color: #baded8; }
 .ghost-btn:hover { background: #f5f8f7; color: var(--teal-deep); text-decoration: none; border-color: #bfe0d9; }
 .section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
@@ -75,14 +76,14 @@ p { margin: 0 0 16px; }
 .welcome-story { color: white; min-width: 0; }
 .welcome-story .eyebrow { color: #e0f8f0; }
 .welcome-story h1 { font-size: clamp(36px, 4.5vw, 64px); font-weight: 500; line-height: 1.25; margin: 28px 0 24px; letter-spacing: -.05em; }
-.learning-visual { max-width: 550px; margin-top: 40px; background: #f8fffc; color: var(--ink); border-radius: 20px; padding: 24px; box-shadow: 0 18px 32px #003c4424; }
+.learning-visual { max-width: 550px; margin-top: 40px; background: #f8fffc; color: var(--ink); border-radius: 16px; padding: 24px; box-shadow: 0 8px 24px #003c4414; }
 .visual-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 14px; font-weight: 600; }
 .visual-pill { padding: 3px 10px; border-radius: 100px; color: var(--teal); background: var(--mint); font-size: 11px; white-space: nowrap; }
 .visual-path { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 24px 0; }
 .visual-path div { border-top: 2px solid #b8e4d9; padding-top: 12px; }
 .visual-path span { display: block; font-size: 12px; color: var(--teal); margin-bottom: 10px; }
 .visual-path strong { font-size: 13px; font-weight: 500; }
-.sign-in-card { width: 100%; max-width: 460px; justify-self: end; background: white; border-radius: 16px; padding: 44px; box-shadow: 0 24px 70px #003c4420; scroll-margin-top: 24px; }
+.sign-in-card { width: 100%; max-width: 460px; justify-self: end; background: white; border-radius: 16px; padding: 44px; box-shadow: 0 12px 36px #003c4414; scroll-margin-top: 24px; }
 .sign-in-card h2 { font-size: 32px; margin: 0 0 24px; }
 .sign-in-form { display: grid; gap: 10px; margin-top: 28px; }
 .sign-in-form label { font-size: 13px; font-weight: 600; margin-top: 8px; }

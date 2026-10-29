@@ -33,10 +33,7 @@ export function CurriculumTools() {
       <Feedback message={action.message} />
       {ctx.data?.points.length === 0 && (
         <>
-          <h3>从参考课程目录开始</h3>
-          <p>
-            导入大数据课程的章节、小节与知识点名称。资料内容与题目需教师另行审核录入。
-          </p>
+          <p className="live-meta">大数据课程目录，不含资料与题目。</p>
           <button
             className="ghost-btn"
             disabled={action.busy}

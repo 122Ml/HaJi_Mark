@@ -43,6 +43,8 @@ const fixtures = JSON.parse(fs.readFileSync(path.join(root, '.local/s1-accounts.
       const courseID = await courseSelect.locator('option').evaluateAll(options => options.filter(o => /^浏览器验收 \d+$/.test(o.textContent)).sort((a, b) => b.textContent.localeCompare(a.textContent))[0]?.value);
       assert.ok(courseID, 'Run check-platform-browser.cjs first to create a labeled example course');
       await courseSelect.selectOption(courseID);
+      assert.equal(await page.locator('.live-shortcut p').count(), 0, 'Shortcut cards must not repeat feature instructions');
+      assert.equal(await page.getByText(/维护知识目录|准备并审核学习资料|基于实际学习、提交|PREPARE|SUPPORT/).count(), 0, 'README-style interface copy returned');
       await capture(role + '-overview');
       const nav = page.getByRole('navigation', {name: role === 'teacher' ? '教师导航' : '学生导航', exact: true});
       assert.equal(await nav.getByRole('link').count(), 4, 'Primary navigation must stay at four groups');

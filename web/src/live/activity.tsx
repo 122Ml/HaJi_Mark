@@ -22,10 +22,9 @@ export function ActivityTimeline({ teacher, studentID }: { teacher: boolean; stu
   return (
     <section className="card-panel">
       <h2>{teacher ? "学生学习与提交记录" : "我的学习与提交记录"}</h2>
-      <p>显示最近500条真实记录；打开、完成和正式提交分别记录，学习动作不代表已掌握。</p>
       <Feedback error={query.error} />
       {query.isPending && <p role="status">正在读取记录…</p>}
-      {query.data?.length === 0 && <p>暂无记录，未提交和未评分均不计为零分。</p>}
+      {query.data?.length === 0 && <p>暂无记录。</p>}
       {query.data?.map((event) => (
         <article className="live-row" key={event.id}>
           <div>

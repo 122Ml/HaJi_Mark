@@ -66,11 +66,6 @@ export function AssignmentList({ quiz = false }: { quiz?: boolean }) {
       <header className="live-heading">
         <p>{quiz ? "测验中心" : "作业中心"}</p>
         <h1>{quiz ? "测验列表" : teacher ? "作业列表" : "作业测验"}</h1>
-        <span>
-          {teacher
-            ? "创建题目和评分依据，发布后收集学生原始作答。"
-            : "查看已发布任务，提交作答并查询正式反馈。"}
-        </span>
         {teacher && (
           <Link
             className="primary-link"
@@ -242,7 +237,7 @@ export function AssignmentEditor({
     <div className="live-page">
       <header className="live-heading">
         <h1>{quiz ? "新建测验" : "新建作业"}</h1>
-        <p>发布后题目及标准固定，修改内容请创建新作业，保留原始作答依据。</p>
+        <p className="live-meta">发布后不可修改题目与评分标准。</p>
       </header>
       <Feedback message={action.message} />
       <section className="card-panel">
@@ -715,7 +710,7 @@ export function SubmissionList() {
             </tbody>
           </table>
         </div>
-        {!q.data?.length && <p>暂无提交。未提交与零分分别记录。</p>}
+        {!q.data?.length && <p>暂无提交。</p>}
       </section>
     </div>
   );

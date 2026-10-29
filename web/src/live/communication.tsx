@@ -25,7 +25,6 @@ export function InteractionPage() {
     <div className="live-page">
       <header className="live-heading">
         <h1>{teacher ? "教学互动中心" : "互动答疑"}</h1>
-        <p>课程公告、提问与讨论在本课程成员之间共享。</p>
       </header>
       <Feedback error={query.error} message={action.message} />
       <section className="card-panel">

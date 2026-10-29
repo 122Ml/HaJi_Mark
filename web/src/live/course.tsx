@@ -121,11 +121,6 @@ export function CourseWorkspace() {
       <header className="live-heading">
         <p>{teacher ? "课程底座" : "课程学习"}</p>
         <h1>{teacher ? "课程底座建设台" : "学习中心"}</h1>
-        <span>
-          {teacher
-            ? "维护课程、成员、知识点与审核后的学习资料。"
-            : "按知识点学习课程资料，保存学习记录并查看教师反馈。"}
-        </span>
       </header>
       <Feedback
         error={ctx.error || resources.error}

@@ -131,11 +131,6 @@ export function RecordsPage({ industry = false }: { industry?: boolean }) {
     <div className="live-page">
       <header className="live-heading">
         <h1>{industry ? "行业能力资料库" : "教研协同中心"}</h1>
-        <p>
-          {industry
-            ? "录入有原始来源的岗位和技能要求，作为课程能力映射的人工审核依据。"
-            : "记录课堂观察、学生难点及教学改进措施。"}
-        </p>
       </header>
       <Feedback error={query.error} message={action.message} />
       <section className="card-panel">

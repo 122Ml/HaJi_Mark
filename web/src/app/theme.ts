@@ -11,7 +11,7 @@ export const palette = {
   mintSoft: "#f0f8f8",
   mintLine: "#bfe0d9",
   line: "#dbe7e4",
-  canvas: "#f7fbfa",
+  canvas: "#ffffff",
   danger: "#b42318",
   success: "#027a48",
 } as const;
@@ -26,15 +26,15 @@ export const theme: ThemeConfig = {
     colorTextSecondary: palette.muted,
     colorBorder: palette.line,
     colorBgLayout: palette.canvas,
-    borderRadius: 12,
+    borderRadius: 8,
     controlHeight: 42,
     fontSize: 15,
     fontFamily:
       'Inter, "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif',
   },
   components: {
-    Button: { primaryShadow: "none", fontWeight: 600, borderRadius: 999 },
+    Button: { primaryShadow: "0 3px 5px #003c4426", fontWeight: 500, borderRadius: 8 },
     Input: { activeShadow: `0 0 0 3px ${palette.mint}` },
-    Card: { borderRadiusLG: 20 },
+    Card: { borderRadiusLG: 16 },
   },
 };

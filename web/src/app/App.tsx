@@ -67,7 +67,7 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
         <LearningProvider key={session?.user.id}><LiveRoutes teacher={teacher} /></LearningProvider>
       </main>
       <footer className="workspace-footer" aria-label="工作台页脚">
-        <div><Link className="brand" to={home}>HaJi Mark</Link><p>连接每一步学习与成长。</p><span>{teacher ? "教师工作台" : "学生工作台"}</span></div>
+        <div><Link className="brand" to={home}>HaJi Mark</Link><span>{teacher ? "教师工作台" : "学生工作台"}</span></div>
         {groups.map((group) => <div key={group.label}><strong>{group.label}</strong>{group.links.map(([path, label]) => <Link key={path} to={`${root}/${path}`} aria-label={`前往${label}`}>{label}</Link>)}</div>)}
       </footer>
     </div>

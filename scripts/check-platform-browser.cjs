@@ -264,7 +264,7 @@ const assert = (condition,message) => {if(!condition)throw new Error(message)};
   assert(errors.length===0,errors.join('\n'));
   await t.setViewportSize({width:1440,height:1000});
   await t.goto(base+'/teacher/dashboard');
-  await t.getByRole('heading',{name:'风险处置与证据闭环工作台',exact:true}).waitFor();
+  await t.getByRole('heading',{name:'教学概览',exact:true}).waitFor();
   await t.screenshot({path:path.join(root,'.local/platform-teacher.png'),fullPage:true});
   await a.setViewportSize({width:1440,height:1000});
   await a.goto(base+'/student/home');

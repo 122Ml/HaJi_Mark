@@ -68,23 +68,29 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
         <p>{teacher ? "教学决策" : "学习进度"}</p>
         <h1>
           {teacher
-            ? "风险处置与证据闭环工作台"
+            ? "教学概览"
             : path
               ? "个性化学习路径"
               : "我的学习概览"}
         </h1>
-        <span>基于实际学习、提交和已发布反馈汇总；未评分与零分分别呈现。</span>
       </header>
       <nav className="live-shortcuts" aria-label="工作台快捷入口">
         {(teacher ? [
-          ["01 / PREPARE", "课程底座", "维护知识目录，准备并审核学习资料。", "/teacher/course-twin"],
-          ["02 / REVIEW", "作业与评阅", "查看学生提交，确认并发布正式反馈。", "/teacher/homework"],
-          ["03 / SUPPORT", "跟进学习任务", "安排补学补练，依据新证据复查。", "/teacher/intervention"],
+          ["课程底座", "/teacher/course-twin", "M6 5h12v14H6z M9 9h6 M9 13h6"],
+          ["作业与评阅", "/teacher/homework", "M7 4h10v16H7z M10 9l2 2 3-3 M10 15h4"],
+          ["干预任务", "/teacher/intervention", "M5 6h14v11h-8l-4 3v-3H5z M8 10h8 M8 13h5"],
         ] : [
-          ["01 / LEARN", "开始课程学习", "浏览课程资料，记录笔记与学习进度。", "/student/course-content"],
-          ["02 / PRACTICE", "完成作业测验", "保存作答，提交成果并查看正式反馈。", "/student/homework"],
-          ["03 / GROW", "查看学习路径", "结合已有反馈，规划接下来的学习。", "/student/learning"],
-        ]).map(([step, title, description, to]) => <Link className="live-shortcut" to={to} key={to}><span>{step}</span><strong>{title}<span aria-hidden="true">↗</span></strong><p>{description}</p></Link>)}
+          ["课程学习", "/student/course-content", "M6 5h12v14H6z M9 9h6 M9 13h6"],
+          ["作业测验", "/student/homework", "M7 4h10v16H7z M10 9l2 2 3-3 M10 15h4"],
+          ["学习路径", "/student/learning", "M5 6h14v11h-8l-4 3v-3H5z M8 10h8 M8 13h5"],
+        ]).map(([title, to, icon]) => (
+          <Link className="live-shortcut" to={to} key={to}>
+            <strong>{title}<span aria-hidden="true">›</span></strong>
+            <div className="shortcut-art" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"><path d={icon} /></svg>
+            </div>
+          </Link>
+        ))}
       </nav>
       <Feedback error={evidence.error || overview.error} />
       {!teacher && resources.data && events.data && (
@@ -252,11 +258,6 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
       ) : (
         <section className="card-panel">
           <h2>继续学习</h2>
-          <p>
-            {path
-              ? "先查看正式反馈，再选择教师发布的资料补学，完成后提交新的作答。"
-              : "从课程学习开始，完成作业后查看正式反馈。"}
-          </p>
           <div className="live-inline">
             <Link className="primary-link" to="/student/course-content">
               进入学习中心
@@ -282,7 +283,7 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
       <section className="card-panel">
         <h2>正式评分证据</h2>
         {!rows.length ? (
-          <p>尚无已发布评分，不生成能力分数或风险判断。</p>
+          <p>暂无已发布评分。</p>
         ) : (
           rows.map((r) => (
             <article className="live-row" key={r.submission_id}>
@@ -309,9 +310,8 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
           <p>
             低于本题满分60%的有效作答 {low.length} / {rows.length}，涉及{" "}
             {new Set(low.map((r) => r.student_id)).size}{" "}
-            名学生。仅统计每名学生每道题最新的有效已发布结果。
+            名学生。
           </p>
-          <p>此处为透明规则统计；资料打开次数不计入掌握程度。</p>
         </section>
       )}
     </div>
@@ -340,7 +340,6 @@ export function InterventionPage() {
     <div className="live-page">
       <header className="live-heading">
         <h1>{teacher ? "教师干预任务包" : "老师任务"}</h1>
-        <p>教师安排补学补练，学生提交执行结果，再由教师复查。</p>
       </header>
       <Feedback error={query.error} message={action.message} />
       {teacher && (

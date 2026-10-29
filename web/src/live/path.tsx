@@ -22,9 +22,6 @@ export function StudyPath() {
       <header className="live-heading">
         <p>学习规划</p>
         <h1>个性化学习路径</h1>
-        <p>
-          依据已发布评分，优先补充未覆盖或低表现知识点，并保留前置学习顺序。
-        </p>
         <button
           className="primary-link"
           disabled={action.busy}
@@ -39,15 +36,15 @@ export function StudyPath() {
           <section className="card-panel">
             <h2>当前路径</h2>
             <p>规划于 {when(query.data.path.created_at)}</p>
-            <p>优先学习尚无评分或表现低于60%的知识点，依次补齐前置知识。</p>
             <details>
               <summary>查看规划依据</summary>
+              <p>优先学习尚无评分或表现低于60%的知识点，并补齐前置知识。</p>
               <p>{query.data.path.rule_version}</p>
             </details>
           </section>
           {!query.data.items.length && (
             <section className="card-panel">
-              <p>当前已覆盖知识点均达到规则阈值，可继续完成教师安排的练习。</p>
+              <p>已完成当前学习路径。</p>
             </section>
           )}
           {query.data.items.map((p, i) => {
@@ -88,7 +85,7 @@ export function StudyPath() {
         </>
       ) : (
         <section className="card-panel">
-          <p>尚未生成路径，可先完成作业，也可从无证据知识点开始学习。</p>
+          <p>尚未生成学习路径。</p>
         </section>
       )}
     </div>

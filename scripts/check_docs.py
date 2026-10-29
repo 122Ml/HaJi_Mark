@@ -6,7 +6,7 @@ import re
 
 root = Path(__file__).resolve().parents[1]
 errors = []
-files = [root / "README.md", root / "AGENTS.md", root / "CONTRIBUTING.md"]
+files = [root / "README.md", root / "AGENTS.md", root / "CONTRIBUTING.md", root / "design.md"]
 files += list((root / "docs").rglob("*.md"))
 files += [root / "references/README.md"]
 for path in files:

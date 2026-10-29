@@ -2,6 +2,27 @@
 
 以下旧S1/前端记录按发生阶段保留。当前状态以本页最新收口/部署记录为准；旧“尚无提交/评分、仅localStorage”的结论不再适用于当前代码。历史测试结果不自动移用到新版本。
 
+## 2026-10-29 Lattice 风格前端与导航收束（本地）
+
+接续本地 Claude Code “Casual greeting” 会话 `1c0e3870-8b69-47dc-b744-bc0ab35043cc`。接手时只有未接入的 `app/theme.ts` 设计文件；已有 `live/context.tsx` 查询竞态修复与 `check-platform-query-race.cjs` 保留原样，未纳入本次设计提交。下列运行结果来自包含该既有修复的实际工作树，不代表设计提交单独提供了竞态修复。
+
+实现活动登录页、四组主导航与二级功能入口、账户操作、工作台快捷卡片、全局青绿主题及业务表单/表格/目录样式。重复概览与课程地址归一，保留规范对象深链接和查询参数。旧 replica 登录页与 CSS 保留为历史文件，活动页面已解除旧全量样式依赖。设计变量、路由表、页面模板与六张截图见 [design.md](../design.md)。
+
+| 验证 | 实际结果与范围 |
+| --- | --- |
+| Docker 前端构建 | TypeScript 与 Vite 通过；最终 CSS 16.82kB（gzip 4.20kB），JS 651.99kB（gzip 207.80kB）；保留大于500kB的拆包建议，未隐藏警告 |
+| Compose 本地运行 | PostgreSQL、Redis、API healthy；web在127.0.0.1:18080；使用既有卷与后端镜像，未执行数据清理 |
+| check-platform-browser.cjs | 完整师生课程/作答/评分/干预/测验/路径/互动/资源修订、CSV、账号、改密、跨标签隔离通过；12教师＋9学生入口在1440/390px通过，无页面异常或意外服务端错误 |
+| check-design-browser.cjs | 最终镜像通过；登录390/768/1440px，工作台390/768/1024/1440px；四组导航、SPA焦点、概览/课程/评分别名与查询参数、退出通过 |
+| 既有 check-platform-query-race.cjs | 教研与行业记录首次读取落后于写入的两条回归通过；原有脚本与修复未改动 |
+| 文档/来源/元数据 | check_docs.py检查design.md及截图链接；Compose配置、Git空白和工作区catalog检查，结果见本轮命令输出 |
+
+完整业务回归后仅补齐剩余角色别名与手机标题均衡换行，并在最终镜像上重新运行针对性设计检查。浏览器早期发现Ant Design自动将“登录”插入空格，关闭autoInsertSpace后完整流程通过。
+
+最终本地Web镜像ID：`sha256:58245335c38773a49d145fd0eb562fe792ce1d81c3ca4c116a689097448fc491`。截图由该镜像生成，输出位于`.local/design`，六张交付示例复制到`docs/design-examples`。测试数据为有标签的构造课程，保留在本地数据库。构建约10—15秒；运行时Web约10MiB、API约6MiB、PostgreSQL约38MiB，仅为一次采样，不是峰值。
+
+本轮未推送GitHub、未部署公网、未调用真实AI；未声称像素相似度、全量无障碍认证或生产级负载通过。生产部署记录保留原日期和版本。
+
 ## 2026-10-28 CO-01/AS-01适配合并与S1收口
 
 用户授权在当前codex/platform-completion合并两份交付、补全S1全部12项并部署hajistudy.online。两包基于旧快照，采用当前learning/live适配合并，原补丁/ZIP哈希和采用映射保留[贡献记录](../references/contributions/README.md)。不复刻旧X-Actor-Id认证、不覆盖当前路由、迁移或业务数据。

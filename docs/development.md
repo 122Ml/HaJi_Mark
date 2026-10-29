@@ -82,6 +82,7 @@ docker compose config --quiet
 $taskNode = 'C:/Users/23396/.cache/codex-runtimes/codex-primary-runtime/dependencies/node'
 $env:NODE_PATH = "$taskNode/node_modules"
 & "$taskNode/bin/node.exe" scripts/check-platform-browser.cjs
+& "$taskNode/bin/node.exe" scripts/check-design-browser.cjs
 ```
 
 也可安装本机Playwright后用Node执行脚本，不需要增加业务依赖。脚本创建有标签的课程并保留，`.local/platform-teacher.png`、`platform-student.png`为本地检查截图。旧 `frontend-browser-check.js` 仅适用于历史replica，`check-s1-browser.cjs` 现转到当前平台回归，不再验证旧localStorage演示。
@@ -102,7 +103,7 @@ AI按用户要求保持 `AI_ENABLED=false`，`AI_BASE_URL/AI_API_KEY/AI_MODEL`�
 
 启动迁移后执行`pwsh -File scripts/seed-s1.ps1`，生成四个账号与随机密码，保存在被Git忽略的`.local/s1-accounts.json`；终端不打印密码。教师T/U分别为`s1-teacher`/`s1-teacher-other`，学生A/B为`s1-student-a`/`s1-student-b`。两名学生选同一门发布课程；另有不归属课程、教师草稿、两个知识点。旧demo账号不具备登录密码。重复seed复用本地文件和数据库，不覆盖已有身份；丢失文件时不要删除数据卷或强行重置密码，由李然核对后处理。
 
-DB仅存bcrypt哈希与会话token的SHA256摘要。会话8小时，HttpOnly、SameSiteStrict、Path=/api/v1；本机HTTP下`SESSION_COOKIE_SECURE=false`，不要在普通HTTP启用后误判登录异常。将来HTTPS代理需补可信来源配置，当前Compose没有TLS。登录角色选择只保留页面样式，服务端忽略请求role；前端身份不得读sessionStorage或localStorage。退出使DB中原token失效。依赖异常503，禁止回退到任意密码登录。
+DB仅存bcrypt哈希与会话token的SHA256摘要。会话8小时，HttpOnly、SameSiteStrict、Path=/api/v1；本机HTTP下`SESSION_COOKIE_SECURE=false`，不要在普通HTTP启用后误判登录异常。将来HTTPS代理需补可信来源配置，当前Compose没有TLS。登录页按实际账号确定身份，不再提供无效角色选择；前端身份不得读sessionStorage或localStorage。退出使DB中原token失效。依赖异常503，禁止回退到任意密码登录。
 
 三人接业务时复用：
 
@@ -155,6 +156,8 @@ CI沿用必需检查名 `collaboration-check`，覆盖Go测试/vet/构建、前�
 | 前端本地build | 本轮Vite约9秒，Light | NODE_OPTIONS限512MB；含依赖暂预留1GB | web/src、锁文件 → web/dist（忽略） |
 | Go检查与编译 | 首次分钟级，缓存后秒级；按Moderate预留 | GOMAXPROCS=2、GOMEMLIMIT=768MiB，含编译子进程预留2GB | Go/SQL生成物、go.sum → Go缓存 |
 | Docker后端build | 首次约4—5分钟，按Moderate预留 | 镜像下载、Go/Goose编译；不与其他构建并行 | backend → 本地镜像/构建缓存 |
+| Docker前端build（2026-10-29） | 缓存构建约10—15秒，Light | Node堆限512MB，预算1GB；未测峰值 | web/src与锁文件 → hajimark-web:local与构建缓存 |
+| 浏览器平台/设计检查 | 单次约1分钟/10秒，Light | Edge无痕上下文，预算1GB；串行执行 | 本机Docker与忽略凭据 → 有标签业务记录、.local截图；设计检查只写会话/截图 |
 | Compose与冒烟 | 秒至分钟级，Light | 本项目小型PG/Redis，无模型/GPU | 迁移/种子 → hajimark专属数据卷 |
 | 文档/哈希/元数据检查 | 秒级，Light | 无网络 | 当前文档、原件哈希、清单 → 标准输出 |
 

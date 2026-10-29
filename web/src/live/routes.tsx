@@ -12,25 +12,32 @@ import { OverviewPage, InterventionPage } from "./insight";
 import { InteractionPage } from "./communication";
 import { useLearning } from "./context";
 import { ProfilePage, RecordsPage } from "./account";
+import { Empty } from "antd";
 export function LiveRoutes({ teacher }: { teacher: boolean }) {
   const { course } = useLearning();
   const location = useLocation();
+  const root = teacher ? "/teacher" : "/student";
+  const overviewRedirect = <Navigate replace to={`${root}/${teacher ? "dashboard" : "home"}${location.search}`} />;
+  const courseRedirect = <Navigate replace to={`${root}/${teacher ? "course-twin" : "course-content"}${location.search}`} />;
   if (!course && !location.pathname.endsWith("/profile"))
     return teacher ? (
       <CourseWorkspace />
     ) : (
-      <p>尚未加入课程，请联系教师添加账号后刷新。</p>
+      <section className="card-panel">
+        <h1>准备开始学习</h1>
+        <Empty description="尚未加入课程，请联系教师添加账号后刷新。" />
+      </section>
     );
   return (
     <Routes key={`${course?.id}:${location.pathname}`}>
       <Route path="profile" element={<ProfilePage />} />
-      <Route path="research" element={<RecordsPage />} />
-      <Route path="industry-intelligence" element={<RecordsPage industry />} />
-      <Route path="teacher-twin/drilldown" element={<OverviewPage />} />
-      <Route path="home" element={<OverviewPage />} />
-      <Route path="dashboard" element={<OverviewPage />} />
-      <Route path="course-content" element={<CourseWorkspace />} />
-      <Route path="course-twin" element={<CourseWorkspace />} />
+      {teacher && <Route path="research" element={<RecordsPage />} />}
+      {teacher && <Route path="industry-intelligence" element={<RecordsPage industry />} />}
+      <Route path="teacher-twin/drilldown" element={overviewRedirect} />
+      <Route path="home" element={teacher ? overviewRedirect : <OverviewPage />} />
+      <Route path="dashboard" element={teacher ? <OverviewPage /> : overviewRedirect} />
+      <Route path="course-content" element={teacher ? courseRedirect : <CourseWorkspace />} />
+      <Route path="course-twin" element={teacher ? <CourseWorkspace /> : courseRedirect} />
       <Route path="homework" element={<AssignmentList />} />
       <Route path="quiz" element={<AssignmentList quiz />} />
       {teacher && (
@@ -58,8 +65,8 @@ export function LiveRoutes({ teacher }: { teacher: boolean }) {
       />
       <Route path="intervention/*" element={<InterventionPage />} />
       <Route path="interaction" element={<InteractionPage />} />
-      <Route path="student-twin" element={<OverviewPage />} />
-      <Route path="learning" element={<StudyPath />} />
+      <Route path="student-twin" element={overviewRedirect} />
+      {!teacher && <Route path="learning" element={<StudyPath />} />}
       <Route
         path="courses"
         element={
@@ -78,8 +85,8 @@ export function LiveRoutes({ teacher }: { teacher: boolean }) {
           />
         }
       />
-      <Route path="insight" element={<OverviewPage />} />
-      <Route path="grading" element={<AssignmentList />} />
+      <Route path="insight" element={overviewRedirect} />
+      <Route path="grading" element={<Navigate replace to={`/${teacher ? "teacher" : "student"}/homework${location.search}`} />} />
       <Route
         path="*"
         element={

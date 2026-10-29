@@ -17,7 +17,9 @@ flowchart LR
   Path --> Web
 ```
 
-`App.tsx` 装配角色路由；`LearningProvider` 读取本人课程和课程选择。Query 缓存来自 API，sessionStorage 只保存当前账号选中的课程ID；业务数据不从浏览器演示存储恢复。身份切换清空查询缓存，401 回到会话检查。页面异常边界允许重新加载。
+`App.tsx` 装配角色路由与四组导航；`app/navigation.ts` 管理导航分组，`app/Login.tsx` 提供活动登录页，`app/theme.ts` 与 `styles.css` 管理主题。重复概览/课程地址通过 `live/routes.tsx` 重定向到角色规范入口，具体映射和截图见 [设计指南](../design.md)。
+
+`LearningProvider` 读取本人课程和课程选择。Query 缓存来自 API，sessionStorage 只保存当前账号选中的课程ID；业务数据不从浏览器演示存储恢复。身份切换清空查询缓存，401 回到会话检查。页面异常边界允许重新加载。
 
 ## 模块位置
 
@@ -30,7 +32,7 @@ flowchart LR
 | web/src/shared | API、会话与错误恢复；原课程示例保留但不作为活动主入口 |
 | backend/internal/course | 兼容公开的已发布课程摘要；不包含学生数据 |
 | backend/internal/assessment、grading、insight；web/src/features | 原责任入口与文档，实际共享实现定位到 learning/live；没有重复业务服务 |
-| web/src/replica | 历史26页复刻源码、登录样式和课程目录模板；原演示不再挂到活动路由 |
+| web/src/replica | 历史26页复刻源码、旧登录页和课程目录模板；原演示与全量旧样式不再挂到活动路由 |
 
 本轮为跨模块完整实现，集中在 learning 以避免同时造四套身份/状态处理；后续按真实协作需求渐进拆分，不凭目录名称宣称模块已实现。原纵向负责人见 [team](team.md)，不代记贡献。
 

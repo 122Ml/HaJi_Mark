@@ -63,7 +63,7 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
   const max = rows.reduce((v, r) => v + r.max_score, 0);
   const low = rows.filter((r) => r.score / r.max_score < 0.6);
   return (
-    <div className="live-page">
+    <div className="live-page overview-page">
       <header className="live-heading">
         <p>{teacher ? "教学决策" : "学习进度"}</p>
         <h1>
@@ -75,6 +75,17 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
         </h1>
         <span>基于实际学习、提交和已发布反馈汇总；未评分与零分分别呈现。</span>
       </header>
+      <nav className="live-shortcuts" aria-label="工作台快捷入口">
+        {(teacher ? [
+          ["01 / PREPARE", "课程底座", "维护知识目录，准备并审核学习资料。", "/teacher/course-twin"],
+          ["02 / REVIEW", "作业与评阅", "查看学生提交，确认并发布正式反馈。", "/teacher/homework"],
+          ["03 / SUPPORT", "跟进学习任务", "安排补学补练，依据新证据复查。", "/teacher/intervention"],
+        ] : [
+          ["01 / LEARN", "开始课程学习", "浏览课程资料，记录笔记与学习进度。", "/student/course-content"],
+          ["02 / PRACTICE", "完成作业测验", "保存作答，提交成果并查看正式反馈。", "/student/homework"],
+          ["03 / GROW", "查看学习路径", "结合已有反馈，规划接下来的学习。", "/student/learning"],
+        ]).map(([step, title, description, to]) => <Link className="live-shortcut" to={to} key={to}><span>{step}</span><strong>{title}<span aria-hidden="true">↗</span></strong><p>{description}</p></Link>)}
+      </nav>
       <Feedback error={evidence.error || overview.error} />
       {!teacher && resources.data && events.data && (
         <section className="card-panel">

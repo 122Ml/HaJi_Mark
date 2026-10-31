@@ -17,7 +17,7 @@ flowchart LR
   Path --> Web
 ```
 
-`App.tsx` 装配角色路由与四组导航；`app/navigation.ts` 管理导航分组，`app/Login.tsx` 提供活动登录页，`app/theme.ts` 与 `styles.css` 管理主题。重复概览/课程地址通过 `live/routes.tsx` 重定向到角色规范入口，具体映射和截图见 [设计指南](../design.md)。
+`App.tsx` 装配角色路由、顶栏与分组侧栏；`app/navigation.ts` 管理导航分组，`app/Login.tsx` 提供活动登录页，`app/theme.ts` 与 `styles.css` 管理设计变量，`shared/ui.tsx` 提供页头与加载/空/错误状态组件。重复概览/课程地址通过 `live/routes.tsx` 重定向到角色规范入口，具体映射和截图见 [设计指南](../design.md)。
 
 `LearningProvider` 读取本人课程和课程选择。Query 缓存来自 API，sessionStorage 只保存当前账号选中的课程ID；业务数据不从浏览器演示存储恢复。身份切换清空查询缓存，401 回到会话检查。页面异常边界允许重新加载。
 

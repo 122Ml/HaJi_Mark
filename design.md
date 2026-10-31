@@ -1,115 +1,110 @@
 # HaJi Mark 界面设计与复刻指南
 
-2026-10-29 按钮与阴影细节复核 · React 19 / TypeScript / Ant Design 5.27.4。当前设计用于真实师生平台，页面数据继续通过 learning API 读取 PostgreSQL。设计改造的验收范围是本地 Docker；生产状态另见部署记录。
+2026-10-31 UI 重构 · React 19 / TypeScript / Vite / Ant Design 5.27.4。页面数据继续通过 learning API 读取 PostgreSQL。设计验收范围是本地 Docker；生产状态另见 [部署记录](deploy/README.md) 与仓库根 RESULT.md。改动清单与取舍见 [ui-refresh-2026-10-31](docs/ui-refresh-2026-10-31.md)。
 
-## 设计来源与取舍
+## 设计来源
 
-用户提供的根目录 `home.webp`、`platform.webp`、`pricing.webp`、`resources.webp`、`solutions.webp`、`why-lattice.webp`、`company.webp` 为 Lattice 风格参考。采用其中的深青主视觉、薄荷渐变、白色圆角卡片、胶囊标签、宽松留白和分栏页脚。业务内页保留清晰的表单与表格密度，长内容用可滚动表格和自动换行承载。
+仓库根目录 `home.webp`、`platform.webp`、`pricing.webp`、`solutions.webp`、`resources.webp`、`company.webp`、`why-lattice.webp` 为 Lattice 风格参考。从中提取的设计语言：
 
-参考图保留在本地原位置。没有复制其品牌、人物、客户标识、销售文案或评价数字；界面中的学习流程插图由 HTML/CSS 构成。当前截图包含自动化验收创建的课程与真实数据库结果，分数只表示该构造课程的反馈。
+| 维度 | 参考图观察 | 本平台采用 |
+| --- | --- | --- |
+| 色彩 | 深青主色，薄荷/青绿渐变只出现在主视觉和插图区，画布以白色为主 | 主色 `#006764`；渐变只用于登录主视觉、流程卡和概览快捷卡插图区 |
+| 字体层级 | 大标题细字重（约 500），正文小而清晰，分类用小号大写胶囊标签 | h1 500 字重；页面标题上方放胶囊分类标签；正文 15px |
+| 卡片 | 白底、16px 圆角、细边框、轻阴影；标题在上，彩色插图区在下 | `.card-panel` 与 `.live-shortcut` / `.flow-card` |
+| 按钮 | 纯色深青、小圆角、轻阴影 | 主按钮纯色，8px 圆角，hover/active 加深 |
+| 导航 | 白色顶栏，主菜单分组，右上角账户和主操作 | 顶栏放品牌、角色标签和账户；业务导航为左侧分组栏（工作台需要常驻导航） |
+| 留白 | 宽松，内容最大宽度约 1200px | 内容区最大 1200px，组件间距 24px |
+| 页脚 | 多列链接 | 工作台页脚只保留一行说明；侧栏已提供全部链接，不再重复 |
 
-登录页突出“课程 → 作答 → 反馈 → 补学复查”；身份由账户决定。没有角色切换模拟器、虚构模型回答、第三方登录或尚未实现的找回密码按钮。
+参考图保留在原位置。没有复制品牌、人物照片、客户标识、评分数字或销售文案。插图由 CSS 渐变和内联 SVG 构成。这是参考风格的业务适配，不是营销页的逐像素复刻，也没有做像素相似度评分。
 
 ## 实现入口
 
 | 文件 | 职责 |
 | --- | --- |
-| `web/src/app/theme.ts` | Ant Design 颜色、字体、控件高度与圆角 |
-| `web/src/styles.css` | 全局设计变量、登录页、应用框架、导航、卡片、按钮、表格与断点 |
-| `web/src/live/styles.css` | 业务标题区、指标卡、知识点、表单、目录与快捷入口 |
-| `web/src/app/Login.tsx` | 真实登录表单与平台说明 |
-| `web/src/app/navigation.ts` | 教师/学生的四组主导航及二级入口，页脚共用 |
-| `web/src/app/App.tsx` | 角色框架、账户操作、页面焦点与标题 |
-| `web/src/live/routes.tsx` | 业务路由、角色入口、旧地址兼容重定向 |
-| `web/src/live/insight.tsx` | 概览、快捷入口、真实证据与指标 |
+| `web/src/app/theme.ts` | Ant Design token（颜色、圆角、控件高度、字体），与 CSS 变量同名同值 |
+| `web/src/styles.css` | `:root` 设计变量、应用壳（顶栏/侧栏/页脚）、按钮、表格、状态组件、登录页、断点 |
+| `web/src/live/styles.css` | 业务页模板：页头、课程切换条、表单、行列表、指标卡、知识点、快捷卡 |
+| `web/src/shared/ui.tsx` | `PageHeader`、`EmptyState`、`ErrorState`、`LoadingState`、`StatusTag` |
+| `web/src/app/navigation.ts` | 教师/学生导航分组与链接名称（验收脚本依赖链接名） |
+| `web/src/app/App.tsx` | 应用壳：顶栏、侧栏、移动端抽屉、焦点与标题 |
+| `web/src/app/Login.tsx` | 登录页 |
+| `web/src/live/routes.tsx` | 业务路由、别名重定向、404 |
+| `web/src/live/context.tsx` | 课程上下文、`useAction`（含 `failed` 状态）、`Feedback` |
 
-`main.tsx` 的 ConfigProvider 使用 theme.ts；活动全局样式不再导入 `replica/styles/reference.css` 和 `replica/styles/local.css`。`replica` 原文件保留供历史核对，课程目录模板仍有明确的业务导入用途。旧 `replica/Login.tsx` 已退出活动路由。
-
-## 第二轮对照结论
-
-逐张查看七张 WebP 的完整页面，并放大顶部、按钮和卡片。第一版的胶囊按钮、整片浅绿后台背景、带边框的大标题卡片，以及多余的功能说明不符合参考，已修正。
-
-| 对照项 | 参考图观察 | 当前实现 |
-| --- | --- | --- |
-| 按钮 | 青绿主色、小圆角、轻微阴影；截图明暗不作为明显渐变的依据 | 按用户复核，使用纯色 #006764、8px 圆角和轻阴影；悬停/按下仍为纯色 |
-| 画布 | 七图以白色为主，局部彩色区域 | 业务白底、轻边框；登录主视觉从深青渐变到白 |
-| 卡片 | home 的标题在上，绿/薄荷/青色插图区在下 | 三张入口采用相同层级与色序，图形为学习业务 SVG |
-| 标题 | 普通栏目标题直接位于画布上 | 移除全页通用的圆角横幅，保留标题与短分类标签 |
-| 文案 | 按用户本轮要求进一步精简 | 移除入口说明、重复页头介绍、无意义英文编号和页脚宣传语 |
-
-**复刻边界：当前是参考样式的业务适配，不是七个营销页的逐像素副本。** 页面内容、中文字体、Logo、照片/插画、二级业务导航与真实表单不同；没有原站字体和源组件，也未获得像素一致的证据。不能把浏览器流程通过称作“100%完全复刻”。本轮没有添加营销页、虚构客户评价或用参考整图覆盖可交互页面。
+`replica/` 为历史复刻源码，不挂活动路由，不导入其样式。`features/` 是原纵向责任入口（`check_docs.py` 检查其存在），不是活动页面。
 
 ## 设计变量
 
-| 语义 | 值 | 用途 |
+CSS 变量在 `styles.css :root`，颜色同步到 `theme.ts palette`。修改时两处一起改。
+
+| 变量 | 值 | 用途 |
 | --- | --- | --- |
-| 主色 | `#006764` | 主按钮、选中项、链接、进度条 |
-| 深青 | `#0b4c48` | 悬停、较深文字 |
-| 正文 | `#0d2b29` | 标题、数据与正文 |
-| 次要文字 | `#61736f` | 说明、时间、来源 |
-| 薄荷 | `#e0f8f0` | 标签、选中背景、插图区 |
-| 背景 | `#ffffff` | 工作台白色画布 |
-| 分隔线 | `#e9efed` | 卡片、表格、输入框 |
-| 错误 / 成功 | `#b42318` / `#027a48` | Ant Design 语义状态 |
+| `--teal` | `#006764` | 主按钮、链接、选中、进度条 |
+| `--teal-deep` / `--teal-pressed` | `#0b4c48` / `#083e3b` | 悬停 / 按下 |
+| `--teal-bright` | `#00938b` | 焦点环 |
+| `--ink` / `--ink-soft` / `--muted` | `#0d2b29` / `#3d5652` / `#61736f` | 标题正文 / 表单标签 / 说明 |
+| `--mint` / `--mint-soft` / `--mint-line` | `#e0f8f0` / `#f3f9f7` / `#bfe0d9` | 选中背景 / 悬停背景 / 次按钮边框 |
+| `--line` / `--surface` / `--canvas` | `#e3ebe8` / `#f7faf9` / `#fff` | 分隔线 / 侧栏与次级面板 / 画布 |
+| `--danger` `--warning` `--success` 及 `-bg` | `#b42318` `#b54708` `#027a48` | 错误、草稿、已发布状态 |
+| `--text-xs…--text-xl`, `--text-h1` | 12/13/15/18/22px，h1 `clamp(28px, 2.6vw, 38px)` | 字号 |
+| `--space-1…--space-7` | 4/8/12/16/24/32/48px | 间距 |
+| `--radius-sm/md/lg/pill` | 8/12/16/999px | 按钮输入 / 内嵌块 / 卡片 / 标签 |
+| `--shadow` / `--shadow-raised` | 两层低透明度阴影 | 卡片 / 悬停与抽屉 |
+| `--topbar-h` / `--sidebar-w` / `--content-max` | 64px / 248px / 1200px | 布局尺寸 |
 
-主按钮使用纯色 `#006764`，悬停 `#0b4c48`，按下 `#083e3b`，不使用渐变、高光内阴影或立体按钮效果。Ant Design 按钮由 theme.ts 控制，原生按钮由 `.primary-link` 控制，避免全局 CSS 覆盖 Ant Design 的禁用和加载状态。渐变只用于主视觉背景和插图区。
-
-CSS 变量与 theme.ts 的同义颜色必须同步修改。不要在某个业务页另起紫色、蓝色或玻璃主题。登录页使用深青渐变并向白色过渡；业务标题直接置于白色画布上。彩色渐变集中在快捷卡片插图区，不给每个业务标题加背景卡片。
-
-- 字体：Inter、PingFang SC、Microsoft YaHei、Segoe UI、system-ui 回退；不依赖外网字体。正文 15px，说明 12–14px，移动端表单 16px。
-- 标题：登录页 36–64px，业务 h1 30–48px，h2 20px。长标题使用 `text-wrap: balance`；内容可以自然增高。
-- 圆角：普通卡片 16px，输入框 8–10px，按钮 8px。只有小标签使用胶囊圆角。
-- 间距：控件 8–12px、组件 16–24px、卡片内边距 28px、标题区 40px。桌面正文最大宽度 1344px。
-- 阴影：`0 2px 4px #0b2b290a, 0 6px 16px #0b2b2906`；以细边框和留白区分层级。
-- 交互：悬停约 180ms；可见焦点；`prefers-reduced-motion` 关闭非必要动画。按钮最小高度 42px，主登录按钮 46px。
+规则：不用渐变按钮；不为某个业务页另起颜色；状态颜色只用于 `StatusTag` 和反馈条；交互过渡 180ms，`prefers-reduced-motion` 关闭动画；焦点环 3px `--teal-bright`。
 
 ## 导航与路由
 
-主导航固定为四组，组内用第二行展示具体功能。账户设置位于右上角，退出单独显示。详情、编辑、评分页沿用所属功能的选中态。SPA 路径变化后焦点移到 `main-content`，页面标题同步到当前分组。
+顶栏：品牌 → 角色标签 → 账户（头像+姓名，进入个人设置）→ 退出登录。左侧分组导航（`<nav aria-label="教师导航|学生导航">`，每组 `role="group"`）。1023px 以下侧栏收为抽屉，顶栏左侧出现“打开导航”按钮，点击遮罩、按 Esc 或切换页面后关闭。
 
-| 角色 | 分组 | 规范入口 |
+| 角色 | 分组 | 链接 → 路径 |
 | --- | --- | --- |
-| 教师 | 教学概览 | `/teacher/dashboard`、`/teacher/intervention` |
-| 教师 | 课程与资源 | `/teacher/course-twin` |
-| 教师 | 作业与评价 | `/teacher/homework`、`/teacher/quiz` |
-| 教师 | 交流与教研 | `/teacher/interaction`、`/teacher/research`、`/teacher/industry-intelligence` |
-| 学生 | 学习概览 | `/student/home`、`/student/learning` |
-| 学生 | 课程与资源 | `/student/course-content` |
-| 学生 | 作业与测验 | `/student/homework`、`/student/quiz` |
-| 学生 | 任务与交流 | `/student/intervention`、`/student/interaction` |
-| 两者 | 账户 | `/<role>/profile` |
+| 教师 | 教学概览 | 教学看板 `/teacher/dashboard`、干预任务 `/teacher/intervention` |
+| 教师 | 课程与资源 | 课程与资料 `/teacher/course-twin` |
+| 教师 | 作业与评价 | 作业中心 `/teacher/homework`、测验 `/teacher/quiz` |
+| 教师 | 交流与教研 | 课程互动 `/teacher/interaction`、教研记录 `/teacher/research`、行业能力 `/teacher/industry-intelligence` |
+| 学生 | 学习概览 | 我的概览 `/student/home`、学习路径 `/student/learning` |
+| 学生 | 课程与资源 | 课程学习 `/student/course-content` |
+| 学生 | 作业与测验 | 作业 `/student/homework`、测验 `/student/quiz` |
+| 学生 | 任务与交流 | 老师任务 `/student/intervention`、课程互动 `/student/interaction` |
+| 两者 | 账户 | 个人设置 `/<role>/profile` |
 
-旧 `student-twin`、`teacher-twin/drilldown`、`insight` 重定向到对应角色概览；教师 `home`、学生 `dashboard` 也归一。教师 `course-content` 和学生 `course-twin` 转到各自课程入口。上述重定向保留查询参数；`grading` 转到作业列表。既有 `courses`、`assignments` 兼容入口保留。使用 replace，避免返回键陷入别名页面。
+别名（`replace` 重定向，保留查询参数）：`student-twin`、`teacher-twin/drilldown`、`insight`、教师 `home`、学生 `dashboard` → 角色概览；教师 `course-content`、学生 `course-twin` → 各自课程页；`grading` → 作业列表；`courses`、`assignments` → 课程页 / 作业列表。未知角色内路径显示 404 空状态并提供返回概览；角色外未知路径回到 `/login`。
 
-作业详情、编辑、提交列表、评分与正式反馈保留现有深链接和对象 ID。教研/行业路由只提供给教师，学习路径只提供给学生。实际授权仍由后端执行。
+作业详情、编辑、提交列表、评分、正式反馈保留原深链接与对象 ID。路由不是权限边界，授权由后端执行。
 
 ## 页面模板
 
-界面只保留短标题、实际内容、数据状态和操作。禁止在标题或入口下方重复“维护…、准备…、基于…汇总”等静态功能说明；设计解释写在本文。错误、密码限制、发布不可逆提示及资料来源仍按需要展示。
-
-新增业务页先复用下面的结构，再接现有 `useLiveQuery` / `useAction`。操作名称要表达实际行为，异步请求保留 busy/error/success 反馈；原生 select、fieldset 和 label 保留可访问语义。
-
 ```tsx
 <div className="live-page">
-  <header className="live-heading">
-    <p>课程学习</p>
-    <h1>页面标题</h1>
-  </header>
-  <Feedback error={query.error} message={action.message} />
+  <PageHeader eyebrow="作业中心" title="作业列表" actions={<Link className="primary-link" to="…">新建作业</Link>} />
+  <Feedback error={query.error} message={action.message} failed={action.failed} />
   <section className="card-panel">
-    <h2>具体任务</h2>
-    {/* 表单用 live-form，操作组用 live-inline，表格外包 table-wrap。 */}
+    <div className="section-head"><h2>全部作业</h2><span className="live-meta">共 2 项</span></div>
+    {query.isPending ? <LoadingState /> : !list.length ? <EmptyState title="当前没有作业">…</EmptyState> :
+      list.map((a) => (
+        <article className="live-row" key={a.id}>
+          <div><h3>{a.title}</h3><p className="live-meta"><StatusTag status={a.status} label={names[a.status]} /> …</p></div>
+          <div className="live-inline">{/* ghost-btn / primary-link */}</div>
+        </article>
+      ))}
   </section>
 </div>
 ```
 
-Ant Design 用于主题、登录输入框、密码可见性、按钮、头像、提醒与空状态；业务表单继续使用已有原生语义控件，共享相同视觉变量。不要仅为换组件重写业务请求或将下拉框替换成不可访问的 div。两字 Ant Design 按钮需要稳定的可访问名称，例如登录按钮设置 `autoInsertSpace={false}`。
-
-概览卡片只使用真实证据。未评分显示“证据不足”，保留原始提交、资料版本和评分发布状态的区分。加载失败不替换成虚构统计。
+- 页头：胶囊分类 + h1，操作放右侧；详情页把“‹ 返回列表”放在分类位置。
+- 卡片：一张 `.card-panel` 承载一组任务；列表用 `.live-row`，不再每行一张卡片。
+- 两栏：`.live-grid`（窄侧栏 + 内容），`.live-grid.is-even`（等宽两栏）；1023px 以下单列。
+- 表单：原生控件 + `<label>` 包裹，`.live-form` 纵向，`.live-inline` 横排；保留原生 select/fieldset 的可访问语义。
+- 状态：加载 `LoadingState`，空 `EmptyState`（整页无内容时 `heading` 输出 h1），加载失败 `ErrorState`，操作结果 `Feedback`。`useAction` 失败时 `failed=true`，`Feedback` 用红色 `role="alert"` 显示，成功为绿色 `role="status"`。
+- 文案：只写标题、实际数据和操作名；不在页面重复功能说明。概览只用真实证据，无评分时显示“证据不足”。
+- Ant Design 用于主题、登录输入框、按钮、头像、提醒；两字按钮设 `autoInsertSpace={false}` 保持可访问名称。
 
 ## 页面示例
 
-以下截图由本地 Docker 镜像与真实验收账号生成；不包含密码。更新 UI 后重新生成，避免以旧截图证明新版本。
+截图由本地 Docker 与验收账号生成，数据来自带“浏览器验收”标签的测试课程；不含密码。完整集合在 `docs/screenshots/`（登录 390/768/1440，师生概览/作业/课程，390/768/1024 与 390 菜单展开）。
 
 ### 登录页
 
@@ -133,24 +128,25 @@ Ant Design 用于主题、登录输入框、密码可见性、按钮、头像、
 
 ![390px 教师概览](docs/design-examples/teacher-390.png)
 
-760px 以下目录与内容改为单列，指标改为两列，快捷入口改为一列；主导航保留四组可见入口。1100px 以下导航移至独立行。宽表格只在表格容器内滚动，长 ID、链接与用户内容允许换行。
+断点：1023px 以下侧栏变抽屉、两栏变单列、指标四列变两列；640px 以下隐藏角色标签和姓名、行操作换到下方、快捷卡变横排、输入框 16px 防 iOS 缩放。宽表格只在 `.table-wrap` 内横向滚动。
 
-## 复验与截图更新
+## 复验步骤
 
-从仓库根目录执行，已有测试凭据在 `.local/s1-accounts.json`。首次环境按 README 初始化数据库与账号。
+从仓库根执行；测试凭据在被忽略的 `.local/s1-accounts.json`（首次按 README 运行 seed-s1）。
 
 ```powershell
+cd web; npm run typecheck; npm run build; cd ..
 docker compose build web
 docker compose up -d --no-build
 $taskNode = 'C:/Users/23396/.cache/codex-runtimes/codex-primary-runtime/dependencies/node'
 $env:NODE_PATH = "$taskNode/node_modules"
-& "$taskNode/bin/node.exe" scripts/check-platform-browser.cjs
-& "$taskNode/bin/node.exe" scripts/check-design-browser.cjs
+& "$taskNode/bin/node.exe" scripts/check-platform-browser.cjs   # 业务回归，创建带标签课程并保留
+& "$taskNode/bin/node.exe" scripts/check-design-browser.cjs     # 分组导航、别名、焦点、截图 → .local/design
+& "$taskNode/bin/node.exe" scripts/check-ui-console.cjs         # 控制台错误、静态资源 4xx、390/768/1440 横向溢出
 python scripts/check_docs.py
-python -B F:/vibe-coding/scripts/workspace.py check --repo F:/vibe-coding/school/HaJi_Mark
 git diff --check
 ```
 
-完整浏览器回归创建带标签的课程、作业、评分和账号并保留数据；不要删除数据卷。设计检查只操作本机 18080 的测试会话，检查四组导航、焦点、别名和响应式并生成 `.local/design/*.png`。它依赖前一个脚本生成的“浏览器验收”课程。人工核对图像后，只复制本文列出的六张示例至 `docs/design-examples`；其余过程截图与账号文件保持忽略。
+设计检查依赖前一个脚本生成的“浏览器验收”课程。人工核对后，把 `.local/design/*.png` 复制到 `docs/screenshots/`，并把上面六张示例复制到 `docs/design-examples/`。不要 `down -v`，不要删卷。
 
-本轮结果见 [验证记录](docs/verification.md)。验收覆盖课堂流程与界面；未做像素相似度评分、大规模负载或完整无障碍认证。Vite 当前主 JS 包超过 500kB 的体积建议仍存在，后续可按真实性能测量进一步拆包。
+未覆盖：像素相似度、完整无障碍认证、暗色模式、大规模负载。Vite 主 JS 包约 645kB，超过 500kB 建议值，后续按真实性能测量再拆包。

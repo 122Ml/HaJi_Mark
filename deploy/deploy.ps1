@@ -45,7 +45,7 @@ function Build-Bundle {
   Step "Export clean source $commit"
   New-Item -ItemType Directory $src | Out-Null
   try {
-    Run git @('archive', '--format=tar', '-o', "$src.tar", $commit)
+    Run git @('archive', '--format=tar', '-o', "$src.tar", $commit, 'backend', 'web')
     Run (Join-Path $env:SystemRoot 'System32/tar.exe') @('-xf', "$src.tar", '-C', $src)
     foreach ($img in $images) {
       Step "docker build $($img.tag)"

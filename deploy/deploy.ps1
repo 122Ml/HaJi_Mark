@@ -16,6 +16,7 @@ param(
   [string]$TargetHost = '154.201.71.22'
 )
 $ErrorActionPreference = 'Stop'
+$PSNativeCommandUseErrorActionPreference = $false
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
@@ -42,13 +43,15 @@ function Build-Bundle {
   $src = Join-Path $env:TEMP "hajimark-src-$short"
   if (Test-Path $src) { Remove-Item -Recurse -Force $src }
   Step "Export clean source $commit"
-  Run git @('worktree', 'add', '--detach', $src, $commit)
+  New-Item -ItemType Directory $src | Out-Null
   try {
+    Run git @('archive', '--format=tar', '-o', "$src.tar", $commit)
+    Run tar @('-xf', "$src.tar", '-C', $src)
     foreach ($img in $images) {
       Step "docker build $($img.tag)"
       Run docker @('build', '--label', "org.opencontainers.image.revision=$commit", '-t', $img.tag, (Join-Path $src $img.context))
     }
-  } finally { Run git @('worktree', 'remove', '--force', $src) }
+  } finally { Remove-Item -Recurse -Force $src, "$src.tar" -ErrorAction SilentlyContinue }
   New-Item -ItemType Directory -Force $Bundle | Out-Null
   Step 'docker save | gzip'
   Run docker (@('save', '-o', "$Bundle/images.tar") + ($images | ForEach-Object { $_.tag }))

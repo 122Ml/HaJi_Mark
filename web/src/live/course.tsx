@@ -367,7 +367,7 @@ export function CourseWorkspace() {
             </section>
           </div>
           {teacher && (
-            <div className="live-grid">
+            <div className="live-grid is-even">
               <section className="card-panel" id="resource-editor">
                 <h2>{revisionBase ? "创建资料新版本" : "添加资料草稿"}</h2>
                 <form

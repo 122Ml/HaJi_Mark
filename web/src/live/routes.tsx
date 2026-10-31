@@ -24,7 +24,7 @@ export function LiveRoutes({ teacher }: { teacher: boolean }) {
       <CourseWorkspace />
     ) : (
       <section className="card-panel">
-        <EmptyState title="尚未加入课程">请联系课程教师将你的账号加入课程，然后刷新页面。</EmptyState>
+        <EmptyState heading title="尚未加入课程">请联系课程教师将你的账号加入课程，然后刷新页面。</EmptyState>
       </section>
     );
   return (
@@ -90,7 +90,7 @@ export function LiveRoutes({ teacher }: { teacher: boolean }) {
         path="*"
         element={
           <section className="card-panel">
-            <EmptyState title="页面不存在" action={<Link className="ghost-btn" to={`${root}/${teacher ? "dashboard" : "home"}`}>返回概览</Link>}>
+            <EmptyState heading title="页面不存在" action={<Link className="ghost-btn" to={`${root}/${teacher ? "dashboard" : "home"}`}>返回概览</Link>}>
               该地址没有对应的功能，请从左侧导航选择。
             </EmptyState>
           </section>

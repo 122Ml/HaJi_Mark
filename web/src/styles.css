@@ -86,7 +86,7 @@ p { margin: 0 0 var(--space-4); }
 .account-link { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--ink); padding: 4px 8px 4px 4px; border-radius: var(--radius-pill); }
 .account-link:hover, .account-link.active { background: var(--mint-soft); text-decoration: none; color: var(--ink); }
 .nav-user-name { max-width: 120px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.shell-body { flex: 1; display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); }
+.shell-body { flex: 1; display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); background: linear-gradient(90deg, var(--surface) calc(var(--sidebar-w) - 1px), var(--line) calc(var(--sidebar-w) - 1px) var(--sidebar-w), transparent var(--sidebar-w)); }
 .sidebar { position: sticky; top: var(--topbar-h); align-self: start; height: calc(100vh - var(--topbar-h)); overflow-y: auto; border-right: 1px solid var(--line); background: var(--surface); padding: var(--space-5) var(--space-4) var(--space-6); }
 .sidebar-group + .sidebar-group { margin-top: var(--space-5); }
 .sidebar-title { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; color: var(--teal); margin: 0 0 var(--space-2); padding: 0 var(--space-3); }
@@ -130,6 +130,7 @@ p { margin: 0 0 var(--space-4); }
 .state-block { display: grid; justify-items: center; gap: var(--space-2); text-align: center; padding: var(--space-6) var(--space-4); color: var(--muted); font-size: 14px; }
 .state-block strong { color: var(--ink); font-size: var(--text-md); font-weight: 600; }
 .state-block p { margin: 0; max-width: 44ch; }
+.state-block .state-title { font-size: var(--text-xl); font-weight: 600; margin: 0; }
 .state-icon { width: 44px; height: 44px; border-radius: var(--radius-md); display: grid; place-items: center; background: var(--mint); color: var(--teal); }
 .state-icon svg { width: 22px; height: 22px; }
 .state-block.is-error .state-icon { background: var(--danger-bg); color: var(--danger); }
@@ -172,7 +173,7 @@ p { margin: 0 0 var(--space-4); }
 
 /* Responsive */
 @media (max-width: 1023px) {
-  .shell-body { grid-template-columns: minmax(0, 1fr); }
+  .shell-body { grid-template-columns: minmax(0, 1fr); background: none; }
   .menu-toggle { display: grid; }
   .topbar-inner { padding: 0 var(--space-4); gap: var(--space-3); }
   .sidebar { position: fixed; z-index: 60; top: var(--topbar-h); left: 0; bottom: 0; height: auto; width: min(300px, 86vw); background: white; box-shadow: var(--shadow-raised); border-right: 0; transform: translateX(-102%); visibility: hidden; transition: transform var(--ease), visibility 0s linear 180ms; }

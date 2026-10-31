@@ -17,13 +17,13 @@ const icons = {
   error: "M12 4l9 16H3z M12 10v4 M12 17h.01",
 };
 
-export function EmptyState({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
+export function EmptyState({ title, children, action, heading = false }: { title: string; children?: ReactNode; action?: ReactNode; heading?: boolean }) {
   return (
     <div className="state-block">
       <span className="state-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round"><path d={icons.empty} /></svg>
       </span>
-      <strong>{title}</strong>
+      {heading ? <h1 className="state-title">{title}</h1> : <strong>{title}</strong>}
       {children && <p>{children}</p>}
       {action}
     </div>

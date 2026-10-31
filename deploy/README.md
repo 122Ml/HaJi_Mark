@@ -41,3 +41,7 @@ systemd定时器hajimark-cert-renew每天两次运行renew-certificate.sh，续�
 公网验证：使用显式--allow-remote和本次服务器初始化账号运行check-platform.py；浏览器脚本通过HAJI_BASE_URL/HAJI_ACCOUNTS指定公网目标与忽略凭据。验证登录、发布、学习、草稿、提交、原文/名单、评分、干预、刷新和跨人隔离；同时检查证书、HTTP跳转、Secure cookie、容器health/OOM/restart和仅Web回环端口。
 
 AI未接入，结构化逐点rubric、独立教师效果评测、负载/渗透测试仍属于后续工作；上线基础服务不表示这些已经完成。
+
+## UI 重构版本发布
+
+2026-10-31 起，镜像构建、导出、校验、上传、切换和回滚统一由 `deploy/deploy.ps1` 完成，步骤见 [DEPLOY.md](DEPLOY.md)。没有凭据时只生成并在本地验证 release 产物，服务器不受影响。

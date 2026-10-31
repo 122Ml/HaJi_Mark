@@ -62,18 +62,22 @@ pwsh -File deploy/deploy.ps1 -Action verify -ReleaseId hajimark-ui-cecb4d2-20261
 
 `docs/screenshots/`，共 17 张：登录（390/768/1440），师生工作台（390、390 菜单展开、768、1024），师生概览、课程、作业页。
 
-## 部署状态：DEPLOY_PENDING
+## 部署状态：DEPLOYED
 
-- 发布包已就绪：`.local/deployment/hajimark-ui-cecb4d2-20261031/`（不入库）。镜像 `hajimark-backend:ui-cecb4d2-20261031`、`hajimark-web:ui-cecb4d2-20261031`，`images.tar.gz` 约 69MB，SHA256 `38eedd45…6d61`，上一个线上版本 `hajimark-s1-99168eb-20261028`。
-- 未上线的原因：本机没有服务器 154.201.71.22 的 root 密码，也没有被服务器接受的 SSH 密钥。部署脚本需要通过 `HAJI_SSH_PASSWORD` 走密码登录，凭据缺失时直接退出，服务器未做任何改动。
+- 上线时间：2026-10-31 22:03（Asia/Shanghai），release `hajimark-ui-cecb4d2-20261031`，源提交 `cecb4d2`。
+- 服务器 154.201.71.22：`/opt/hajimark/current` 已切换，`hajimark-production-{api,worker,web}` 重启后 healthy，数据库与 Redis 保留；上线前自动备份 `/opt/hajimark/backups/hajimark-20261031T140310Z.dump` 并已校验。
+- 镜像 `hajimark-backend:ui-cecb4d2-20261031`、`hajimark-web:ui-cecb4d2-20261031` 已 load 并校验 revision；`images.tar.gz` 69,166,100 字节，SHA256 `38eedd45…6d61`。
+- 公网检查：`https://hajistudy.online/login` 返回 200，引用新构建资源 `assets/index-DGHs7W0T.js` 与 `assets/index-DuzRNySi.css`，样式表中含本次新增的 `sidebar-title`；登录页视觉与 `docs/screenshots/login.png` 一致。
+- 回滚：`pwsh -File deploy/deploy.ps1 -Action rollback`（只切换镜像到 `hajimark-s1-99168eb-20261028`，不恢复数据库）。
 
-## 下一步需要用户提供
+## 部署凭据
 
-1. 服务器 root 密码，只放在当前会话环境变量中，然后执行：
-   ```powershell
-   $env:HAJI_SSH_PASSWORD = '<root 密码>'
-   pwsh -File deploy/deploy.ps1 -Action deploy -ReleaseId hajimark-ui-cecb4d2-20261031
-   Remove-Item Env:HAJI_SSH_PASSWORD
-   ```
-   也可以改为在本机配置 root SSH 密钥，脚本会优先用密钥。本机 `~/.ssh/known_hosts` 已有该主机记录。
-2. 上线后的公网验证使用 `.local/deployment/hajistudy-accounts.json` 中的账号，步骤见 `deploy/DEPLOY.md` 第 3 节。回滚用 `-Action rollback`，只切换镜像，不恢复数据库。
+服务器只接受 root 密码登录。密码保存在本机 `~/.ssh/haji_mark_154.201.71.22.pass`（仅当前用户可读写，不入库），部署时读取到进程环境变量：
+
+```powershell
+$env:HAJI_SSH_PASSWORD = (Get-Content "$env:USERPROFILE\.ssh\haji_mark_154.201.71.22.pass" -Raw).Trim()
+pwsh -File deploy/deploy.ps1 -Action deploy -ReleaseId <release-id>
+Remove-Item Env:HAJI_SSH_PASSWORD
+```
+
+也可以改为在服务器配置本机 `~/.ssh/id_ed25519.pub`，脚本会优先使用密钥。公网验收账号见 `.local/deployment/hajistudy-accounts.json`，步骤见 `deploy/DEPLOY.md` 第 3 节。

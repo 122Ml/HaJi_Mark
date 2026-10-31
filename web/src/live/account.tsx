@@ -1,3 +1,4 @@
+import { PageHeader } from "../shared/ui";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSession } from "../shared/session";
@@ -40,6 +41,7 @@ export function ProfilePage() {
   return (
     <div className="live-page">
       <header className="live-heading">
+        <p>账户</p>
         <h1>个人设置</h1>
         <p>
           用户名：{session?.user.username} · 身份：
@@ -129,10 +131,8 @@ export function RecordsPage({ industry = false }: { industry?: boolean }) {
   });
   return (
     <div className="live-page">
-      <header className="live-heading">
-        <h1>{industry ? "行业能力资料库" : "教研协同中心"}</h1>
-      </header>
-      <Feedback error={query.error} message={action.message} />
+      <PageHeader eyebrow="交流与教研" title={industry ? "行业能力资料库" : "教研协同中心"} />
+      <Feedback error={query.error} message={action.message} failed={action.failed} />
       <section className="card-panel">
         <h2>{industry ? "录入岗位与技能" : "新增教研记录"}</h2>
         <form

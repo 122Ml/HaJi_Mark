@@ -1,4 +1,5 @@
 import type { Point, Resource } from "./course";
+import { PageHeader, EmptyState, ErrorState, LoadingState, StatusTag } from "../shared/ui";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useSession } from "../shared/session";
@@ -63,33 +64,39 @@ export function AssignmentList({ quiz = false }: { quiz?: boolean }) {
   );
   return (
     <div className="live-page">
-      <header className="live-heading">
-        <p>{quiz ? "测验中心" : "作业中心"}</p>
-        <h1>{quiz ? "测验列表" : teacher ? "作业列表" : "作业测验"}</h1>
-        {teacher && (
-          <Link
-            className="primary-link"
-            to={quiz ? "/teacher/quiz/new" : "/teacher/homework/new"}
-          >
+      <PageHeader
+        eyebrow={quiz ? "测验中心" : "作业中心"}
+        title={quiz ? "测验列表" : teacher ? "作业列表" : "作业测验"}
+        actions={teacher && (
+          <Link className="primary-link" to={quiz ? "/teacher/quiz/new" : "/teacher/homework/new"}>
             {quiz ? "新建测验" : "新建作业"}
           </Link>
         )}
-      </header>
-      <Feedback error={query.error} message={action.message} />
-      {query.isPending ? (
-        <p role="status">正在读取…</p>
+      />
+      <Feedback message={action.message} failed={action.failed} />
+      {query.error ? (
+        <section className="card-panel"><ErrorState message={query.error.message} onRetry={() => void query.refetch()} /></section>
+      ) : query.isPending ? (
+        <section className="card-panel"><LoadingState /></section>
       ) : !list.length ? (
         <section className="card-panel">
-          <p>当前没有{quiz ? "测验" : "作业"}。</p>
+          <EmptyState title={`当前没有${quiz ? "测验" : "作业"}`}>
+            {teacher ? "新建后先保存为草稿，确认题目与标准后再发布。" : "教师发布后会显示在这里。"}
+          </EmptyState>
         </section>
       ) : (
-        list.map((a) => (
-          <article className="card-panel live-row" key={a.id}>
+        <section className="card-panel">
+          <div className="section-head">
+            <h2>{quiz ? "全部测验" : "全部作业"}</h2>
+            <span className="live-meta">共 {list.length} 项</span>
+          </div>
+          {list.map((a) => (
+          <article className="live-row" key={a.id}>
             <div>
-              <h2>{a.title}</h2>
-              <p>{a.description}</p>
+              <h3>{a.title}</h3>
+              {a.description && <p>{a.description}</p>}
               <p className="live-meta">
-                {names[a.status]} · 满分 {a.max_score} · 截止 {when(a.due_at)}
+                <StatusTag status={a.status} label={names[a.status]} /> 满分 {a.max_score} · 截止 {when(a.due_at)}
               </p>
             </div>
             <div className="live-inline">
@@ -142,7 +149,8 @@ export function AssignmentList({ quiz = false }: { quiz?: boolean }) {
               )}
             </div>
           </article>
-        ))
+          ))}
+        </section>
       )}
     </div>
   );
@@ -236,10 +244,11 @@ export function AssignmentEditor({
   return (
     <div className="live-page">
       <header className="live-heading">
+        <p>作业与评价</p>
         <h1>{quiz ? "新建测验" : "新建作业"}</h1>
         <p className="live-meta">发布后不可修改题目与评分标准。</p>
       </header>
-      <Feedback message={action.message} />
+      <Feedback message={action.message} failed={action.failed} />
       <section className="card-panel">
         <form
           className="live-form"
@@ -482,11 +491,9 @@ export function AssignmentDetail() {
   return (
     <div className="live-page">
       <header className="live-heading">
+        <p><Link to={teacher ? "/teacher/homework" : "/student/homework"}>‹ 返回列表</Link></p>
         <h1>{query.data?.assignment.title || "作业详情"}</h1>
-        <p>{query.data?.assignment.description}</p>
-        <Link to={teacher ? "/teacher/homework" : "/student/homework"}>
-          返回列表
-        </Link>
+        {query.data?.assignment.description && <p>{query.data.assignment.description}</p>}
       </header>
       <Feedback error={query.error || submissions.error} />
       {query.data?.questions.map((q) => (
@@ -580,7 +587,7 @@ function QuestionAnswer({
               />
             )}
           </div>
-          <Feedback error={draft.error} message={action.message} />
+          <Feedback error={draft.error} message={action.message} failed={action.failed} />
           <div className="live-inline">
             <button
               className="ghost-btn"
@@ -639,8 +646,8 @@ export function SubmissionList() {
   return (
     <div className="live-page">
       <header className="live-heading">
+        <p><Link to="/teacher/homework">‹ 返回作业列表</Link></p>
         <h1>学生提交与批改</h1>
-        <Link to="/teacher/homework">返回作业列表</Link>
       </header>
       <Feedback error={q.error || detail.error || roster.error} />
       {detail.data && roster.data && (
@@ -741,12 +748,10 @@ export function GradePage() {
   return (
     <div className="live-page">
       <header className="live-heading">
+        <p><Link to={teacher ? "/teacher/homework" : "/student/homework"}>‹ 返回作业列表</Link></p>
         <h1>{teacher ? "作答复核与评分" : "正式反馈"}</h1>
-        <Link to={teacher ? "/teacher/homework" : "/student/homework"}>
-          返回作业列表
-        </Link>
       </header>
-      <Feedback error={query.error} message={action.message} />
+      <Feedback error={query.error} message={action.message} failed={action.failed} />
       {data && (
         <>
           <div className="live-grid">

@@ -55,7 +55,7 @@ export function Login() {
               <label htmlFor="password">密码</label>
               <Input.Password id="password" size="large" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} />
               {error && <Alert type="error" showIcon message={error} role="alert" />}
-              <Button type="primary" size="large" htmlType="submit" loading={busy} disabled={!username.trim() || !password} autoInsertSpace={false} block>登录</Button>
+              <Button type="primary" size="large" htmlType="submit" loading={busy} autoInsertSpace={false} block>登录</Button>
             </form>
             <p className="sign-in-help">账号由课程教师开通。忘记密码请联系课程教师重置。</p>
           </section>

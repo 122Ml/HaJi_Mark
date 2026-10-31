@@ -1,4 +1,5 @@
 import { KnowledgeGraph } from "./graph";
+import { PageHeader, EmptyState, LoadingState, StatusTag } from "../shared/ui";
 import { CurriculumTools } from "./curriculum";
 import { useSearchParams } from "react-router-dom";
 import { ResourceNotes } from "./notes";
@@ -118,10 +119,7 @@ export function CourseWorkspace() {
   );
   return (
     <div className="live-page">
-      <header className="live-heading">
-        <p>{teacher ? "课程底座" : "课程学习"}</p>
-        <h1>{teacher ? "课程底座建设台" : "学习中心"}</h1>
-      </header>
+      <PageHeader eyebrow={teacher ? "课程与资源" : "课程学习"} title={teacher ? "课程与资料" : "学习中心"} />
       <Feedback
         error={ctx.error || resources.error}
         message={notice || action.message}
@@ -186,7 +184,7 @@ export function CourseWorkspace() {
                   {p.title}
                 </button>
               ))}
-              {!ctx.data?.points.length && <p>尚未维护知识点</p>}
+              {!ctx.data?.points.length && <p className="live-meta">尚未维护知识点</p>}
               {teacher && (
                 <form
                   onSubmit={async (e) => {
@@ -289,16 +287,16 @@ export function CourseWorkspace() {
               ) : (
                 <>
                   {resources.isPending ? (
-                    <p role="status">正在读取资料…</p>
+                    <LoadingState label="正在读取资料…" />
                   ) : !list.length ? (
-                    <p>当前没有可用资料。</p>
+                    <EmptyState title="当前没有可用资料">{teacher ? "在下方添加资料草稿，审核后发布给学生。" : selected ? "该目录下暂无资料，可选择“全部资料”查看。" : "教师发布资料后会显示在这里。"}</EmptyState>
                   ) : (
                     list.map((r) => (
                       <article className="live-row" key={r.id}>
                         <div>
                           <h3>{r.title}</h3>
                           <p>
-                            {r.locator} · v{r.version} · {names[r.status]}
+                            <StatusTag status={r.status} label={names[r.status]} /> {r.locator} · v{r.version}
                           </p>
                           {!teacher && (
                             <small>
@@ -491,11 +489,13 @@ export function CourseWorkspace() {
                     加入课程
                   </button>
                 </form>
-                {members.data?.map((m) => (
-                  <p key={m.id}>
-                    {m.display_name} · {m.username}
-                  </p>
-                ))}
+                {!!members.data?.length && (
+                  <ul className="member-list">
+                    {members.data.map((m) => (
+                      <li key={m.id}>{m.display_name} · {m.username}</li>
+                    ))}
+                  </ul>
+                )}
                 <h3>新建学生账号并加入本课程</h3>
                 <form
                   className="live-form"
@@ -561,7 +561,7 @@ export function CourseWorkspace() {
                 </p>
               ))}
               {!events.data?.length && (
-                <p>还没有学习记录，打开资料开始学习。</p>
+                <EmptyState title="还没有学习记录">打开资料开始学习，记录会显示在这里。</EmptyState>
               )}
             </section>
           )}

@@ -30,7 +30,7 @@ export function StudyPath() {
           {query.data ? "重新规划" : "生成学习路径"}
         </button>
       </header>
-      <Feedback error={query.error} message={action.message} />
+      <Feedback error={query.error} message={action.message} failed={action.failed} />
       {query.data ? (
         <>
           <section className="card-panel">

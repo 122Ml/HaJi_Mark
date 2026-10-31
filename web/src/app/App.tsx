@@ -77,8 +77,8 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
       <div className="shell-body">
         <nav id="workspace-nav" className="sidebar" aria-label={teacher ? "教师导航" : "学生导航"}>
           {groups.map((group) => (
-            <div key={group.label} className="sidebar-group">
-              <h2>{group.label}</h2>
+            <div key={group.label} className="sidebar-group" role="group" aria-label={group.label}>
+              <p className="sidebar-title">{group.label}</p>
               <ul>
                 {group.links.map(([path, label]) => (
                   <li key={path}><NavLink to={`${root}/${path}`} className={linkClass}>{label}</NavLink></li>
@@ -86,8 +86,8 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
               </ul>
             </div>
           ))}
-          <div className="sidebar-group">
-            <h2>账户</h2>
+          <div className="sidebar-group" role="group" aria-label="账户">
+            <p className="sidebar-title">账户</p>
             <ul><li><NavLink to={`${root}/profile`} className={linkClass}>个人设置</NavLink></li></ul>
           </div>
         </nav>

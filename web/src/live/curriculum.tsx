@@ -30,7 +30,7 @@ export function CurriculumTools() {
           保存课程名称
         </button>
       </form>
-      <Feedback message={action.message} />
+      <Feedback message={action.message} failed={action.failed} />
       {ctx.data?.points.length === 0 && (
         <>
           <p className="live-meta">大数据课程目录，不含资料与题目。</p>

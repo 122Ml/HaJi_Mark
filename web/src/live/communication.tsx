@@ -1,3 +1,4 @@
+import { PageHeader } from "../shared/ui";
 import { useState } from "react";
 import { useSession } from "../shared/session";
 import { useAction, useLiveQuery, Feedback, when } from "./context";
@@ -23,10 +24,8 @@ export function InteractionPage() {
   });
   return (
     <div className="live-page">
-      <header className="live-heading">
-        <h1>{teacher ? "教学互动中心" : "互动答疑"}</h1>
-      </header>
-      <Feedback error={query.error} message={action.message} />
+      <PageHeader eyebrow={teacher ? "交流与教研" : "任务与交流"} title={teacher ? "教学互动中心" : "互动答疑"} />
+      <Feedback error={query.error} message={action.message} failed={action.failed} />
       <section className="card-panel">
         <h2>{form.parent_id ? "回复" : "发布内容"}</h2>
         <form

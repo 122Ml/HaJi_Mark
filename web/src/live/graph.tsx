@@ -16,7 +16,7 @@ export function KnowledgeGraph() {
   return (
     <section className="card-panel">
       <h2>知识图谱与前置依赖</h2>
-      <Feedback error={query.error} message={action.message} />
+      <Feedback error={query.error} message={action.message} failed={action.failed} />
       <div className="live-graph">
         {nodes.map((p) => (
           <article className="live-graph-node" key={p.id}>

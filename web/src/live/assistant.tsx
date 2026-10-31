@@ -43,7 +43,7 @@ export function LearningAssistant() {
       ) : (
         <p>模型服务尚未配置。可阅读课程资料，或在互动答疑中向教师提问。</p>
       )}
-      <Feedback error={status.error} message={action.message} />
+      <Feedback error={status.error} message={action.message} failed={action.failed} />
       {output && (
         <>
           <article className="live-prose">{output.text}</article>

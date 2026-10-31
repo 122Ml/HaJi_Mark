@@ -32,7 +32,7 @@ export function ResourceNotes({ resourceId }: { resourceId: string }) {
       }}
     >
       <h3>学习笔记</h3>
-      <Feedback error={query.error} message={action.message} />
+      <Feedback error={query.error} message={action.message} failed={action.failed} />
       <label>
         我的笔记
         <textarea

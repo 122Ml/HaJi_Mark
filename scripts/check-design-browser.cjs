@@ -45,13 +45,13 @@ const fixtures = JSON.parse(fs.readFileSync(path.join(root, '.local/s1-accounts.
       await courseSelect.selectOption(courseID);
       assert.equal(await page.locator('.live-shortcut p').count(), 0, 'Shortcut cards must not repeat feature instructions');
       assert.equal(await page.getByText(/维护知识目录|准备并审核学习资料|基于实际学习、提交|PREPARE|SUPPORT/).count(), 0, 'README-style interface copy returned');
-      await capture(role + '-overview');
+      await capture(role + '-overview', true);
       const nav = page.getByRole('navigation', {name: role === 'teacher' ? '教师导航' : '学生导航', exact: true});
-      assert.equal(await nav.getByRole('link').count(), 4, 'Primary navigation must stay at four groups');
-      await nav.getByRole('link', {name: role === 'teacher' ? '作业与评价' : '作业与测验', exact: true}).click();
+      assert.equal(await nav.getByRole('group').count(), 5, 'Sidebar must keep four business groups plus account');
+      await nav.getByRole('link', {name: role === 'teacher' ? '作业中心' : '作业', exact: true}).click();
       await page.waitForURL(`${base}/${role}/homework`);
       assert.equal(await page.evaluate(() => document.activeElement.id), 'main-content', 'SPA navigation must focus main');
-      await capture(role + '-assignments');
+      await capture(role + '-assignments', true);
       const aliases = role === 'teacher' ? ['teacher-twin/drilldown', 'insight', 'home'] : ['student-twin', 'insight', 'dashboard'];
       for (const alias of aliases) {
         await page.goto(`${base}/${role}/${alias}?student=design-check`);
@@ -63,13 +63,20 @@ const fixtures = JSON.parse(fs.readFileSync(path.join(root, '.local/s1-accounts.
       await page.goto(`${base}/${role}/${role === 'teacher' ? 'course-content' : 'course-twin'}?node=design-check`);
       await page.waitForURL(`${base}/${role}/${course}?node=design-check`);
       await page.goto(`${base}/${role}/${role === 'teacher' ? 'course-twin' : 'course-content'}`);
-      await capture(role + '-course');
+      await capture(role + '-course', true);
       await page.goto(`${base}/${role}/${home}`);
       await page.getByRole('heading', {level: 1}).waitFor();
       for (const width of [390, 768, 1024]) {
         await page.setViewportSize({width, height: 900});
         await capture(`${role}-${width}`);
       }
+      await page.setViewportSize({width: 390, height: 844});
+      const toggle = page.getByRole('button', {name: '打开导航', exact: true});
+      await toggle.click();
+      await nav.getByRole('link', {name: role === 'teacher' ? '课程与资料' : '课程学习', exact: true}).waitFor({state: 'visible'});
+      await capture(`${role}-390-menu`);
+      await page.keyboard.press('Escape');
+      await page.getByRole('button', {name: '打开导航', exact: true}).waitFor();
       await page.setViewportSize({width: 1440, height: 1000});
       await page.getByRole('button', {name: '退出登录', exact: true}).click();
       await page.waitForURL(base + '/login');

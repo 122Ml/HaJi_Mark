@@ -108,6 +108,7 @@ export function useAction() {
   const { session, refresh } = useSession();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [failed, setFailed] = useState(false);
   async function run<T>(
     path: string,
     body: unknown = {},
@@ -115,6 +116,7 @@ export function useAction() {
   ): Promise<T | undefined> {
     setBusy(true);
     setMessage("");
+    setFailed(false);
     try {
       const r = await requestJSON<{ data: T }>(
         `/learning/courses/${course!.id}${path}`,
@@ -125,6 +127,7 @@ export function useAction() {
       setMessage("已保存");
       return r.data;
     } catch (e) {
+      setFailed(true);
       setMessage(e instanceof Error ? e.message : "保存失败");
       if (e instanceof APIError && e.status === 401) refresh();
       return undefined;
@@ -132,19 +135,21 @@ export function useAction() {
       setBusy(false);
     }
   }
-  return { run, busy, message, setMessage };
+  return { run, busy, message, failed, setMessage };
 }
 export function Feedback({
   error,
   message,
+  failed = false,
 }: {
   error?: Error | null;
   message?: string;
+  failed?: boolean;
 }) {
-  if (error) {
+  if (error || (failed && message)) {
     return (
       <p role="alert" className="live-error">
-        {error.message}
+        {error?.message || message}
       </p>
     );
   }

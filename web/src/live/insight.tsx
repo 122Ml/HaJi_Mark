@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ActivityTimeline } from "./activity";
+import { PageHeader, EmptyState, StatusTag } from "../shared/ui";
 import { useSession } from "../shared/session";
 import { useLiveQuery, useAction, Feedback, names, when } from "./context";
 import type { Resource } from "./course";
@@ -64,20 +65,11 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
   const low = rows.filter((r) => r.score / r.max_score < 0.6);
   return (
     <div className="live-page overview-page">
-      <header className="live-heading">
-        <p>{teacher ? "教学决策" : "学习进度"}</p>
-        <h1>
-          {teacher
-            ? "教学概览"
-            : path
-              ? "个性化学习路径"
-              : "我的学习概览"}
-        </h1>
-      </header>
+      <PageHeader eyebrow={teacher ? "教学决策" : "学习进度"} title={teacher ? "教学概览" : path ? "个性化学习路径" : "我的学习概览"} />
       <nav className="live-shortcuts" aria-label="工作台快捷入口">
         {(teacher ? [
-          ["课程底座", "/teacher/course-twin", "M6 5h12v14H6z M9 9h6 M9 13h6"],
-          ["作业与评阅", "/teacher/homework", "M7 4h10v16H7z M10 9l2 2 3-3 M10 15h4"],
+          ["课程与资料", "/teacher/course-twin", "M6 5h12v14H6z M9 9h6 M9 13h6"],
+          ["作业中心", "/teacher/homework", "M7 4h10v16H7z M10 9l2 2 3-3 M10 15h4"],
           ["干预任务", "/teacher/intervention", "M5 6h14v11h-8l-4 3v-3H5z M8 10h8 M8 13h5"],
         ] : [
           ["课程学习", "/student/course-content", "M6 5h12v14H6z M9 9h6 M9 13h6"],
@@ -283,7 +275,7 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
       <section className="card-panel">
         <h2>正式评分证据</h2>
         {!rows.length ? (
-          <p>暂无已发布评分。</p>
+          <EmptyState title="暂无已发布评分">教师确认并发布评分后，正式结果会显示在这里。</EmptyState>
         ) : (
           rows.map((r) => (
             <article className="live-row" key={r.submission_id}>
@@ -338,10 +330,8 @@ export function InterventionPage() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   return (
     <div className="live-page">
-      <header className="live-heading">
-        <h1>{teacher ? "教师干预任务包" : "老师任务"}</h1>
-      </header>
-      <Feedback error={query.error} message={action.message} />
+      <PageHeader eyebrow={teacher ? "教学概览" : "任务与交流"} title={teacher ? "教师干预任务包" : "老师任务"} />
+      <Feedback error={query.error} message={action.message} failed={action.failed} />
       {teacher && (
         <section className="card-panel">
           <h2>创建任务草稿</h2>
@@ -439,7 +429,7 @@ export function InterventionPage() {
         <section key={i.id} className="card-panel">
           <div className="section-head">
             <h2>{i.title}</h2>
-            <span>{names[i.status]}</span>
+            <StatusTag status={i.status} label={names[i.status]} />
           </div>
           {teacher && <p>学生：{i.student_name}</p>}
           <p className="live-prose">{i.description}</p>
@@ -521,7 +511,7 @@ export function InterventionPage() {
       ))}
       {!query.data?.length && (
         <section className="card-panel">
-          <p>当前没有任务。</p>
+          <EmptyState title="当前没有任务">{teacher ? "在上方创建任务草稿，确认后下发给学生。" : "老师下发补学或补练任务后会显示在这里。"}</EmptyState>
         </section>
       )}
     </div>

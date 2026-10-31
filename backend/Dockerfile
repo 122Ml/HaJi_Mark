@@ -1,6 +1,8 @@
 FROM golang:1.26.1-alpine AS build
 ENV GOMAXPROCS=2 GOMEMLIMIT=768MiB GOFLAGS=-p=2
 WORKDIR /src
+ARG GOPROXY=https://proxy.golang.org,direct
+ENV GOPROXY=$GOPROXY
 COPY go.mod go.sum ./
 RUN go mod download -x
 COPY . .

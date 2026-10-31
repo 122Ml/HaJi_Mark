@@ -4,7 +4,7 @@ writes release.json / compose / scripts into .local/deployment/<release-id>/, an
 uploads + switches the server. Server steps never prompt: they need HAJI_SSH_PASSWORD
 (used through plink/pscp if present) or a working SSH key for root@154.201.71.22.
 
-  pwsh -File deploy/deploy.ps1 -Action build        # local only: build, export, verify
+  pwsh -File deploy/deploy.ps1 -Action build        # local only: build, export, verify (HAJI_GOPROXY optional)
   pwsh -File deploy/deploy.ps1 -Action verify       # re-check an existing bundle
   pwsh -File deploy/deploy.ps1 -Action deploy       # upload + load + switch (needs credentials)
   pwsh -File deploy/deploy.ps1 -Action rollback     # switch back to release.json previous_release
@@ -49,7 +49,8 @@ function Build-Bundle {
     Run (Join-Path $env:SystemRoot 'System32/tar.exe') @('-xf', "$src.tar", '-C', $src)
     foreach ($img in $images) {
       Step "docker build $($img.tag)"
-      Run docker @('build', '--label', "org.opencontainers.image.revision=$commit", '-t', $img.tag, (Join-Path $src $img.context))
+      $proxy = if ($env:HAJI_GOPROXY) { @('--build-arg', "GOPROXY=$env:HAJI_GOPROXY") } else { @() }
+      Run docker (@('build', '--label', "org.opencontainers.image.revision=$commit", '-t', $img.tag) + $proxy + @((Join-Path $src $img.context)))
     }
   } finally { Remove-Item -Recurse -Force $src, "$src.tar" -ErrorAction SilentlyContinue }
   New-Item -ItemType Directory -Force $Bundle | Out-Null

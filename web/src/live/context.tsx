@@ -19,7 +19,7 @@ const Context = createContext<{
   course: Course | null;
   courses: Course[];
   select: (id: string) => void;
-  reload: () => void;
+  reload: () => Promise<void>;
 } | null>(null);
 export function LearningProvider({ children }: { children: ReactNode }) {
   const { session, refresh } = useSession();
@@ -38,8 +38,10 @@ export function LearningProvider({ children }: { children: ReactNode }) {
   }, [query.error, refresh]);
   const courses = query.data || [];
   const course = courses.find((c) => c.id === selected) || courses[0] || null;
-  const reload = () => {
-    void queryClient.invalidateQueries();
+  const reload = async () => {
+    // A first read may still contain a pre-write snapshot. Cancel it before refetching.
+    await queryClient.cancelQueries();
+    await queryClient.invalidateQueries();
   };
   function select(id: string) {
     setSelected(id);
@@ -114,7 +116,7 @@ export function useAction() {
         { method, body: JSON.stringify(body) },
         session?.csrf_token,
       );
-      reload();
+      await reload();
       setMessage("已保存");
       return r.data;
     } catch (e) {

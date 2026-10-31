@@ -1,42 +1,58 @@
 import type { ThemeConfig } from "antd";
 
+// Keep in sync with the CSS custom properties at the top of styles.css.
 export const palette = {
   ink: "#0d2b29",
   inkSoft: "#3d5652",
   muted: "#61736f",
   teal: "#006764",
   tealDeep: "#0b4c48",
+  tealPressed: "#083e3b",
   tealBright: "#00938b",
   mint: "#e0f8f0",
-  mintSoft: "#f0f8f8",
+  mintSoft: "#f3f9f7",
   mintLine: "#bfe0d9",
-  line: "#dbe7e4",
+  line: "#e3ebe8",
   canvas: "#ffffff",
+  surface: "#f7faf9",
   danger: "#b42318",
+  warning: "#b54708",
   success: "#027a48",
 } as const;
+
+export const fontFamily =
+  'Inter, "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif';
 
 export const theme: ThemeConfig = {
   token: {
     colorPrimary: palette.teal,
     colorPrimaryHover: palette.tealDeep,
-    colorPrimaryActive: "#083e3b",
+    colorPrimaryActive: palette.tealPressed,
     colorInfo: palette.teal,
+    colorLink: palette.teal,
+    colorLinkHover: palette.tealDeep,
     colorSuccess: palette.success,
+    colorWarning: palette.warning,
     colorError: palette.danger,
     colorText: palette.ink,
     colorTextSecondary: palette.muted,
     colorBorder: palette.line,
+    colorBorderSecondary: palette.line,
     colorBgLayout: palette.canvas,
+    colorFillAlter: palette.surface,
     borderRadius: 8,
-    controlHeight: 42,
+    borderRadiusLG: 16,
+    controlHeight: 40,
+    controlHeightLG: 46,
     fontSize: 15,
-    fontFamily:
-      'Inter, "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif',
+    fontFamily,
+    boxShadow: "0 2px 4px #0b2b290a, 0 6px 16px #0b2b2906",
   },
   components: {
-    Button: { primaryShadow: "0 1px 2px #003c4414", fontWeight: 500, borderRadius: 8 },
+    Button: { primaryShadow: "0 1px 2px #003c4414", defaultShadow: "none", fontWeight: 500, borderRadius: 8 },
     Input: { activeShadow: `0 0 0 3px ${palette.mint}` },
     Card: { borderRadiusLG: 16 },
+    Alert: { borderRadiusLG: 12 },
+    Drawer: { colorBgElevated: palette.canvas },
   },
 };

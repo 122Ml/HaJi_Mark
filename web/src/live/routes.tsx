@@ -1,5 +1,5 @@
 import { StudyPath } from "./path";
-import { Route, Routes, useLocation, Navigate } from "react-router-dom";
+import { Link, Route, Routes, useLocation, Navigate } from "react-router-dom";
 import { CourseWorkspace } from "./course";
 import {
   AssignmentList,
@@ -12,7 +12,7 @@ import { OverviewPage, InterventionPage } from "./insight";
 import { InteractionPage } from "./communication";
 import { useLearning } from "./context";
 import { ProfilePage, RecordsPage } from "./account";
-import { Empty } from "antd";
+import { EmptyState } from "../shared/ui";
 export function LiveRoutes({ teacher }: { teacher: boolean }) {
   const { course } = useLearning();
   const location = useLocation();
@@ -24,8 +24,7 @@ export function LiveRoutes({ teacher }: { teacher: boolean }) {
       <CourseWorkspace />
     ) : (
       <section className="card-panel">
-        <h1>准备开始学习</h1>
-        <Empty description="尚未加入课程，请联系教师添加账号后刷新。" />
+        <EmptyState title="尚未加入课程">请联系课程教师将你的账号加入课程，然后刷新页面。</EmptyState>
       </section>
     );
   return (
@@ -90,10 +89,11 @@ export function LiveRoutes({ teacher }: { teacher: boolean }) {
       <Route
         path="*"
         element={
-          <div className="card-panel">
-            <h1>页面不存在</h1>
-            <p>请从上方导航选择功能。</p>
-          </div>
+          <section className="card-panel">
+            <EmptyState title="页面不存在" action={<Link className="ghost-btn" to={`${root}/${teacher ? "dashboard" : "home"}`}>返回概览</Link>}>
+              该地址没有对应的功能，请从左侧导航选择。
+            </EmptyState>
+          </section>
         }
       />
     </Routes>

@@ -47,10 +47,16 @@ export function LearningProvider({ children }: { children: ReactNode }) {
     setSelected(id);
     sessionStorage.setItem(`haji-course:${session?.user.id}`, id);
   }
-  if (query.isPending) return <p role="status">正在读取课程…</p>;
+  if (query.isPending)
+    return (
+      <div className="state-block" role="status">
+        <span className="state-spinner" aria-hidden="true" />
+        <span>正在读取课程…</span>
+      </div>
+    );
   return (
     <Context.Provider value={{ course, courses, select, reload }}>
-      <section className="live-course-bar card-panel">
+      <section className="live-course-bar" aria-label="课程选择">
         <label>
           当前课程
           <select
@@ -72,10 +78,9 @@ export function LearningProvider({ children }: { children: ReactNode }) {
         <button className="ghost-btn" onClick={reload}>
           刷新
         </button>
-        {query.isPending && <span role="status">正在读取课程…</span>}
         {query.error && <span role="alert">{query.error.message}</span>}
         {!query.isPending && !course && (
-          <span>暂无课程。教师可在课程底座新建，学生需由教师加入课程。</span>
+          <span>暂无课程</span>
         )}
       </section>
       {children}
@@ -136,15 +141,21 @@ export function Feedback({
   error?: Error | null;
   message?: string;
 }) {
-  return error ? (
-    <p role="alert" className="live-error">
-      {error.message}
-    </p>
-  ) : message ? (
-    <p role="status" className="live-message">
-      {message}
-    </p>
-  ) : null;
+  if (error) {
+    return (
+      <p role="alert" className="live-error">
+        {error.message}
+      </p>
+    );
+  }
+  if (message) {
+    return (
+      <p role="status" className="live-message">
+        {message}
+      </p>
+    );
+  }
+  return null;
 }
 export const names: Record<string, string> = {
   draft: "草稿",

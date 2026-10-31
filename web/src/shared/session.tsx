@@ -127,26 +127,34 @@ export function RequireSession({
   const { session, loading, error, refresh } = useSession();
   if (loading)
     return (
-      <p className="page-container" role="status">
-        正在验证登录状态…
-      </p>
+      <div className="page-container">
+        <div className="state-block">
+          <span className="state-spinner" aria-hidden="true" />
+          <span role="status">正在验证登录状态…</span>
+        </div>
+      </div>
     );
   if (error)
     return (
-      <div className="page-container" role="alert">
-        <p>{error}</p>
-        <button className="ghost-btn" onClick={refresh}>
-          重新连接
-        </button>
+      <div className="page-container">
+        <div className="state-block is-error" role="alert">
+          <span className="state-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"><path d="M12 4l9 16H3z M12 10v4 M12 17h.01" /></svg>
+          </span>
+          <strong>连接失败</strong>
+          <p>{error}</p>
+          <button className="ghost-btn" onClick={refresh}>重新连接</button>
+        </div>
       </div>
     );
   if (!session) return <Navigate replace to="/login" />;
   if (session.user.role !== role)
     return (
-      <div className="page-container">
-        <h1>无权访问该角色页面</h1>
-        <p>当前账户为{session.user.display_name}，修改地址不会改变账户身份。</p>
-        <a href={homeFor(session.user)}>返回我的工作台</a>
+      <div className="page-plain">
+        <h1>无权访问</h1>
+        <p>当前账户为 {session.user.display_name}（{role === "teacher" ? "学生" : "教师"}角色）。</p>
+        <p>修改地址栏不会改变账户身份，请使用对应角色的账号登录。</p>
+        <p><a href={homeFor(session.user)}>返回我的工作台</a></p>
       </div>
     );
   return children;

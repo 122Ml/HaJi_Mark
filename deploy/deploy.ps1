@@ -46,7 +46,7 @@ function Build-Bundle {
   New-Item -ItemType Directory $src | Out-Null
   try {
     Run git @('archive', '--format=tar', '-o', "$src.tar", $commit)
-    Run "$env:SystemRootSystem32	ar.exe" @('-xf', "$src.tar", '-C', $src)
+    Run (Join-Path $env:SystemRoot 'System32/tar.exe') @('-xf', "$src.tar", '-C', $src)
     foreach ($img in $images) {
       Step "docker build $($img.tag)"
       Run docker @('build', '--label', "org.opencontainers.image.revision=$commit", '-t', $img.tag, (Join-Path $src $img.context))

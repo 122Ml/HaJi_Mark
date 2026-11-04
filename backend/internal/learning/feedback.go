@@ -1,6 +1,8 @@
 package learning
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
@@ -11,9 +13,11 @@ import (
 
 func (h *Handler) grade(c *gin.Context) {
 	var in struct {
-		Score     int32  `json:"score"`
-		Feedback  string `json:"feedback"`
-		RequestID string `json:"request_id"`
+		Score     int32        `json:"score"`
+		Feedback  string       `json:"feedback"`
+		RequestID string       `json:"request_id"`
+		RubricID  string       `json:"rubric_id"`
+		Points    []pointScore `json:"points"`
 	}
 	if !bind(c, &in) {
 		return
@@ -31,6 +35,39 @@ func (h *Handler) grade(c *gin.Context) {
 		invalid(c, "分数须在本题满分范围内，并填写反馈")
 		return
 	}
+	if question.Type == "quiz" {
+		invalid(c, "客观测验使用固定答案规则判分")
+		return
+	}
+	raw := []byte("[]")
+	if in.RubricID != "" {
+		var total int32
+		var valid bool
+		raw, total, valid = h.scorePoints(c, in.RubricID, in.Points, s)
+		if !valid {
+			return
+		}
+		if in.Score != total {
+			invalid(c, "总分必须等于逐点分数之和")
+			return
+		}
+	} else {
+		versions, err := h.q.ListRubricVersions(c.Request.Context(), question.ID)
+		if err != nil {
+			result(c, nil, err)
+			return
+		}
+		for _, v := range versions {
+			if v.State == "confirmed" {
+				invalid(c, "本题已有逐点标准，请选择标准版本并逐点给分")
+				return
+			}
+		}
+		if len(in.Points) > 0 {
+			invalid(c, "逐点给分必须指定标准版本")
+			return
+		}
+	}
 	ctx := c.Request.Context()
 	tx, e := h.db.Begin(ctx)
 	if e != nil {
@@ -45,7 +82,13 @@ func (h *Handler) grade(c *gin.Context) {
 	}
 	old, e := q.GetRevisionByRequest(ctx, store.GetRevisionByRequestParams{ReviewerID: identity.Current(c).ID, RequestID: in.RequestID})
 	if e == nil {
-		if old.SubmissionID != s.ID || old.Score != in.Score || old.Feedback != in.Feedback {
+		var oldPoints []pointFeedback
+		if e = json.Unmarshal(old.PointScores, &oldPoints); e != nil {
+			result(c, nil, e)
+			return
+		}
+		canonical, _ := json.Marshal(oldPoints)
+		if old.SubmissionID != s.ID || old.Score != in.Score || old.Feedback != in.Feedback || old.RubricID.String != in.RubricID || !bytes.Equal(canonical, raw) {
 			identity.Fail(c, 409, "request_conflict", "相同请求号不能改变评分")
 			return
 		}
@@ -61,7 +104,7 @@ func (h *Handler) grade(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
-	v, e := q.CreateBusinessRevision(ctx, store.CreateBusinessRevisionParams{ID: uuid.NewString(), SubmissionID: s.ID, Revision: revision, Score: in.Score, Feedback: in.Feedback, ReviewerID: identity.Current(c).ID, RequestID: in.RequestID})
+	v, e := q.CreatePointRevision(ctx, store.CreatePointRevisionParams{ID: uuid.NewString(), SubmissionID: s.ID, Revision: revision, Score: in.Score, Feedback: in.Feedback, ReviewerID: identity.Current(c).ID, RequestID: in.RequestID, RubricID: text(in.RubricID), PointScores: raw})
 	if e != nil {
 		result(c, nil, e)
 		return

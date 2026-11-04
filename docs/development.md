@@ -62,6 +62,9 @@ Windows使用npm.cmd避免PowerShell执行策略问题。web开发服务器可�
 
 ## 当前平台回归、AI与备份
 
+2026-11-04新增：`python scripts/check-rubrics.py`、`node scripts/check-rubrics-browser.cjs`（同下方NODE_PATH），先运行HTTP构造数据，再跑浏览器。`--resume`仅复查已有评分数据；端点与测试数据均为本地，不调用模型。迁移00009前须备份，重启复验分项与版本保留。
+
+
 以下命令从仓库根执行。先 `docker compose up -d`，首次运行 `pwsh -File scripts/seed-s1.ps1` 生成忽略的凭据。不要输出或提交密码。
 
 ```powershell
@@ -97,7 +100,7 @@ python scripts/backup.py --verify-restore
 
 AI按用户要求保持 `AI_ENABLED=false`，`AI_BASE_URL/AI_API_KEY/AI_MODEL`为空。现有 `.env` 不必覆盖；Compose对缺项默认关闭。页面显示未配置，POST assist返回503 model_not_configured；不会用构造样例替代模型。适配器未做真实提供商验收，后续启用须另获明确授权和预算。当前人工答疑、人工评分、客观规则判分和规则路径正常可用。
 
-迁移已分配00001—00007，后续从00008新建。修改queries后用sqlc1.30.0生成；不改已执行迁移，不手改store，不删除Goose历史来绕过失败。Nginx使用Docker DNS解析API，API重建后应自动恢复代理。
+迁移已分配00001—00009，后续从00010新建。修改queries后用sqlc1.30.0生成；不改已执行迁移，不手改store，不删除Goose历史来绕过失败。Nginx使用Docker DNS解析API，API重建后应自动恢复代理。
 
 ## 本地账号、身份与成员接入
 

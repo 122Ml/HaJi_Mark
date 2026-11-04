@@ -3,6 +3,7 @@ import { PageHeader, EmptyState, ErrorState, LoadingState, StatusTag } from "../
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useSession } from "../shared/session";
+import { RubricManager, RubricVersion, PointGradeForm, RevisionPoints, PointFeedback } from "./rubrics";
 import {
   useLearning,
   useLiveQuery,
@@ -45,6 +46,8 @@ export interface Submission {
   assignment_version: number;
 }
 export interface Revision {
+	point_scores?: PointFeedback[];
+	rubric_id?: string | null;
   id: string;
   score: number;
   feedback: string;
@@ -551,6 +554,7 @@ function QuestionAnswer({
         <>
           <h3>教师评分标准</h3>
           <p className="live-prose">{q.rubric}</p>
+                  {q.type !== "quiz" && <RubricManager questionID={q.id} maxScore={q.max_score} />}
         </>
       ) : (
         <>
@@ -736,6 +740,10 @@ export function GradePage() {
   const [feedback, setFeedback] = useState("");
   const [requestID, setRequestID] = useState(crypto.randomUUID());
   const data = query.data;
+  const rubricQuery = useLiveQuery<RubricVersion[]>(`/questions/${data?.question.id}/rubrics`, teacher && !!data && data.question.type !== "quiz");
+  const [rubricID, setRubricID] = useState("");
+  const confirmed = (rubricQuery.data || []).filter(r => r.state === "confirmed");
+  const selectedRubric = confirmed.find(r => r.id === rubricID) || confirmed[0];
   const resources = useLiveQuery<Resource[]>("/resources");
   const source = resources.data?.find(
     (r) => r.id === data?.question.resource_id,
@@ -744,6 +752,7 @@ export function GradePage() {
     setScore(0);
     setFeedback("");
     setRequestID(crypto.randomUUID());
+    setRubricID("");
   }, [submissionId]);
   return (
     <div className="live-page">
@@ -809,6 +818,8 @@ export function GradePage() {
                     {r.method === "rule" ? "客观规则判分" : "教师评分"}
                   </p>
                   <p className="live-prose">{r.feedback}</p>
+                  {teacher && r.rubric_id && <p className="live-id">标准版本记录：{r.rubric_id}</p>}
+                  <RevisionPoints points={r.point_scores} />
                   {teacher &&
                     r === data.revisions[0] &&
                     r.state !== "released" && (
@@ -829,9 +840,16 @@ export function GradePage() {
               ))}
             </section>
           </div>
-          {teacher && (
+          {teacher && data.question.type !== "quiz" && (
             <section className="card-panel">
               <h2>新增评分修订</h2>
+              {rubricQuery.error ? <Feedback error={rubricQuery.error} /> : rubricQuery.isPending ? <LoadingState /> : selectedRubric ? <>
+                <label>使用标准版本<select aria-label="使用标准版本" value={selectedRubric.id} onChange={e => setRubricID(e.target.value)}>
+                  {confirmed.map(r => <option key={r.id} value={r.id}>v{r.version} · 已确认</option>)}
+                </select></label>
+                <PointGradeForm key={`${submissionId}/${selectedRubric.id}`} rubric={selectedRubric} submissionID={submissionId!} />
+              </> : <>
+              <p><Link to={`/teacher/homework/${data.submission.assignment_id}`}>在题目页配置逐点标准</Link>，或沿用本题原有整题标准。</p>
               <form
                 className="live-form"
                 onSubmit={async (e) => {
@@ -877,6 +895,7 @@ export function GradePage() {
                   保存评分草稿
                 </button>
               </form>
+              </>}
               <p className="muted">
                 草稿不对学生公开。核对原文与标准后确认，再单独发布。
               </p>

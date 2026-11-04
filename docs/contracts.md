@@ -1,6 +1,6 @@
 # 接口、数据与状态契约
 
-v0.3 · 2026-10-28，当前真实平台。以下为已注册接口；后半节结构化rubric/E6为研究目标，不能据此调用旧规划路径。
+v0.4 · 2026-11-04，当前真实平台。以下为已注册接口；后半节结构化rubric/E6为研究目标，不能据此调用旧规划路径。
 
 ## 共识与身份
 
@@ -50,11 +50,26 @@ HttpOnly、SameSiteStrict、Path=/api/v1、8小时cookie，DB仅存token哈希�
 
 迁移00001底座、00002身份、00003学习/作业/评分/干预/互动、00004草稿与资料绑定/笔记、00005课程层级/依赖/路径、00006资料历史、00007干预关联。SQL在learning.sql等queries中，store由sqlc生成。
 
-当前是整题人工标准文本与整数评分，没有criterion表、独立rubric确认版本、AI原稿/任务或逐点quote偏移校验；题目冻结使标准随assignment_version保持不变。资料修订以resource_id绑定不可变版本。列表当前未分页，适合本地小规模课程；批量导入/高并发/大文件尚未验收。AI适配器默认关闭，未测试真实提供商，不能据此宣称E6已完成。
+当前兼容整题人工标准，并已增加独立rubric确认版本与人工逐点评分；评分点和分项结果存JSONB，没有独立criterion表或AI原稿/任务。可选quote必须是该提交原文的子串；没有code point区间高亮。原题目文本标准仍随assignment_version冻结，结构化标准另存版本并绑定到对应评分修订。资料修订以resource_id绑定不可变版本。列表当前未分页，适合本地小规模课程；批量导入/高并发/大文件尚未验收。AI适配器默认关闭，未测试真实提供商，不能据此宣称E6已完成。
+
+## 2026-11-04 逐点评分（已实现）
+
+以下路径均相对 `/learning/courses/:courseID`，限课程教师，写请求另校验CSRF。
+
+| 接口 | 输入／结果 |
+| --- | --- |
+| GET /questions/:id/rubrics | 本题所有版本，criteria含id/title/max_score/rule，按version倒序 |
+| POST /questions/:id/rubrics | criteria数组，1—30项；编号唯一、规则非空、正整数满分总和与题目一致；另建不可原地修改的草稿 |
+| POST /rubrics/:id/confirm | 草稿→confirmed；确认后只能另建版本 |
+| POST /submissions/:id/revisions | rubric_id、points[{criterion_id,score,feedback,quote}]、score、feedback、request_id；逐点完整且不越界，总分等于合计；quote可空，否则须逐字来自当前作答 |
+
+标准输入不含学生答案，可在无提交时建立。评分绑定本题确认版本，系统补入point_scores的title/max_score，内部rule不随分项返回学生。已存在确认标准时不允许省略rubric_id绕过；历史整题记录仍保留。相同request_id及同内容返回同修订，内容变化409。
+
+评分沿既有draft→confirmed→released；学生仅见released。GET submission的revisions及GET evidence增加rubric_id/point_scores；CSV增加标准ID、分项与总评。新标准不改变旧评分绑定，新评分草稿不抹去旧正式反馈；改分发布后统计只计当前有效结果。引用字符串存在只证明能定位，不代表给分语义正确。
 
 ## S1-L3交给S2的人工评分契约
 
-本节保留早期结构化逐点评分目标，不是当前HTTP契约；上游提交和整题人工评分现已实现。下列JSON是文档样例，`<...>`为待上游返回的真实ID，不可拿它们调用接口或认定联调通过。逐点结构化端点尚未实现；当前整题整数评分走上表接口，本轮不调用模型。先固定10分整数制（4＋6分），有小数需求时另行确认最小分值单位，不隐式四舍五入。
+本节保留早期结构化逐点评分目标，不是当前HTTP契约；上游提交和整题人工评分现已实现。下列JSON是文档样例，`<...>`为待上游返回的真实ID，不可拿它们调用接口或认定联调通过。该历史样例的/teacher路径和code point区间字段未实现；当前结构化评分走前述/learning路径与quote字符串，不调用模型。先固定10分整数制（4＋6分），有小数需求时另行确认最小分值单位，不隐式四舍五入。
 
 **上游交接必须齐全**：assessment交付`submission_id/student_id/course_id/assignment_id/assignment_version/question_id/question_version/attempt/answer_text/answer_sha256/submitted_at/source`，并提供按ID读取不可变快照的内部查询。哈希为原文UTF-8的SHA256小写hex；不先trim、不改换行。第一轮一道文本题，每个submission绑定唯一question版本；以后多题须增加answer_id，不能复用整份作业的引用区间。course交付知识点所属课程、已审核资料`resource_id/resource_version/fragment_id/text/source_uri/locator/reviewed_by/published_at`及历史版本查询。
 

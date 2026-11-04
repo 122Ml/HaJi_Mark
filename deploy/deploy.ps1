@@ -67,7 +67,7 @@ function Build-Bundle {
       [ordered]@{ tag = $_.tag; local_image_id = $i[0].Id; config_id = $i[0].Id; revision = $commit }
     })
     archive = [ordered]@{ file = 'images.tar.gz'; bytes = (Get-Item "$Bundle/images.tar.gz").Length; sha256 = (Get-FileHash "$Bundle/images.tar.gz" -Algorithm SHA256).Hash.ToLower() }
-    migration = 8; compose_project = 'hajimark-production'; ai_enabled = $false; previous_release = $PreviousRelease
+    migration = ((Get-ChildItem "$Root/backend/db/migrations/*.sql" | ForEach-Object { [int]($_.BaseName.Split('_')[0]) } | Measure-Object -Maximum).Maximum); compose_project = 'hajimark-production'; ai_enabled = $false; previous_release = $PreviousRelease
   }
   $manifest | ConvertTo-Json -Depth 5 | Set-Content -Encoding utf8NoBOM "$Bundle/release.json"
   Write-EnvTemplate
@@ -112,6 +112,7 @@ link.symlink_to(release);link.replace('/opt/hajimark/current')
 print('IMAGES_VERIFIED_AND_RELEASE_SELECTED',manifest['release_id'])
 PY
 docker compose --env-file /opt/hajimark/shared/.env -f /opt/hajimark/current/compose.production.yaml config -q
+docker compose --env-file /opt/hajimark/shared/.env -f /opt/hajimark/current/compose.production.yaml run --rm --no-deps migrate
 docker compose --env-file /opt/hajimark/shared/.env -f /opt/hajimark/current/compose.production.yaml up -d --no-build --no-deps --wait --wait-timeout 150 api worker web
 curl -fsS --max-time 10 -H 'Host: hajistudy.online' http://127.0.0.1:18080/api/v1/health/ready
 curl -fsS --max-time 10 -H 'Host: hajistudy.online' http://127.0.0.1:18080/login -o /dev/null

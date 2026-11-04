@@ -7,7 +7,10 @@ import { useLiveQuery, useAction, Feedback, names, when } from "./context";
 import type { Resource } from "./course";
 import type { Assignment } from "./assessment";
 import type { Point } from "./course";
+import { RevisionPoints, PointFeedback } from "./rubrics";
 interface Evidence {
+  rubric_id: string | null;
+  point_scores: PointFeedback[];
   submission_id: string;
   student_id: string;
   question_id: string;
@@ -123,7 +126,7 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
             className="ghost-btn"
             onClick={() => {
               const cells = [
-                ["学生ID", "题目", "得分", "满分", "提交ID", "评分修订ID"],
+                ["学生ID", "题目", "得分", "满分", "提交ID", "评分修订ID", "标准版本ID", "逐点评分与依据", "总评"],
                 ...rows.map((r) => [
                   r.student_id,
                   r.prompt,
@@ -131,6 +134,9 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
                   String(r.max_score),
                   r.submission_id,
                   r.revision_id,
+                  r.rubric_id || "",
+                  JSON.stringify(r.point_scores || []),
+                  r.feedback,
                 ]),
               ];
               const csv =
@@ -286,6 +292,7 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
                   {when(r.released_at)}
                 </p>
                 <p>{r.feedback}</p>
+                <RevisionPoints points={r.point_scores} />
               </div>
               <Link
                 to={`/${teacher ? "teacher" : "student"}/homework/submissions/${r.submission_id}/${teacher ? "grade" : "feedback"}`}

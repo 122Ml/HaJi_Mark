@@ -5,6 +5,8 @@
 package store
 
 import (
+	"encoding/json"
+
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -62,6 +64,8 @@ type GradingRevision struct {
 	RequestID    string             `json:"request_id"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	ReleasedAt   pgtype.Timestamptz `json:"released_at"`
+	RubricID     pgtype.Text        `json:"rubric_id"`
+	PointScores  json.RawMessage    `json:"point_scores"`
 }
 
 type IndustryRecord struct {
@@ -172,6 +176,17 @@ type Resource struct {
 	PublishedAt      pgtype.Timestamptz `json:"published_at"`
 	SupersedesID     pgtype.Text        `json:"supersedes_id"`
 	SourceNote       string             `json:"source_note"`
+}
+
+type RubricVersion struct {
+	ID          string             `json:"id"`
+	QuestionID  string             `json:"question_id"`
+	Version     int32              `json:"version"`
+	Criteria    json.RawMessage    `json:"criteria"`
+	State       string             `json:"state"`
+	CreatedBy   string             `json:"created_by"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	ConfirmedAt pgtype.Timestamptz `json:"confirmed_at"`
 }
 
 type Session struct {

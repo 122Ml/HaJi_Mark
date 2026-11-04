@@ -1,6 +1,8 @@
 # 发布 UI 重构版本到 hajistudy.online
 
-目标：154.201.71.22（root，OpenResty 反代 127.0.0.1:18080，2GB）。只替换 api / worker / web 镜像；PostgreSQL、Redis、卷、OpenResty 配置、证书都不改动。不在服务器上编译。
+目标：154.201.71.22（root，OpenResty 反代 127.0.0.1:18080，2GB）。更新 api / worker / web 镜像前先执行镜像内的数据库迁移；保留 PostgreSQL、Redis、数据卷、OpenResty 配置和证书。不在服务器上编译。
+
+2026-11-04：当前源码包含00009逐点评分迁移；本周仅完成本地Docker验证，SSH认证未通过，尚未更新公网。本节描述发布工具的流程，不作为本版本已上线证明。
 
 ## 1. 本地构建与验证（不需要服务器）
 
@@ -17,7 +19,7 @@ pwsh -File deploy/deploy.ps1 -Action build
 | `release.json` | 源提交、镜像 ID、归档 SHA256、上一个 release |
 | `compose.production.yaml` 等 | 与 `deploy/` 相同的生产 Compose 与运维脚本 |
 | `env.template` | `shared/.env` 中需要的变量；升级时只改两行镜像 tag，保留原数据库密码 |
-| `switch-release.sh` | 服务器上校验镜像 ID/revision，改写 `.env` 中的镜像 tag，切换 `current` 链接，逐服务 `up --no-deps --wait`，检查健康 |
+| `switch-release.sh` | 服务器上校验镜像 ID/revision，改写 `.env` 中的镜像 tag，切换 `current` 链接，运行一次性 migrate，逐服务 `up --no-deps --wait`，检查健康 |
 | `update-release.sh` | 校验 SHA256 → 记录旧 `current` → `backup.sh` → `docker load` → `switch-release.sh` |
 | `rollback.sh` | 切回 `.previous-current`（默认为 release.json 中的 previous_release）；只切镜像，不恢复数据库 |
 
@@ -67,4 +69,4 @@ pwsh -File deploy/deploy.ps1 -Action rollback -ReleaseId <release-id>
 # 或服务器上：bash /opt/hajimark/releases/<release-id>/rollback.sh
 ```
 
-回滚只切换应用镜像，不恢复数据库，回滚后新增的作答会保留。本次没有新迁移（仍为 00008），旧镜像可以直接使用当前数据库。
+回滚只切换应用镜像，不恢复数据库，保留新增作答。本周00009为增量表和可空字段，不自动降级数据库；回退前仍需核对目标旧镜像与当前schema兼容，旧镜像不具备逐点评分能力。不要用旧数据库备份覆盖升级后的新增记录。

@@ -28,7 +28,7 @@ docker compose --env-file /opt/hajimark/shared/.env -f /opt/hajimark/current/com
 docker compose --env-file /opt/hajimark/shared/.env -f /opt/hajimark/current/compose.production.yaml up -d --no-build
 ```
 
-首次运行seed-s1生成随机、可重复执行且不重置的4个账号。其名称保留s1-teacher/s1-student-a等，用于课堂试用与交叉权限验收；教师可开通真实学生并创建自己的课程。自动验收只创建有明确标签的独立课程，保留测试记录，不用构造题当教师正式教学资料。初始凭据交付到本机忽略目录，不放网页或README，不沿用1Panel密码。
+首次运行seed-s1生成随机、可重复执行且不重置的4个账号，用于课堂试用与交叉权限验收；教师可开通真实学生并创建自己的课程。2026-11-05按用户要求设置公网教师和学生登录凭据，保留原用户ID、课程及提交历史；最新凭据只在服务器shared目录与本机忽略目录保管。此后不对公网重跑固定用户名的seed-s1；验收脚本中的固定测试用户名须映射到现有账号。本地种子账号未变。自动验收只创建有明确标签的独立课程，保留测试记录，不用构造题当教师正式教学资料。凭据不放网页或README，不沿用1Panel密码。
 
 更新前运行backup.sh并保留旧镜像、旧Compose和.env快照；只对本项目逐服务更新，禁止down -v。迁移00008增加来源与事件字段，00009增加标准版本和评分分项；均保留原业务表、提交/评分和资料历史。更新应用前须执行一次性migrate，统一脚本已包含该步骤。失败时保留现场；需要应用回退时明确选择旧release并核对schema兼容，不恢复旧数据库覆盖新增作答。
 
@@ -40,7 +40,7 @@ systemd定时器hajimark-cert-renew每天两次运行renew-certificate.sh，续�
 
 公网验证：使用显式--allow-remote和本次服务器初始化账号运行check-platform.py；浏览器脚本通过HAJI_BASE_URL/HAJI_ACCOUNTS指定公网目标与忽略凭据。验证登录、发布、学习、草稿、提交、原文/名单、评分、干预、刷新和跨人隔离；同时检查证书、HTTP跳转、Secure cookie、容器health/OOM/restart和仅Web回环端口。
 
-AI未接入；结构化逐点rubric已在本地实现并验证，独立教师效果评测、负载/渗透测试仍属于后续工作。2026-11-04本周新增功能因SSH认证未通过，未更新公网；本地验收不证明当前公网具有该能力。
+AI未接入；结构化逐点rubric已在本地和公网实现并验证，独立教师效果评测、负载/渗透测试仍属于后续工作。2026-11-05公网已升级至 `hajimark-platform-dcc1474-20261105`，源码为 `dcc1474dc608034477f2eae14d745e3aa6a875d6`，迁移00009保持完成。服务器资源与业务数据保留，发布前已执行备份。
 
 ## UI 重构版本发布
 

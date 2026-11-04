@@ -25,14 +25,12 @@ const assert = (value, message) => { if (!value) throw Error(message); };
     assert(result.ok(), 'Evidence request failed');
     const rows = (await result.json()).data;
     assert(rows.length > 0, 'Use a fixture course with released grading evidence');
-    const held = new Promise(resolve => { release = resolve; });
     let started;
     const pending = new Promise(resolve => { started = resolve; });
     await page.route(url, async route => {
-      const response = await route.fetch();
       started();
-      await held;
-      await route.fulfill({ response });
+      await new Promise(resolve => { release = resolve; });
+      await route.continue();
     });
     await page.reload();
     await pending;

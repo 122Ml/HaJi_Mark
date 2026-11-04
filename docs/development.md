@@ -64,6 +64,8 @@ Windows使用npm.cmd避免PowerShell执行策略问题。web开发服务器可�
 
 2026-11-04新增：`python scripts/check-rubrics.py`、`node scripts/check-rubrics-browser.cjs`（同下方NODE_PATH），先运行HTTP构造数据，再跑浏览器。`--resume`仅复查已有评分数据；端点与测试数据均为本地，不调用模型。迁移00009前须备份，重启复验分项与版本保留。
 
+`node scripts/check-evidence-export.cjs` 使用已有正式评分课程，验证证据加载期间和读取失败时禁用导出，成功后CSV包含原提交ID。支持 `HAJI_BASE_URL`、`HAJI_ACCOUNTS`、`HAJI_CHECK_IDS` 和 `HAJI_TEACHER_USER` 指向明确授权的公网环境与账号；不新增课程或评分，只在独立浏览器上下文延迟／模拟失败响应。
+
 
 以下命令从仓库根执行。先 `docker compose up -d`，首次运行 `pwsh -File scripts/seed-s1.ps1` 生成忽略的凭据。不要输出或提交密码。
 

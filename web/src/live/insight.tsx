@@ -124,6 +124,7 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
           </label>
           <button
             className="ghost-btn"
+            disabled={!evidence.data || evidence.isFetching || !!evidence.error}
             onClick={() => {
               const cells = [
                 ["学生ID", "题目", "得分", "满分", "提交ID", "评分修订ID", "标准版本ID", "逐点评分与依据", "总评"],

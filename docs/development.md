@@ -169,3 +169,12 @@ CI沿用必需检查名 `collaboration-check`，覆盖Go测试/vet/构建、前�
 共享写入：sqlc写internal/store，npm写package-lock/dist，Compose迁移/seed写数据库；运行生成/迁移时不要同时手改这些目标。批量任务按总内存重估；未知任务先探测，再安排。受资源压力影响时只继续小检查，暂缓新构建。
 
 应用构建串行，暂按Docker构建＋依赖下载峰值≤4GB、5—15分钟估算；前端构建通常<1GB，Go首次编译依赖可能更久。构建前检查可用内存与Docker状态；未知任务先小步探测，失败后查日志再重跑，不重复叠加完整构建。当前Windows约40GB内存、初查空闲约22GB，实际结果见verification。不做GPU任务、无长驻后台计算。
+
+
+## 工作台交互回归（2026-11-05，本地）
+
+`node scripts/check-workspace-browser.cjs`读取忽略的本地种子凭据，只允许固定回环地址；创建有标签的两题作业和21次提交，保留数据。覆盖分页与权限、十份连续查看和20条分页边界、Unicode原文引用、评分复制/编辑恢复、慢保存竞态、失败恢复、逐题提交、发布隔离、具体反馈→任务→新证据→复查，以及12条路线的1440/390px布局。结果和截图保存在`.local/workspace-check.json`、`.local/workspace-*.png`。不是模型效果实验。
+
+先串行`docker compose build api`、`docker compose build web`，再`docker compose up -d --no-build api web`。Node路径与NODE_PATH沿上文配置。旧平台/评分/设计/导出回归脚本已按新分区、抽屉、确认框和带课程URL维护；不能以旧DOM选择器失效代替业务失败诊断。
+
+未保存编辑仅按账号+对象保存在当前浏览器会话。关闭浏览器会话可能失去尚未上传的编辑；页面明确区分“暂存”和“已保存到平台”。测试构造失败只在Playwright请求拦截中发生，不修改服务端生产开关。

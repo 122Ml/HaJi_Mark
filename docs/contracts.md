@@ -140,3 +140,16 @@ HttpOnly、SameSiteStrict、Path=/api/v1、8小时cookie，DB仅存token哈希�
 ## 先实现的一条数据交接
 
 CO-01 发布 course demo-boundary 与资料版本 → AS-01 学生提交“测试17、18、19、59、60、61，这六个年龄都合法” → GR-01 按已确认的构造标准人工给分并发布 → IN-01 展示“范围外合法性混淆”的本题证据及实际资料 → 教师安排新范围练习。原始题/自拟分数只是演示，不能称教师已验证正确。后续学生端只收到正式反馈，不提前收到完整答案。
+
+
+## 工作台查询（2026-11-05）
+
+共同前缀 `/api/v1/learning/courses/:courseID`；均需当前会话和课程授权。
+
+| GET路径 | 参数与返回 | 边界 |
+| --- | --- | --- |
+| `/assignment-worklist` | `page`默认1，`size`默认20（1—100）；`kind/state/search/point/sort`（kind=homework含主观题和代码题，quiz为测验）；返回`rows,total`，每行含`question_count/submitted_count/draft_count/feedback_count` | 学生只见已发布或关闭作业；三个个人计数按当前账号、题目去重；教师的这些计数不代表全班覆盖 |
+| `/assignments/:id/worklist` | `page/size/search/state`；状态`pending/draft/confirmed/released`按最新评分修订；返回`rows,total`，含学生姓名、题目、attempt和review_state | 仅课程教师；每次提交一行，按提交时间和ID稳定排序；分页不删除历史attempt |
+| `/interventions/:id/evidence` | `assigned_at/learning_ready/practice_ready/learning/submissions`；学习记录含resource_id/occurred_at，提交含id/question_id/attempt/submitted_at | 教师或任务本人；学生不能看draft。仅列下发后的关联记录，补练要求作业的每题都有新提交。状态转换仍重新核对，不信任客户端readiness |
+
+空的超范围页仍返回匹配总数。查询失败沿既有错误协议返回，不以空列表/0分伪装成功。上述列表用于工作台操作，不替代评分事实源、名单覆盖或正式结果去重契约。

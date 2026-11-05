@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
+import { useEditorDraft, DraftNotice } from "./editing";
 import { useLiveQuery, useAction, Feedback } from "./context";
 interface Note {
   resource_id: string;
@@ -8,31 +9,47 @@ interface Note {
 export function ResourceNotes({ resourceId }: { resourceId: string }) {
   const query = useLiveQuery<Note[]>("/notes");
   const action = useAction();
-  const [note, setNote] = useState("");
-  const [favorite, setFavorite] = useState(false);
-  const initialized = useRef("");
   const saved = query.data?.find((n) => n.resource_id === resourceId);
+  const draft = useEditorDraft(
+    `note:${resourceId}`,
+    { note: saved?.note || "", favorite: saved?.favorite || false },
+    query.isSuccess,
+  );
+  const { note, favorite } = draft.value;
+  function setNote(note: string) {
+    draft.change((v) => ({ ...v, note }));
+  }
+  function setFavorite(favorite: boolean) {
+    draft.change((v) => ({ ...v, favorite }));
+  }
+  async function save() {
+    const value = draft.value;
+    if (await action.run(`/resources/${resourceId}/note`, value, "PUT"))
+      draft.saved(value);
+  }
   useEffect(() => {
-    if (query.isSuccess && initialized.current !== resourceId) {
-      initialized.current = resourceId;
-      setNote(saved?.note || "");
-      setFavorite(saved?.favorite || false);
-    }
-  }, [resourceId, saved, query.isSuccess]);
+    if (!draft.dirty || !draft.ready || action.busy || action.failed) return;
+    const timer = setTimeout(() => void save(), 1200);
+    return () => clearTimeout(timer);
+  }, [note, favorite, draft.dirty, draft.ready, action.busy, action.failed]);
   return (
     <form
       className="live-form"
       onSubmit={(e) => {
         e.preventDefault();
-        void action.run(
-          `/resources/${resourceId}/note`,
-          { note, favorite },
-          "PUT",
-        );
+        void save();
       }}
     >
       <h3>学习笔记</h3>
-      <Feedback error={query.error} message={action.message} failed={action.failed} />
+      <DraftNotice {...draft} />
+      <p role="status">
+        {action.busy ? "正在保存…" : draft.dirty ? "待保存" : "已同步"}
+      </p>
+      <Feedback
+        error={query.error}
+        message={action.message}
+        failed={action.failed}
+      />
       <label>
         我的笔记
         <textarea

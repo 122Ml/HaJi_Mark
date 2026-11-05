@@ -1,4 +1,6 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Pagination } from "antd";
+import { Link } from "./context";
 import { Feedback, useLiveQuery, when } from "./context";
 
 interface Activity {
@@ -18,14 +20,15 @@ interface Activity {
 }
 
 export function ActivityTimeline({ teacher, studentID }: { teacher: boolean; studentID: string }) {
+  const [page,setPage]=useState(1);
   const query = useLiveQuery<Activity[]>(`/activity${studentID ? `?student_id=${encodeURIComponent(studentID)}` : ""}`);
   return (
-    <section className="card-panel">
+    <section className="card-panel activity-section">
       <h2>{teacher ? "学生学习与提交记录" : "我的学习与提交记录"}</h2>
       <Feedback error={query.error} />
       {query.isPending && <p role="status">正在读取记录…</p>}
       {query.data?.length === 0 && <p>暂无记录。</p>}
-      {query.data?.map((event) => (
+      {query.data?.slice((page-1)*10,page*10).map((event) => (
         <article className="live-row" key={event.id}>
           <div>
             <h3>{event.display_name} · {event.verb === "submission.submitted" ? "提交作答" : event.verb === "completed" ? "完成学习" : "打开资料"}</h3>
@@ -41,6 +44,7 @@ export function ActivityTimeline({ teacher, studentID }: { teacher: boolean; stu
           </Link>
         </article>
       ))}
+      <Pagination current={page} pageSize={10} total={query.data?.length||0} onChange={setPage} showSizeChanger={false}/>
     </section>
   );
 }

@@ -37,7 +37,7 @@ const fixtures = JSON.parse(fs.readFileSync(path.join(root, '.local/s1-accounts.
       await page.getByLabel('密码', {exact: true}).fill(account.password);
       await page.getByRole('button', {name: '登录', exact: true}).click();
       const home = role === 'teacher' ? 'dashboard' : 'home';
-      await page.waitForURL(`${base}/${role}/${home}`);
+      await page.waitForURL(u=>u.pathname===`/${role}/${home}`);
       const courseSelect = page.getByLabel('当前课程', {exact: true});
       await courseSelect.waitFor();
       const courseID = await courseSelect.locator('option').evaluateAll(options => options.filter(o => /^浏览器验收 \d+$/.test(o.textContent)).sort((a, b) => b.textContent.localeCompare(a.textContent))[0]?.value);
@@ -49,19 +49,19 @@ const fixtures = JSON.parse(fs.readFileSync(path.join(root, '.local/s1-accounts.
       const nav = page.getByRole('navigation', {name: role === 'teacher' ? '教师导航' : '学生导航', exact: true});
       assert.equal(await nav.getByRole('group').count(), 5, 'Sidebar must keep four business groups plus account');
       await nav.getByRole('link', {name: role === 'teacher' ? '作业中心' : '作业', exact: true}).click();
-      await page.waitForURL(`${base}/${role}/homework`);
+      await page.waitForURL(u=>u.pathname===`/${role}/homework`);
       assert.equal(await page.evaluate(() => document.activeElement.id), 'main-content', 'SPA navigation must focus main');
       await capture(role + '-assignments', true);
       const aliases = role === 'teacher' ? ['teacher-twin/drilldown', 'insight', 'home'] : ['student-twin', 'insight', 'dashboard'];
       for (const alias of aliases) {
         await page.goto(`${base}/${role}/${alias}?student=design-check`);
-        await page.waitForURL(`${base}/${role}/${home}?student=design-check`);
+        await page.waitForURL(u=>u.pathname===`/${role}/${home}` && u.searchParams.get("student")==="design-check");
       }
       await page.goto(`${base}/${role}/grading`);
-      await page.waitForURL(`${base}/${role}/homework`);
+      await page.waitForURL(u=>u.pathname===`/${role}/homework`);
       const course = role === 'teacher' ? 'course-twin' : 'course-content';
       await page.goto(`${base}/${role}/${role === 'teacher' ? 'course-content' : 'course-twin'}?node=design-check`);
-      await page.waitForURL(`${base}/${role}/${course}?node=design-check`);
+      await page.waitForURL(u=>u.pathname===`/${role}/${course}` && u.searchParams.get("node")==="design-check");
       await page.goto(`${base}/${role}/${role === 'teacher' ? 'course-twin' : 'course-content'}`);
       await capture(role + '-course', true);
       await page.goto(`${base}/${role}/${home}`);

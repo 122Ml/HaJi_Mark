@@ -32,10 +32,10 @@
 /* Forms (native controls share the token look) */
 .live-form { display: grid; gap: var(--space-4); max-width: 880px; }
 .live-form label, .live-page > section > label, .live-grid label { display: grid; gap: 6px; font-size: var(--text-sm); font-weight: 600; color: var(--ink-soft); }
-.live-page input:not([type="radio"]):not([type="checkbox"]), .live-page textarea, .live-page select { width: 100%; min-height: 40px; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 12px; background: #fff; color: var(--ink); font: inherit; font-weight: 400; transition: border-color var(--ease), box-shadow var(--ease); }
-.live-page input:not([type="radio"]):not([type="checkbox"]):hover, .live-page textarea:hover, .live-page select:hover { border-color: var(--mint-line); }
-.live-page input:focus, .live-page textarea:focus, .live-page select:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px var(--mint); }
-.live-page input:disabled, .live-page textarea:disabled, .live-page select:disabled { background: var(--surface); color: var(--muted); cursor: not-allowed; }
+.live-page input:not([type="radio"]):not([type="checkbox"]):not(.ant-input):not(.ant-select-selection-search-input), .live-page textarea, .live-page select { width: 100%; min-height: 40px; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 12px; background: #fff; color: var(--ink); font: inherit; font-weight: 400; transition: border-color var(--ease), box-shadow var(--ease); }
+.live-page input:not([type="radio"]):not([type="checkbox"]):not(.ant-input):not(.ant-select-selection-search-input):hover, .live-page textarea:hover, .live-page select:hover { border-color: var(--mint-line); }
+.live-page input:not(.ant-input):not(.ant-select-selection-search-input):focus, .live-page textarea:focus, .live-page select:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px var(--mint); }
+.live-page input:not(.ant-input):not(.ant-select-selection-search-input):disabled, .live-page textarea:disabled, .live-page select:disabled { background: var(--surface); color: var(--muted); cursor: not-allowed; }
 .live-page textarea { resize: vertical; line-height: 1.7; }
 .live-page input[type="checkbox"], .live-page input[type="radio"] { accent-color: var(--teal); width: 18px; height: 18px; flex-shrink: 0; }
 .live-page fieldset { display: grid; gap: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-4) var(--space-5); margin: 0; min-width: 0; background: var(--surface); }
@@ -123,7 +123,7 @@ article.live-prose { padding: var(--space-4) var(--space-5); background: var(--s
   .live-course-bar select { width: 100%; }
   .live-inline > label, .live-page > .live-inline > label { flex-basis: 100%; }
   .live-page > .live-inline { padding: var(--space-4); }
-  .live-page input:not([type="radio"]):not([type="checkbox"]), .live-page textarea, .live-page select { font-size: 16px; }
+  .live-page input:not([type="radio"]):not([type="checkbox"]):not(.ant-input):not(.ant-select-selection-search-input), .live-page textarea, .live-page select { font-size: 16px; }
   .live-page fieldset { padding: var(--space-3) var(--space-4); }
   .live-shortcuts { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
   .live-shortcut { flex-direction: row; align-items: center; justify-content: space-between; }

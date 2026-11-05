@@ -18,7 +18,7 @@ const assert = (v, m) => { if (!v) throw Error(m); };
       await page.getByLabel('用户名', { exact: true }).fill(name);
       await page.getByLabel('密码', { exact: true }).fill(accounts.find(a => a.username === name).password);
       await page.getByRole('button', { name: '登录', exact: true }).click();
-      await page.waitForURL(`${base}/${role}/${role === 'teacher' ? 'dashboard' : 'home'}`);
+      await page.waitForURL(u=>u.pathname===`/${role}/${role === 'teacher' ? 'dashboard' : 'home'}`);
       await page.getByLabel('当前课程', { exact: true }).selectOption(ids.course_id);
       return page;
     }
@@ -26,6 +26,7 @@ const assert = (v, m) => { if (!v) throw Error(m); };
     const a = await login('s1-student-a', 'student');
     await t.goto(`${base}/teacher/homework/${ids.assignment_id}`);
     await t.locator('summary').filter({ hasText: '逐点评分标准' }).click();
+    await t.getByRole('button',{name:'新建标准版本',exact:true}).click();
     await t.getByLabel('评分点名称', { exact: true }).fill('新版本草稿验收');
     await t.getByLabel('给分与部分得分规则', { exact: true }).fill('教学验收构造规则，保留草稿不用于本次评分。');
     const [savedResponse] = await Promise.all([
@@ -37,6 +38,8 @@ const assert = (v, m) => { if (!v) throw Error(m); };
     await t.screenshot({ path: path.join(root, '.local/rubric-standard.png'), fullPage: true });
     console.log('PASS: browser independently saved a new rubric draft; confirmed versions unchanged');
     await t.goto(`${base}/teacher/homework/submissions/${ids.submission_id}/grade`);
+    await t.getByRole('button',{name:'基于当前评分修改',exact:true}).click();
+    t.once('dialog', dialog => dialog.accept());
     await t.getByLabel('使用标准版本', { exact: true }).selectOption(ids.rubric_id);
     for (const [id, score, comment, quote] of [
       ['D1', 5, '六个测试值均出现，本次人工修订保留为5分。', '测试17、18、19、59、60、61'],
@@ -50,22 +53,22 @@ const assert = (v, m) => { if (!v) throw Error(m); };
     await t.getByLabel('终审评语', { exact: true }).fill('浏览器验收修订，逐点评分与原文依据保留。');
     await t.getByRole('button', { name: '保存逐点评分草稿', exact: true }).click();
     await t.getByRole('button', { name: '确认评分', exact: true }).waitFor();
-    const scoring = t.locator('section.card-panel').filter({ has: t.getByRole('heading', { name: '新增评分修订', exact: true }) });
+    const scoring = t.locator('.grading-editor');
     await scoring.screenshot({ path: path.join(root, '.local/rubric-grading-full.png') });
     await t.addStyleTag({ content: '.topbar{visibility:hidden!important}' });
-    await scoring.locator('fieldset').first().screenshot({ path: path.join(root, '.local/rubric-grading.png') });
+    await scoring.locator('.live-point-results').screenshot({ path: path.join(root, '.local/rubric-grading.png') });
     for (const name of ['确认评分', '发布正式反馈']) {
       await t.getByRole('button', { name, exact: true }).click();
       await t.getByRole('button', { name, exact: true }).waitFor({ state: 'hidden' });
     }
     await a.goto(`${base}/student/homework/submissions/${ids.submission_id}/feedback`);
     await a.getByRole('heading', { name: '正式反馈', exact: true }).waitFor();
-    await a.locator('.live-revision').first().getByText('浏览器验收修订，逐点评分与原文依据保留。', { exact: true }).waitFor();
+    await a.locator('.grading-editor').getByText('浏览器验收修订，逐点评分与原文依据保留。', { exact: true }).waitFor();
     assert(await a.getByText('测试值覆盖：5 / 6', { exact: true }).count() > 0, 'Released point scores missing');
     assert(await a.locator('form').count() === 0, 'Student got a grading form');
     await a.screenshot({ path: path.join(root, '.local/rubric-student-full.png'), fullPage: true });
     await a.addStyleTag({ content: '.topbar{visibility:hidden!important}' });
-    await a.locator('.live-revision').first().screenshot({ path: path.join(root, '.local/rubric-student.png') });
+    await a.locator('.grading-editor').screenshot({ path: path.join(root, '.local/rubric-student.png') });
     for (const width of [390, 1440]) {
       await a.setViewportSize({ width, height: 900 });
       assert(await a.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'Feedback has horizontal overflow');

@@ -1,0 +1,291 @@
+.workspace-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.workspace-heading h1 {
+  margin: 8px 0;
+  font-size: 28px;
+}
+.workspace-heading p {
+  margin: 0;
+  color: var(--muted);
+}
+.list-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.list-toolbar .ant-input-search {
+  width: 300px;
+  max-width: 100%;
+}
+.list-toolbar .ant-select {
+  min-width: 150px;
+}
+.assignment-summary,
+.context-banner {
+  padding: 16px 20px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  background: var(--mint-soft);
+  border: 1px solid var(--mint-line);
+  border-radius: 12px;
+}
+.assignment-progress strong {
+  color: var(--teal);
+}
+.answer-status {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.answer-panel > label {
+  display: grid;
+  gap: 8px;
+}
+.answer-panel textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 260px;
+}
+.grading-workspace {
+  max-width: none;
+}
+.page-container:has(.grading-workspace) {
+  max-width: none;
+}
+.grading-columns {
+  display: grid;
+  grid-template-columns: 210px minmax(260px, 1fr) minmax(330px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.grading-columns > .card-panel {
+  min-width: 0;
+  margin: 0;
+  padding: 20px;
+  max-height: calc(100dvh - 275px);
+  min-height: 440px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.grading-columns h2 {
+  font-size: 18px;
+  margin: 0 0 16px;
+}
+.grading-columns.student-feedback {
+  grid-template-columns: 1fr 1fr;
+}
+.grading-queue .ant-select {
+  width: 100%;
+  margin: 10px 0;
+}
+.queue-item {
+  display: grid;
+  width: 100%;
+  text-align: left;
+  padding: 12px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  gap: 4px;
+  border-radius: 6px;
+}
+.queue-item.active {
+  background: var(--mint);
+  box-shadow: inset 3px 0 var(--teal);
+}
+.queue-item span,
+.queue-item small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.queue-item small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.grading-original .original-answer {
+  font-size: 16px;
+  line-height: 1.9;
+  min-height: 160px;
+}
+.grading-original mark {
+  background: #fff0ad;
+  color: #352800;
+}
+.quote-toolbar {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0;
+}
+.quote-toolbar label {
+  display: grid;
+  gap: 6px;
+}
+.grading-editor .live-point-fields {
+  padding: 14px;
+  margin: 0;
+}
+.grading-editor textarea {
+  min-height: 64px;
+}
+.grading-editor label {
+  display: grid;
+  gap: 5px;
+}
+.grading-actions {
+  position: sticky;
+  bottom: -20px;
+  background: white;
+  padding: 14px 0;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  z-index: 2;
+}
+.queue-navigation {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 24px;
+}
+.score-hero {
+  font-size: 40px;
+  color: var(--teal);
+  font-weight: 650;
+}
+.score-hero small {
+  font-size: 18px;
+  color: var(--muted);
+}
+.grading-editor blockquote button {
+  display: block;
+  margin-top: 6px;
+}
+.ant-drawer-body .live-form {
+  display: grid;
+  gap: 14px;
+}
+.ant-drawer-body label {
+  display: grid;
+  gap: 6px;
+}
+.ant-drawer-body input:not([type="checkbox"]),
+.ant-drawer-body textarea,
+.ant-drawer-body select {
+  width: 100%;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font: inherit;
+  background: white;
+}
+.ant-drawer-body .live-inline {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ant-drawer-body .primary-link,
+.ant-drawer-body .ghost-btn {
+  min-height: 40px;
+}
+.course-content-grid {
+  align-items: start;
+}
+.course-content-grid > aside {
+  position: sticky;
+  top: 88px;
+  max-height: 75dvh;
+  overflow: auto;
+}
+.course-content-grid details > summary {
+  padding: 12px 0;
+  cursor: pointer;
+}
+.evidence-checklist {
+  background: var(--mint-soft);
+  border: 1px solid var(--mint-line);
+  padding: 16px;
+  border-radius: 10px;
+}
+/* Views keep the same authorized data while exposing one working context. */
+.teacher-overview-overview > .evidence-section,
+.teacher-overview-overview > .activity-section,
+.teacher-overview-students > .evidence-section,
+.teacher-overview-students > .knowledge-section,
+.teacher-overview-evidence > .student-section,
+.teacher-overview-evidence > .activity-section,
+.teacher-overview-evidence > .knowledge-section {
+  display: none;
+}
+.teacher-overview-evidence > .live-shortcuts,
+.teacher-overview-students > .live-shortcuts {
+  display: none;
+}
+.ant-pagination {
+  margin-top: 16px;
+}
+@media (min-width: 1600px) {
+  .grading-columns {
+    grid-template-columns: 240px minmax(420px, 1.1fr) minmax(400px, 1fr);
+  }
+}
+@media (max-width: 1100px) {
+  .grading-columns {
+    grid-template-columns: 170px minmax(210px, 1fr) minmax(260px, 1fr);
+    gap: 10px;
+  }
+  .grading-columns > .card-panel {
+    padding: 14px;
+  }
+}
+@media (max-width: 800px) {
+  .grading-columns,
+  .grading-columns.student-feedback {
+    grid-template-columns: 1fr;
+  }
+  .grading-columns > .card-panel {
+    min-height: 0;
+    max-height: none;
+  }
+  .grading-columns > .grading-queue {
+    max-height: 220px;
+  }
+  .grading-columns > .grading-original {
+    max-height: 45dvh;
+    position: relative;
+  }
+  .grading-actions {
+    bottom: 0;
+  }
+  .course-content-grid > aside {
+    position: static;
+    max-height: 260px;
+  }
+  .list-toolbar > * {
+    flex: 1 1 140px;
+  }
+  .ant-drawer-content-wrapper {
+    max-width: 100vw;
+  }
+  .ant-drawer-body {
+    padding: 16px !important;
+  }
+  .workspace-heading h1 {
+    font-size: 24px;
+  }
+}

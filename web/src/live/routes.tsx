@@ -71,7 +71,7 @@ export function LiveRoutes({ teacher }: { teacher: boolean }) {
         element={
           <Navigate
             replace
-            to={teacher ? "/teacher/course-twin" : "/student/course-content"}
+            to={`${root}/${teacher ? "course-twin" : "course-content"}${location.search}`}
           />
         }
       />
@@ -80,7 +80,7 @@ export function LiveRoutes({ teacher }: { teacher: boolean }) {
         element={
           <Navigate
             replace
-            to={teacher ? "/teacher/homework" : "/student/homework"}
+            to={`${root}/homework${location.search}`}
           />
         }
       />

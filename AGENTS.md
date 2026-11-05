@@ -11,7 +11,9 @@
 - 题目/标准发布后冻结，原始作答保存 attempt、assignment_version、原文 SHA256。评分新增修订，教师确认后单独发布；客观题使用教师答案规则判分。知识点表现只用已发布、去重结果，不把无证据当零分或能力概率。
 - 资料修订新增版本并保留旧文，题目绑定确切 resource_id；干预关联学习/练习时验证下发之后的新证据。状态转换和相关写入在数据库事务中完成。
 - 新增迁移不得修改已执行迁移；当前 00001—00009 已分配，后续从 00010 开始。先修改 db/queries，再用 sqlc 生成 store，不手改生成物。
-- 人工逐点评分入口为 learning/rubrics.go、feedback.go 和 live/rubrics.tsx；确认标准版本绑定题目，评分修订绑定当时标准。规则私有、逐点评语可随正式结果发布；模型和评分队列仍未接入。
-- 验证优先 Docker；构建串行、分步输出。当前入口为 check-platform.py、check-platform-browser.cjs、backend-test、backup.py 与 check_docs.py。测试保留有标签的业务数据，不清空表、不删除卷、不影响其他 Compose 项目。
+- 人工逐点评分入口为 learning/rubrics.go、feedback.go 和 live/rubrics.tsx、grading.tsx；确认标准版本绑定题目，评分修订绑定当时标准。规则私有、逐点评语可随正式结果发布；模型和评分队列仍未接入。
+- 验证优先 Docker；构建串行、分步输出。当前入口为 check-platform.py、check-platform-browser.cjs、check-workspace-browser.cjs、backend-test、backup.py 与 check_docs.py。测试保留有标签的业务数据，不清空表、不删除卷、不影响其他 Compose 项目。
 - .env/.local/账号/备份不提交。历史 references 副本和三个原 SVG 保留。代码、文档、工作区 navigation 与实际状态随本轮结构同步维护。
 - 不宣称生产就绪、90%视觉复刻或AI效果，除非有对应当前版本的证据；历史截图与旧SSIM不证明当前真实平台视觉。
+
+- 2026-11-05本轮仅本地交互改进验收，不更新公网。URL course为课程上下文；editing.tsx提供账号/对象隔离的未保存编辑恢复，不能冒充服务端保存。workspace.go/workspace.sql承载分页队列与干预完成证据；学生草稿、评分草稿与未下发任务继续私有。

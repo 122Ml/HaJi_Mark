@@ -1,9 +1,12 @@
+import { Tabs, Input, Pagination } from "antd";
+import { LoadingState, ErrorState } from "../shared/ui";
 import { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
+import { Link } from "./context";
 import { ActivityTimeline } from "./activity";
-import { PageHeader, EmptyState, StatusTag } from "../shared/ui";
+import { PageHeader, EmptyState } from "../shared/ui";
 import { useSession } from "../shared/session";
-import { useLiveQuery, useAction, Feedback, names, when } from "./context";
+import { useLiveQuery, Feedback, when } from "./context";
 import type { Resource } from "./course";
 import type { Assignment } from "./assessment";
 import type { Point } from "./course";
@@ -32,19 +35,6 @@ interface Overview {
   submitted_assignments: number;
   pending_interventions: number;
 }
-interface Intervention {
-  id: string;
-  student_id: string;
-  student_name: string;
-  title: string;
-  description: string;
-  status: string;
-  answer_text: string;
-  review_note: string;
-  created_at: string;
-  resource_id: string | null;
-  assignment_id: string | null;
-}
 export function OverviewPage({ path = false }: { path?: boolean }) {
   const { session } = useSession();
   const teacher = session?.user.role === "teacher";
@@ -59,30 +49,146 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
   const points = useLiveQuery<{ points: Point[] }>("");
   const [params, setParams] = useSearchParams();
   const studentFilter = params.get("student") || "";
-  const setStudentFilter = (id: string) => setParams(id ? { student: id } : {});
+  const [studentSearch, setStudentSearch] = useState("");
+  const [studentPage, setStudentPage] = useState(1);
+  const [evidencePage, setEvidencePage] = useState(1);
+  const students = (overview.data || []).filter(
+    (s) =>
+      (!studentFilter || s.id === studentFilter) &&
+      s.display_name.includes(studentSearch),
+  );
+  const setStudentFilter = (id: string) => {
+    setStudentPage(1);
+    setEvidencePage(1);
+    const next = new URLSearchParams(params);
+    if (id) next.set("student", id);
+    else next.delete("student");
+    next.set("view", "students");
+    setParams(next);
+  };
+  const view = params.get("view") || (studentFilter ? "students" : "overview");
   const rows = (evidence.data || []).filter(
     (r) => !studentFilter || r.student_id === studentFilter,
   );
   const score = rows.reduce((v, r) => v + r.score, 0);
   const max = rows.reduce((v, r) => v + r.max_score, 0);
   const low = rows.filter((r) => r.score / r.max_score < 0.6);
+  if (
+    evidence.isPending ||
+    assignments.isPending ||
+    points.isPending ||
+    (teacher && overview.isPending)
+  )
+    return <LoadingState />;
+  if (evidence.error || overview.error || assignments.error || points.error)
+    return (
+      <ErrorState
+        message={
+          (evidence.error ||
+            overview.error ||
+            assignments.error ||
+            points.error)!.message
+        }
+        onRetry={() => {
+          void evidence.refetch();
+          void assignments.refetch();
+          void points.refetch();
+          if (teacher) void overview.refetch();
+        }}
+      />
+    );
   return (
-    <div className="live-page overview-page">
-      <PageHeader eyebrow={teacher ? "教学决策" : "学习进度"} title={teacher ? "教学概览" : path ? "个性化学习路径" : "我的学习概览"} />
+    <div
+      className={`live-page overview-page ${teacher ? `teacher-overview-${view}` : "student-overview"}`}
+    >
+      <PageHeader
+        eyebrow={teacher ? "教学决策" : "学习进度"}
+        title={teacher ? "教学概览" : path ? "个性化学习路径" : "我的学习概览"}
+      />
+      {teacher && (
+        <Tabs
+          activeKey={view}
+          onChange={(v) => {
+            const next = new URLSearchParams(params);
+            next.set("view", v);
+            setParams(next);
+          }}
+          items={[
+            { key: "overview", label: "班级总览" },
+            { key: "students", label: "学生与进度" },
+            { key: "evidence", label: "评分证据" },
+          ]}
+        />
+      )}
+      {studentFilter && teacher && (
+        <div className="context-banner">
+          <strong>
+            {overview.data?.find((s) => s.id === studentFilter)?.display_name}
+            的学习详情
+          </strong>
+          <Link
+            className="primary-link"
+            to={`/teacher/intervention?new=1&student=${studentFilter}`}
+          >
+            安排补学补练
+          </Link>
+          <button className="ghost-btn" onClick={() => setStudentFilter("")}>
+            返回全班
+          </button>
+        </div>
+      )}
       <nav className="live-shortcuts" aria-label="工作台快捷入口">
-        {(teacher ? [
-          ["课程与资料", "/teacher/course-twin", "M6 5h12v14H6z M9 9h6 M9 13h6"],
-          ["作业中心", "/teacher/homework", "M7 4h10v16H7z M10 9l2 2 3-3 M10 15h4"],
-          ["干预任务", "/teacher/intervention", "M5 6h14v11h-8l-4 3v-3H5z M8 10h8 M8 13h5"],
-        ] : [
-          ["课程学习", "/student/course-content", "M6 5h12v14H6z M9 9h6 M9 13h6"],
-          ["作业测验", "/student/homework", "M7 4h10v16H7z M10 9l2 2 3-3 M10 15h4"],
-          ["学习路径", "/student/learning", "M5 6h14v11h-8l-4 3v-3H5z M8 10h8 M8 13h5"],
-        ]).map(([title, to, icon]) => (
+        {(teacher
+          ? [
+              [
+                "课程与资料",
+                "/teacher/course-twin",
+                "M6 5h12v14H6z M9 9h6 M9 13h6",
+              ],
+              [
+                "作业中心",
+                "/teacher/homework",
+                "M7 4h10v16H7z M10 9l2 2 3-3 M10 15h4",
+              ],
+              [
+                "干预任务",
+                "/teacher/intervention",
+                "M5 6h14v11h-8l-4 3v-3H5z M8 10h8 M8 13h5",
+              ],
+            ]
+          : [
+              [
+                "课程学习",
+                "/student/course-content",
+                "M6 5h12v14H6z M9 9h6 M9 13h6",
+              ],
+              [
+                "作业测验",
+                "/student/homework",
+                "M7 4h10v16H7z M10 9l2 2 3-3 M10 15h4",
+              ],
+              [
+                "学习路径",
+                "/student/learning",
+                "M5 6h14v11h-8l-4 3v-3H5z M8 10h8 M8 13h5",
+              ],
+            ]
+        ).map(([title, to, icon]) => (
           <Link className="live-shortcut" to={to} key={to}>
-            <strong>{title}<span aria-hidden="true">›</span></strong>
+            <strong>
+              {title}
+              <span aria-hidden="true">›</span>
+            </strong>
             <div className="shortcut-art" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"><path d={icon} /></svg>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.1"
+                strokeLinejoin="round"
+              >
+                <path d={icon} />
+              </svg>
             </div>
           </Link>
         ))}
@@ -127,7 +233,17 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
             disabled={!evidence.data || evidence.isFetching || !!evidence.error}
             onClick={() => {
               const cells = [
-                ["学生ID", "题目", "得分", "满分", "提交ID", "评分修订ID", "标准版本ID", "逐点评分与依据", "总评"],
+                [
+                  "学生ID",
+                  "题目",
+                  "得分",
+                  "满分",
+                  "提交ID",
+                  "评分修订ID",
+                  "标准版本ID",
+                  "逐点评分与依据",
+                  "总评",
+                ],
                 ...rows.map((r) => [
                   r.student_id,
                   r.prompt,
@@ -171,8 +287,12 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
       )}
       <div className="live-metrics">
         <section className="card-panel">
-          <span>{teacher ? "课程学生" : "有效评分记录"}</span>
-          <strong>{teacher ? overview.data?.length || 0 : rows.length}</strong>
+          <span>{teacher && !studentFilter ? "课程学生" : "有效评分记录"}</span>
+          <strong>
+            {teacher && !studentFilter
+              ? overview.data?.length || 0
+              : rows.length}
+          </strong>
         </section>
         <section className="card-panel">
           <span>已发布作业</span>
@@ -192,7 +312,7 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
           <strong>{low.length}</strong>
         </section>
       </div>
-      <section className="card-panel">
+      <section className="card-panel knowledge-section">
         <h2>知识点表现</h2>
         <div className="live-performance">
           {points.data?.points
@@ -224,8 +344,19 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
         </div>
       </section>
       {teacher ? (
-        <section className="card-panel">
-          <h2>班级完成与风险</h2>
+        <section className="card-panel student-section">
+          <h2>{studentFilter ? "该学生完成情况" : "班级完成与风险"}</h2>
+          {!studentFilter && (
+            <Input.Search
+              aria-label="搜索学生姓名"
+              placeholder="搜索学生姓名"
+              value={studentSearch}
+              onChange={(e) => {
+                setStudentSearch(e.target.value);
+                setStudentPage(1);
+              }}
+            />
+          )}
           <div className="table-wrap">
             <table className="data-table">
               <thead>
@@ -238,21 +369,41 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
                 </tr>
               </thead>
               <tbody>
-                {overview.data?.map((s) => (
-                  <tr key={s.id}>
-                    <td><button className="ghost-btn" onClick={() => setStudentFilter(s.id)}>{s.display_name}</button></td>
-                    <td>{s.completed_events}</td>
-                    <td>{s.submitted_assignments}</td>
-                    <td>{s.pending_interventions}</td>
-                    <td>
-                      {rows.filter((r) => r.student_id === s.id).length} 条{" "}
-                      <Link to="/teacher/intervention">查看并安排任务</Link>
-                    </td>
-                  </tr>
-                ))}
+                {students
+                  .slice((studentPage - 1) * 10, studentPage * 10)
+                  .map((s) => (
+                    <tr key={s.id}>
+                      <td>
+                        <button
+                          className="ghost-btn"
+                          onClick={() => setStudentFilter(s.id)}
+                        >
+                          {s.display_name}
+                        </button>
+                      </td>
+                      <td>{s.completed_events}</td>
+                      <td>{s.submitted_assignments}</td>
+                      <td>{s.pending_interventions}</td>
+                      <td>
+                        {rows.filter((r) => r.student_id === s.id).length} 条{" "}
+                        <Link
+                          to={`/teacher/intervention?new=1&student=${s.id}`}
+                        >
+                          安排任务
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
+          <Pagination
+            current={studentPage}
+            pageSize={10}
+            total={students.length}
+            onChange={setStudentPage}
+            showSizeChanger={false}
+          />
         </section>
       ) : (
         <section className="card-panel">
@@ -278,13 +429,19 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
             ))}
         </section>
       )}
-      <ActivityTimeline teacher={teacher} studentID={teacher ? studentFilter : ""} />
-      <section className="card-panel">
+      <ActivityTimeline
+        key={studentFilter}
+        teacher={teacher}
+        studentID={teacher ? studentFilter : ""}
+      />
+      <section className="card-panel evidence-section">
         <h2>正式评分证据</h2>
         {!rows.length ? (
-          <EmptyState title="暂无已发布评分">教师确认并发布评分后，正式结果会显示在这里。</EmptyState>
+          <EmptyState title="暂无已发布评分">
+            教师确认并发布评分后，正式结果会显示在这里。
+          </EmptyState>
         ) : (
-          rows.map((r) => (
+          rows.slice((evidencePage - 1) * 10, evidencePage * 10).map((r) => (
             <article className="live-row" key={r.submission_id}>
               <div>
                 <h3>{r.prompt}</h3>
@@ -294,6 +451,14 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
                 </p>
                 <p>{r.feedback}</p>
                 <RevisionPoints points={r.point_scores} />
+                {teacher && (
+                  <Link
+                    className="ghost-btn"
+                    to={`/teacher/intervention?new=1&student=${r.student_id}&submission=${r.submission_id}&point=${r.knowledge_point_id || ""}`}
+                  >
+                    根据本次反馈安排任务
+                  </Link>
+                )}
               </div>
               <Link
                 to={`/${teacher ? "teacher" : "student"}/homework/submissions/${r.submission_id}/${teacher ? "grade" : "feedback"}`}
@@ -303,225 +468,24 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
             </article>
           ))
         )}
+        <Pagination
+          current={evidencePage}
+          pageSize={10}
+          total={rows.length}
+          onChange={setEvidencePage}
+          showSizeChanger={false}
+        />
       </section>
       {teacher && (
         <section className="card-panel">
           <h2>共性难点</h2>
           <p>
             低于本题满分60%的有效作答 {low.length} / {rows.length}，涉及{" "}
-            {new Set(low.map((r) => r.student_id)).size}{" "}
-            名学生。
+            {new Set(low.map((r) => r.student_id)).size} 名学生。
           </p>
         </section>
       )}
     </div>
   );
 }
-export function InterventionPage() {
-  const { session } = useSession();
-  const teacher = session?.user.role === "teacher";
-  const query = useLiveQuery<Intervention[]>("/interventions");
-  const resources = useLiveQuery<Resource[]>("/resources");
-  const assignments = useLiveQuery<Assignment[]>("/assignments");
-  const members = useLiveQuery<{ id: string; display_name: string }[]>(
-    "/members",
-    teacher,
-  );
-  const action = useAction();
-  const [form, setForm] = useState({
-    student_id: "",
-    title: "",
-    description: "",
-    resource_id: "",
-    assignment_id: "",
-  });
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  return (
-    <div className="live-page">
-      <PageHeader eyebrow={teacher ? "教学概览" : "任务与交流"} title={teacher ? "教师干预任务包" : "老师任务"} />
-      <Feedback error={query.error} message={action.message} failed={action.failed} />
-      {teacher && (
-        <section className="card-panel">
-          <h2>创建任务草稿</h2>
-          <form
-            className="live-form"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              if (await action.run("/interventions", form))
-                setForm({ ...form, title: "", description: "" });
-            }}
-          >
-            <label>
-              目标学生
-              <select
-                aria-label="目标学生"
-                required
-                value={form.student_id}
-                onChange={(e) =>
-                  setForm({ ...form, student_id: e.target.value })
-                }
-              >
-                <option value="">选择学生</option>
-                {members.data?.map((s) => (
-                  <option value={s.id} key={s.id}>
-                    {s.display_name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              任务标题
-              <input
-                required
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-              />
-            </label>
-            <label>
-              补学资料、练习及完成要求
-              <textarea
-                aria-label="补学资料、练习及完成要求"
-                required
-                rows={5}
-                value={form.description}
-                onChange={(e) =>
-                  setForm({ ...form, description: e.target.value })
-                }
-              />
-            </label>
-            <button className="primary-link" disabled={action.busy}>
-              保存任务草稿
-            </button>
-            <label>
-              关联补学资料
-              <select
-                aria-label="关联补学资料"
-                value={form.resource_id}
-                onChange={(e) =>
-                  setForm({ ...form, resource_id: e.target.value })
-                }
-              >
-                <option value="">不指定资料</option>
-                {resources.data
-                  ?.filter((r) => r.status === "published")
-                  .map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.title} · v{r.version}
-                    </option>
-                  ))}
-              </select>
-            </label>
-            <label>
-              关联补练作业
-              <select
-                aria-label="关联补练作业"
-                value={form.assignment_id}
-                onChange={(e) =>
-                  setForm({ ...form, assignment_id: e.target.value })
-                }
-              >
-                <option value="">不指定作业</option>
-                {assignments.data
-                  ?.filter((a) => a.status === "published")
-                  .map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.title}
-                    </option>
-                  ))}
-              </select>
-            </label>
-          </form>
-        </section>
-      )}
-      {query.data?.map((i) => (
-        <section key={i.id} className="card-panel">
-          <div className="section-head">
-            <h2>{i.title}</h2>
-            <StatusTag status={i.status} label={names[i.status]} />
-          </div>
-          {teacher && <p>学生：{i.student_name}</p>}
-          <p className="live-prose">{i.description}</p>
-          {i.resource_id && (
-            <p>
-              <Link
-                to={`/${teacher ? "teacher/course-twin" : "student/course-content"}?resource=${i.resource_id}`}
-              >
-                打开补学资料：
-                {resources.data?.find((r) => r.id === i.resource_id)?.title ||
-                  "关联资料"}
-              </Link>
-            </p>
-          )}
-          {i.assignment_id && (
-            <p>
-              <Link
-                to={`/${teacher ? "teacher" : "student"}/homework/${i.assignment_id}`}
-              >
-                进入补练作业
-              </Link>
-            </p>
-          )}
-          {i.answer_text && (
-            <>
-              <h3>学生执行结果</h3>
-              <p className="live-prose">{i.answer_text}</p>
-            </>
-          )}
-          {i.review_note && (
-            <>
-              <h3>教师复查</h3>
-              <p>{i.review_note}</p>
-            </>
-          )}
-          {teacher && i.status === "draft" && (
-            <button
-              className="primary-link"
-              disabled={action.busy}
-              onClick={() =>
-                action.run(`/interventions/${i.id}/state`, {
-                  state: "assigned",
-                })
-              }
-            >
-              确认下发
-            </button>
-          )}
-          {((!teacher && i.status === "assigned") ||
-            (teacher && i.status === "submitted")) && (
-            <form
-              className="live-form"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void action.run(`/interventions/${i.id}/state`, {
-                  state: teacher ? "reviewed" : "submitted",
-                  content: answers[i.id] || "",
-                });
-              }}
-            >
-              <label>
-                {teacher ? "复查意见" : "执行结果与新学习证据"}
-                <textarea
-                  aria-label={teacher ? "复查意见" : "执行结果与新学习证据"}
-                  required
-                  rows={5}
-                  value={answers[i.id] || ""}
-                  onChange={(e) =>
-                    setAnswers({ ...answers, [i.id]: e.target.value })
-                  }
-                />
-              </label>
-              <button className="primary-link" disabled={action.busy}>
-                {teacher ? "确认复查完成" : "提交执行结果"}
-              </button>
-            </form>
-          )}
-        </section>
-      ))}
-      {!query.data?.length && (
-        <section className="card-panel">
-          <EmptyState title="当前没有任务">{teacher ? "在上方创建任务草稿，确认后下发给学生。" : "老师下发补学或补练任务后会显示在这里。"}</EmptyState>
-        </section>
-      )}
-    </div>
-  );
-}
+export { InterventionPage } from "./interventions";

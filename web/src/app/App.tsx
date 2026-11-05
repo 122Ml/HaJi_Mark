@@ -1,18 +1,24 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, Avatar, Button } from "antd";
+import { Alert, Avatar, Button, Modal } from "antd";
 import { studentNavigation, teacherNavigation, findGroup } from "./navigation";
 import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { Login } from "./Login";
 import { SessionProvider, RequireSession, useSession } from "../shared/session";
+import { EditingProvider, useUnsavedChanges } from "../live/editing";
 import { LearningProvider } from "../live/context";
 import { LiveRoutes } from "../live/routes";
 import { ErrorBoundary } from "../shared/ErrorBoundary";
 import "../live/styles.css";
+import "../live/workspace.css";
 
 function Shell({ teacher = false }: { teacher?: boolean }) {
   const { session, logout } = useSession();
+  const dirty = useUnsavedChanges();
+  const [modal, modalContext] = Modal.useModal();
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const courseID = new URLSearchParams(search).get("course");
+  const withCourse = (path: string) => courseID ? `${path}?course=${encodeURIComponent(courseID)}` : path;
   const main = useRef<HTMLElement>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -39,6 +45,7 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
   }, [navOpen]);
 
   async function handleLogout() {
+    if (dirty && !await modal.confirm({title:"还有未保存的内容，确认退出？",content:"未保存编辑仅暂存在当前浏览器会话。",okText:"退出登录",cancelText:"继续编辑"})) return;
     setBusy(true);
     setError("");
     try {
@@ -54,6 +61,7 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
   const linkClass = ({ isActive }: { isActive: boolean }) => (isActive ? "active" : "");
   return (
     <div className={`layout-shell${navOpen ? " nav-open" : ""}`}>
+      {modalContext}
       <a className="skip-link" href="#main-content">跳到主要内容</a>
       <header className="topbar">
         <div className="topbar-inner">
@@ -62,11 +70,11 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
               <path d={navOpen ? "M6 6l12 12 M18 6L6 18" : "M4 7h16 M4 12h16 M4 17h16"} />
             </svg>
           </button>
-          <Link className="brand" to={home}><span className="brand-mark" aria-hidden="true">H</span>HaJi Mark</Link>
+          <Link className="brand" to={withCourse(home)}><span className="brand-mark" aria-hidden="true">H</span>HaJi Mark</Link>
           <span className="topbar-role">{roleLabel}</span>
           <span className="topbar-spacer" />
           <div className="nav-user">
-            <NavLink className="account-link" to={`${root}/profile`} aria-label="个人设置">
+            <NavLink className="account-link" to={withCourse(`${root}/profile`)} aria-label="个人设置">
               <Avatar size={30} style={{ background: "var(--mint)", color: "var(--teal)" }}>{session?.user.display_name.slice(0, 1)}</Avatar>
               <span className="nav-user-name">{session?.user.display_name}</span>
             </NavLink>
@@ -81,14 +89,14 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
               <p className="sidebar-title">{group.label}</p>
               <ul>
                 {group.links.map(([path, label]) => (
-                  <li key={path}><NavLink to={`${root}/${path}`} className={linkClass}>{label}</NavLink></li>
+                  <li key={path}><NavLink to={withCourse(`${root}/${path}`)} className={linkClass}>{label}</NavLink></li>
                 ))}
               </ul>
             </div>
           ))}
           <div className="sidebar-group" role="group" aria-label="账户">
             <p className="sidebar-title">账户</p>
-            <ul><li><NavLink to={`${root}/profile`} className={linkClass}>个人设置</NavLink></li></ul>
+            <ul><li><NavLink to={withCourse(`${root}/profile`)} className={linkClass}>个人设置</NavLink></li></ul>
           </div>
         </nav>
         <button type="button" className="sidebar-backdrop" tabIndex={-1} aria-hidden="true" onClick={() => setNavOpen(false)} />
@@ -116,8 +124,8 @@ export function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/student" element={<Navigate replace to="/student/home" />} />
           <Route path="/teacher" element={<Navigate replace to="/teacher/dashboard" />} />
-          <Route path="/student/*" element={<RequireSession role="student"><Shell /></RequireSession>} />
-          <Route path="/teacher/*" element={<RequireSession role="teacher"><Shell teacher /></RequireSession>} />
+          <Route path="/student/*" element={<RequireSession role="student"><EditingProvider><Shell /></EditingProvider></RequireSession>} />
+          <Route path="/teacher/*" element={<RequireSession role="teacher"><EditingProvider><Shell teacher /></EditingProvider></RequireSession>} />
           <Route path="*" element={<Navigate replace to="/login" />} />
         </Routes>
       </SessionProvider>

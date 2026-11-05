@@ -150,3 +150,14 @@ git diff --check
 设计检查依赖前一个脚本生成的“浏览器验收”课程。人工核对后，把 `.local/design/*.png` 复制到 `docs/screenshots/`，并把上面六张示例复制到 `docs/design-examples/`。不要 `down -v`，不要删卷。
 
 未覆盖：像素相似度、完整无障碍认证、暗色模式、大规模负载。Vite 主 JS 包约 645kB，超过 500kB 建议值，后续按真实性能测量再拆包。
+
+
+## 2026-11-05 操作工作台
+
+保留青绿/白色视觉，按任务重新组织交互：教师批阅固定队列、原文和评分三个区域，历史抽屉按需打开；课程管理拆四个页签；学生逐题保存/提交，状态与按钮相邻；干预任务显示可执行入口和新证据条件。页面不增加功能清单式副标题。
+
+宽屏批阅区各自滚动，移动端按队列→原文→评分排列；表格局部横向滚动，抽屉不超过屏宽。学生和正式证据列表、时间线分页，旧提交历史默认折叠。原文引用可点击高亮；相同原文多处出现时定位首次匹配。
+
+复验入口：`scripts/check-workspace-browser.cjs`。本轮截图在`.local/workspace-grading.png`、`.local/workspace-course.png`、`.local/workspace-intervention.png`；上述旧截图仍表示原记录日期，不用于证明本轮交互。
+
+本轮可查看：[三栏批阅](docs/design-examples/workspace-grading.png) · [课程分区](docs/design-examples/workspace-course.png) · [干预证据](docs/design-examples/workspace-intervention.png)。

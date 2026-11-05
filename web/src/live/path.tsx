@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { LoadingState, ErrorState } from "../shared/ui";
+import { Link } from "./context";
 import { useLiveQuery, useAction, Feedback, when } from "./context";
 import type { Resource } from "./course";
 interface PathData {
@@ -17,6 +18,19 @@ export function StudyPath() {
   const events =
     useLiveQuery<{ resource_id: string; verb: string }[]>("/events");
   const action = useAction();
+  if (query.isPending || resources.isPending || events.isPending)
+    return <LoadingState />;
+  if (query.error || resources.error || events.error)
+    return (
+      <ErrorState
+        message={(query.error || resources.error || events.error)!.message}
+        onRetry={() => {
+          void query.refetch();
+          void resources.refetch();
+          void events.refetch();
+        }}
+      />
+    );
   return (
     <div className="live-page">
       <header className="live-heading">
@@ -30,7 +44,11 @@ export function StudyPath() {
           {query.data ? "重新规划" : "生成学习路径"}
         </button>
       </header>
-      <Feedback error={query.error} message={action.message} failed={action.failed} />
+      <Feedback
+        error={query.error}
+        message={action.message}
+        failed={action.failed}
+      />
       {query.data ? (
         <>
           <section className="card-panel">
@@ -63,7 +81,7 @@ export function StudyPath() {
                   linked.map((r) => (
                     <p key={r.id}>
                       <Link
-                        to={`/student/course-content?node=${p.knowledge_point_id}`}
+                        to={`/student/course-content?node=${p.knowledge_point_id}&resource=${r.id}`}
                       >
                         {r.title} · {r.locator}
                       </Link>{" "}
@@ -78,7 +96,9 @@ export function StudyPath() {
                 ) : (
                   <p>当前缺少已审核的对应学习资料，请联系教师补充。</p>
                 )}
-                <Link to="/student/homework">查看相关作业与反馈</Link>
+                <Link to={`/student/homework?point=${p.knowledge_point_id}`}>
+                  查看相关作业与反馈
+                </Link>
               </section>
             );
           })}

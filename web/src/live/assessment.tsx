@@ -1,9 +1,21 @@
+import { Pagination, Input, Select, Modal } from "antd";
+import { useEditorDraft, DraftNotice } from "./editing";
+import { requestJSON } from "../shared/api";
+import { useQueryClient } from "@tanstack/react-query";
+import { reviewNames, type QueueItem } from "./grading";
 import type { Point, Resource } from "./course";
-import { PageHeader, EmptyState, ErrorState, LoadingState, StatusTag } from "../shared/ui";
+import {
+  PageHeader,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  StatusTag,
+} from "../shared/ui";
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
+import { Link, useCourseNavigate as useNavigate } from "./context";
 import { useSession } from "../shared/session";
-import { RubricManager, RubricVersion, PointGradeForm, RevisionPoints, PointFeedback } from "./rubrics";
+import { RubricManager, PointFeedback } from "./rubrics";
 import {
   useLearning,
   useLiveQuery,
@@ -21,6 +33,10 @@ export interface Assignment {
   version: number;
   max_score: number;
   due_at: string | null;
+  question_count?: number;
+  submitted_count?: number;
+  draft_count?: number;
+  feedback_count?: number;
 }
 export interface Question {
   knowledge_point_id?: string;
@@ -46,8 +62,8 @@ export interface Submission {
   assignment_version: number;
 }
 export interface Revision {
-	point_scores?: PointFeedback[];
-	rubric_id?: string | null;
+  point_scores?: PointFeedback[];
+  rubric_id?: string | null;
   id: string;
   score: number;
   feedback: string;
@@ -60,99 +76,195 @@ export function AssignmentList({ quiz = false }: { quiz?: boolean }) {
   const { session } = useSession();
   const teacher = session?.user.role === "teacher";
   const root = teacher ? "teacher" : "student";
-  const query = useLiveQuery<Assignment[]>("/assignments");
-  const action = useAction();
-  const list = (query.data || []).filter((a) =>
-    quiz ? a.type === "quiz" : a.type !== "quiz",
+  const [params, setParams] = useSearchParams();
+  const page = Math.max(1, Number(params.get("page")) || 1);
+  const search = params.get("search") || "",
+    state = params.get("state") || "",
+    sort = params.get("sort") || "new",
+    point = params.get("point") || "";
+  const query = useLiveQuery<{ rows: Assignment[]; total: number }>(
+    `/assignment-worklist?${new URLSearchParams({ page: String(page), size: "12", search, state, sort, point, kind: quiz ? "quiz" : "homework" })}`,
   );
+  const action = useAction();
+  const list = query.data?.rows || [];
+  const returnTo = `/${root}/${quiz ? "quiz" : "homework"}?${params}`;
+  function filter(values: Record<string, string>) {
+    const next = new URLSearchParams(params);
+    for (const [k, v] of Object.entries(values))
+      v ? next.set(k, v) : next.delete(k);
+    setParams(next, { replace: true });
+  }
   return (
     <div className="live-page">
       <PageHeader
         eyebrow={quiz ? "测验中心" : "作业中心"}
         title={quiz ? "测验列表" : teacher ? "作业列表" : "作业测验"}
-        actions={teacher && (
-          <Link className="primary-link" to={quiz ? "/teacher/quiz/new" : "/teacher/homework/new"}>
-            {quiz ? "新建测验" : "新建作业"}
-          </Link>
-        )}
+        actions={
+          teacher && (
+            <Link
+              className="primary-link"
+              to={quiz ? "/teacher/quiz/new" : "/teacher/homework/new"}
+            >
+              {quiz ? "新建测验" : "新建作业"}
+            </Link>
+          )
+        }
       />
+      <div className="list-toolbar">
+        <Input.Search
+          aria-label="搜索作业"
+          placeholder="搜索作业名称"
+          defaultValue={search}
+          onSearch={(v) => filter({ search: v, page: "1" })}
+          allowClear
+        />
+        <Select
+          aria-label="作业状态"
+          value={state}
+          options={[
+            { value: "", label: "全部状态" },
+            ...(teacher ? [{ value: "draft", label: "草稿" }] : []),
+            { value: "published", label: "进行中" },
+            { value: "closed", label: "已关闭" },
+          ]}
+          onChange={(v) => filter({ state: v, page: "1" })}
+        />
+        <Select
+          aria-label="作业排序"
+          value={sort}
+          options={[
+            { value: "new", label: "最近创建" },
+            { value: "due", label: "截止时间优先" },
+          ]}
+          onChange={(v) => filter({ sort: v, page: "1" })}
+        />
+        {point && (
+          <button
+            className="ghost-btn"
+            onClick={() => filter({ point: "", page: "1" })}
+          >
+            清除知识点筛选
+          </button>
+        )}
+      </div>
       <Feedback message={action.message} failed={action.failed} />
       {query.error ? (
-        <section className="card-panel"><ErrorState message={query.error.message} onRetry={() => void query.refetch()} /></section>
+        <section className="card-panel">
+          <ErrorState
+            message={query.error.message}
+            onRetry={() => void query.refetch()}
+          />
+        </section>
       ) : query.isPending ? (
-        <section className="card-panel"><LoadingState /></section>
+        <section className="card-panel">
+          <LoadingState />
+        </section>
       ) : !list.length ? (
         <section className="card-panel">
           <EmptyState title={`当前没有${quiz ? "测验" : "作业"}`}>
-            {teacher ? "新建后先保存为草稿，确认题目与标准后再发布。" : "教师发布后会显示在这里。"}
+            {teacher
+              ? "新建后先保存为草稿，确认题目与标准后再发布。"
+              : "教师发布后会显示在这里。"}
           </EmptyState>
         </section>
       ) : (
         <section className="card-panel">
           <div className="section-head">
             <h2>{quiz ? "全部测验" : "全部作业"}</h2>
-            <span className="live-meta">共 {list.length} 项</span>
+            <span className="live-meta">共 {query.data?.total || 0} 项</span>
           </div>
           {list.map((a) => (
-          <article className="live-row" key={a.id}>
-            <div>
-              <h3>{a.title}</h3>
-              {a.description && <p>{a.description}</p>}
-              <p className="live-meta">
-                <StatusTag status={a.status} label={names[a.status]} /> 满分 {a.max_score} · 截止 {when(a.due_at)}
-              </p>
-            </div>
-            <div className="live-inline">
-              <Link className="ghost-btn" to={`/${root}/homework/${a.id}`}>
-                {teacher ? "查看题目" : "进入作答"}
-              </Link>
-              {teacher && (
-                <>
-                  {a.status === "draft" && (
+            <article className="live-row" key={a.id}>
+              <div>
+                <h3>{a.title}</h3>
+                {a.description && <p>{a.description}</p>}
+                {!teacher && (
+                  <p className="assignment-progress">
+                    <strong>
+                      {a.feedback_count
+                        ? "反馈已发布"
+                        : a.submitted_count
+                          ? a.submitted_count === a.question_count
+                            ? "已提交"
+                            : "部分提交"
+                          : a.draft_count
+                            ? "草稿"
+                            : "未开始"}
+                    </strong>{" "}
+                    · 已提交 {a.submitted_count} / {a.question_count} 题 ·{" "}
+                    {a.feedback_count} 题有反馈
+                  </p>
+                )}
+                <p className="live-meta">
+                  <StatusTag status={a.status} label={names[a.status]} /> 满分{" "}
+                  {a.max_score} · 截止 {when(a.due_at)}
+                </p>
+              </div>
+              <div className="live-inline">
+                <Link
+                  className="ghost-btn"
+                  to={`/${root}/homework/${a.id}?from=${encodeURIComponent(returnTo)}`}
+                >
+                  {teacher
+                    ? "查看题目"
+                    : a.status === "closed"
+                      ? "查看作答与反馈"
+                      : "进入作答"}
+                </Link>
+                {teacher && (
+                  <>
+                    {a.status === "draft" && (
+                      <Link
+                        className="ghost-btn"
+                        to={`/teacher/homework/${a.id}/edit?from=${encodeURIComponent(returnTo)}`}
+                      >
+                        编辑草稿
+                      </Link>
+                    )}
                     <Link
                       className="ghost-btn"
-                      to={`/teacher/homework/${a.id}/edit`}
+                      to={`/teacher/homework/${a.id}/submissions?from=${encodeURIComponent(returnTo)}`}
                     >
-                      编辑草稿
+                      查看提交
                     </Link>
-                  )}
-                  <Link
-                    className="ghost-btn"
-                    to={`/teacher/homework/${a.id}/submissions`}
-                  >
-                    查看提交
-                  </Link>
-                  {a.status === "draft" && (
-                    <button
-                      className="primary-link"
-                      disabled={action.busy}
-                      onClick={() =>
-                        action.run(`/assignments/${a.id}/state`, {
-                          state: "published",
-                        })
-                      }
-                    >
-                      发布
-                    </button>
-                  )}
-                  {a.status === "published" && (
-                    <button
-                      className="ghost-btn"
-                      disabled={action.busy}
-                      onClick={() =>
-                        action.run(`/assignments/${a.id}/state`, {
-                          state: "closed",
-                        })
-                      }
-                    >
-                      关闭
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          </article>
+                    {a.status === "draft" && (
+                      <button
+                        className="primary-link"
+                        disabled={action.busy}
+                        onClick={() =>
+                          action.run(`/assignments/${a.id}/state`, {
+                            state: "published",
+                          })
+                        }
+                      >
+                        发布
+                      </button>
+                    )}
+                    {a.status === "published" && (
+                      <button
+                        className="ghost-btn"
+                        disabled={action.busy}
+                        onClick={() =>
+                          action.run(`/assignments/${a.id}/state`, {
+                            state: "closed",
+                          })
+                        }
+                      >
+                        关闭
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            </article>
           ))}
+          <Pagination
+            current={page}
+            pageSize={12}
+            total={query.data?.total || 0}
+            onChange={(v) => filter({ page: String(v) })}
+            showSizeChanger={false}
+          />
         </section>
       )}
     </div>
@@ -164,6 +276,7 @@ export function AssignmentEditor({
   quiz?: boolean;
 }) {
   const { assignmentId } = useParams();
+  const [params] = useSearchParams();
   const original = useLiveQuery<{
     assignment: Assignment;
     questions: (Question & { correct_answer: string })[];
@@ -175,10 +288,12 @@ export function AssignmentEditor({
   const { course } = useLearning();
   const action = useAction();
   const navigate = useNavigate();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [due, setDue] = useState("");
-  const [questions, setQuestions] = useState([
+  const initialQuestions = original.data?.questions.map((q) => ({
+    ...q,
+    options: q.options.length ? q.options : ["", ""],
+    knowledge_point_id: q.knowledge_point_id || "",
+    resource_id: q.resource_id || "",
+  })) || [
     {
       prompt: "",
       max_score: 10,
@@ -188,43 +303,44 @@ export function AssignmentEditor({
       knowledge_point_id: "",
       resource_id: "",
     },
-  ]);
-  const initializedAssignment = useRef("");
-  useEffect(() => {
-    if (
-      original.data &&
-      original.isFetchedAfterMount &&
-      !original.isFetching &&
-      initializedAssignment.current !== original.data.assignment.id
-    ) {
-      initializedAssignment.current = original.data.assignment.id;
-      setTitle(original.data.assignment.title);
-      setDescription(original.data.assignment.description);
-      if (original.data.assignment.due_at) {
-        const d = new Date(original.data.assignment.due_at);
-        setDue(
-          new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+  ];
+  const dueDate = original.data?.assignment.due_at
+    ? new Date(original.data.assignment.due_at)
+    : null;
+  const draft = useEditorDraft(
+    `assignment:${course?.id}:${assignmentId || "new"}:${requestedQuiz}`,
+    {
+      title: original.data?.assignment.title || "",
+      description: original.data?.assignment.description || "",
+      due: dueDate
+        ? new Date(dueDate.getTime() - dueDate.getTimezoneOffset() * 60000)
             .toISOString()
-            .slice(0, 16),
-        );
-      }
-      setQuestions(
-        original.data.questions.map((q) => ({
-          ...q,
-          options: q.options.length ? q.options : ["", ""],
-          knowledge_point_id: q.knowledge_point_id || "",
-          resource_id: q.resource_id || "",
-        })),
-      );
-    }
-  }, [original.data, original.isFetchedAfterMount, original.isFetching]);
+            .slice(0, 16)
+        : "",
+      questions: initialQuestions,
+    },
+    !assignmentId || (original.isSuccess && original.isFetchedAfterMount),
+  );
+  const { title, description, due, questions } = draft.value;
+  const setTitle = (title: string) => draft.change((v) => ({ ...v, title }));
+  const setDescription = (description: string) =>
+    draft.change((v) => ({ ...v, description }));
+  const setDue = (due: string) => draft.change((v) => ({ ...v, due }));
+  const setQuestions = (
+    next: typeof questions | ((v: typeof questions) => typeof questions),
+  ) =>
+    draft.change((v) => ({
+      ...v,
+      questions: typeof next === "function" ? next(v.questions) : next,
+    }));
   async function save(publish: boolean) {
+    const snapshot = draft.value;
     const a = await action.run<Assignment>(
       savedId ? `/assignments/${savedId}` : "/assignments",
       {
         title,
         description,
-        type: quiz ? "quiz" : "subjective",
+        type: quiz ? "quiz" : original.data?.assignment.type || "subjective",
         due_at: due ? new Date(due).toISOString() : null,
         questions,
       },
@@ -232,27 +348,33 @@ export function AssignmentEditor({
     );
     if (!a) return;
     setSavedId(a.id);
+    draft.saved(snapshot);
     if (
       publish &&
       !(await action.run(`/assignments/${a.id}/state`, { state: "published" }))
     )
       return;
-    navigate(quiz ? "/teacher/quiz" : "/teacher/homework");
+    navigate(
+      params.get("from") || (quiz ? "/teacher/quiz" : "/teacher/homework"),
+    );
   }
-  if (assignmentId && initializedAssignment.current !== assignmentId) {
-    return original.error
-      ? <Feedback error={original.error} />
-      : <p role="status">正在读取作业草稿…</p>;
+  if (!draft.ready) {
+    return original.error ? (
+      <Feedback error={original.error} />
+    ) : (
+      <p role="status">正在读取作业草稿…</p>
+    );
   }
   return (
     <div className="live-page">
       <header className="live-heading">
         <p>作业与评价</p>
-        <h1>{quiz ? "新建测验" : "新建作业"}</h1>
+        <h1>{assignmentId ? "编辑作业" : quiz ? "新建测验" : "新建作业"}</h1>
         <p className="live-meta">发布后不可修改题目与评分标准。</p>
       </header>
       <Feedback message={action.message} failed={action.failed} />
       <section className="card-panel">
+        <DraftNotice {...draft} />
         <form
           className="live-form"
           onSubmit={(e) => {
@@ -483,6 +605,7 @@ export function AssignmentEditor({
 }
 export function AssignmentDetail() {
   const { assignmentId } = useParams();
+  const [params] = useSearchParams();
   const { session } = useSession();
   const teacher = session?.user.role === "teacher";
   const query = useLiveQuery<{ assignment: Assignment; questions: Question[] }>(
@@ -494,32 +617,83 @@ export function AssignmentDetail() {
   return (
     <div className="live-page">
       <header className="live-heading">
-        <p><Link to={teacher ? "/teacher/homework" : "/student/homework"}>‹ 返回列表</Link></p>
+        <p>
+          <Link
+            to={
+              params.get("from") ||
+              `/${teacher ? "teacher" : "student"}/${query.data?.assignment.type === "quiz" ? "quiz" : "homework"}`
+            }
+          >
+            ‹ 返回列表
+          </Link>
+        </p>
         <h1>{query.data?.assignment.title || "作业详情"}</h1>
-        {query.data?.assignment.description && <p>{query.data.assignment.description}</p>}
+        {query.data?.assignment.description && (
+          <p>{query.data.assignment.description}</p>
+        )}
       </header>
+      {params.get("task") && (
+        <Link
+          className="context-banner"
+          to={`/${teacher ? "teacher" : "student"}/intervention?task=${params.get("task")}`}
+        >
+          返回补学补练任务，检查完成条件
+        </Link>
+      )}
       <Feedback error={query.error || submissions.error} />
+      {query.isPending && <LoadingState />}
+      {query.data && (
+        <section className="assignment-summary">
+          <StatusTag
+            status={query.data.assignment.status}
+            label={names[query.data.assignment.status]}
+          />
+          <span>截止：{when(query.data.assignment.due_at)}</span>
+          <strong>
+            已提交 {new Set(submissions.data?.map((s) => s.question_id)).size} /{" "}
+            {query.data.questions.length} 题
+          </strong>
+          {teacher && (
+            <Link
+              className="primary-link"
+              to={`/teacher/homework/${assignmentId}/submissions?${params}`}
+            >
+              进入批阅队列
+            </Link>
+          )}
+        </section>
+      )}
       {query.data?.questions.map((q) => (
         <QuestionAnswer
           key={q.id}
           question={q}
           assignment={query.data.assignment}
           teacher={teacher}
+          submissions={
+            submissions.data?.filter((s) => s.question_id === q.id) || []
+          }
         />
       ))}
-      <section className="card-panel">
-        <h2>{teacher ? "提交记录" : "我的提交历史"}</h2>
+      <details className="card-panel">
+        <summary>
+          {teacher ? "提交记录" : "我的提交历史"}（
+          {submissions.data?.length || 0}）
+        </summary>
         {submissions.data?.map((s) => (
           <p key={s.id}>
             <Link
               to={`/${teacher ? "teacher" : "student"}/homework/submissions/${s.id}/${teacher ? "grade" : "feedback"}`}
             >
-              第{s.attempt}次提交 · {when(s.submitted_at)} · {names[s.status]}
+              {
+                query.data?.questions.find((q) => q.id === s.question_id)
+                  ?.prompt
+              }{" "}
+              · 第{s.attempt}次提交 · {when(s.submitted_at)} · {names[s.status]}
             </Link>
           </p>
         ))}
         {!submissions.data?.length && <p>暂无提交记录。</p>}
-      </section>
+      </details>
     </div>
   );
 }
@@ -527,103 +701,200 @@ function QuestionAnswer({
   question: q,
   assignment: a,
   teacher,
+  submissions,
 }: {
   question: Question;
   assignment: Assignment;
   teacher: boolean;
+  submissions: Submission[];
 }) {
+  const [modal, modalContext] = Modal.useModal();
   const action = useAction();
-  const [answer, setAnswer] = useState("");
-  const initializedDraft = useRef(false);
-  const draft = useLiveQuery<{ answer_text: string } | null>(
-    `/assignments/${a.id}/questions/${q.id}/draft`,
-    !teacher,
+  const { course } = useLearning();
+  const { session } = useSession();
+  const cache = useQueryClient();
+  const remote = useLiveQuery<{
+    answer_text: string;
+    updated_at: string;
+  } | null>(`/assignments/${a.id}/questions/${q.id}/draft`, !teacher);
+  const draft = useEditorDraft(
+    `answer:${course?.id}:${q.id}`,
+    remote.data?.answer_text || "",
+    !teacher && remote.isSuccess,
   );
-  useEffect(() => {
-    if (draft.isSuccess && !initializedDraft.current) {
-      initializedDraft.current = true;
-      setAnswer(draft.data?.answer_text || "");
-    }
-  }, [draft.data, draft.isSuccess]);
+  const answer = draft.value;
   const [requestID, setRequestID] = useState(crypto.randomUUID());
+  const [saving, setSaving] = useState(false),
+    [error, setError] = useState(""),
+    [savedAt, setSavedAt] = useState("");
+  const busy = useRef(false);
+  const active = useRef(true);
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
+  async function saveDraft() {
+    if (busy.current || !draft.ready) return;
+    busy.current = true;
+    setSaving(true);
+    setError("");
+    const value = answer;
+    try {
+      await requestJSON(
+        `/learning/courses/${course!.id}/assignments/${a.id}/questions/${q.id}/draft`,
+        { method: "PUT", body: JSON.stringify({ answer_text: value }) },
+        session?.csrf_token,
+      );
+      if (active.current) {
+        draft.saved(value);
+        setSavedAt(new Date().toLocaleTimeString());
+      }
+      await cache.invalidateQueries({
+        queryKey: [
+          "live",
+          course?.id,
+          `/assignments/${a.id}/questions/${q.id}/draft`,
+        ],
+      });
+      await cache.invalidateQueries({
+        predicate: (q) =>
+          q.queryKey[0] === "live" &&
+          q.queryKey[1] === course?.id &&
+          String(q.queryKey[2]).startsWith("/assignment-worklist"),
+      });
+    } catch (e) {
+      if (active.current) setError(e instanceof Error ? e.message : "保存失败");
+    } finally {
+      busy.current = false;
+      if (active.current) setSaving(false);
+    }
+  }
+  useEffect(() => {
+    if (!draft.dirty || !draft.ready || saving || error) return;
+    const timer = setTimeout(() => void saveDraft(), 900);
+    return () => clearTimeout(timer);
+  }, [answer, draft.dirty, draft.ready, saving, error]);
+  const closed =
+    a.status !== "published" ||
+    (!!a.due_at && Date.now() >= Date.parse(a.due_at));
+  const latest = submissions[0];
+  function submit() {
+    modal.confirm({
+      title: "确认提交本题？",
+      content: `本次只提交当前题目。${submissions.length ? "将保留已有记录并新增一次提交。" : "提交后保存本次原文。"}`,
+      okText: "确认提交",
+      cancelText: "继续编辑",
+      onOk: async () => {
+        const v = await action.run<Submission>(
+          `/assignments/${a.id}/submissions`,
+          { question_id: q.id, answer_text: answer, request_id: requestID },
+        );
+        if (!v) throw Error("提交失败，请重试");
+        setRequestID(crypto.randomUUID());
+        action.setMessage(
+          `提交成功 · 第${v.attempt}次 · ${when(v.submitted_at)}`,
+        );
+      },
+    });
+  }
   return (
-    <section className="card-panel">
+    <section className="card-panel answer-panel">
+      {modalContext}
       <h2>{q.prompt}</h2>
       <p>满分 {q.max_score}</p>
       {teacher ? (
         <>
           <h3>教师评分标准</h3>
           <p className="live-prose">{q.rubric}</p>
-                  {q.type !== "quiz" && <RubricManager questionID={q.id} maxScore={q.max_score} />}
+          {q.type !== "quiz" && (
+            <RubricManager questionID={q.id} maxScore={q.max_score} />
+          )}
         </>
       ) : (
         <>
-          <div>
-            <p>我的作答</p>
-            {q.type === "quiz" ? (
-              <div role="radiogroup" aria-label="我的作答">
-                {q.options.map((o, i) => (
-                  <label className="live-option" key={i}>
-                    <input
-                      type="radio"
-                      name={q.id}
-                      disabled={!draft.isSuccess}
-                      checked={answer === o}
-                      onChange={() => {
-                        setAnswer(o);
-                        setRequestID(crypto.randomUUID());
-                      }}
-                    />
-                    {o}
-                  </label>
-                ))}
-              </div>
-            ) : (
+          <DraftNotice {...draft} />
+          <Feedback
+            error={remote.error}
+            message={error || action.message}
+            failed={!!error || action.failed}
+          />
+          {q.type === "quiz" ? (
+            <div role="radiogroup" aria-label="我的作答">
+              {q.options.map((o, i) => (
+                <label className="live-option" key={i}>
+                  <input
+                    type="radio"
+                    name={q.id}
+                    disabled={!draft.ready || closed}
+                    checked={answer === o}
+                    onChange={() => {
+                      draft.change(o);
+                      setRequestID(crypto.randomUUID());
+                      setError("");
+                    }}
+                  />
+                  {o}
+                </label>
+              ))}
+            </div>
+          ) : (
+            <label>
+              我的作答
               <textarea
                 aria-label="我的作答"
-                rows={8}
-                disabled={!draft.isSuccess}
+                rows={12}
+                disabled={!draft.ready || closed}
                 value={answer}
                 onChange={(e) => {
-                  setAnswer(e.target.value);
+                  draft.change(e.target.value);
                   setRequestID(crypto.randomUUID());
+                  setError("");
                 }}
               />
-            )}
+            </label>
+          )}
+          <div className="answer-status" role="status">
+            {saving
+              ? "正在保存…"
+              : error
+                ? "保存失败，内容已暂存，可重试"
+                : draft.dirty
+                  ? "尚未保存到平台"
+                  : savedAt
+                    ? `已保存 ${savedAt}`
+                    : remote.data
+                      ? `草稿已读取 · ${when(remote.data.updated_at)}`
+                      : "尚未开始作答"}
+            <span>{answer.length} 字</span>
           </div>
-          <Feedback error={draft.error} message={action.message} failed={action.failed} />
+          {closed && (
+            <p className="live-meta">
+              {a.status === "closed" ? "作业已关闭" : "已过截止时间"}
+              ，可查看原作答和反馈。
+            </p>
+          )}
           <div className="live-inline">
             <button
               className="ghost-btn"
-              disabled={action.busy || !draft.isSuccess}
-              onClick={() =>
-                action.run(
-                  `/assignments/${a.id}/questions/${q.id}/draft`,
-                  { answer_text: answer },
-                  "PUT",
-                )
-              }
+              disabled={saving || !draft.ready || closed}
+              onClick={() => void saveDraft()}
             >
               保存作答草稿
             </button>
             <button
               className="primary-link"
-              disabled={
-                action.busy || a.status !== "published" || !answer.trim()
-              }
-              onClick={async () => {
-                if (
-                  await action.run(`/assignments/${a.id}/submissions`, {
-                    question_id: q.id,
-                    answer_text: answer,
-                    request_id: requestID,
-                  })
-                )
-                  action.setMessage("提交成功，可在下方历史中查看反馈");
-              }}
+              disabled={action.busy || saving || closed || !answer.trim()}
+              onClick={submit}
             >
-              提交作业
+              提交本题
             </button>
+            {latest && (
+              <Link to={`/student/homework/submissions/${latest.id}/feedback`}>
+                查看第{latest.attempt}次提交与反馈
+              </Link>
+            )}
           </div>
         </>
       )}
@@ -632,8 +903,12 @@ function QuestionAnswer({
 }
 export function SubmissionList() {
   const { assignmentId } = useParams();
-  const q = useLiveQuery<Submission[]>(
-    `/assignments/${assignmentId}/submissions`,
+  const [params, setParams] = useSearchParams();
+  const page = Math.max(1, Number(params.get("page")) || 1),
+    search = params.get("search") || "",
+    state = params.get("state") || "";
+  const q = useLiveQuery<{ rows: QueueItem[]; total: number }>(
+    `/assignments/${assignmentId}/worklist?${new URLSearchParams({ page: String(page), size: "20", search, state })}`,
   );
   const detail = useLiveQuery<{
     assignment: Assignment;
@@ -644,265 +919,115 @@ export function SubmissionList() {
     submitted: number;
     partial: number;
     not_submitted: number;
-    rows: { student_id: string; display_name: string; submitted_questions: number; total_questions: number }[];
+    rows: {
+      student_id: string;
+      display_name: string;
+      submitted_questions: number;
+      total_questions: number;
+    }[];
   }>(`/assignments/${assignmentId}/roster`);
-  const [onlyPending, setOnlyPending] = useState(false);
+  function filter(values: Record<string, string>) {
+    const p = new URLSearchParams(params);
+    for (const [k, v] of Object.entries(values)) v ? p.set(k, v) : p.delete(k);
+    setParams(p, { replace: true });
+  }
   return (
     <div className="live-page">
-      <header className="live-heading">
-        <p><Link to="/teacher/homework">‹ 返回作业列表</Link></p>
-        <h1>学生提交与批改</h1>
+      <header className="workspace-heading">
+        <div>
+          <Link to={params.get("from") || "/teacher/homework"}>
+            ‹ 返回作业列表
+          </Link>
+          <h1>学生提交与批改</h1>
+          <p>{detail.data?.assignment.title}</p>
+        </div>
       </header>
-      <Feedback error={q.error || detail.error || roster.error} />
-      {detail.data && roster.data && (
-        <section className="card-panel">
-          <h2>{detail.data.assignment.title} · 提交覆盖</h2>
-          <p>共 {roster.data.total} 人 · 已全部提交 {roster.data.submitted} 人 · 部分提交 {roster.data.partial} 人 · 未提交 {roster.data.not_submitted} 人</p>
-          {roster.data.rows.map((member) => {
-            const submitted = member.submitted_questions;
-            return (
-              <p key={member.student_id}>
-                <Link to={`/teacher/dashboard?student=${member.student_id}`}>{member.display_name}</Link> · {submitted} /{" "}
-                {member.total_questions} 题 ·{" "}
-                {submitted === 0
-                  ? "未提交"
-                  : submitted === member.total_questions
-                    ? "已全部提交"
-                    : "部分提交"}
-              </p>
-            );
-          })}
+      <Feedback error={q.error || roster.error || detail.error} />
+      {roster.data && (
+        <section className="assignment-summary">
+          共 {roster.data.total} 人 · 全部提交 {roster.data.submitted} ·
+          部分提交 {roster.data.partial} · 未提交 {roster.data.not_submitted}
         </section>
       )}
+      <details className="card-panel">
+        <summary>查看提交覆盖名单</summary>
+        {roster.data?.rows.map((m) => (
+          <p key={m.student_id}>
+            <Link to={`/teacher/dashboard?student=${m.student_id}`}>
+              {m.display_name}
+            </Link>{" "}
+            · {m.submitted_questions} / {m.total_questions} 题
+          </p>
+        ))}
+      </details>
       <section className="card-panel">
-        <label className="live-option">
-          <input
-            type="checkbox"
-            checked={onlyPending}
-            onChange={(e) => setOnlyPending(e.target.checked)}
+        <div className="list-toolbar">
+          <Input.Search
+            aria-label="搜索学生"
+            placeholder="搜索学生"
+            defaultValue={search}
+            allowClear
+            onSearch={(v) => filter({ search: v, page: "1" })}
           />
-          仅看待批改提交
-        </label>
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>学生</th>
-                <th>题目</th>
-                <th>提交次数</th>
-                <th>时间</th>
-                <th>状态</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {q.data
-                ?.filter((s) => !onlyPending || s.status !== "graded")
-                .map((s) => (
+          <Select
+            aria-label="批阅状态"
+            value={state}
+            onChange={(v) => filter({ state: v, page: "1" })}
+            options={[
+              { value: "", label: "全部状态" },
+              ...Object.entries(reviewNames).map(([value, label]) => ({
+                value,
+                label,
+              })),
+            ]}
+          />
+        </div>
+        {q.isPending ? (
+          <LoadingState />
+        ) : (
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>学生</th>
+                  <th>题目</th>
+                  <th>次数</th>
+                  <th>时间</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {q.data?.rows.map((s) => (
                   <tr key={s.id}>
                     <td>{s.student_name}</td>
-                    <td>
-                      {
-                        detail.data?.questions.find(
-                          (question) => question.id === s.question_id,
-                        )?.prompt
-                      }
-                    </td>
+                    <td>{s.prompt}</td>
                     <td>{s.attempt}</td>
                     <td>{when(s.submitted_at)}</td>
-                    <td>{names[s.status]}</td>
+                    <td>{reviewNames[s.review_state]}</td>
                     <td>
-                      <Link to={`/teacher/homework/submissions/${s.id}/grade`}>
+                      <Link
+                        to={`/teacher/homework/submissions/${s.id}/grade?${params}`}
+                      >
                         批改详情
                       </Link>
                     </td>
                   </tr>
                 ))}
-            </tbody>
-          </table>
-        </div>
-        {!q.data?.length && <p>暂无提交。</p>}
+              </tbody>
+            </table>
+            {!q.data?.rows.length && <EmptyState title="当前筛选没有提交" />}
+          </div>
+        )}
+        <Pagination
+          current={page}
+          pageSize={20}
+          total={q.data?.total || 0}
+          onChange={(v) => filter({ page: String(v) })}
+          showSizeChanger={false}
+        />
       </section>
     </div>
   );
 }
-export function GradePage() {
-  const { submissionId } = useParams();
-  const { session } = useSession();
-  const teacher = session?.user.role === "teacher";
-  const query = useLiveQuery<{
-    submission: Submission;
-    question: Question;
-    revisions: Revision[];
-  }>(`/submissions/${submissionId}`);
-  const action = useAction();
-  const [score, setScore] = useState(0);
-  const [feedback, setFeedback] = useState("");
-  const [requestID, setRequestID] = useState(crypto.randomUUID());
-  const data = query.data;
-  const rubricQuery = useLiveQuery<RubricVersion[]>(`/questions/${data?.question.id}/rubrics`, teacher && !!data && data.question.type !== "quiz");
-  const [rubricID, setRubricID] = useState("");
-  const confirmed = (rubricQuery.data || []).filter(r => r.state === "confirmed");
-  const selectedRubric = confirmed.find(r => r.id === rubricID) || confirmed[0];
-  const resources = useLiveQuery<Resource[]>("/resources");
-  const source = resources.data?.find(
-    (r) => r.id === data?.question.resource_id,
-  );
-  useEffect(() => {
-    setScore(0);
-    setFeedback("");
-    setRequestID(crypto.randomUUID());
-    setRubricID("");
-  }, [submissionId]);
-  return (
-    <div className="live-page">
-      <header className="live-heading">
-        <p><Link to={teacher ? "/teacher/homework" : "/student/homework"}>‹ 返回作业列表</Link></p>
-        <h1>{teacher ? "作答复核与评分" : "正式反馈"}</h1>
-      </header>
-      <Feedback error={query.error} message={action.message} failed={action.failed} />
-      {data && (
-        <>
-          <div className="live-grid">
-            <section className="card-panel">
-              <h2>题目与原始作答</h2>
-              <p>{data.question.prompt}</p>
-              <p className="live-meta">
-                第{data.submission.attempt}次 ·{" "}
-                {when(data.submission.submitted_at)} · 作业 v
-                {data.submission.assignment_version}
-              </p>
-              <article className="live-prose">
-                {data.submission.answer_text}
-              </article>
-              <details>
-                <summary>原文校验信息</summary>
-                <p className="live-id">{data.submission.answer_sha256}</p>
-              </details>
-              {teacher && (
-                <>
-                  <h3>评分标准</h3>
-                  <p className="live-prose">{data.question.rubric}</p>
-                  {source && (
-                    <details>
-                      <summary>
-                        评分依据：{source.title} · {source.locator} · v
-                        {source.version}
-                      </summary>
-                      <p className="live-prose">{source.content}</p>
-                      <p>资料来源：{source.source_note || source.source_url || "尚未登记来源"}</p>
-                      {source.source_url && (
-                        <a
-                          href={source.source_url}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          查看资料来源
-                        </a>
-                      )}
-                    </details>
-                  )}
-                </>
-              )}
-            </section>
-            <section className="card-panel">
-              <h2>{teacher ? "评分修订" : "已发布反馈"}</h2>
-              {!data.revisions.length && <p>尚未发布反馈，请等待教师批改。</p>}
-              {data.revisions.map((r) => (
-                <article className="live-revision" key={r.id}>
-                  <h3>
-                    {r.score} / {data.question.max_score} · {names[r.state]}
-                  </h3>
-                  <p>
-                    修订 {r.revision} ·{" "}
-                    {r.method === "rule" ? "客观规则判分" : "教师评分"}
-                  </p>
-                  <p className="live-prose">{r.feedback}</p>
-                  {teacher && r.rubric_id && <p className="live-id">标准版本记录：{r.rubric_id}</p>}
-                  <RevisionPoints points={r.point_scores} />
-                  {teacher &&
-                    r === data.revisions[0] &&
-                    r.state !== "released" && (
-                      <button
-                        className="primary-link"
-                        disabled={action.busy}
-                        onClick={() =>
-                          action.run(`/revisions/${r.id}/state`, {
-                            state:
-                              r.state === "draft" ? "confirmed" : "released",
-                          })
-                        }
-                      >
-                        {r.state === "draft" ? "确认评分" : "发布正式反馈"}
-                      </button>
-                    )}
-                </article>
-              ))}
-            </section>
-          </div>
-          {teacher && data.question.type !== "quiz" && (
-            <section className="card-panel">
-              <h2>新增评分修订</h2>
-              {rubricQuery.error ? <Feedback error={rubricQuery.error} /> : rubricQuery.isPending ? <LoadingState /> : selectedRubric ? <>
-                <label>使用标准版本<select aria-label="使用标准版本" value={selectedRubric.id} onChange={e => setRubricID(e.target.value)}>
-                  {confirmed.map(r => <option key={r.id} value={r.id}>v{r.version} · 已确认</option>)}
-                </select></label>
-                <PointGradeForm key={`${submissionId}/${selectedRubric.id}`} rubric={selectedRubric} submissionID={submissionId!} />
-              </> : <>
-              <p><Link to={`/teacher/homework/${data.submission.assignment_id}`}>在题目页配置逐点标准</Link>，或沿用本题原有整题标准。</p>
-              <form
-                className="live-form"
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  if (
-                    await action.run(`/submissions/${submissionId}/revisions`, {
-                      score,
-                      feedback,
-                      request_id: requestID,
-                    })
-                  )
-                    setRequestID(crypto.randomUUID());
-                }}
-              >
-                <label>
-                  终审分数
-                  <input
-                    required
-                    type="number"
-                    min={0}
-                    max={data.question.max_score}
-                    value={score}
-                    onChange={(e) => {
-                      setScore(Number(e.target.value));
-                      setRequestID(crypto.randomUUID());
-                    }}
-                  />
-                </label>
-                <label>
-                  终审评语
-                  <textarea
-                    aria-label="终审评语"
-                    required
-                    rows={5}
-                    value={feedback}
-                    onChange={(e) => {
-                      setFeedback(e.target.value);
-                      setRequestID(crypto.randomUUID());
-                    }}
-                  />
-                </label>
-                <button className="ghost-btn" disabled={action.busy}>
-                  保存评分草稿
-                </button>
-              </form>
-              </>}
-              <p className="muted">
-                草稿不对学生公开。核对原文与标准后确认，再单独发布。
-              </p>
-            </section>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
+export { GradePage } from "./grading";

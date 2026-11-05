@@ -5,6 +5,13 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
+import {
+  Link as RouterLink,
+  useLocation,
+  useNavigate,
+  type LinkProps,
+  type NavigateOptions,
+} from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { requestJSON, APIError } from "../shared/api";
 import { useSession } from "../shared/session";
@@ -27,6 +34,9 @@ export function LearningProvider({ children }: { children: ReactNode }) {
     () => sessionStorage.getItem(`haji-course:${session?.user.id}`) || "",
   );
   const queryClient = useQueryClient();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const requested = new URLSearchParams(location.search).get("course");
   const query = useQuery({
     queryKey: ["courses", session?.user.id],
     queryFn: async () =>
@@ -37,15 +47,39 @@ export function LearningProvider({ children }: { children: ReactNode }) {
       refresh();
   }, [query.error, refresh]);
   const courses = query.data || [];
-  const course = courses.find((c) => c.id === selected) || courses[0] || null;
+  const course = requested
+    ? courses.find((c) => c.id === requested) || null
+    : courses.find((c) => c.id === selected) || courses[0] || null;
+  useEffect(() => {
+    if (course && !requested) {
+      const params = new URLSearchParams(location.search);
+      params.set("course", course.id);
+      navigate(
+        { pathname: location.pathname, search: params.toString() },
+        { replace: true },
+      );
+    }
+    if (course && requested === course.id) {
+      setSelected(course.id);
+      sessionStorage.setItem(`haji-course:${session?.user.id}`, course.id);
+    }
+  }, [course, requested, location.pathname, location.search, navigate]);
   const reload = async () => {
     // A first read may still contain a pre-write snapshot. Cancel it before refetching.
-    await queryClient.cancelQueries();
-    await queryClient.invalidateQueries();
+    await queryClient.cancelQueries({ queryKey: ["live", course?.id] });
+    await queryClient.invalidateQueries({ queryKey: ["live", course?.id] });
+    await queryClient.invalidateQueries({
+      queryKey: ["courses", session?.user.id],
+    });
   };
   function select(id: string) {
-    setSelected(id);
-    sessionStorage.setItem(`haji-course:${session?.user.id}`, id);
+    navigate({
+      pathname:
+        session?.user.role === "teacher"
+          ? "/teacher/dashboard"
+          : "/student/home",
+      search: `?course=${encodeURIComponent(id)}`,
+    });
   }
   if (query.isPending)
     return (
@@ -79,11 +113,15 @@ export function LearningProvider({ children }: { children: ReactNode }) {
           刷新
         </button>
         {query.error && <span role="alert">{query.error.message}</span>}
-        {!query.isPending && !course && (
-          <span>暂无课程</span>
-        )}
+        {!query.isPending && !course && <span>暂无课程</span>}
       </section>
-      {children}
+      {requested && !course && !query.isPending ? (
+        <p role="alert" className="live-error">
+          无法访问链接中的课程，请选择有权限的课程。
+        </p>
+      ) : (
+        children
+      )}
     </Context.Provider>
   );
 }
@@ -92,19 +130,28 @@ export function useLearning() {
   if (!c) throw new Error("LearningProvider required");
   return c;
 }
-export function useLiveQuery<T>(path: string, enabled = true, freshOnMount = false) {
+export function useLiveQuery<T>(
+  path: string,
+  enabled = true,
+  freshOnMount = false,
+) {
   const { course } = useLearning();
   return useQuery({
     queryKey: ["live", course?.id, path],
     enabled: !!course && enabled,
     refetchOnMount: freshOnMount ? "always" : true,
-    queryFn: async () =>
-      (await requestJSON<{ data: T }>(`/learning/courses/${course!.id}${path}`))
-        .data,
+    queryFn: async ({ signal }) =>
+      (
+        await requestJSON<{ data: T }>(
+          `/learning/courses/${course!.id}${path}`,
+          { signal },
+        )
+      ).data,
   });
 }
 export function useAction() {
-  const { course, reload } = useLearning();
+  const { course } = useLearning();
+  const cache = useQueryClient();
   const { session, refresh } = useSession();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -123,7 +170,65 @@ export function useAction() {
         { method, body: JSON.stringify(body) },
         session?.csrf_token,
       );
-      await reload();
+      const prefix = path.split("/")[1]?.split("?")[0];
+      const related: Record<string, string[]> = {
+        resources: [
+          "resources",
+          "events",
+          "activity",
+          "overview",
+          "notes",
+          "interventions",
+        ],
+        assignments: [
+          "assignments",
+          "assignment-worklist",
+          "evidence",
+          "overview",
+          "activity",
+          "interventions",
+        ],
+        submissions: [
+          "submissions",
+          "assignments",
+          "assignment-worklist",
+          "evidence",
+          "overview",
+        ],
+        revisions: [
+          "submissions",
+          "assignments",
+          "assignment-worklist",
+          "evidence",
+          "overview",
+        ],
+        questions: ["questions"],
+        rubrics: ["questions"],
+        interventions: ["interventions", "overview"],
+        members: ["members", "overview"],
+        students: ["members", "overview"],
+        curriculum: ["", "graph"],
+        points: ["", "graph"],
+        edges: ["graph"],
+        path: ["path"],
+      };
+      const roots = related[prefix] || [prefix];
+      const filters = {
+        predicate: (q: { queryKey: readonly unknown[] }) =>
+          q.queryKey[0] === "live" &&
+          q.queryKey[1] === course?.id &&
+          roots.includes(
+            String(q.queryKey[2] || "")
+              .split("/")[1]
+              ?.split("?")[0] || "",
+          ),
+      };
+      await cache.cancelQueries(filters);
+      await cache.invalidateQueries(filters);
+      if (!prefix || prefix === "publish")
+        await cache.invalidateQueries({
+          queryKey: ["courses", session?.user.id],
+        });
       setMessage("已保存");
       return r.data;
     } catch (e) {
@@ -178,4 +283,22 @@ export const names: Record<string, string> = {
 };
 export function when(value?: string | null) {
   return value ? new Date(value).toLocaleString("zh-CN") : "未设置";
+}
+
+export function useCourseURL() {
+  const { course } = useLearning();
+  return (to: string) => {
+    const url = new URL(to, window.location.origin);
+    if (course) url.searchParams.set("course", course.id);
+    return url.pathname + url.search + url.hash;
+  };
+}
+export function Link({ to, ...props }: LinkProps) {
+  const url = useCourseURL();
+  return <RouterLink {...props} to={typeof to === "string" ? url(to) : to} />;
+}
+export function useCourseNavigate() {
+  const navigate = useNavigate();
+  const url = useCourseURL();
+  return (to: string, options?: NavigateOptions) => navigate(url(to), options);
 }

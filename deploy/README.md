@@ -54,3 +54,8 @@ AI未接入；结构化逐点rubric已在本地和公网实现并验证，独立
 发布前备份为 `/opt/hajimark/backups/hajimark-20261105T034235Z.dump`，已校验pg_restore可读。原12门课程、16份提交、15条评分修订、10份资料、3份标准版本、5条干预记录按ID及整行指纹复核一致。旧release `hajimark-platform-dcc1474-20261105`、镜像、环境快照和数据卷均保留。
 
 发布包SHA256为 `3d78007a37d4dfffc03d6d8d9db252cfe809ce3d77c8be3be4ccdb095a8d4b47`。HTTPS确认加载`index-CKWNBOAf.js`，本地发布包/远端镜像的源码revision一致；健康与交互检查见[验证记录](../docs/verification.md)。
+
+
+## 公网展示数据
+
+2026-11-05按用户要求清理13门旧测试课程及4个辅助测试账号，公网当前使用一门完整演示课程。jiaoshi/xuesheng的ID与密码保留，显示名更新；演示学员为模拟内容。展示路线与直达链接见[演示说明](../docs/demo-walkthrough.md)，备份/清理和只读验收见[验证记录](../docs/verification.md)。旧验收脚本中的辅助账号和课程ID已失效；日常展示复查优先只读，不自动重跑写入式公网测试造回旧数据。

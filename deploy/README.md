@@ -45,3 +45,12 @@ AI未接入；结构化逐点rubric已在本地和公网实现并验证，独立
 ## UI 重构版本发布
 
 2026-10-31 起，镜像构建、导出、校验、上传、切换和回滚统一由 `deploy/deploy.ps1` 完成，步骤见 [DEPLOY.md](DEPLOY.md)。没有凭据时只生成并在本地验证 release 产物，服务器不受影响。
+
+
+## 2026-11-05 工作台交互版本
+
+按用户本次明确要求，公网更新到 `hajimark-workspace-f40872a-20261105`，应用源码 `f40872ad231735d56608158de108e9ddc72d58cc`。已发布三栏批阅、连续队列、引用定位、课程分区、学生自动保存与逐题回执、个人证据到补学补练的上下文。数据库仍为00009，无新迁移；AI保持关闭，公网账号沿用原配置。
+
+发布前备份为 `/opt/hajimark/backups/hajimark-20261105T034235Z.dump`，已校验pg_restore可读。原12门课程、16份提交、15条评分修订、10份资料、3份标准版本、5条干预记录按ID及整行指纹复核一致。旧release `hajimark-platform-dcc1474-20261105`、镜像、环境快照和数据卷均保留。
+
+发布包SHA256为 `3d78007a37d4dfffc03d6d8d9db252cfe809ce3d77c8be3be4ccdb095a8d4b47`。HTTPS确认加载`index-CKWNBOAf.js`，本地发布包/远端镜像的源码revision一致；健康与交互检查见[验证记录](../docs/verification.md)。

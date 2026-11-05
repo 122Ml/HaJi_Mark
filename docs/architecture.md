@@ -90,4 +90,4 @@ flowchart LR
   S --> L
 ```
 
-本次只更新本地Docker；公网版本不因这些文档或本地验收自动改变。
+本次先完成本地Docker验收；随后按用户明确要求发布到公网hajistudy.online，release为hajimark-workspace-f40872a-20261105。部署与数据保全证据见验证记录。

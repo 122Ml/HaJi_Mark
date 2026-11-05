@@ -58,13 +58,17 @@ function Build-Bundle {
   Run docker (@('save', '-o', "$Bundle/images.tar") + ($images | ForEach-Object { $_.tag }))
   python -c "import gzip,shutil,sys; shutil.copyfileobj(open(sys.argv[1],'rb'), gzip.open(sys.argv[2],'wb',6))" "$Bundle/images.tar" "$Bundle/images.tar.gz"
   if ($LASTEXITCODE -ne 0) { throw 'gzip failed' }
+  # Docker's containerd store may report an index ID; classic Docker loads the config ID.
+  $configJSON = python -c "import json,tarfile,sys; a=tarfile.open(sys.argv[1]); entries=json.load(a.extractfile('manifest.json')); print(json.dumps({tag:'sha256:'+entry['Config'].rsplit('/',1)[-1].removesuffix('.json') for entry in entries for tag in entry['RepoTags']}))" "$Bundle/images.tar"
+  if ($LASTEXITCODE -ne 0) { throw 'Could not read exported image config IDs' }
+  $configIDs = $configJSON | ConvertFrom-Json
   Remove-Item "$Bundle/images.tar"
   foreach ($f in 'compose.production.yaml', 'backup.sh', 'renew-certificate.sh', 'openresty-hajistudy.conf') { Copy-Item "deploy/$f" $Bundle }
   $manifest = [ordered]@{
     release_id = $ReleaseId; source_commit = $commit; source_branch = (git branch --show-current).Trim()
     images = @($images | ForEach-Object {
       $i = docker image inspect $_.tag | ConvertFrom-Json
-      [ordered]@{ tag = $_.tag; local_image_id = $i[0].Id; config_id = $i[0].Id; revision = $commit }
+      [ordered]@{ tag = $_.tag; local_image_id = $i[0].Id; config_id = $configIDs.PSObject.Properties[$_.tag].Value; revision = $commit }
     })
     archive = [ordered]@{ file = 'images.tar.gz'; bytes = (Get-Item "$Bundle/images.tar.gz").Length; sha256 = (Get-FileHash "$Bundle/images.tar.gz" -Algorithm SHA256).Hash.ToLower() }
     migration = ((Get-ChildItem "$Root/backend/db/migrations/*.sql" | ForEach-Object { [int]($_.BaseName.Split('_')[0]) } | Measure-Object -Maximum).Maximum); compose_project = 'hajimark-production'; ai_enabled = $false; previous_release = $PreviousRelease

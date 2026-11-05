@@ -2,6 +2,20 @@
 
 以下旧S1/前端记录按发生阶段保留。当前状态以本页最新收口/部署记录为准；旧“尚无提交/评分、仅localStorage”的结论不再适用于当前代码。历史测试结果不自动移用到新版本。
 
+## 2026-11-05 工作台公网发布
+
+本地验收后用户明确要求“部署到公网”。发布应用提交 `f40872ad231735d56608158de108e9ddc72d58cc`，release `hajimark-workspace-f40872a-20261105`；旧release `hajimark-platform-dcc1474-20261105`保留。镜像在本地干净源码快照构建并携带revision，发布包69,318,372字节，SHA256 `3d78007a37d4dfffc03d6d8d9db252cfe809ce3d77c8be3be4ccdb095a8d4b47`。服务器校验哈希、load、核对镜像ID/revision后切换api/worker/web，未改数据库卷、账号、证书或OpenResty配置。
+
+- 发布前备份 `/opt/hajimark/backups/hajimark-20261105T034235Z.dump` 已通过pg_restore清单校验；一次性migrate报告无待执行迁移，当前00009。
+- 发布前记录现有数据ID与整行MD5，发布后逐条核对：12门课程、16份提交、15条评分修订、10份资料、3份标准版本、5条干预全部一致。浏览器验收仅新增标有“公网交互验收”的独立构造课程。
+- API/Web/PostgreSQL/Redis健康，worker运行；本项目容器无OOM、restart=0；仅Web绑定127.0.0.1:18080，数据库/API无公网映射，AI_ENABLED=false。
+- HTTPS登录200、HTTP跳转301，数据库/Redis就绪；实际返回`index-CKWNBOAf.js`和`index-2PMI7XVK.css`，与已验收发布镜像一致。旧正式提交、反馈和干预的resume通过。
+- 公网Edge/Playwright使用既有账号映射运行本轮交互验收：分页与权限、代码题、筛选往返、评分引用/复制/保护恢复、连续十份与跨20条分页、慢保存/失败恢复、逐题提交与多题进度、学生正式反馈隔离、来源带入干预/新学习/逐题补练/教师复查全部通过。12条路线×1440/390px无横向溢出，无页面异常或意外API服务端错误。
+
+公网`check-evidence-export.cjs`也通过：证据延迟或失败时不能导出，成功CSV保留实际提交ID。
+
+原始发布清单与部署检查留在忽略的`.local/deployment/hajimark-workspace-f40872a-20261105/`；公网浏览器结果`.local/deployment/public-workspace-check.json`及对应截图。部署脚本另修正本地OCI index与服务器经典镜像config ID的区别，config ID从归档manifest读取并实际核对；应用release仍精确绑定f40872a。未调用模型、未同步GitHub，未声称大规模负载或独立教师效果验收。
+
 ## 2026-11-05 前端工作台与交互改进（仅本地）
 
 完成课程四页签和资料抽屉、教师三栏批阅与跨页队列、当前评分复制/引用定位/历史抽屉、学生逐题自动保存与确认回执、个人学情下钻和带来源的干预任务。未保存编辑按账号/对象隔离，离页、换课程、退出登录可取消；自动保存失败明确提示并保留会话恢复。作业列表与批阅队列的筛选互相独立，返回恢复原列表。代码题继续包含在作业中心。

@@ -2,7 +2,7 @@
 
 目标：154.201.71.22（root，OpenResty 反代 127.0.0.1:18080，2GB）。更新 api / worker / web 镜像前先执行镜像内的数据库迁移；保留 PostgreSQL、Redis、数据卷、OpenResty 配置和证书。不在服务器上编译。
 
-2026-11-05：已发布 `hajimark-platform-dcc1474-20261105`，应用源码为 `dcc1474dc608034477f2eae14d745e3aa6a875d6`，数据库迁移保持00009。升级前已备份，数据卷与旧release保留；公网账号更名保留原用户ID和业务归属。
+2026-11-05最新发布为 `hajimark-workspace-f40872a-20261105`，应用源码 `f40872ad231735d56608158de108e9ddc72d58cc`，数据库迁移保持00009。升级前已备份，数据卷与旧release保留；公网账号沿用既有配置。上一版本为 `hajimark-platform-dcc1474-20261105`。
 
 ## 1. 本地构建与验证（不需要服务器）
 
@@ -22,6 +22,8 @@ pwsh -File deploy/deploy.ps1 -Action build
 | `switch-release.sh` | 服务器上校验镜像 ID/revision，改写 `.env` 中的镜像 tag，切换 `current` 链接，运行一次性 migrate，逐服务 `up --no-deps --wait`，检查健康 |
 | `update-release.sh` | 校验 SHA256 → 记录旧 `current` → `backup.sh` → `docker load` → `switch-release.sh` |
 | `rollback.sh` | 切回 `.previous-current`（默认为 release.json 中的 previous_release）；只切镜像，不恢复数据库 |
+
+发布清单分别记录本地镜像ID与归档manifest中的config ID，兼容Docker Desktop的OCI index和服务器经典镜像存储；服务器接受两种ID之一，并继续核对源码revision标签。
 
 接着自动执行 `verify`：校验归档哈希，重新 load 并比对镜像 ID 与 revision，用发布 tag 运行 `compose config -q`，用 `bash -n` 检查服务器脚本（同时确认是 LF 换行），并在 127.0.0.1:18089 启动发布 web 镜像，确认 SPA 回退正常、样式包含本次改版。
 

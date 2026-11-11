@@ -1,6 +1,6 @@
 {
   "scope": "local-implementation",
-  "date": "2026-11-11",
+  "date": "2026-11-12",
   "original_network_preserved": true,
   "original_edge_routes_preserved": true,
   "original_module_boundaries_preserved": true,
@@ -16,17 +16,17 @@
     },
     {
       "file": "01_学习资料_业务流程",
-      "nodes": 14,
-      "edges": 14,
+      "nodes": 19,
+      "edges": 20,
       "size": [
         2400,
-        1480
+        1810
       ]
     },
     {
       "file": "02_知识库_业务流程",
-      "nodes": 14,
-      "edges": 13,
+      "nodes": 16,
+      "edges": 17,
       "size": [
         2400,
         1480
@@ -34,11 +34,20 @@
     },
     {
       "file": "03_题目与评分标准_业务流程",
-      "nodes": 13,
-      "edges": 14,
+      "nodes": 15,
+      "edges": 16,
       "size": [
         2400,
         1660
+      ]
+    },
+    {
+      "file": "04_内容变更与整组重评",
+      "nodes": 12,
+      "edges": 11,
+      "size": [
+        2400,
+        1510
       ]
     }
   ]

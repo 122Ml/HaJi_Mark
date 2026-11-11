@@ -64,6 +64,11 @@ type JobInput struct {
 	Requirements    string          `json:"requirements,omitempty"`
 	ReferenceAnswer string          `json:"reference_answer,omitempty"`
 	Count           int             `json:"count,omitempty"`
+	KnowledgeID     string          `json:"knowledge_id,omitempty"`
+	RelatedIDs      []string        `json:"related_ids,omitempty"`
+	AssetID         string          `json:"asset_id,omitempty"`
+	ParseRevision   int32           `json:"parse_revision,omitempty"`
+	EditVersion     int32           `json:"edit_version,omitempty"`
 }
 
 func (s *Service) CreateJob(ctx context.Context, course, actor, kind string, in JobInput) (store.ProcessingJob, error) {
@@ -118,10 +123,29 @@ func lockRunningJob(ctx context.Context, q *store.Queries, job store.ProcessingJ
 	}
 	return nil
 }
+func (s *Service) recoverInterrupted(ctx context.Context) error {
+	tx, err := s.Models.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	q := store.New(tx)
+	if err = q.SettleInterruptedModelCalls(ctx); err != nil {
+		return err
+	}
+	if err = q.ExpireInterruptedGenerationJobs(ctx); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
 func (s *Service) Recover(ctx context.Context) {
 	client := asynq.NewClient(asynq.RedisClientOpt{Addr: os.Getenv("REDIS_ADDR")})
 	defer client.Close()
 	scan := func() {
+		if err := s.recoverInterrupted(ctx); err != nil {
+			log.Print("RAG interrupted-call recovery unavailable")
+			return
+		}
 		jobs, e := s.Q.PendingProcessingJobs(ctx)
 		if e != nil {
 			log.Print("RAG recovery database unavailable")
@@ -187,6 +211,10 @@ func (s *Service) Process(ctx context.Context, t *asynq.Task) error {
 			output, e = s.Draft(jobCtx, j, in)
 		case "question_generate", "question_analyze", "bank_rubric":
 			output, e = s.BankDraft(jobCtx, j, in)
+		case "source_suggest", "knowledge_compare", "paper_split":
+			output, e = s.WorkflowDraft(jobCtx, j, in)
+		case "vision":
+			output, e = s.Vision(jobCtx, j, in)
 		default:
 			e = errors.New("任务类型无效")
 		}
@@ -252,6 +280,15 @@ func (s *Service) Parse(ctx context.Context, j store.ProcessingJob, in JobInput)
 	command.Stderr = &stderr
 	runErr := command.Run()
 	var parsed struct {
+		Assets []struct {
+			Key         string          `json:"key"`
+			Position    int             `json:"position"`
+			StoragePath string          `json:"storage_path"`
+			Kind        string          `json:"kind"`
+			MediaType   string          `json:"media_type"`
+			Locator     json.RawMessage `json:"locator"`
+			NativeData  json.RawMessage `json:"native_data"`
+		} `json:"assets"`
 		Fragments []struct {
 			Heading string          `json:"heading"`
 			Body    string          `json:"body"`
@@ -285,8 +322,29 @@ func (s *Service) Parse(ctx context.Context, j store.ProcessingJob, in JobInput)
 		return nil, errors.New("原件已归档或原文版本已改变，请重新核对")
 	}
 	revision := src.ParseRevision + 1
+	fragmentIDs := make([]string, len(parsed.Fragments))
+	assetIDs := map[string]string{}
+	for _, a := range parsed.Assets {
+		assetIDs[a.Key] = uuid.NewString()
+	}
 	for i, f := range parsed.Fragments {
-		if _, e = q.InsertMaterialFragment(ctx, store.InsertMaterialFragmentParams{ID: uuid.NewString(), SourceID: src.ID, Revision: revision, Position: int32(i), Heading: f.Heading, Body: f.Body, Locator: f.Locator, Quality: f.Quality}); e != nil {
+		fragmentIDs[i] = uuid.NewString()
+		var loc map[string]any
+		_ = json.Unmarshal(f.Locator, &loc)
+		if key, ok := loc["asset_key"].(string); ok {
+			loc["asset_id"] = assetIDs[key]
+			delete(loc, "asset_key")
+			f.Locator, _ = json.Marshal(loc)
+		}
+		if _, e = q.InsertMaterialFragment(ctx, store.InsertMaterialFragmentParams{ID: fragmentIDs[i], SourceID: src.ID, Revision: revision, Position: int32(i), Heading: f.Heading, Body: f.Body, Locator: f.Locator, Quality: f.Quality}); e != nil {
+			return nil, e
+		}
+	}
+	for _, a := range parsed.Assets {
+		if a.Position < 0 || a.Position >= len(fragmentIDs) || filepath.IsAbs(a.StoragePath) || strings.Contains(a.StoragePath, "..") {
+			return nil, errors.New("解析图像资产位置无效")
+		}
+		if _, e = q.InsertMaterialAsset(ctx, store.InsertMaterialAssetParams{ID: assetIDs[a.Key], SourceID: src.ID, FragmentID: fragmentIDs[a.Position], StoragePath: a.StoragePath, MediaType: a.MediaType, Kind: a.Kind, Locator: a.Locator, NativeData: a.NativeData}); e != nil {
 			return nil, e
 		}
 	}
@@ -300,6 +358,12 @@ func (s *Service) Parse(ctx context.Context, j store.ProcessingJob, in JobInput)
 	}
 	if e = QueueIndex(ctx, q, j.CourseID, j.CreatedBy); e != nil {
 		return nil, e
+	}
+	if _, err := s.Models.Profile("", "chat"); err == nil {
+		input, _ := json.Marshal(JobInput{SourceID: src.ID, ParseRevision: revision})
+		if _, e = q.CreateProcessingJob(ctx, store.CreateProcessingJobParams{ID: uuid.NewString(), CourseID: j.CourseID, CreatedBy: j.CreatedBy, Kind: "source_suggest", Input: input}); e != nil {
+			return nil, e
+		}
 	}
 	if e = tx.Commit(ctx); e != nil {
 		return nil, e

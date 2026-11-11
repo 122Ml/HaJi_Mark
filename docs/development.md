@@ -98,15 +98,15 @@ HTTP用例创建隔离测试课程并保存 `.local/platform-check.json` 的真�
 python scripts/backup.py --verify-restore
 ```
 
-备份使用pg_dump自定义格式，写入 `.local/backups/*.dump` 和SHA256元信息。`--verify-restore` 实际恢复到唯一 `hajimark_restore_<uuid>` 临时数据库，查询提交/评分后只删除该临时库；不覆盖现有业务库，不删旧备份。备份含账号、作答等私人数据，须在本地妥善保存。实际灾难恢复需先备份现存库，再由维护者选定恢复目标，不能把演练脚本当业务库覆盖命令。
+备份使用pg_dump自定义格式，写入 `.local/backups/*.dump` 和SHA256元信息。`--verify-restore` 实际恢复到唯一 `hajimark_restore_<uuid>` 临时数据库，查询提交／评分、来源／图像、专题／知识、题库版本、处理决定及重评批次／条目10类表后只删除该临时库；不覆盖现有业务库，不删旧备份。备份含账号、作答等私人数据，须在本地妥善保存。实际灾难恢复需先备份现存库，再由维护者选定恢复目标，不能把演练脚本当业务库覆盖命令。
 
 默认Compose保持模型关闭，人工答疑、评分、客观规则和学习路径可单独运行。2026-11-11已获用户授权的本地真实RAG配置见下节；公网仍未启用，不沿用旧AI环境变量隐式开通新功能。
 
-迁移已分配并在本地执行00001—00011，后续从00012新建。修改queries后用sqlc1.30.0生成；不改已执行迁移，不手改store，不删除Goose历史来绕过失败。Nginx使用Docker DNS解析API，API重建后应自动恢复代理。
+迁移已分配并在本地执行00001—00012，后续从00013新建。修改queries后用sqlc1.30.0生成；不改已执行迁移，不手改store，不删除Goose历史来绕过失败。Nginx使用Docker DNS解析API，API重建后应自动恢复代理。
 
 ## 资料与知识库的本地运行
 
-密钥位于被忽略的`.local/model-secrets.env`，仅写`DASHSCOPE_API_KEY`及`DASHSCOPE_BASE_URL`。北京兼容地址为`https://dashscope.aliyuncs.com/compatible-mode/v1`。不要在终端打印该文件，不提交、不发给浏览器。模型清单在`backend/config/models.json`；可增加多组OpenAI兼容profile，专有协议必须明确实现适配器。`key_env/base_url_env`引用服务端环境变量，`dimensions/send_dimensions/batch_size`按供应商实际能力设置。
+密钥位于被忽略的`.local/model-secrets.env`：百炼使用`DASHSCOPE_API_KEY/DASHSCOPE_BASE_URL`，按需视觉使用`DEEPSEEK_API_KEY/DEEPSEEK_BASE_URL`。北京兼容地址为`https://dashscope.aliyuncs.com/compatible-mode/v1`。不要在终端打印该文件，不提交、不发给浏览器。模型清单在`backend/config/models.json`；可增加多组OpenAI兼容profile，专有协议必须明确实现适配器。`key_env/base_url_env`引用服务端环境变量，`dimensions/send_dimensions/batch_size`按供应商实际能力设置。
 
 ```powershell
 # 构建串行；首次需下载解析库和OCR权重，后续复用镜像层
@@ -128,7 +128,7 @@ Go worker复用Asynq，单任务执行，Python解析进程限制页数、输出
 
 若默认Go代理连接失败，对api与worker构建同时加`--build-arg GOPROXY=https://goproxy.cn,direct`；其余构建参数保持一致以复用缓存。浏览器脚本使用上文的NODE_PATH与Edge配置。HTTP和浏览器断点记录是本地构造场景的恢复入口，不作为公网运行脚本。
 
-文件限制：30MiB/个、10个/批、200页PDF或PPTX，解包上限200MiB、提取上限200万字符。文本按UTF-8读取。扫描片段和图片提示须教师核对后才能使用；未做公式、复杂图表和手写语义验收。正文过长可分段发布/提炼，不静默截断。
+文件限制：30MiB/个、10个/批、200页PDF或PPTX，解包上限200MiB、提取上限200万字符，单图最多2400万像素。文本按UTF-8读取。OCR和视觉候选须教师核对后才能使用；印刷公式、原生图表及简单图像样例的实际覆盖见[验收记录](research/three-module-acceptance-2026-11-12.md)，复杂公式／图表和手写不据此视为已验。正文过长分段处理，不静默截断。
 
 `model_budget/model_calls`是本轮联调的共享预留账。示例profile使用每Token微元保守费率（Embedding输入1，生成输入10/输出40），不冒充供应商账单。50元包含预检留账；未知/超时调用按预留额保守计入，不自动免费重试。默认profile为`text-embedding-v4`1024维和`qwen-plus`；变更Embedding配置后重建新空间，完成后才切换。
 
@@ -221,3 +221,34 @@ python -B scripts/check-question-bank.py --resume
 先串行`docker compose build api`、`docker compose build web`，再`docker compose up -d --no-build api web`。Node路径与NODE_PATH沿上文配置。旧平台/评分/设计/导出回归脚本已按新分区、抽屉、确认框和带课程URL维护；不能以旧DOM选择器失效代替业务失败诊断。
 
 未保存编辑仅按账号+对象保存在当前浏览器会话。关闭浏览器会话可能失去尚未上传的编辑；页面明确区分“暂存”和“已保存到平台”。测试构造失败只在Playwright请求拦截中发生，不修改服务端生产开关。
+
+
+## 三模块与整组重评验收（2026-11-12）
+
+API、worker、web分别串行构建，使用同一组compose.rag覆盖启动。DeepSeek视觉按需调用，profile关闭thinking；原图经教师确认才进入可靠片段，KaTeX只渲染文本中的数学表达式。公开URL只抓指定页和相关图片；新导入解析成功会自动发起索引与目录／分类建议，故导入测试也可能产生模型费用。
+
+```powershell
+docker compose -f compose.yaml -f compose.rag.yaml build api
+docker compose -f compose.yaml -f compose.rag.yaml build worker
+docker compose -f compose.yaml -f compose.rag.yaml build web
+docker compose -f compose.yaml -f compose.rag.yaml up -d --no-build api worker web
+# 新验收环境才按顺序执行各phase，不要在现有课程重复core/regrade/paging
+python -B scripts/check-material-workflows.py --phase core
+python -B scripts/check-material-workflows.py --phase ai
+python -B scripts/check-material-workflows.py --phase retrieval
+python -B scripts/check-material-workflows.py --phase regrade
+python -B scripts/check-material-workflows.py --phase paging
+python -B scripts/check-material-workflows.py --phase edge
+python -B scripts/check-material-workflows.py --phase edge-ai
+node scripts/check-material-workflows-browser.cjs
+docker compose -f compose.yaml -f compose.rag.yaml restart postgres redis api worker web
+python -B scripts/check-material-workflows.py --phase resume
+```
+
+脚本仅连接本机18080、保留有标签课程、1000条构造题目和全部审计，不清表。core的`--continue-run`复用已有核心对象；ai和浏览器会追加确认修订，regrade会改构造课程正式成绩。edge/edge-ai复用已有任务；真实模型在数据库共享50元预算内记账。浏览器13组检查复用真实候选，503只在该浏览器请求中注入；不是独立教师审核。原始任务、JSON、截图与账号均留在忽略的.local，不能发布为教学数据。
+
+worker每15秒检查恢复；执行超时11分钟、失联判定15分钟。中断的生成类任务标记失败，须显式重试；超过15分钟仍reserved的调用保守按全预留额转unknown，保留原调用记录，不自动重复扣账。解析／索引按已有幂等过程恢复；未知Embedding调用同样保守计费。全容器重启只验证持久化，不等同于所有任务kind的运行中故障注入。
+
+本次实际覆盖、模型失败、预算和未验场景见[验收记录](research/three-module-acceptance-2026-11-12.md)。
+
+仅复查已载入内容的布局时：`node scripts/check-material-workflows-browser.cjs --layout-only`，不确认新修订、不发模型请求，结果另存material-workflows-layout.json。

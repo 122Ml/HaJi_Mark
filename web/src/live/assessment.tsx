@@ -17,6 +17,7 @@ import { Link, useCourseNavigate as useNavigate } from "./context";
 import { useSession } from "../shared/session";
 import { RubricManager, PointFeedback } from "./rubrics";
 import { BankQuestionPicker } from "./question-bank";
+import { RichContent, PublishedAssets } from "./content-render";
 import {
   useLearning,
   useLiveQuery,
@@ -292,7 +293,9 @@ export function AssignmentEditor({
   const { course } = useLearning();
   const action = useAction();
   const navigate = useNavigate();
-  const initialQuestions: (Omit<Question, "id" | "type"> & { correct_answer: string })[] = original.data?.questions.map((q) => ({
+  const initialQuestions: (Omit<Question, "id" | "type"> & {
+    correct_answer: string;
+  })[] = original.data?.questions.map((q) => ({
     ...q,
     options: q.options.length ? q.options : ["", ""],
     knowledge_point_id: q.knowledge_point_id || "",
@@ -410,11 +413,24 @@ export function AssignmentEditor({
               onChange={(e) => setDue(e.target.value)}
             />
           </label>
-          <div className="section-head"><h2>题目列表</h2><button type="button" className="ghost-btn" onClick={() => setPicking(true)}>从题库选题</button></div>
+          <div className="section-head">
+            <h2>题目列表</h2>
+            <button
+              type="button"
+              className="ghost-btn"
+              onClick={() => setPicking(true)}
+            >
+              从题库选题
+            </button>
+          </div>
           {questions.map((q, i) => (
             <fieldset key={i}>
               <legend>第{i + 1}题</legend>
-              {q.bank_question_version_id && <p className="live-meta">使用题库确认版本，题目与标准固定。修改请返回题库另建版本后重新选题。</p>}
+              {q.bank_question_version_id && (
+                <p className="live-meta">
+                  使用题库确认版本，题目与标准固定。修改请返回题库另建版本后重新选题。
+                </p>
+              )}
               <label>
                 题目要求
                 <textarea
@@ -611,10 +627,35 @@ export function AssignmentEditor({
             </button>
           </div>
         </form>
-        <BankQuestionPicker open={picking} onClose={() => setPicking(false)} type={quiz ? "quiz" : original.data?.assignment.type || "subjective"} onSelect={(v,r) => {
-          const item = {prompt:v.prompt,max_score:v.max_score,rubric:r ? r.criteria.map(p=>`${p.title}（${p.max_score}分）：${p.rule}`).join("\n") : "按教师确认的选项答案判分",options:v.options,correct_answer:v.correct_answer,knowledge_point_id:v.knowledge_point_id||"",resource_id:"",bank_question_version_id:v.id,bound_rubric_id:r?.id||null};
-          setQuestions(old=>old.length===1&&!old[0].prompt&&!old[0].bank_question_version_id ? [item] : [...old,item]);
-        }} />
+        <BankQuestionPicker
+          open={picking}
+          onClose={() => setPicking(false)}
+          type={quiz ? "quiz" : original.data?.assignment.type || "subjective"}
+          onSelect={(v, r) => {
+            const item = {
+              prompt: v.prompt,
+              max_score: v.max_score,
+              rubric: r
+                ? r.criteria
+                    .map((p) => `${p.title}（${p.max_score}分）：${p.rule}`)
+                    .join("\n")
+                : "按教师确认的选项答案判分",
+              options: v.options,
+              correct_answer: v.correct_answer,
+              knowledge_point_id: v.knowledge_point_id || "",
+              resource_id: "",
+              bank_question_version_id: v.id,
+              bound_rubric_id: r?.id || null,
+            };
+            setQuestions((old) =>
+              old.length === 1 &&
+              !old[0].prompt &&
+              !old[0].bank_question_version_id
+                ? [item]
+                : [...old, item],
+            );
+          }}
+        />
       </section>
     </div>
   );
@@ -675,6 +716,14 @@ export function AssignmentDetail() {
               to={`/teacher/homework/${assignmentId}/submissions?${params}`}
             >
               进入批阅队列
+            </Link>
+          )}
+          {teacher && query.data.assignment.status === "closed" && (
+            <Link
+              className="ghost-btn"
+              to={`/teacher/regrades?assignment=${assignmentId}`}
+            >
+              整组重评
             </Link>
           )}
         </section>
@@ -818,14 +867,26 @@ function QuestionAnswer({
   return (
     <section className="card-panel answer-panel">
       {modalContext}
-      <h2>{q.prompt}</h2>
+      <RichContent text={q.prompt} />
+      <PublishedAssets kind="questions" id={q.id} />
       <p>满分 {q.max_score}</p>
       {teacher ? (
         <>
           <h3>教师评分标准</h3>
           <p className="live-prose">{q.rubric}</p>
-          {q.bank_question_version_id ? <p className="live-meta">本作业绑定题库确认版本及标准。<Link to={`/teacher/question-bank?bank_version=${q.bank_question_version_id}`}>查看题库版本</Link></p> : q.type !== "quiz" && (
-            <RubricManager questionID={q.id} maxScore={q.max_score} />
+          {q.bank_question_version_id ? (
+            <p className="live-meta">
+              本作业绑定题库确认版本及标准。
+              <Link
+                to={`/teacher/question-bank?bank_version=${q.bank_question_version_id}`}
+              >
+                查看题库版本
+              </Link>
+            </p>
+          ) : (
+            q.type !== "quiz" && (
+              <RubricManager questionID={q.id} maxScore={q.max_score} />
+            )
           )}
         </>
       ) : (

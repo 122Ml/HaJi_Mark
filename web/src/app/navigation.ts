@@ -5,8 +5,8 @@ export interface NavigationGroup {
 
 export const teacherNavigation: NavigationGroup[] = [
   { label: "教学概览", links: [["dashboard", "教学看板"], ["intervention", "干预任务"]] },
-  { label: "课程与资源", links: [["course-twin", "课程目录"], ["materials", "学习资料"], ["knowledge", "知识库"], ["retrieval", "检索与问答"]] },
-  { label: "作业与评价", links: [["question-bank", "题库"], ["homework", "作业中心"], ["quiz", "测验"]] },
+  { label: "课程与资源", links: [["course-twin", "课程目录"], ["materials", "学习资料"], ["knowledge", "知识库"], ["retrieval", "检索与问答"], ["content-impact", "内容变更"]] },
+  { label: "作业与评价", links: [["question-bank", "题库"], ["homework", "作业中心"], ["quiz", "测验"], ["regrades", "整组重评"]] },
   { label: "交流与教研", links: [["interaction", "课程互动"], ["research", "教研记录"], ["industry-intelligence", "行业能力"]] },
 ];
 

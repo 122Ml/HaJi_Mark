@@ -1,5 +1,7 @@
 # 接口、数据与状态契约
 
+2026-11-12增量见本页末尾“三模块、内容影响与整组重评”。该节补充当前已注册接口；明确标为历史或未来的样例不作为现行接口。
+
 v0.4 · 2026-11-04，当前真实平台。以下为已注册接口；后半节结构化rubric/E6为研究目标，不能据此调用旧规划路径。
 
 ## 共识与身份
@@ -204,3 +206,43 @@ CO-01 发布 course demo-boundary 与资料版本 → AS-01 学生提交“测�
 | `/interventions/:id/evidence` | `assigned_at/learning_ready/practice_ready/learning/submissions`；学习记录含resource_id/occurred_at，提交含id/question_id/attempt/submitted_at | 教师或任务本人；学生不能看draft。仅列下发后的关联记录，补练要求作业的每题都有新提交。状态转换仍重新核对，不信任客户端readiness |
 
 空的超范围页仍返回匹配总数。查询失败沿既有错误协议返回，不以空列表/0分伪装成功。上述列表用于工作台操作，不替代评分事实源、名单覆盖或正式结果去重契约。
+
+
+## 三模块、内容影响与整组重评（2026-11-12）
+
+以下前缀均为`/api/v1/learning/courses/:courseID`。除资产读取外均限本课程教师；所有写请求需会话与CSRF，实际actor由服务端取得。机械核对不代替教师语义审核。
+
+| 方法与路径 | 关键输入／输出 |
+| --- | --- |
+| GET /topics；POST /topics；PUT /topics/:topicID | 标题、说明；更新还需active/edit_version。返回新版本；冲突409。停用不归档内容 |
+| PUT /content-links | kind=source/knowledge/question、id、topic_ids、tags、knowledge_point_ids；所有关联须本课程，题目关联确切版本 |
+| GET /question-bank/search | search/state/type/point_id/topic_id/page/page_size；page_size为1—100，返回items/total/page/page_size |
+| POST /sources/url | url/title/source_note/allow_derived；返回解析任务，保存最终URL和快照；重复409，非法目标422 |
+| GET /sources/:sourceID/assets | assets/revisions；保存原图、定位与原生数据，不把模型候选当原文 |
+| POST /assets/:assetID/crop | x/y/width/height为0—1比例、kind、parse_revision；真实PNG裁剪保留父资产及坐标 |
+| POST /assets/:assetID/revisions | body/structured/base_revision/model_job_id；确认转写并新增原文修订，CAS冲突409 |
+| GET /assets/:assetID/file | 授权图像；学生仅可读已发布资料或可访问题目的确切资产，不因开放裁剪图开放整页 |
+| GET /resources/:id/assets；GET /questions/:id/assets | 按学生可见资料／题目返回获准资产 |
+| POST /jobs | 新增kind=source_suggest/knowledge_compare/vision/paper_split；教师选profile，服务端读取来源与版本，不接受注入学生答案或评分规则 |
+| POST /sources/:sourceID/suggestions/adopt | job_id/topic_ids/tags/knowledge_point_ids/new_topics/outline/reason；核对来源版本及输入ID，采纳留审计，按job幂等 |
+| POST /knowledge/:knowledgeID/decision | action=discard/merge/coexist/replace/defer，edit_version、compare_job_id、related_ids、reason；merge另含title/body/conditions |
+| POST /sources/:sourceID/paper/adopt | job_id＋questions/excluded/review_status；全片段归题或注明排除，整组事务采纳为私有题库草稿，按job幂等 |
+| GET /question-bank/versions/:versionID/provenance | 原生成／拆题任务、采纳决定及输入版本；不伪造手工题的AI来源 |
+| GET /decisions?object_id= | 课程内处理记录、输入和输出快照 |
+| GET /impact?source_id=或knowledge_id= | changes/items/decisions；实际引用遍历知识、题目、标准、作业与结果 |
+| POST /impact/decisions | kind=source/knowledge、id、action=no_action/future_version/regrade、reason；新版保存其前版消费者的影响快照，不自动换绑或创建重评 |
+| GET /regrades；POST /regrades | 创建含question_id/rubric_id/reason/preview；单选用correct_answer且不传rubric_id；preview只预览 |
+| GET /regrades/:batchID | batch/items/rubric；每人一份最新正式提交、原文哈希及评分基线 |
+| PUT /regrades/:batchID/items/:submissionID | score/feedback/points/confirmed/edit_version/ai_job_id；逐点加和、引用、统一标准和任务输入均核对 |
+| POST /regrades/:batchID/items/:submissionID/ai | profile_id；只按冻结答案与本批统一标准生成草稿，不直接确认或发布 |
+| POST /regrades/:batchID/state | state=released/canceled；active可结束，重复同状态幂等，结束后不可逆转 |
+
+`source_suggest`只用有限代表性摘录提出建议，输入快照标注excerpt_only；不宣称理解完整大文档。整卷输入超过110KB明确失败，不静默截断。所有AI候选须pending_teacher_review；缺失、越界ID、非原文引用或截断回复失败并保留原回复。题卷answer_origin为missing/extracted/teacher；AI不能冒充teacher，extracted的参考解答和单选答案须逐字在原卷内。无原卷答案先留空。
+
+新增表：knowledge_topics/topic_links/content_tags、material_assets/asset_revisions、content_decisions、bank_question_assets、regrade_batches/regrade_items；grading_revisions增加regrade_batch_id。原资产与确认修订、学习资料发布、知识确认、向量空间分别存储，不为专题复制原件或向量。知识合并保存多方出处与权限交集，替换由教师明确停用旧条目，普通新版不自动停旧。
+
+重评批次为active→released/canceled。仅关闭作业；题干、题型、选项、满分必须不变，名单与标准固定。同题一个活动批次。发布事务复查作业关闭、冻结名单／哈希、评分基线及全部确认；任何一份冲突整组回滚。旧作业绑定、提交和评分不改写，新增正式修订；学生反馈、CSV与学情按同一正式修订去重。进入重评管理后普通评分不得以旧标准覆盖新结果。
+
+实际验证与限制见[三模块验收](research/three-module-acceptance-2026-11-12.md)。
+
+模型中断恢复：worker将超过15分钟的生成类running任务转failed，等待显式重试；失联reserved调用转unknown并按预留额保守计费。恢复与后到结算均按调用状态保护，不能重复结算。parse/index保留幂等恢复。

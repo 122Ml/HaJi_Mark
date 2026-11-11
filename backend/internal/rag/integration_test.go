@@ -300,6 +300,42 @@ func TestRAGIsolationAndBudget(t *testing.T) {
 			t.Fatal("different index configuration silently coalesced")
 		}
 	})
+	t.Run("interrupted_model_job_requires_explicit_retry", func(t *testing.T) {
+		if _, err := db.Exec(ctx, `INSERT INTO processing_jobs(id,course_id,created_by,kind,input,state,started_at) VALUES('interrupted-generation','c','t','source_suggest','{}','running',now()-interval '16 minutes')`); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := q.ClaimProcessingJob(ctx, "interrupted-generation"); err == nil {
+			t.Fatal("interrupted paid generation was automatically claimed again")
+		}
+		before, err := q.GetModelBudget(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = db.Exec(ctx, `INSERT INTO model_calls(id,course_id,actor_id,profile_id,purpose,reserved_micro_cny,created_at) VALUES('interrupted-call','c','t','test','source_suggest',3000,now()-interval '16 minutes'),('live-call','c','t','test','source_suggest',1000,now()); UPDATE model_budget SET reserved_micro_cny=reserved_micro_cny+4000`); err != nil {
+			t.Fatal(err)
+		}
+		service := New(&Models{DB: db})
+		for i := 0; i < 2; i++ {
+			if err = service.recoverInterrupted(ctx); err != nil {
+				t.Fatal(err)
+			}
+		}
+		after, err := q.GetModelBudget(ctx)
+		if err != nil || after.SpentMicroCny != before.SpentMicroCny+3000 || after.ReservedMicroCny != before.ReservedMicroCny+1000 {
+			t.Fatal("orphan reservation not charged exactly once", after, err)
+		}
+		job, err := q.GetProcessingJob(ctx, store.GetProcessingJobParams{ID: "interrupted-generation", CourseID: "c"})
+		if err != nil || job.State != "failed" || !strings.Contains(job.Error, "显式重试") {
+			t.Fatal("interrupted generation not failed for explicit retry", job, err)
+		}
+		if _, err = q.FinishModelCall(ctx, store.FinishModelCallParams{ID: "interrupted-call", State: "completed"}); err == nil {
+			t.Fatal("late settlement could charge the orphan call twice")
+		}
+		var state string
+		if err = db.QueryRow(ctx, `SELECT state FROM model_calls WHERE id='live-call'`).Scan(&state); err != nil || state != "reserved" {
+			t.Fatal("live model reservation was changed", state, err)
+		}
+	})
 	t.Run("database_claim_failures_are_not_reported_as_success", func(t *testing.T) {
 		closed, err := pgxpool.NewWithConfig(ctx, config.Copy())
 		if err != nil {

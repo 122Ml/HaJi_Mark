@@ -23,6 +23,7 @@ func (h *Handler) registerQuestionBank(g *gin.RouterGroup, auth *identity.Handle
 			result(c, v, nil)
 		}
 	})
+	t.GET("/versions/:versionID/provenance", h.bankProvenance)
 	t.POST("/:bankID/versions", auth.RequireCSRF(), h.saveBankQuestion)
 	t.POST("/:bankID/archive", auth.RequireCSRF(), h.archiveBank)
 	t.POST("/versions/:versionID/confirm", auth.RequireCSRF(), h.confirmBankQuestion)
@@ -31,6 +32,20 @@ func (h *Handler) registerQuestionBank(g *gin.RouterGroup, auth *identity.Handle
 	t.POST("/versions/:versionID/rubrics", auth.RequireCSRF(), h.createBankRubric)
 	t.POST("/jobs", auth.RequireCSRF(), h.createBankJob)
 	t.POST("/evidence", auth.RequireCSRF(), h.bankEvidence)
+}
+
+func (h *Handler) bankProvenance(c *gin.Context) {
+	v, ok := h.bankVersion(c, c.Param("versionID"))
+	if !ok {
+		return
+	}
+	d, e := h.q.BankProvenance(c.Request.Context(), store.BankProvenanceParams{CourseID: c.Param("courseID"), ObjectID: v.ID})
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	a, e := h.q.BankAssets(c.Request.Context(), v.ID)
+	result(c, gin.H{"decisions": d, "assets": a}, e)
 }
 
 func (h *Handler) questionBank(c *gin.Context) {
@@ -78,6 +93,7 @@ type bankQuestionInput struct {
 	KnowledgePointID string      `json:"knowledge_point_id"`
 	EvidenceIDs      []string    `json:"evidence_ids"`
 	Criteria         []criterion `json:"criteria"`
+	AIJobID          string      `json:"ai_job_id"`
 }
 
 func (h *Handler) saveBankQuestion(c *gin.Context) {
@@ -121,6 +137,13 @@ func (h *Handler) saveBankQuestion(c *gin.Context) {
 	}
 	defer tx.Rollback(ctx)
 	q := h.q.WithTx(tx)
+	if in.AIJobID != "" {
+		j, err := q.GetProcessingJob(ctx, store.GetProcessingJobParams{ID: in.AIJobID, CourseID: c.Param("courseID")})
+		if err != nil || j.Kind != "question_generate" || j.State != "succeeded" {
+			invalid(c, "出题草稿来源无效")
+			return
+		}
+	}
 	if in.KnowledgePointID != "" {
 		p, e := q.GetKnowledgePoint(ctx, in.KnowledgePointID)
 		if e != nil || p.CourseID != c.Param("courseID") || p.Kind != "point" {
@@ -171,6 +194,32 @@ func (h *Handler) saveBankQuestion(c *gin.Context) {
 		if _, e = q.CreateBankRubric(ctx, store.CreateBankRubricParams{ID: uuid.NewString(), BankQuestionVersionID: text(v.ID), Criteria: criteria, EvidenceRefs: raw, CreatedBy: identity.Current(c).ID}); e != nil {
 			result(c, nil, e)
 			return
+		}
+	}
+	if in.AIJobID != "" {
+		if _, e = recordDecision(ctx, q, c.Param("courseID"), identity.Current(c).ID, "question_adopt", v.ID, "教师编辑后保存AI题目草稿", map[string]any{"job_id": in.AIJobID, "evidence_ids": in.EvidenceIDs}, v); e != nil {
+			result(c, nil, e)
+			return
+		}
+	}
+	if c.Param("bankID") != "" {
+		versions, err := q.ListBankQuestionVersions(ctx, v.BankID)
+		if err != nil {
+			result(c, nil, err)
+			return
+		}
+		if len(versions) > 1 {
+			assets, err := q.BankAssets(ctx, versions[1].ID)
+			if err != nil {
+				result(c, nil, err)
+				return
+			}
+			for _, a := range assets {
+				if err = q.LinkBankAsset(ctx, store.LinkBankAssetParams{VersionID: v.ID, AssetID: a.ID}); err != nil {
+					result(c, nil, err)
+					return
+				}
+			}
 		}
 	}
 	result(c, v, tx.Commit(ctx))
@@ -353,6 +402,12 @@ func (h *Handler) createBankRubric(c *gin.Context) {
 	if e != nil {
 		result(c, nil, e)
 		return
+	}
+	if in.AIJobID != "" {
+		if _, e = recordDecision(ctx, q, c.Param("courseID"), identity.Current(c).ID, "rubric_adopt", r.ID, "教师核对后保存AI标准草稿", map[string]any{"job_id": in.AIJobID, "question_version_id": v.ID}, r); e != nil {
+			result(c, nil, e)
+			return
+		}
 	}
 	result(c, r, tx.Commit(ctx))
 }

@@ -262,7 +262,7 @@ func (q *Queries) BusinessOverview(ctx context.Context, courseID string) ([]Busi
 const courseReleasedEvidence = `-- name: CourseReleasedEvidence :many
 SELECT DISTINCT ON (s.student_id,s.question_id) s.id AS submission_id,s.student_id,s.question_id,s.answer_text,s.attempt,r.id AS revision_id,r.score,r.feedback,q.max_score,q.prompt,q.knowledge_point_id,q.resource_id,r.released_at,r.rubric_id,r.point_scores
 FROM submissions s JOIN questions q ON q.id=s.question_id
-JOIN LATERAL (SELECT id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id FROM grading_revisions g WHERE g.submission_id=s.id AND g.state='released' ORDER BY g.revision DESC LIMIT 1) r ON true
+JOIN LATERAL (SELECT id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id, regrade_batch_id FROM grading_revisions g WHERE g.submission_id=s.id AND g.state='released' ORDER BY g.revision DESC LIMIT 1) r ON true
 WHERE s.course_id=$1 AND ($2::boolean OR s.student_id=$3)
 ORDER BY s.student_id,s.question_id,s.attempt DESC
 `
@@ -589,7 +589,7 @@ func (q *Queries) CreateBusinessResource(ctx context.Context, arg CreateBusiness
 
 const createBusinessRevision = `-- name: CreateBusinessRevision :one
 INSERT INTO grading_revisions(id,submission_id,revision,score,feedback,reviewer_id,request_id)
-VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id
+VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id, regrade_batch_id
 `
 
 type CreateBusinessRevisionParams struct {
@@ -628,6 +628,7 @@ func (q *Queries) CreateBusinessRevision(ctx context.Context, arg CreateBusiness
 		&i.RubricID,
 		&i.PointScores,
 		&i.AiJobID,
+		&i.RegradeBatchID,
 	)
 	return i, err
 }
@@ -801,7 +802,7 @@ func (q *Queries) CreateResourceRevision(ctx context.Context, arg CreateResource
 
 const createRuleRevision = `-- name: CreateRuleRevision :one
 INSERT INTO grading_revisions(id,submission_id,revision,score,feedback,method,state,reviewer_id,request_id,released_at)
-VALUES($1,$2,1,$3,'根据教师已发布的标准答案自动判分','rule','released',$4,$5,now()) RETURNING id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id
+VALUES($1,$2,1,$3,'根据教师已发布的标准答案自动判分','rule','released',$4,$5,now()) RETURNING id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id, regrade_batch_id
 `
 
 type CreateRuleRevisionParams struct {
@@ -836,6 +837,7 @@ func (q *Queries) CreateRuleRevision(ctx context.Context, arg CreateRuleRevision
 		&i.RubricID,
 		&i.PointScores,
 		&i.AiJobID,
+		&i.RegradeBatchID,
 	)
 	return i, err
 }
@@ -1178,7 +1180,7 @@ func (q *Queries) GetBusinessResource(ctx context.Context, id string) (Resource,
 }
 
 const getBusinessRevision = `-- name: GetBusinessRevision :one
-SELECT id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id FROM grading_revisions WHERE id=$1
+SELECT id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id, regrade_batch_id FROM grading_revisions WHERE id=$1
 `
 
 func (q *Queries) GetBusinessRevision(ctx context.Context, id string) (GradingRevision, error) {
@@ -1199,6 +1201,7 @@ func (q *Queries) GetBusinessRevision(ctx context.Context, id string) (GradingRe
 		&i.RubricID,
 		&i.PointScores,
 		&i.AiJobID,
+		&i.RegradeBatchID,
 	)
 	return i, err
 }
@@ -1273,7 +1276,7 @@ func (q *Queries) GetLearningEventByRequest(ctx context.Context, arg GetLearning
 }
 
 const getRevisionByRequest = `-- name: GetRevisionByRequest :one
-SELECT id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id FROM grading_revisions WHERE reviewer_id=$1 AND request_id=$2
+SELECT id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id, regrade_batch_id FROM grading_revisions WHERE reviewer_id=$1 AND request_id=$2
 `
 
 type GetRevisionByRequestParams struct {
@@ -1299,6 +1302,7 @@ func (q *Queries) GetRevisionByRequest(ctx context.Context, arg GetRevisionByReq
 		&i.RubricID,
 		&i.PointScores,
 		&i.AiJobID,
+		&i.RegradeBatchID,
 	)
 	return i, err
 }
@@ -1713,7 +1717,7 @@ func (q *Queries) ListBusinessResources(ctx context.Context, arg ListBusinessRes
 }
 
 const listBusinessRevisions = `-- name: ListBusinessRevisions :many
-SELECT id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id FROM grading_revisions WHERE submission_id=$1 AND ($2::boolean OR state='released') ORDER BY revision DESC
+SELECT id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id, regrade_batch_id FROM grading_revisions WHERE submission_id=$1 AND ($2::boolean OR state='released') ORDER BY revision DESC
 `
 
 type ListBusinessRevisionsParams struct {
@@ -1745,6 +1749,7 @@ func (q *Queries) ListBusinessRevisions(ctx context.Context, arg ListBusinessRev
 			&i.RubricID,
 			&i.PointScores,
 			&i.AiJobID,
+			&i.RegradeBatchID,
 		); err != nil {
 			return nil, err
 		}
@@ -2337,7 +2342,7 @@ func (q *Queries) TransitionBusinessIntervention(ctx context.Context, arg Transi
 
 const transitionBusinessRevision = `-- name: TransitionBusinessRevision :one
 UPDATE grading_revisions SET state=$2,released_at=CASE WHEN $2='released' THEN now() ELSE released_at END
-WHERE id=$1 AND state=$3 RETURNING id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id
+WHERE id=$1 AND state=$3 RETURNING id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id, regrade_batch_id
 `
 
 type TransitionBusinessRevisionParams struct {
@@ -2364,6 +2369,7 @@ func (q *Queries) TransitionBusinessRevision(ctx context.Context, arg Transition
 		&i.RubricID,
 		&i.PointScores,
 		&i.AiJobID,
+		&i.RegradeBatchID,
 	)
 	return i, err
 }

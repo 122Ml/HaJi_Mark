@@ -13,6 +13,7 @@ import { CurriculumTools } from "./curriculum";
 import { useSearchParams } from "react-router-dom";
 import { ResourceNotes } from "./notes";
 import { LearningAssistant } from "./assistant";
+import { RichContent, PublishedAssets } from "./content-render";
 import { useEffect, useState } from "react";
 import { useSession } from "../shared/session";
 import { requestJSON } from "../shared/api";
@@ -334,7 +335,8 @@ export function CourseWorkspace() {
                       {view.locator} · v{view.version} ·{" "}
                       {when(view.published_at)}
                     </p>
-                    <article className="live-prose">{view.content}</article>
+                    <RichContent text={view.content} />
+                    <PublishedAssets kind="resources" id={view.id} />
                     {!teacher && (
                       <ResourceNotes key={view.id} resourceId={view.id} />
                     )}

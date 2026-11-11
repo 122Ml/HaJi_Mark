@@ -90,19 +90,19 @@ NETWORK = {
     "sources": ("课程资料导入", "system", [
         ("done", "PDF / DOCX / PPTX / 文本 / 表格"),
         ("done", "原件 / 来源 / 许可 / 哈希 / 版本"),
-        ("planned", "外链全文抓取（现仅保存地址）")]),
+        ("done", "公开单页 / 图片快照 / 直链文档")]),
     "ingest": ("资料解析与原文核对", "system", [
         ("done", "正文 / 常规表格 / 中文印刷OCR / 定位"),
         ("done", "异常片段待核；教师校正 → 新修订"),
-        ("planned", "复杂公式图表 / 手写 / 智能目录编排")]),
+        ("done", "印刷公式图表 / 视觉核对 / 目录建议")]),
     "knowledge-review": ("知识候选与教师审核", "teacher", [
         ("done", "AI提炼 / 分类 / 条件 / 关联候选"),
         ("done", "教师编辑、确认；候选不生效"),
-        ("planned", "自动去重合并 / 冲突裁决")]),
+        ("done", "AI比较出处；教师决定合并与替换")]),
     "question": ("独立课程题库", "system", [
         ("done", "手工录题 / JSON候选 / 多版本"),
         ("done", "使用记录 / 停用恢复；独立于作答"),
-        ("planned", "PDF整卷自动分题")]),
+        ("done", "整卷拆题 / 校正 / 分页 / 审计")]),
     "materials": ("学习资料：完整内容", "data", [
         ("done", "教师选段或全文发布；保留来源与定位"),
         ("done", "阅读 / 笔记 / 收藏 / 完成记录"),
@@ -110,7 +110,7 @@ NETWORK = {
         ("done", "选段发布不开放完整原件下载")]),
     "knowledge": ("知识库：精炼条目", "data", [
         ("done", "概念 / 规则 / 方法 / 示例 / 误区"),
-        ("done", "条件 / 原文出处 / 知识点与条目关联"),
+        ("done", "多专题 / 标签 / 条件 / 出处 / 知识点"),
         ("done", "独立版本；学习 / 评分用途分别设置"),
         ("done", "学生可见性独立；确认新条目不替换旧版"),
         ("done", "权限RAG → 问答 / 出题 / 标准依据")]),
@@ -150,7 +150,7 @@ NETWORK = {
         ("done", "系统：字段 / 加和 / 引用 / 绑定检查"),
         ("done", "教师：原文、标准、依据同屏对照"),
         ("done", "修改 → 确认 → 发布；保留修订"),
-        ("planned", "跨作业定向批量重评")]),
+        ("done", "关闭作业按题整组重评；全组统一发布")]),
     "intervention": ("教师干预与复查", "teacher", [
         ("done", "选学生 / 资料 / 补练 / 完成条件"),
         ("done", "下发 → 新学习 / 新提交 → 教师复查"),
@@ -169,7 +169,8 @@ NETWORK = {
         ("done", "历次作答 / 学习 / 干预与复查")]),
     "maintenance": ("来源与知识生命周期", "system", [
         ("done", "修订保留历史；归档 / 撤回许可阻断未来使用；旧评分快照保留"),
-        ("planned", "变更影响清单 / 通知 / 跨作业定向重评 / 作答匿名化沉淀案例")]),
+        ("done", "影响清单 / 站内处理决定 / 整组重评"),
+        ("planned", "典型作答匿名化沉淀案例")]),
 }
 
 
@@ -189,7 +190,7 @@ def panorama():
     main = root.find(tag("g"))
     for t in root.iter(tag("text")):
         if t.text == "目标设计":
-            t.text = "本地实现状态 · 2026-11-11"
+            t.text = "本地实现状态 · 2026-11-12"
         elif t.text == "HaJi Mark · 全系统业务与智能数据关系图":
             t.text = "HaJi Mark · 全景业务与实现架构图"
         elif t.text == "学习推荐与补练生成":
@@ -222,12 +223,12 @@ def panorama():
         ("recommend", "intervention"): "规则路径",
         ("intervention", "tasks"): "补练 / 已确认练习",
         ("results", "diagnose"): "正式证据",
-        ("maintenance", "question"): "待 · 变更影响清单 / 重评",
+        ("maintenance", "question"): "影响清单 / 选择新版 / 整组重评",
         ("results", "maintenance"): "待 · 典型作答案例候选",
         ("maintenance", "knowledge-review"): "待 · 匿名化 / 审核入库",
         ("recommend", "question"): "待 · 自动补练题 → 教师审核",
     }
-    pending = {("maintenance", "question"), ("results", "maintenance"), ("knowledge", "recommend"),
+    pending = {("results", "maintenance"), ("knowledge", "recommend"),
                ("maintenance", "knowledge-review"), ("recommend", "question")}
     for g in root.iter(tag("g")):
         if g.get("class") not in ("edge", "edge-label"):
@@ -273,7 +274,7 @@ class Figure:
         self.main = el(self.root, "g", font_family="Microsoft YaHei, sans-serif")
         box(self.main, 0, 0, 2400, height, "#F7F6F2", rx=0)
         txt(self.main, 80, 76, title, 40, font_weight=600)
-        txt(self.main, 2320, 76, "2026-11-11 · 本地", 23, "#62656A", text_anchor="end")
+        txt(self.main, 2320, 76, "2026-11-12 · 本地", 23, "#62656A", text_anchor="end")
         legend(self.main, 136, detailed=True)
         self.edges = el(self.main, "g", **{"class": "links"})
         self.nodes = el(self.main, "g", **{"class": "nodes"})
@@ -317,14 +318,15 @@ class Figure:
 
 
 def materials():
-    f = Figure("01  学习资料模块")
+    f = Figure("01  学习资料模块", height=1810)
     f.node("input",80,200,"教师导入",["文件 + 来源说明 / 地址 + 提炼许可", "PDF / DOCX / PPTX / 文本 / 表格"],"teacher")
-    f.node("source",660,200,"原始资料",["原件文件卷 / SHA256 / 来源版本", "保留完整原件；外链仅保存地址"],"data")
+    f.node("source",660,200,"原始资料",["原件 / 网页正文图片快照 / 原网址", "SHA256 / 许可 / 来源版本"],"data")
     f.node("parse",1240,200,"解析与质量检查",["正文 / 常规表格 / 中文印刷OCR", "保留页、幻灯片、内容块定位", "失败保留旧修订，显式重试"])
     f.node("gate",1820,200,"按片段检查质量",["可靠片段可以继续处理", "OCR / 异常片段进入待核队列"])
     f.node("ready",80,510,"可靠原文片段",["不可变片段ID / 位置 / 原文版本", "学习资料发布与知识提炼各自独立"],"data")
+    f.node("vision",660,510,"按需视觉识别",["教师选原图 / 拖选或数值裁剪", "公式LaTeX / 图表 / 连接方向", "保存不确定项；仅生成候选"],"ai")
     f.node("revision",1240,510,"生成原文新修订",["追加校正文本与可靠性标记", "旧修订与历史引用保留"])
-    f.node("review",1820,510,"教师核对与校正",["对照原件检查异常或OCR片段", "未核对片段不能发布、提炼或索引"],"teacher")
+    f.node("review",1820,510,"教师核对与校正",["原图 ↔ 转写 / OCR / 公式排版", "编辑恢复 / 并发版本核对", "未核对内容不进入正式用途"],"teacher")
     f.node("publish",80,830,"教师编排与发布",["选择全文或指定片段", "学习资料独立版本与发布状态"],"teacher")
     f.node("material",660,830,"已发布学习资料",["正文 / 来源 / 位置 / 资料版本", "部分发布不允许完整原件下载"],"data")
     f.node("index",1240,830,"原文直接建立索引",["按可靠片段分块 → Embedding", "生成中文关键词索引", "无需先调用生成模型精炼"])
@@ -332,21 +334,31 @@ def materials():
     f.node("student",660,1140,"学生学习",["阅读 / 原文定位 / 笔记 / 收藏", "学习完成记录 → 学情与干预"],"external")
     f.node("rag",1240,1140,"共享权限RAG",["发布状态 / 课程 / 用途过滤", "向量 + 关键词 → RRF融合", "供问答、出题与标准选依据"],"external")
     f.node("knowledge",1820,1140,"知识库模块",["接收原文逐字出处与候选", "教师审定后独立生效"],"external")
+    f.node("suggest",80,1450,"自动目录与归类建议",["解析后提出章节 / 专题 / 标签", "课程知识点 / 相关知识召回", "逐项校验引用与输入版本"],"ai")
+    f.node("adopt",660,1450,"教师选择与采纳",["可改专题 / 标签 / 知识点", "只追加所选目录，不覆盖旧目录", "重复采纳幂等，保留决定审计"],"teacher")
+    f.node("topics",1240,1450,"独立组织与关联",["学习章节目录 ≠ 多个专题库", "一份资料可关联多个专题", "归类不复制原件或扩大权限"],"data")
+    f.node("impact",1820,1450,"来源更新与影响",["普通新版保留旧版可用", "归档 / 撤回只限制未来用途", "知识 / 题库 / 作业引用可追溯"],"external")
+    f.edge("parse","vision",[(1490,380),(1490,435),(910,435),(910,510)])
+    f.edge("vision","review",[(910,510),(910,455),(2070,455),(2070,510)])
+    f.edge("ready","suggest",[(80,600),(40,600),(40,1540),(80,1540)])
+    f.edge("suggest","adopt",[(580,1540),(660,1540)])
+    f.edge("adopt","topics",[(1160,1540),(1240,1540)])
+    f.edge("knowledge","impact",[(2070,1320),(2070,1450)])
     f.edge("input","source",[(580,290),(660,290)])
     f.edge("source","parse",[(1160,290),(1240,290)])
     f.edge("parse","gate",[(1740,290),(1820,290)])
     f.edge("gate","ready",[(2070,380),(2070,435),(330,435),(330,510)],"可靠片段",(1150,425))
     f.edge("gate","review",[(2070,380),(2070,510)],"待核",(2145,475))
     f.edge("review","revision",[(1820,600),(1740,600)])
-    f.edge("revision","ready",[(1240,600),(580,600)],"校正后可靠原文",(910,585))
+    f.edge("revision","ready",[(1490,690),(1490,710),(330,710),(330,690)],"校正后可靠原文",(1010,720))
     f.edge("ready","publish",[(330,690),(330,830)],"选段 / 全文",(425,765))
-    f.edge("ready","index",[(580,600),(910,600),(910,755),(1490,755),(1490,830)],"直接索引",(1230,742))
-    f.edge("ready","extract",[(580,565),(1190,565),(1190,725),(2070,725),(2070,830)],"许可允许时",(1910,712))
+    f.edge("ready","index",[(580,600),(620,600),(620,755),(1490,755),(1490,830)],"直接索引",(1230,742))
+    f.edge("ready","extract",[(580,565),(600,565),(600,735),(2070,735),(2070,830)],"许可允许时",(1910,725))
     f.edge("publish","material",[(580,920),(660,920)])
     f.edge("material","student",[(910,1010),(910,1140)],"发布内容",(1015,1082))
     f.edge("index","rag",[(1490,1010),(1490,1140)],"片段索引",(1590,1082))
     f.edge("extract","knowledge",[(2070,1010),(2070,1140)],"候选 + 原文回链",(2195,1082))
-    f.note("来源归档或撤回提炼许可：限制派生知识未来检索与选用，保留历史快照。待实现：网页抓取、复杂图表 / 公式 / 手写理解、智能目录编排。")
+    f.note("原文发布、直接索引、知识提炼三条分支独立。视觉按需，目录与分类由教师采纳；手写识别暂不纳入。",y=1750)
     return f.validate()
 
 
@@ -364,7 +376,9 @@ def knowledge():
     f.node("index",660,830,"知识索引与资格过滤",["Embedding空间按模型 / 维度隔离", "课程 / 确认 / 用途 / 来源许可", "检索不能扩大数据访问权限"])
     f.node("rag",1240,830,"共享混合检索",["pgvector精确余弦 + 中文FTS", "RRF融合 → 有权限的原文 / 知识", "学习检索与评分选依据分开"],"data")
     f.node("question",1820,830,"题目与标准选依据",["教师选择资料 / 知识片段", "服务端重读并核对真实来源", "题目、解答和标准先作草稿"],"external")
-    f.node("todo",80,1140,"待完善的知识维护",["自动重复合并 / 冲突裁决", "来源影响清单 / 通知 / 定向重评", "典型作答匿名化沉淀 / 检索质量基准"],"system",w=1080,status="planned")
+    f.node("compare",80,1140,"AI比较相关知识",["RAG召回或教师明确选范围", "双侧原文 / 适用条件 / 差异", "相似度不直接判定冲突"],"ai")
+    f.node("decision",660,1140,"教师逐项处理",["不采纳 / 合并 / 并存 / 替换 / 暂缓", "输入过期拒绝；合并保留多来源", "权限取交集；不撤整份来源许可"],"teacher")
+    f.node("topics",1240,1140,"多专题与引用影响",["专题 / 标签 / 知识点独立关联", "来源 → 知识 → 题库 → 作业", "保存处理决定，按需整组重评"],"data")
     f.node("frozen",1820,1140,"评阅只使用冻结依据",["标准确认时保留依据快照", "正式评阅不临时检索增加扣分点", "历史结果可回查当时原文"],"external")
     for a,b,pts in [
         ("source","ai",[(580,290),(660,290)]),
@@ -380,6 +394,10 @@ def knowledge():
         ("question","frozen",[(2070,1010),(2070,1140)]),
     ]: f.edge(a,b,pts)
     f.edge("lifecycle","index",[(2070,690),(2070,755),(910,755),(910,830)],"更新未来使用资格",(1710,744))
+    f.edge("candidate","compare",[(1490,380),(1490,420),(40,420),(40,1230),(80,1230)])
+    f.edge("compare","decision",[(580,1230),(660,1230)])
+    f.edge("decision","confirmed",[(910,1140),(910,1090),(1780,1090),(1780,600),(1740,600)])
+    f.edge("decision","topics",[(1160,1230),(1240,1230)])
     f.edge("rag","student",[(1490,1010),(1490,1080),(330,1080),(330,1010)],"只返回学生可见学习内容",(930,1068))
     f.note("学习资料是完整教学内容；知识库是带条件、用途与出处的精炼条目。二者共用检索能力，各自审核、发布与保留版本。")
     return f.validate()
@@ -389,7 +407,7 @@ def questions():
     f = Figure("03  题目与评分标准模块", height=1660)
     f.node("basis",80,200,"资料 / 知识依据",["教师选择课程内合法片段", "服务端重读出处、版本与用途", "不接收客户端伪造的依据正文"],"data",w=680)
     f.node("generate",860,200,"AI出题 / 分析 / 标准起草",["选定依据 + 考查要求 → 三类草稿", "可单独分析题目或起草标准", "不读取待评学生答案"],"ai",w=680)
-    f.node("manual",1640,200,"手工录入或JSON候选",["题干 / 题型 / 分值 / 参考解答", "无模型也能维护题目与评分标准"],"teacher",w=680)
+    f.node("manual",1640,200,"整卷拆题 / 手工 / JSON",["三题型 / 跨页 / 公式题图 / 片段全覆盖", "无解答留空；提取与生成分别留出处", "教师拆分 / 合并 / 重排 / 边界校正"],"teacher",w=680)
     f.node("requirement",80,500,"教师考查要求",["考查内容 / 难度 / 题型 / 满分", "独立于具体作业与学生答案"],"teacher",w=680)
     f.node("draft",860,500,"生成候选与主动采纳",["题目 + 参考解答 + 标准草稿", "分别编辑与采纳；不自动生效", "条件变化后旧候选不能覆盖新编辑"],"data",w=680)
     f.node("edit",1640,500,"教师分开审定",["检查题意、参考解答、评分点和来源", "标准含部分分、可接受表达和错误条件", "题目 / 参考解答 / 标准分别确认"],"teacher",w=680)
@@ -400,6 +418,8 @@ def questions():
     f.node("grading",860,1120,"固定规则评阅与核对",["主观题AI草稿 / 客观题固定规则", "核对字段、分数、引用与版本绑定", "代码题仅按文本评阅，不执行代码"],"external",w=680)
     f.node("release",1640,1120,"教师复核与正式结果",["教师修改 → 确认 → 发布", "学生正式反馈 / CSV导出 / 学情证据", "AI草稿不直接成为正式成绩"],"external",w=680)
     f.node("answer",860,1410,"原始学生作答",["不可变原文 / attempt / 哈希 / 任务版本", "只进入评阅，不参与制定题目与标准"],"data",w=680,h=155)
+    f.node("audit",80,1410,"筛选、分页与采纳审计",["专题 / 知识点 / 题型 / 状态 / 关键词", "反查原卷、生成任务、所选依据及版本"],"system",w=680,h=155)
+    f.node("regrade",1640,1410,"变更影响与整组重评",["关闭作业按题冻结每人最新有效提交", "同一新标准，逐份确认后整组发布"],"external",w=680,h=155)
     f.edge("basis","generate",[(760,290),(860,290)],"所选依据",(809,270))
     f.edge("requirement","generate",[(760,590),(810,590),(810,345),(860,345)])
     f.edge("generate","draft",[(1200,380),(1200,500)],"三类候选",(1310,450))
@@ -414,7 +434,40 @@ def questions():
     f.edge("assignment","grading",[(760,1210),(860,1210)])
     f.edge("answer","grading",[(1200,1410),(1200,1300)],"原文版本",(1310,1370))
     f.edge("grading","release",[(1540,1210),(1640,1210)])
-    f.note("待实现：PDF整卷自动分题、来源变更影响通知、跨作业定向批量重评、题目 / 标准采纳任务的反向审计索引。", y=1610)
+    f.edge("assignment","audit",[(420,1300),(420,1410)])
+    f.edge("release","regrade",[(1980,1300),(1980,1410)])
+    f.note("题库独立于作业；题目、参考解答与标准分别审定。新版本不改旧绑定，重评追加新成绩并保留历史。", y=1610)
+    return f.validate()
+
+
+def changes():
+    f = Figure("04  内容变更与整组重评", height=1510)
+    f.node("source",80,200,"来源 / 知识新版本",["旧版保留，普通更新不自动停用", "明确归档 / 撤回才限制未来用途"],"data")
+    f.node("impact",660,200,"查询实际引用关系",["来源 → 多来源知识 → 题目 / 标准", "作业 / 正式结果，按对象去重"])
+    f.node("decide",1240,200,"教师保存处理决定",["无需处理 / 后续选新版 / 整组重评", "站内可回查，不自动改绑历史"],"teacher")
+    f.node("future",1820,200,"未来任务明确选新版",["题目、解答、标准仍分别确认", "已发布作业保留当时固定版本"],"external")
+    f.node("scope",80,540,"关闭作业并选择一道题",["预览每人最新有效提交", "题干 / 选项 / 满分改变须另建任务"],"teacher")
+    f.node("freeze",660,540,"冻结独立重评批次",["名单 / attempt / 原文哈希 / 旧结果", "统一新版标准与依据；一题一活动批次"],"data")
+    f.node("draft",1240,540,"逐份评分草稿",["AI草稿或人工；客观题固定规则", "原句校验 / 分数加和 / 编辑版本", "失败显式重试，不发布半组"])
+    f.node("review",1820,540,"教师逐份复核",["同屏核对原文、规则与依据", "保存 / 修改 / 确认每份结果", "未全组确认时禁用发布"],"teacher")
+    f.node("gate",1820,900,"事务发布前再核对",["作业仍关闭 / 名单与原文未变", "旧成绩基线 / 全组确认齐全", "冲突拒绝；取消保留旧成绩"])
+    f.node("publish",1240,900,"整组原子发布",["新增正式修订，不改旧作业绑定", "重复发布幂等；保留全部历史"],"data")
+    f.node("consumer",660,900,"正式结果统一消费",["学生反馈 / CSV / 班级与个人学情", "同一批正式修订去重计分"],"external")
+    f.node("history",80,900,"历史与取消批次",["旧规则 / 旧成绩 / 旧依据可追溯", "来源撤回不删除已保存历史"] ,"data")
+    for a,b,pts in [
+        ("source","impact",[(580,290),(660,290)]),
+        ("impact","decide",[(1160,290),(1240,290)]),
+        ("decide","future",[(1740,290),(1820,290)]),
+        ("decide","scope",[(1490,380),(1490,440),(330,440),(330,540)]),
+        ("scope","freeze",[(580,630),(660,630)]),
+        ("freeze","draft",[(1160,630),(1240,630)]),
+        ("draft","review",[(1740,630),(1820,630)]),
+        ("review","gate",[(2070,720),(2070,900)]),
+        ("gate","publish",[(1820,990),(1740,990)]),
+        ("publish","consumer",[(1240,990),(1160,990)]),
+        ("consumer","history",[(660,990),(580,990)]),
+    ]: f.edge(a,b,pts)
+    f.note("发布前学生继续看到旧结果；取消或失败不暴露部分新成绩。批次只处理所选已关闭作业的一道题。",y=1380)
     return f.validate()
 
 
@@ -423,6 +476,7 @@ FIGURES = [
     ("01_学习资料_业务流程", "学习资料", materials),
     ("02_知识库_业务流程", "知识库", knowledge),
     ("03_题目与评分标准_业务流程", "题目与评分标准", questions),
+    ("04_内容变更与整组重评", "变更与重评", changes),
 ]
 
 VIEWER = '''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HaJi Mark · 业务流程与实现架构</title><style>
@@ -435,7 +489,7 @@ function fit(){zoom((pane.clientWidth-48)/Number(canvas().querySelector('svg').g
 function highlight(ids=[]){const wanted=new Set(ids),near=new Set(ids);all('.edge,.edge-label').forEach(e=>{const hit=!wanted.size||wanted.has(e.dataset.from)||wanted.has(e.dataset.to);e.classList.toggle('dim',!hit);if(hit){near.add(e.dataset.from);near.add(e.dataset.to)}});all('.node').forEach(n=>{n.classList.toggle('dim',wanted.size>0&&!near.has(n.dataset.node));n.classList.toggle('selected',wanted.has(n.dataset.node))})}
 function show(index){active=index;panels.forEach((p,i)=>p.classList.toggle('active',i===index));buttons.forEach((b,i)=>{b.classList.toggle('active',i===index);b.setAttribute('aria-pressed',String(i===index))});picker.disabled=index!==0;document.getElementById('boundaries').disabled=index!==0;picker.value='';document.getElementById('svg-link').href=files[index]+'.svg';document.getElementById('png-link').href=files[index]+'.png';highlight();fit();pane.scrollTo(0,0);history.replaceState(null,'','#'+index)}
 buttons.forEach((b,i)=>b.onclick=()=>show(i));document.querySelectorAll('.node').forEach(n=>{const run=()=>{picker.value='';highlight(n.classList.contains('selected')?[]:[n.dataset.node])};n.onclick=run;n.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();run()}}});
-picker.onchange=()=>highlight(all('.node').filter(n=>n.dataset.module===picker.value).map(n=>n.dataset.node));document.querySelectorAll('.module-label').forEach(n=>{const run=()=>{picker.value=n.dataset.module;picker.dispatchEvent(new Event('change'))};n.onclick=run;n.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();run()}}});document.getElementById('boundaries').onchange=e=>canvas().classList.toggle('hide-modules',!e.target.checked);document.getElementById('fit').onclick=fit;document.getElementById('plus').onclick=()=>zoom(scale*1.25);document.getElementById('minus').onclick=()=>zoom(scale/1.25);document.getElementById('reset').onclick=()=>{picker.value='';highlight()};document.addEventListener('keydown',e=>{if(e.key==='Escape'){picker.value='';highlight()}});show(Math.min(3,Math.max(0,Number(location.hash.slice(1))||0)));
+picker.onchange=()=>highlight(all('.node').filter(n=>n.dataset.module===picker.value).map(n=>n.dataset.node));document.querySelectorAll('.module-label').forEach(n=>{const run=()=>{picker.value=n.dataset.module;picker.dispatchEvent(new Event('change'))};n.onclick=run;n.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();run()}}});document.getElementById('boundaries').onchange=e=>canvas().classList.toggle('hide-modules',!e.target.checked);document.getElementById('fit').onclick=fit;document.getElementById('plus').onclick=()=>zoom(scale*1.25);document.getElementById('minus').onclick=()=>zoom(scale/1.25);document.getElementById('reset').onclick=()=>{picker.value='';highlight()};document.addEventListener('keydown',e=>{if(e.key==='Escape'){picker.value='';highlight()}});show(Math.min(files.length-1,Math.max(0,Number(location.hash.slice(1))||0)));
 </script></body></html>'''
 
 
@@ -465,7 +519,7 @@ def main():
     html = html.replace("MODULES", "".join(f'<option value="{k}">{v}</option>' for k,v in modules))
     html = html.replace("PANELS", "".join(panels)).replace("FILES", json.dumps([f[0] for f in FIGURES], ensure_ascii=False))
     (OUT / "index.html").write_text(html, encoding="utf-8")
-    (OUT / "structure-check.json").write_text(json.dumps({"scope":"local-implementation", "date":"2026-11-11", "original_network_preserved":True, "original_edge_routes_preserved":True, "original_module_boundaries_preserved":True, "figures":report}, ensure_ascii=False, indent=2), encoding="utf-8")
+    (OUT / "structure-check.json").write_text(json.dumps({"scope":"local-implementation", "date":"2026-11-12", "original_network_preserved":True, "original_edge_routes_preserved":True, "original_module_boundaries_preserved":True, "figures":report}, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False))
 
 

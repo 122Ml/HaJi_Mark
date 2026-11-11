@@ -39,10 +39,12 @@ if args.verify_restore:
     try:
         with target.open('rb') as stream:
             command('exec pg_restore --exit-on-error -U "$POSTGRES_USER" -d "$1"',database,stdin=stream)
-        check=command('exec psql -U "$POSTGRES_USER" -d "$1" -At -c "SELECT count(*) FROM submissions; SELECT count(*) FROM grading_revisions;"',database,capture_output=True)
+        tables=('submissions','grading_revisions','material_sources','material_assets','knowledge_topics','knowledge_entries','bank_question_versions','content_decisions','regrade_batches','regrade_items')
+        query=' '.join('SELECT count(*) FROM '+table+';' for table in tables)
+        check=command('exec psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$1" -At -c "$2"',database,query,capture_output=True)
         counts=[int(v) for v in check.stdout.decode().splitlines()]
         metadata['restore_exercised']=True
-        metadata['restored_record_counts']={'submissions':counts[0],'revisions':counts[1]}
+        metadata['restored_record_counts']=dict(zip(tables,counts))
         print('PASS: isolated database restore and teaching record queries')
     finally:
         command('exec dropdb -U "$POSTGRES_USER" "$1"',database)

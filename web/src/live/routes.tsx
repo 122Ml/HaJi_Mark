@@ -15,6 +15,8 @@ import { ProfilePage, RecordsPage } from "./account";
 import { EmptyState } from "../shared/ui";
 import { MaterialsPage, KnowledgePage, RetrievalPage } from "./knowledge";
 import { QuestionBankPage } from "./question-bank";
+import { RegradesPage } from "./regrades";
+import { ContentImpactPage } from "./content-impact";
 export function LiveRoutes({ teacher }: { teacher: boolean }) {
   const { course } = useLearning();
   const location = useLocation();
@@ -42,6 +44,8 @@ export function LiveRoutes({ teacher }: { teacher: boolean }) {
       <Route path="homework" element={<AssignmentList />} />
       {teacher && <Route path="materials" element={<MaterialsPage />} />}
       {teacher && <Route path="question-bank" element={<QuestionBankPage />} />}
+      {teacher && <Route path="regrades" element={<RegradesPage />} />}
+      {teacher && <Route path="content-impact" element={<ContentImpactPage />} />}
       <Route path="knowledge" element={<KnowledgePage />} />
       <Route path="retrieval" element={<RetrievalPage />} />
       <Route path="quiz" element={<AssignmentList quiz />} />

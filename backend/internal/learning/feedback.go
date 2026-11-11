@@ -88,6 +88,14 @@ func (h *Handler) grade(c *gin.Context) {
 	}
 	defer tx.Rollback(ctx)
 	q := h.q.WithTx(tx)
+	if _, e = q.GetAssignmentForUpdate(ctx, s.AssignmentID); e != nil {
+		result(c, nil, e)
+		return
+	}
+	if active, err := q.GradingManagedByRegrade(ctx, s.QuestionID); err != nil || active {
+		identity.Fail(c, 409, "regrade_active", "本题已进入整组重评，请通过重评批次修订结果")
+		return
+	}
 	if _, e = q.LockBusinessSubmission(ctx, s.ID); e != nil {
 		result(c, nil, e)
 		return
@@ -166,6 +174,14 @@ func (h *Handler) gradeState(c *gin.Context) {
 	}
 	defer tx.Rollback(ctx)
 	q := h.q.WithTx(tx)
+	if _, e = q.GetAssignmentForUpdate(ctx, s.AssignmentID); e != nil {
+		result(c, nil, e)
+		return
+	}
+	if active, err := q.GradingManagedByRegrade(ctx, s.QuestionID); err != nil || active {
+		identity.Fail(c, 409, "regrade_active", "本题已进入整组重评，请通过重评批次修订结果")
+		return
+	}
 	if _, e = q.LockBusinessSubmission(ctx, s.ID); e != nil {
 		result(c, nil, e)
 		return

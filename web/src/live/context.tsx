@@ -172,7 +172,18 @@ export function useAction() {
       );
       const prefix = path.split("/")[1]?.split("?")[0];
       const related: Record<string, string[]> = {
-        sources: ["sources", "resources", "knowledge", "jobs"],
+        sources: ["sources", "resources", "knowledge", "jobs", "topics", ""],
+        assets: ["sources", "resources", "jobs"],
+        regrades: [
+          "regrades",
+          "submissions",
+          "assignments",
+          "assignment-worklist",
+          "evidence",
+          "overview",
+        ],
+        topics: ["topics", "question-bank"],
+        impact: ["impact"],
         knowledge: ["knowledge", "jobs"],
         jobs: ["jobs", "sources", "knowledge", "models"],
         resources: [

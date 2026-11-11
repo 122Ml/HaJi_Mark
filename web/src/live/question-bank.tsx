@@ -20,6 +20,12 @@ import { AIDraft, FrozenEvidence, type Hit } from "./knowledge";
 import { DraftNotice, useEditorDraft } from "./editing";
 import type { Criterion, RubricVersion } from "./rubrics";
 import type { Point } from "./course";
+import {
+  ContentLinks,
+  DecisionHistory,
+  type TopicData,
+} from "./content-topics";
+import { RichContent } from "./content-render";
 
 export interface BankVersion {
   id: string;
@@ -128,8 +134,37 @@ const typeNames: Record<string, string> = {
   quiz: "单选题",
 };
 
+function BankProvenance({ id }: { id: string }) {
+  const q = useLiveQuery<{
+    decisions: { id: string; kind: string; inputs: unknown }[];
+    assets: { id: string }[];
+  }>(`/question-bank/versions/${id}/provenance`);
+  const { course } = useLearning();
+  return (
+    <details>
+      <summary>题图与原始来源</summary>
+      <Feedback error={q.error} />
+      {q.data?.assets.map((a) => (
+        <img
+          className="asset-preview"
+          key={a.id}
+          alt="确认后的题图"
+          src={`/api/v1/learning/courses/${course!.id}/assets/${a.id}/file`}
+        />
+      ))}
+      {q.data?.decisions.map((d) => (
+        <article key={d.id}>
+          <strong>
+            {d.kind === "paper_adopt" ? "原卷拆题采纳" : "AI草稿采纳"}
+          </strong>
+          <pre className="rag-json">{JSON.stringify(d.inputs, null, 2)}</pre>
+        </article>
+      ))}
+    </details>
+  );
+}
+
 export function QuestionBankPage() {
-  const query = useLiveQuery<BankVersion[]>("/question-bank");
   const [params, setParams] = useSearchParams();
   const bankID = params.get("bank") || "";
   const linked = useLiveQuery<BankVersion>(
@@ -141,12 +176,15 @@ export function QuestionBankPage() {
   const [search, setSearch] = useState("");
   const [state, setState] = useState("");
   const [page, setPage] = useState(1);
-  const list = (query.data || []).filter(
-    (q) =>
-      (!search || `${q.title} ${q.prompt}`.includes(search)) &&
-      (!state ||
-        (state === "archived" ? q.archived : !q.archived && q.state === state)),
+  const [type, setType] = useState(""),
+    [pointID, setPoint] = useState(""),
+    [topicID, setTopic] = useState("");
+  const topics = useLiveQuery<TopicData>("/topics"),
+    points = useLiveQuery<{ points: Point[] }>("");
+  const query = useLiveQuery<{ items: BankVersion[]; total: number }>(
+    `/question-bank/search?${new URLSearchParams({ search, state, type, point_id: pointID, topic_id: topicID, page: String(page), page_size: "10" })}`,
   );
+  const list = query.data?.items || [];
   function select(id: string) {
     const next = new URLSearchParams(params);
     next.set("bank", id);
@@ -208,7 +246,63 @@ export function QuestionBankPage() {
                 <option value="archived">已停用</option>
               </select>
             </label>
-            <span className="live-meta">{list.length} 道题目</span>
+            <label>
+              题型
+              <select
+                aria-label="筛选题型"
+                value={type}
+                onChange={(e) => {
+                  setType(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">全部</option>
+                {Object.entries(typeNames).map(([id, name]) => (
+                  <option key={id} value={id}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              知识点
+              <select
+                aria-label="筛选知识点"
+                value={pointID}
+                onChange={(e) => {
+                  setPoint(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">全部</option>
+                {points.data?.points
+                  .filter((p) => p.kind === "point")
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.title}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label>
+              专题
+              <select
+                aria-label="筛选专题"
+                value={topicID}
+                onChange={(e) => {
+                  setTopic(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">全部</option>
+                {topics.data?.topics.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span className="live-meta">{query.data?.total || 0} 道题目</span>
           </div>
           {creating && (
             <section className="card-panel">
@@ -228,7 +322,7 @@ export function QuestionBankPage() {
                 新建题目，或选择资料与知识后由 AI 起草。
               </EmptyState>
             ) : (
-              list.slice((page - 1) * 10, page * 10).map((q) => (
+              list.map((q) => (
                 <article className="live-row" key={q.bank_id}>
                   <div>
                     <h2>{q.title}</h2>
@@ -250,8 +344,10 @@ export function QuestionBankPage() {
               ))
             )}
             <Pagination
+              responsive
+              showLessItems
               current={page}
-              total={list.length}
+              total={query.data?.total || 0}
               pageSize={10}
               showSizeChanger={false}
               onChange={setPage}
@@ -339,6 +435,9 @@ function BankDetailView({ bankID }: { bankID: string }) {
         </div>
       </div>
       <Feedback message={action.message} failed={action.failed} />
+      <ContentLinks kind="question" id={v.id} />
+      <DecisionHistory id={v.id} />
+      <BankProvenance id={v.id} />
       {editing ? (
         <BankEditor
           key={v.id}
@@ -360,7 +459,7 @@ function BankDetailView({ bankID }: { bankID: string }) {
               label: "题目与参考解答",
               children: (
                 <>
-                  <p className="live-prose">{v.prompt}</p>
+                  <RichContent text={v.prompt} />
                   <p className="live-meta">
                     {typeNames[v.type]} · 满分 {v.max_score}
                   </p>
@@ -757,6 +856,7 @@ function BankEditor({
     correct_answer: initial?.correct_answer || "",
     refs: initial?.evidence_refs || ([] as Hit[]),
     criteria: [] as Criterion[],
+    ai_job_id: "",
   });
   const v = draft.value;
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -776,13 +876,13 @@ function BankEditor({
       ...(q.max_score ? { max_score: q.max_score } : {}),
     });
   }
-  function adopt(output: Record<string, unknown>) {
+  function adopt(output: Record<string, unknown>, id: string) {
     if (draft.dirty && !confirm("载入AI候选并替换当前编辑？")) return;
     const qs = output.questions as Candidate[];
     setCandidates(qs);
     setCandidate(0);
     load(qs[0]);
-    change({ refs: output.evidence_refs as Hit[] });
+    change({ refs: output.evidence_refs as Hit[], ai_job_id: id });
   }
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -1256,7 +1356,13 @@ export function BankQuestionPicker({
   const confirmed = rubrics.data?.filter((r) => r.state === "confirmed") || [];
   const selected = confirmed.find((r) => r.id === rubric) || confirmed[0];
   return (
-    <Drawer title="从题库选题" aria-label="从题库选题" open={open} onClose={onClose} width={720}>
+    <Drawer
+      title="从题库选题"
+      aria-label="从题库选题"
+      open={open}
+      onClose={onClose}
+      width={720}
+    >
       <Feedback error={list.error || detail.error || rubrics.error} />
       <div className="live-form">
         <label>

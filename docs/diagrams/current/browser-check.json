@@ -1,6 +1,6 @@
 {
   "scope": "diagrams-only",
-  "date": "2026-11-11",
+  "date": "2026-11-12",
   "geometry": [
     {
       "file": "00_全景架构_实现状态",
@@ -15,7 +15,7 @@
       "text_bounds": "pass",
       "png_size": [
         2400,
-        1480
+        1810
       ]
     },
     {
@@ -33,6 +33,14 @@
         2400,
         1660
       ]
+    },
+    {
+      "file": "04_内容变更与整组重评",
+      "text_bounds": "pass",
+      "png_size": [
+        2400,
+        1510
+      ]
     }
   ],
   "checks": [
@@ -41,7 +49,7 @@
     "module-boundaries",
     "reset",
     "zoom-fit",
-    "four-tabs",
+    "five-tabs",
     "svg-png-links",
     "keyboard",
     "unique-svg-ids",

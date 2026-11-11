@@ -34,6 +34,7 @@ func Register(api *gin.RouterGroup, db *pgxpool.Pool, auth *identity.Handler) {
 	g.GET("", h.context)
 	h.registerRAG(g, auth)
 	h.registerQuestionBank(g, auth)
+	h.registerMaterialWorkflows(g, auth)
 	g.POST("/publish", identity.RequireRole("teacher"), auth.RequireCSRF(), h.publishCourse)
 	g.PUT("", identity.RequireRole("teacher"), auth.RequireCSRF(), h.renameCourse)
 	g.POST("/curriculum", identity.RequireRole("teacher"), auth.RequireCSRF(), h.importCurriculum)

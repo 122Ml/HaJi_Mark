@@ -14,6 +14,17 @@ import {
 } from "./context";
 import { useEditorDraft, DraftNotice } from "./editing";
 import "./knowledge.css";
+import {
+  ContentLinks,
+  TopicManager,
+  DecisionHistory,
+  type TopicData,
+} from "./content-topics";
+import { MaterialAssets } from "./material-assets";
+import { URLImport, SourceSuggestions, PaperImport } from "./material-assist";
+import { KnowledgeReview } from "./knowledge-review";
+import { RichContent } from "./content-render";
+import { Tabs } from "antd";
 
 type Profile = { id: string; label: string; kind: string; available: boolean };
 type ModelInfo = {
@@ -59,7 +70,7 @@ type SourceDetail = {
   display_revision: number;
 };
 type Evidence = { source_id: string; fragment_id: string; quote: string };
-type Knowledge = {
+export type Knowledge = {
   id: string;
   title: string;
   body: string;
@@ -104,7 +115,9 @@ export function FrozenEvidence({ sources }: { sources?: Hit[] }) {
           <small>{location(hit.locator)}</small>
           <p className="live-prose">{hit.body}</p>
           {hit.source_id && (
-            <Link to={`/teacher/materials?source=${hit.source_id}&fragment=${hit.fragment_ids?.[0] || ""}`}>
+            <Link
+              to={`/teacher/materials?source=${hit.source_id}&fragment=${hit.fragment_ids?.[0] || ""}`}
+            >
               查看引用原文
             </Link>
           )}
@@ -159,6 +172,10 @@ const labels: Record<string, string> = {
   question_generate: "AI出题",
   question_analyze: "题目分析",
   bank_rubric: "题库标准起草",
+  vision: "图像识别",
+  source_suggest: "资料编排建议",
+  knowledge_compare: "知识比较",
+  paper_split: "整卷拆题",
 };
 const kinds = [
   { value: "concept", label: "概念" },
@@ -169,6 +186,17 @@ const kinds = [
 ];
 function location(locator: Record<string, unknown>) {
   return Object.entries(locator)
+    .filter(([k]) =>
+      [
+        "page",
+        "slide",
+        "paragraph",
+        "block",
+        "table",
+        "shape",
+        "method",
+      ].includes(k),
+    )
     .map(
       ([k, v]) =>
         `${({ page: "页", slide: "幻灯片", paragraph: "段落", block: "内容块", table: "表格", shape: "对象", method: "解析方式" } as Record<string, string>)[k] || k} ${String(v)}`,
@@ -199,7 +227,7 @@ export function ModelSelect({
     />
   );
 }
-function useJob(id: string) {
+export function useJob(id: string) {
   const q = useLiveQuery<Job>(`/jobs/${id}`, !!id);
   useEffect(() => {
     if (!id || (q.data && !["queued", "running"].includes(q.data.state)))
@@ -214,26 +242,50 @@ export function AIDraft({
   target,
   onAdopt,
 }: {
-  kind: "rubric" | "grade" | "question_generate" | "question_analyze" | "bank_rubric";
+  kind:
+    | "rubric"
+    | "grade"
+    | "question_generate"
+    | "question_analyze"
+    | "bank_rubric";
   target: Record<string, unknown>;
   onAdopt: (output: Record<string, unknown>, id: string) => void;
 }) {
   const action = useAction();
   const [model, setModel] = useState("");
-  const bank = ["question_generate", "question_analyze", "bank_rubric"].includes(kind);
-  const filters = Object.fromEntries(Object.entries(target).filter(([k,v]) => ["question_id", "submission_id", "rubric_id"].includes(k) && typeof v === "string")) as Record<string,string>;
+  const bank = [
+    "question_generate",
+    "question_analyze",
+    "bank_rubric",
+  ].includes(kind);
+  const filters = Object.fromEntries(
+    Object.entries(target).filter(
+      ([k, v]) =>
+        ["question_id", "submission_id", "rubric_id"].includes(k) &&
+        typeof v === "string",
+    ),
+  ) as Record<string, string>;
   const jobs = useLiveQuery<Job[]>(
     `/jobs?${new URLSearchParams({ kind, ...filters })}`,
   );
   const id = jobs.data?.[0]?.id || "";
   const q = useJob(id);
-  const stale = bank && !!q.data && Object.entries(target).some(([key,value]) => {
-    if (key === "evidence_ids") {
-      const ids = (q.data!.input.evidence_refs as Hit[] | undefined)?.map(h=>h.id) || [];
-      return JSON.stringify([...ids].sort()) !== JSON.stringify([...(value as string[])].sort());
-    }
-    return JSON.stringify(q.data!.input[key]) !== JSON.stringify(value);
-  });
+  const stale =
+    bank &&
+    !!q.data &&
+    Object.entries(target).some(([key, value]) => {
+      if (key === "evidence_ids") {
+        const ids =
+          (q.data!.input.evidence_refs as Hit[] | undefined)?.map(
+            (h) => h.id,
+          ) || [];
+        return (
+          JSON.stringify([...ids].sort()) !==
+          JSON.stringify([...(value as string[])].sort())
+        );
+      }
+      return JSON.stringify(q.data!.input[key]) !== JSON.stringify(value);
+    });
   const busy =
     action.busy ||
     (!!id && q.isPending) ||
@@ -256,9 +308,11 @@ export function AIDraft({
         >
           {busy
             ? "生成中…"
-            : bank ? labels[kind] : kind === "rubric"
-              ? "AI起草标准"
-              : "AI生成评阅草稿"}
+            : bank
+              ? labels[kind]
+              : kind === "rubric"
+                ? "AI起草标准"
+                : "AI生成评阅草稿"}
         </button>
       </div>
       <Feedback
@@ -273,7 +327,13 @@ export function AIDraft({
             {q.data.error ? `：${q.data.error}` : ""}
           </p>
           {busy && <Progress percent={q.data.progress} size="small" />}
-          {q.data.state === "failed" && typeof q.data.output.raw_response === "string" && <details><summary>查看模型原始回复</summary><pre className="live-prose">{q.data.output.raw_response}</pre></details>}
+          {q.data.state === "failed" &&
+            typeof q.data.output.raw_response === "string" && (
+              <details>
+                <summary>查看模型原始回复</summary>
+                <pre className="live-prose">{q.data.output.raw_response}</pre>
+              </details>
+            )}
           {q.data.state === "succeeded" && (
             <>
               <details>
@@ -288,7 +348,11 @@ export function AIDraft({
               >
                 载入编辑区
               </button>
-              {stale && <p className="live-meta">当前要求或依据已变化，请按当前条件重新生成。</p>}
+              {stale && (
+                <p className="live-meta">
+                  当前要求或依据已变化，请按当前条件重新生成。
+                </p>
+              )}
             </>
           )}
         </div>
@@ -305,10 +369,32 @@ function DraftPreview({ output }: { output: Record<string, unknown> }) {
     | undefined;
   return (
     <div className="rag-draft-preview">
-      {(output.questions as { title: string; prompt: string; reference_answer: string }[] | undefined)?.map((q,i) => <article key={i}><strong>{q.title}</strong><p className="live-prose">{q.prompt}</p><details><summary>参考解答</summary><p className="live-prose">{q.reference_answer}</p></details></article>)}
-      {(output.requirements as string[] | undefined)?.map((r,i) => <p key={`r${i}`}>回答要求：{r}</p>)}
-      {(output.issues as string[] | undefined)?.map((r,i) => <p key={`i${i}`}>待澄清：{r}</p>)}
-      {(output.associations as {evidence_id:string;reason:string}[] | undefined)?.map((r,i) => <p key={`a${i}`}>关联理由：{r.reason}</p>)}
+      {(
+        output.questions as
+          | { title: string; prompt: string; reference_answer: string }[]
+          | undefined
+      )?.map((q, i) => (
+        <article key={i}>
+          <strong>{q.title}</strong>
+          <p className="live-prose">{q.prompt}</p>
+          <details>
+            <summary>参考解答</summary>
+            <p className="live-prose">{q.reference_answer}</p>
+          </details>
+        </article>
+      ))}
+      {(output.requirements as string[] | undefined)?.map((r, i) => (
+        <p key={`r${i}`}>回答要求：{r}</p>
+      ))}
+      {(output.issues as string[] | undefined)?.map((r, i) => (
+        <p key={`i${i}`}>待澄清：{r}</p>
+      ))}
+      {(
+        output.associations as
+          { evidence_id: string; reason: string }[] | undefined
+      )?.map((r, i) => (
+        <p key={`a${i}`}>关联理由：{r.reason}</p>
+      ))}
       {criteria?.map((p) => (
         <article key={p.id}>
           <strong>
@@ -488,20 +574,44 @@ export function MaterialsPage() {
       <JobsPanel />
       <Drawer
         title="导入资料"
+        aria-label="导入资料"
         open={upload}
         onClose={() => setUpload(false)}
         width={600}
         destroyOnHidden
       >
-        <UploadForm
-          onDone={() => {
-            setUpload(false);
-            void sources.refetch();
-          }}
+        <Tabs
+          items={[
+            {
+              key: "files",
+              label: "文件",
+              children: (
+                <UploadForm
+                  onDone={() => {
+                    setUpload(false);
+                    void sources.refetch();
+                  }}
+                />
+              ),
+            },
+            {
+              key: "url",
+              label: "公开网址",
+              children: (
+                <URLImport
+                  onDone={() => {
+                    setUpload(false);
+                    void sources.refetch();
+                  }}
+                />
+              ),
+            },
+          ]}
         />
       </Drawer>
       <Drawer
         title="资料核对与发布"
+        aria-label="资料核对与发布"
         open={!!selected}
         onClose={() => setSelected("")}
         width={1000}
@@ -638,7 +748,14 @@ function SourceWorkspace({
         <button className="ghost-btn" onClick={() => setReplacing(!replacing)}>
           {replacing ? "取消上传新版本" : "上传原件新版本"}
         </button>
-        {editable && <Link className="ghost-btn" to={`/teacher/question-bank?new=1&source_id=${id}`}>据此出题</Link>}
+        {editable && (
+          <Link
+            className="ghost-btn"
+            to={`/teacher/question-bank?new=1&source_id=${id}`}
+          >
+            据此出题
+          </Link>
+        )}
         <span className="rag-tag">
           {labels[source.parse_state]} · 原文修订 {query.data.display_revision}
         </span>
@@ -670,6 +787,17 @@ function SourceWorkspace({
           <Link to={`/teacher/materials?source=${id}`}>查看当前修订</Link>
         </p>
       )}
+      <ContentLinks kind="source" id={id} />
+      {editable && <SourceSuggestions id={id} />}
+      <MaterialAssets
+        sourceID={id}
+        revision={source.parse_revision}
+        editable={editable}
+      />
+      {editable && fragments.length > 0 && (
+        <PaperImport id={id} fragments={fragments} />
+      )}
+      <DecisionHistory id={id} />
       {replacing && (
         <UploadForm supersedesID={id} onDone={() => setReplacing(false)} />
       )}
@@ -892,9 +1020,32 @@ export function KnowledgePage() {
   const query = useLiveQuery<Knowledge[]>("/knowledge");
   const [selected, setSelected] = useState<Knowledge | null>(null);
   const [creating, setCreating] = useState(false);
+  const [reviewing, setReviewing] = useState<Knowledge | null>(null);
   const [filter, setFilter] = useState("");
+  const [params] = useSearchParams();
+  const [topic, setTopic] = useState("");
+  const topics = useLiveQuery<TopicData>("/topics", teacher);
   const action = useAction();
-  const rows = query.data?.filter((k) => !filter || k.state === filter);
+  const rows = query.data?.filter(
+    (k) =>
+      (!filter || k.state === filter) &&
+      (!topic ||
+        topics.data?.links.some(
+          (l) => l.topic_id === topic && l.knowledge_id === k.id,
+        )),
+  );
+  const linkedID = params.get("knowledge");
+  useEffect(() => {
+    if (linkedID && query.data) {
+      setFilter("");
+      setTopic("");
+      requestAnimationFrame(() =>
+        document
+          .getElementById(`knowledge-${linkedID}`)
+          ?.scrollIntoView({ block: "start" }),
+      );
+    }
+  }, [linkedID, query.data]);
   return (
     <div className="live-page">
       <div className="workspace-heading">
@@ -926,10 +1077,22 @@ export function KnowledgePage() {
               { value: "archived", label: "已归档" },
             ]}
           />
+          <Select
+            aria-label="筛选知识专题"
+            value={topic}
+            onChange={setTopic}
+            options={[
+              { value: "", label: "全部专题" },
+              ...(topics.data?.topics
+                .filter((t) => t.active)
+                .map((t) => ({ value: t.id, label: t.title })) || []),
+            ]}
+          />
           <Link to="/teacher/materials">从资料提炼</Link>
           <Link to="/teacher/retrieval">验证检索</Link>
         </div>
       )}
+      {teacher && <TopicManager />}
       <Feedback
         error={query.error}
         message={action.message}
@@ -947,7 +1110,11 @@ export function KnowledgePage() {
         </section>
       ) : (
         rows.map((k) => (
-          <article key={k.id} className="card-panel rag-knowledge">
+          <article
+            key={k.id}
+            id={`knowledge-${k.id}`}
+            className="card-panel rag-knowledge"
+          >
             <div className="workspace-heading">
               <h2>{k.title}</h2>
               <span className="rag-tag">
@@ -961,7 +1128,7 @@ export function KnowledgePage() {
                 ? ` · ${k.use_for_learning ? "学习" : ""} ${k.use_for_grading ? "评分" : ""} · ${k.student_visible ? "学生可见" : "教师内部"}`
                 : ""}
             </p>
-            <p className="live-prose">{k.body}</p>
+            <RichContent text={k.body} />
             {k.conditions && (
               <p>
                 <strong>适用条件：</strong>
@@ -986,7 +1153,19 @@ export function KnowledgePage() {
             </details>
             {teacher && (
               <div className="live-inline">
-                {k.state === "confirmed" && k.use_for_grading && <Link className="ghost-btn" to={`/teacher/question-bank?new=1&knowledge_id=${k.id}`}>据此出题</Link>}
+                {k.state === "draft" && (
+                  <button className="ghost-btn" onClick={() => setReviewing(k)}>
+                    比较与处理
+                  </button>
+                )}
+                {k.state === "confirmed" && k.use_for_grading && (
+                  <Link
+                    className="ghost-btn"
+                    to={`/teacher/question-bank?new=1&knowledge_id=${k.id}`}
+                  >
+                    据此出题
+                  </Link>
+                )}
                 <button
                   className="ghost-btn"
                   onClick={() => {
@@ -1027,10 +1206,32 @@ export function KnowledgePage() {
                 )}
               </div>
             )}
+            {teacher && (
+              <>
+                <ContentLinks kind="knowledge" id={k.id} />
+                <DecisionHistory id={k.id} />
+              </>
+            )}
           </article>
         ))
       )}
       {teacher && <JobsPanel />}
+      <Drawer
+        title="知识比较与决策"
+        aria-label="知识比较与决策"
+        open={!!reviewing}
+        onClose={() => setReviewing(null)}
+        width={900}
+        destroyOnHidden
+      >
+        {reviewing && (
+          <KnowledgeReview
+            key={reviewing.id}
+            candidate={reviewing}
+            onDone={() => setReviewing(null)}
+          />
+        )}
+      </Drawer>
       <Drawer
         title={selected?.state === "draft" ? "编辑知识候选" : "新建知识版本"}
         open={creating}

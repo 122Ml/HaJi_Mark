@@ -91,8 +91,8 @@ const { chromium } = require('playwright');
     assert(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth), 'viewer mobile overflow');
     assert.deepEqual(errors, []);
     fs.writeFileSync(path.join(out,'browser-check.json'),JSON.stringify({
-      scope:'diagrams-only', date:'2026-11-11', geometry,
-      checks:['node-highlighting','module-filter','module-boundaries','reset','zoom-fit','four-tabs','svg-png-links','keyboard','unique-svg-ids','390px-viewer'],
+      scope:'diagrams-only', date:'2026-11-12', geometry,
+      checks:['node-highlighting','module-filter','module-boundaries','reset','zoom-fit','five-tabs','svg-png-links','keyboard','unique-svg-ids','390px-viewer'],
       page_errors:errors
     }, null, 2));
     process.stdout.write('PASS: diagram geometry, exports and 10 viewer checks.\n');

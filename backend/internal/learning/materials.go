@@ -156,6 +156,18 @@ func (h *Handler) uploadSources(c *gin.Context) {
 			result(c, nil, e)
 			return
 		}
+		if supersedes == "" {
+			old, err := h.q.SourceDuplicate(c.Request.Context(), store.SourceDuplicateParams{CourseID: c.Param("courseID"), Sha256: hex.EncodeToString(hash.Sum(nil))})
+			if err == nil {
+				_ = os.Remove(path)
+				identity.Fail(c, 409, "duplicate_source", "内容已导入，请复用原件："+old.Title)
+				return
+			}
+			if !errors.Is(err, pgx.ErrNoRows) {
+				result(c, nil, err)
+				return
+			}
+		}
 		title := c.PostForm("title")
 		if title == "" || len(files) > 1 {
 			title = file.Filename
@@ -482,6 +494,10 @@ func (h *Handler) createRAGJob(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
+	if in.Kind == "source_suggest" || in.Kind == "knowledge_compare" || in.Kind == "paper_split" || in.Kind == "vision" {
+		h.createWorkflowJob(c, in.Kind, in.JobInput)
+		return
+	}
 	if in.Kind == "parse" || in.Kind == "extract" {
 		src, e := h.q.GetMaterialSource(ctx, store.GetMaterialSourceParams{ID: in.SourceID, CourseID: c.Param("courseID")})
 		if e != nil {
@@ -547,7 +563,7 @@ func (h *Handler) createRAGJob(c *gin.Context) {
 	result(c, j, e)
 }
 func (h *Handler) jobs(c *gin.Context) {
-	v, e := h.q.ListProcessingJobs(c.Request.Context(), store.ListProcessingJobsParams{CourseID: c.Param("courseID"), Kind: c.Query("kind"), QuestionID: c.Query("question_id"), SubmissionID: c.Query("submission_id"), RubricID: c.Query("rubric_id")})
+	v, e := h.q.ListProcessingJobs(c.Request.Context(), store.ListProcessingJobsParams{CourseID: c.Param("courseID"), Kind: c.Query("kind"), QuestionID: c.Query("question_id"), SubmissionID: c.Query("submission_id"), RubricID: c.Query("rubric_id"), SourceID: c.Query("source_id"), KnowledgeID: c.Query("knowledge_id"), AssetID: c.Query("asset_id")})
 	result(c, v, e)
 }
 func (h *Handler) job(c *gin.Context) {

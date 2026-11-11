@@ -424,4 +424,121 @@ INSERT INTO material_fragments(id,source_id,revision,position,body,locator,quali
 		}
 		call(student, "GET", base+"/jobs?kind=rubric", nil, 403)
 	})
+	t.Run("topic_scope_and_atomic_whole_group_regrade", func(t *testing.T) {
+		decode := func(raw json.RawMessage, into any) {
+			t.Helper()
+			if e := json.Unmarshal(raw, into); e != nil {
+				t.Fatal(e, string(raw))
+			}
+		}
+		topic := id(call(teacher, "POST", base+"/topics", map[string]any{"title": "边界专题"}, 200))
+		call(student, "GET", base+"/topics", nil, 403)
+		call(other, "GET", base+"/topics", nil, 403)
+		call(teacher, "PUT", base+"/topics/"+topic, map[string]any{"title": "边界专题", "active": false, "edit_version": 1}, 200)
+		call(teacher, "PUT", base+"/topics/"+topic, map[string]any{"title": "覆盖新编辑", "active": true, "edit_version": 1}, 409)
+		body := map[string]any{"title": "重评验收题", "prompt": "说明边界测试目的", "type": "subjective", "max_score": 10}
+		var bank store.BankQuestionVersion
+		decode(call(teacher, "POST", base+"/question-bank", body, 200), &bank)
+		call(teacher, "POST", base+"/question-bank/versions/"+bank.ID+"/confirm", map[string]any{}, 200)
+		criteria := []map[string]any{{"id": "D1", "title": "目的", "rule": "按证据给分", "max_score": 10}}
+		var rubric store.RubricVersion
+		decode(call(teacher, "POST", base+"/question-bank/versions/"+bank.ID+"/rubrics", map[string]any{"criteria": criteria}, 200), &rubric)
+		call(teacher, "POST", base+"/rubrics/"+rubric.ID+"/confirm", map[string]any{}, 200)
+		aid := id(call(teacher, "POST", base+"/assignments", map[string]any{"title": "整组重评事务验收", "type": "subjective", "questions": []any{map[string]any{"bank_question_version_id": bank.ID, "bound_rubric_id": rubric.ID}}}, 200))
+		var assignment struct {
+			Questions []store.Question `json:"questions"`
+		}
+		decode(call(teacher, "GET", base+"/assignments/"+aid, nil, 200), &assignment)
+		qid := assignment.Questions[0].ID
+		call(teacher, "POST", base+"/assignments/"+aid+"/state", map[string]string{"state": "published"}, 200)
+		sids := []string{}
+		for i, a := range []actor{student, peer} {
+			s := id(call(a, "POST", base+"/assignments/"+aid+"/submissions", map[string]any{"question_id": qid, "answer_text": "检查拒绝超范围输入", "request_id": fmt.Sprintf("regrade-answer-%d", i)}, 200))
+			sids = append(sids, s)
+			g := id(call(teacher, "POST", base+"/submissions/"+s+"/revisions", map[string]any{"score": 4, "feedback": "原正式结果", "request_id": fmt.Sprintf("regrade-original-%d", i), "rubric_id": rubric.ID, "points": []any{map[string]any{"criterion_id": "D1", "score": 4, "feedback": "原评分", "quote": "拒绝超范围输入"}}}, 200))
+			for _, state := range []string{"confirmed", "released"} {
+				call(teacher, "POST", base+"/revisions/"+g+"/state", map[string]string{"state": state}, 200)
+			}
+		}
+		call(teacher, "POST", base+"/assignments/"+aid+"/state", map[string]string{"state": "closed"}, 200)
+		var revised store.RubricVersion
+		decode(call(teacher, "POST", base+"/question-bank/versions/"+bank.ID+"/rubrics", map[string]any{"criteria": criteria}, 200), &revised)
+		call(teacher, "POST", base+"/rubrics/"+revised.ID+"/confirm", map[string]any{}, 200)
+		request := map[string]any{"question_id": qid, "rubric_id": revised.ID, "reason": "更正部分分口径", "preview": true}
+		var preview struct {
+			Count int `json:"count"`
+		}
+		decode(call(teacher, "POST", base+"/regrades", request, 200), &preview)
+		if preview.Count != 2 {
+			t.Fatal("freeze scope", preview.Count)
+		}
+		request["preview"] = false
+		bid := id(call(teacher, "POST", base+"/regrades", request, 200))
+		bp := base + "/regrades/" + bid
+		call(teacher, "POST", base+"/regrades", request, 409)
+		call(student, "GET", bp, nil, 403)
+		call(other, "GET", bp, nil, 403)
+		call(teacher, "POST", bp+"/state", map[string]string{"state": "released"}, 409)
+		for i, s := range sids {
+			item := map[string]any{"score": 8, "feedback": "更正后的正式结果", "confirmed": true, "edit_version": 1, "points": []any{map[string]any{"criterion_id": "D1", "score": 8, "feedback": "新口径", "quote": "拒绝超范围输入"}}}
+			call(teacher, "PUT", bp+"/items/"+s, item, 200)
+			call(teacher, "PUT", bp+"/items/"+s, item, 409)
+			if i == 0 {
+				call(teacher, "POST", bp+"/state", map[string]string{"state": "released"}, 409)
+				if !strings.Contains(string(call(student, "GET", base+"/submissions/"+s, nil, 200)), "原正式结果") {
+					t.Fatal("partial publication replaced old feedback")
+				}
+			}
+		}
+		call(teacher, "POST", bp+"/state", map[string]string{"state": "released"}, 200)
+		call(teacher, "POST", bp+"/state", map[string]string{"state": "released"}, 200)
+		var scores int
+		if err := db.QueryRow(ctx, `SELECT count(*) FROM grading_revisions WHERE regrade_batch_id=$1 AND state='released'`, bid).Scan(&scores); err != nil || scores != 2 {
+			t.Fatal("not atomic / duplicated publication", scores, err)
+		}
+		for i, s := range sids {
+			var response struct {
+				Revisions []store.GradingRevision `json:"revisions"`
+			}
+			decode(call([]actor{student, peer}[i], "GET", base+"/submissions/"+s, nil, 200), &response)
+			if len(response.Revisions) != 2 || response.Revisions[0].Score != 8 || response.Revisions[0].RubricID.String != revised.ID {
+				t.Fatal("student did not get latest whole-group result")
+			}
+			call(teacher, "POST", base+"/submissions/"+s+"/revisions", map[string]any{"score": 4, "feedback": "旧口径不能覆盖重评", "request_id": fmt.Sprintf("regrade-bypass-%d", i), "rubric_id": rubric.ID, "points": []any{map[string]any{"criterion_id": "D1", "score": 4, "feedback": "旧口径", "quote": "拒绝超范围输入"}}}, 409)
+		}
+		second := id(call(teacher, "POST", base+"/regrades", request, 200))
+		call(teacher, "POST", base+"/regrades/"+second+"/state", map[string]string{"state": "canceled"}, 200)
+		call(teacher, "POST", base+"/regrades/"+second+"/state", map[string]string{"state": "released"}, 409)
+		conflict := id(call(teacher, "POST", base+"/regrades", request, 200))
+		for _, s := range sids {
+			call(teacher, "PUT", base+"/regrades/"+conflict+"/items/"+s, map[string]any{"score": 7, "feedback": "冲突回滚验收", "confirmed": true, "edit_version": 1, "points": []any{map[string]any{"criterion_id": "D1", "score": 7, "feedback": "新口径", "quote": "拒绝超范围输入"}}}, 200)
+		}
+		// Simulate an independent writer after freezing. The later student conflicts
+		// after the earlier row was processed: the entire publication must roll back.
+		if _, err := db.Exec(ctx, `INSERT INTO grading_revisions(id,submission_id,revision,score,feedback,reviewer_id,request_id) SELECT 'parallel-regrade-test',$1,max(revision)+1,6,'parallel','teacher','parallel-regrade-test' FROM grading_revisions WHERE submission_id=$1`, sids[0]); err != nil {
+			t.Fatal(err)
+		}
+		call(teacher, "POST", base+"/regrades/"+conflict+"/state", map[string]string{"state": "released"}, 409)
+		if err := db.QueryRow(ctx, `SELECT count(*) FROM grading_revisions WHERE regrade_batch_id=$1`, conflict).Scan(&scores); err != nil || scores != 0 {
+			t.Fatal("conflict leaked a partial group", scores, err)
+		}
+		call(teacher, "POST", base+"/regrades/"+conflict+"/state", map[string]string{"state": "canceled"}, 200)
+		reopened := id(call(teacher, "POST", base+"/regrades", request, 200))
+		if _, err := db.Exec(ctx, `UPDATE assignments SET status='published' WHERE id=$1`, aid); err != nil {
+			t.Fatal(err)
+		}
+		call(teacher, "POST", base+"/regrades/"+reopened+"/state", map[string]string{"state": "released"}, 409)
+		if _, err := db.Exec(ctx, `UPDATE assignments SET status='closed' WHERE id=$1`, aid); err != nil {
+			t.Fatal(err)
+		}
+		call(teacher, "POST", base+"/regrades/"+reopened+"/state", map[string]string{"state": "canceled"}, 200)
+		var rows struct {
+			Total int                         `json:"total"`
+			Items []store.BankQuestionVersion `json:"items"`
+		}
+		decode(call(teacher, "GET", base+"/question-bank/search?search=重评验收&page=1&page_size=1&type=subjective", nil, 200), &rows)
+		if rows.Total != 1 || len(rows.Items) != 1 || rows.Items[0].ID != bank.ID {
+			t.Fatal("server paging/filter mismatch")
+		}
+	})
 }

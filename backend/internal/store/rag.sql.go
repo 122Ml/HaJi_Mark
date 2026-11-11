@@ -120,7 +120,7 @@ func (q *Queries) CancelProcessingJob(ctx context.Context, arg CancelProcessingJ
 }
 
 const claimProcessingJob = `-- name: ClaimProcessingJob :one
-UPDATE processing_jobs SET state='running',started_at=now(),attempt=attempt+1,error='' WHERE id=$1 AND (state='queued' OR (state='running' AND started_at<now()-interval '15 minutes')) RETURNING id, course_id, created_by, kind, state, input, output, progress, error, attempt, created_at, started_at, finished_at
+UPDATE processing_jobs SET state='running',started_at=now(),attempt=attempt+1,error='' WHERE id=$1 AND (state='queued' OR (state='running' AND kind IN ('parse','index') AND started_at<now()-interval '15 minutes')) RETURNING id, course_id, created_by, kind, state, input, output, progress, error, attempt, created_at, started_at, finished_at
 `
 
 func (q *Queries) ClaimProcessingJob(ctx context.Context, id string) (ProcessingJob, error) {
@@ -403,8 +403,18 @@ func (q *Queries) EditKnowledgeEntry(ctx context.Context, arg EditKnowledgeEntry
 	return i, err
 }
 
-const finishModelCall = `-- name: FinishModelCall :exec
-UPDATE model_calls SET state=$2,charged_micro_cny=$3,input_tokens=$4,output_tokens=$5,duration_ms=$6,error_code=$7 WHERE id=$1 AND state='reserved'
+const expireInterruptedGenerationJobs = `-- name: ExpireInterruptedGenerationJobs :exec
+UPDATE processing_jobs SET state='failed',finished_at=now(),error='任务执行中断，模型结果未知；请核对调用记录后显式重试'
+WHERE state='running' AND kind NOT IN ('parse','index') AND started_at<now()-interval '15 minutes'
+`
+
+func (q *Queries) ExpireInterruptedGenerationJobs(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, expireInterruptedGenerationJobs)
+	return err
+}
+
+const finishModelCall = `-- name: FinishModelCall :one
+UPDATE model_calls SET state=$2,charged_micro_cny=$3,input_tokens=$4,output_tokens=$5,duration_ms=$6,error_code=$7 WHERE id=$1 AND state='reserved' RETURNING id
 `
 
 type FinishModelCallParams struct {
@@ -417,8 +427,8 @@ type FinishModelCallParams struct {
 	ErrorCode       string `json:"error_code"`
 }
 
-func (q *Queries) FinishModelCall(ctx context.Context, arg FinishModelCallParams) error {
-	_, err := q.db.Exec(ctx, finishModelCall,
+func (q *Queries) FinishModelCall(ctx context.Context, arg FinishModelCallParams) (string, error) {
+	row := q.db.QueryRow(ctx, finishModelCall,
 		arg.ID,
 		arg.State,
 		arg.ChargedMicroCny,
@@ -427,7 +437,9 @@ func (q *Queries) FinishModelCall(ctx context.Context, arg FinishModelCallParams
 		arg.DurationMs,
 		arg.ErrorCode,
 	)
-	return err
+	var id string
+	err := row.Scan(&id)
+	return id, err
 }
 
 const finishProcessingJob = `-- name: FinishProcessingJob :exec
@@ -661,9 +673,10 @@ LEFT JOIN material_sources s ON s.id=c.source_id
 LEFT JOIN knowledge_entries k ON k.id=c.knowledge_id
 LEFT JOIN resources r ON r.id=c.resource_id
 WHERE c.course_id=$2 AND c.active AND c.search_document @@ to_tsquery('simple',$1::text)
-AND ((s.state='active' AND ($3::boolean OR EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids)))
- OR (k.state='confirmed' AND CASE WHEN $4::text='grading' THEN k.use_for_grading ELSE k.use_for_learning END AND ($3::boolean OR k.student_visible)
- AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT $3::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND ev->>'fragment_id'=ANY(pr.fragment_ids)))))
+AND ($3::text<>'comparison' OR k.id IS NOT NULL)
+AND ((s.state='active' AND ($4::boolean OR EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids)))
+ OR (k.state='confirmed' AND CASE WHEN $3::text='grading' THEN k.use_for_grading WHEN $3::text='comparison' THEN k.use_for_grading OR k.use_for_learning ELSE k.use_for_learning END AND ($4::boolean OR k.student_visible)
+ AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT $4::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND ev->>'fragment_id'=ANY(pr.fragment_ids)))))
  OR (r.status='published' AND r.source_id IS NULL))
 ORDER BY rank DESC,c.id LIMIT 20
 `
@@ -671,8 +684,8 @@ ORDER BY rank DESC,c.id LIMIT 20
 type KeywordSearchParams struct {
 	QueryTokens string `json:"query_tokens"`
 	CourseID    string `json:"course_id"`
-	Teacher     bool   `json:"teacher"`
 	Purpose     string `json:"purpose"`
+	Teacher     bool   `json:"teacher"`
 }
 
 type KeywordSearchRow struct {
@@ -692,8 +705,8 @@ func (q *Queries) KeywordSearch(ctx context.Context, arg KeywordSearchParams) ([
 	rows, err := q.db.Query(ctx, keywordSearch,
 		arg.QueryTokens,
 		arg.CourseID,
-		arg.Teacher,
 		arg.Purpose,
+		arg.Teacher,
 	)
 	if err != nil {
 		return nil, err
@@ -1025,6 +1038,9 @@ AND ($2::text='' OR kind=$2)
 AND ($3::text='' OR input->>'question_id'=$3)
 AND ($4::text='' OR input->>'submission_id'=$4)
 AND ($5::text='' OR input->>'rubric_id'=$5)
+AND ($6::text='' OR input->>'source_id'=$6)
+AND ($7::text='' OR input->>'knowledge_id'=$7)
+AND ($8::text='' OR input->>'asset_id'=$8)
 ORDER BY created_at DESC,id LIMIT 60
 `
 
@@ -1034,6 +1050,9 @@ type ListProcessingJobsParams struct {
 	QuestionID   string `json:"question_id"`
 	SubmissionID string `json:"submission_id"`
 	RubricID     string `json:"rubric_id"`
+	SourceID     string `json:"source_id"`
+	KnowledgeID  string `json:"knowledge_id"`
+	AssetID      string `json:"asset_id"`
 }
 
 func (q *Queries) ListProcessingJobs(ctx context.Context, arg ListProcessingJobsParams) ([]ProcessingJob, error) {
@@ -1043,6 +1062,9 @@ func (q *Queries) ListProcessingJobs(ctx context.Context, arg ListProcessingJobs
 		arg.QuestionID,
 		arg.SubmissionID,
 		arg.RubricID,
+		arg.SourceID,
+		arg.KnowledgeID,
+		arg.AssetID,
 	)
 	if err != nil {
 		return nil, err
@@ -1203,7 +1225,7 @@ func (q *Queries) PendingCourseIndex(ctx context.Context, courseID string) (Proc
 }
 
 const pendingProcessingJobs = `-- name: PendingProcessingJobs :many
-SELECT id, course_id, created_by, kind, state, input, output, progress, error, attempt, created_at, started_at, finished_at FROM processing_jobs WHERE state='queued' OR (state='running' AND started_at<now()-interval '15 minutes') ORDER BY created_at LIMIT 20
+SELECT id, course_id, created_by, kind, state, input, output, progress, error, attempt, created_at, started_at, finished_at FROM processing_jobs WHERE state='queued' OR (state='running' AND kind IN ('parse','index') AND started_at<now()-interval '15 minutes') ORDER BY created_at LIMIT 20
 `
 
 func (q *Queries) PendingProcessingJobs(ctx context.Context) ([]ProcessingJob, error) {
@@ -1452,6 +1474,21 @@ func (q *Queries) SetSourceDerivation(ctx context.Context, arg SetSourceDerivati
 	return i, err
 }
 
+const settleInterruptedModelCalls = `-- name: SettleInterruptedModelCalls :exec
+WITH expired AS (
+ UPDATE model_calls SET state='unknown',charged_micro_cny=reserved_micro_cny,error_code='worker_interrupted'
+ WHERE state='reserved' AND created_at<now()-interval '15 minutes'
+ RETURNING reserved_micro_cny
+)
+UPDATE model_budget SET reserved_micro_cny=reserved_micro_cny-amount.total,spent_micro_cny=spent_micro_cny+amount.total
+FROM (SELECT coalesce(sum(reserved_micro_cny),0)::bigint AS total FROM expired) amount WHERE id=1
+`
+
+func (q *Queries) SettleInterruptedModelCalls(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, settleInterruptedModelCalls)
+	return err
+}
+
 const settleModelBudget = `-- name: SettleModelBudget :exec
 UPDATE model_budget SET reserved_micro_cny=reserved_micro_cny-$1,spent_micro_cny=spent_micro_cny+$2 WHERE id=1
 `
@@ -1581,9 +1618,10 @@ LEFT JOIN material_sources s ON s.id=c.source_id
 LEFT JOIN knowledge_entries k ON k.id=c.knowledge_id
 LEFT JOIN resources r ON r.id=c.resource_id
 WHERE c.course_id=$2 AND e.space_id=$3 AND c.active
-AND ((s.state='active' AND ($4::boolean OR EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids)))
- OR (k.state='confirmed' AND CASE WHEN $5::text='grading' THEN k.use_for_grading ELSE k.use_for_learning END AND ($4::boolean OR k.student_visible)
- AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT $4::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND ev->>'fragment_id'=ANY(pr.fragment_ids)))))
+AND ($4::text<>'comparison' OR k.id IS NOT NULL)
+AND ((s.state='active' AND ($5::boolean OR EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids)))
+ OR (k.state='confirmed' AND CASE WHEN $4::text='grading' THEN k.use_for_grading WHEN $4::text='comparison' THEN k.use_for_grading OR k.use_for_learning ELSE k.use_for_learning END AND ($5::boolean OR k.student_visible)
+ AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT $5::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND ev->>'fragment_id'=ANY(pr.fragment_ids)))))
  OR (r.status='published' AND r.source_id IS NULL))
 ORDER BY distance,c.id LIMIT 20
 `
@@ -1592,8 +1630,8 @@ type VectorSearchParams struct {
 	VectorText string `json:"vector_text"`
 	CourseID   string `json:"course_id"`
 	SpaceID    string `json:"space_id"`
-	Teacher    bool   `json:"teacher"`
 	Purpose    string `json:"purpose"`
+	Teacher    bool   `json:"teacher"`
 }
 
 type VectorSearchRow struct {
@@ -1614,8 +1652,8 @@ func (q *Queries) VectorSearch(ctx context.Context, arg VectorSearchParams) ([]V
 		arg.VectorText,
 		arg.CourseID,
 		arg.SpaceID,
-		arg.Teacher,
 		arg.Purpose,
+		arg.Teacher,
 	)
 	if err != nil {
 		return nil, err

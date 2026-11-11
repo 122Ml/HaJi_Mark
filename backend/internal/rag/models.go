@@ -21,18 +21,20 @@ import (
 )
 
 type Profile struct {
-	ID             string `json:"id"`
-	Label          string `json:"label"`
-	Kind           string `json:"kind"`
-	Protocol       string `json:"protocol"`
-	BaseURLEnv     string `json:"base_url_env"`
-	KeyEnv         string `json:"key_env"`
-	Model          string `json:"model"`
-	Dimensions     int    `json:"dimensions"`
-	SendDimensions bool   `json:"send_dimensions"`
-	BatchSize      int    `json:"batch_size"`
-	InputRate      int64  `json:"input_micro_cny_per_token"`
-	OutputRate     int64  `json:"output_micro_cny_per_token"`
+	ID              string `json:"id"`
+	Label           string `json:"label"`
+	Kind            string `json:"kind"`
+	Protocol        string `json:"protocol"`
+	BaseURLEnv      string `json:"base_url_env"`
+	KeyEnv          string `json:"key_env"`
+	Model           string `json:"model"`
+	Dimensions      int    `json:"dimensions"`
+	SendDimensions  bool   `json:"send_dimensions"`
+	BatchSize       int    `json:"batch_size"`
+	InputRate       int64  `json:"input_micro_cny_per_token"`
+	OutputRate      int64  `json:"output_micro_cny_per_token"`
+	ImageTokenLimit int    `json:"image_token_limit,omitempty"`
+	Thinking        string `json:"thinking,omitempty"`
 }
 type Models struct {
 	DB       *pgxpool.Pool
@@ -55,7 +57,10 @@ func LoadModels(db *pgxpool.Pool) (*Models, error) {
 	}
 	seen := map[string]bool{}
 	for _, p := range m.Profiles {
-		if p.ID == "" || seen[p.ID] || p.Protocol != "openai" || (p.Kind != "chat" && p.Kind != "embedding") || p.InputRate <= 0 || p.OutputRate < 0 || p.BatchSize < 1 || p.BatchSize > 100 || (p.Kind == "embedding" && (p.Dimensions < 1 || p.Dimensions > 16000)) {
+		if p.Thinking != "" && p.Thinking != "enabled" && p.Thinking != "disabled" {
+			return nil, errors.New("invalid thinking setting")
+		}
+		if p.ID == "" || seen[p.ID] || p.Protocol != "openai" || (p.Kind != "chat" && p.Kind != "embedding" && p.Kind != "vision") || (p.Kind == "vision" && (p.ImageTokenLimit < 1 || p.ImageTokenLimit > 100000)) || p.InputRate <= 0 || p.OutputRate < 0 || p.BatchSize < 1 || p.BatchSize > 100 || (p.Kind == "embedding" && (p.Dimensions < 1 || p.Dimensions > 16000)) {
 			return nil, errors.New("invalid model profile")
 		}
 		seen[p.ID] = true
@@ -130,7 +135,7 @@ func (m *Models) call(ctx context.Context, course, actor, purpose string, p Prof
 		}
 		defer t.Rollback(settleCtx)
 		sq := store.New(t)
-		if err = sq.FinishModelCall(settleCtx, store.FinishModelCallParams{ID: id, State: state, ChargedMicroCny: charge, InputTokens: u.Prompt, OutputTokens: u.Completion, DurationMs: time.Since(started).Milliseconds(), ErrorCode: code}); err != nil {
+		if _, err = sq.FinishModelCall(settleCtx, store.FinishModelCallParams{ID: id, State: state, ChargedMicroCny: charge, InputTokens: u.Prompt, OutputTokens: u.Completion, DurationMs: time.Since(started).Milliseconds(), ErrorCode: code}); err != nil {
 			return
 		}
 		if err = sq.SettleModelBudget(settleCtx, store.SettleModelBudgetParams{ReservedMicroCny: reserve, SpentMicroCny: charge}); err == nil {
@@ -227,7 +232,14 @@ func (m *Models) Chat(ctx context.Context, course, actor, purpose, profile, syst
 	if e != nil {
 		return "", e
 	}
-	body := map[string]any{"model": p.Model, "messages": []map[string]string{{"role": "system", "content": system}, {"role": "user", "content": input}}, "max_tokens": 2400}
+	maxOutput := 2400
+	if purpose == "paper_split" {
+		maxOutput = 8000
+	}
+	body := map[string]any{"model": p.Model, "messages": []map[string]string{{"role": "system", "content": system}, {"role": "user", "content": input}}, "max_tokens": maxOutput}
+	if p.Thinking != "" {
+		body["thinking"] = map[string]string{"type": p.Thinking}
+	}
 	if jsonOutput {
 		body["response_format"] = map[string]string{"type": "json_object"}
 	}
@@ -239,7 +251,7 @@ func (m *Models) Chat(ctx context.Context, course, actor, purpose, profile, syst
 			Finish string `json:"finish_reason"`
 		} `json:"choices"`
 	}
-	if e = m.call(ctx, course, actor, purpose, p, "/chat/completions", body, len(input)+len(system), 2400, &out); e != nil {
+	if e = m.call(ctx, course, actor, purpose, p, "/chat/completions", body, len(input)+len(system), maxOutput, &out); e != nil {
 		return "", e
 	}
 	if len(out.Choices) != 1 || strings.TrimSpace(out.Choices[0].Message.Content) == "" || out.Choices[0].Finish == "length" {

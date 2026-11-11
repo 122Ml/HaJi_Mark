@@ -85,8 +85,9 @@ LEFT JOIN material_sources s ON s.id=c.source_id
 LEFT JOIN knowledge_entries k ON k.id=c.knowledge_id
 LEFT JOIN resources r ON r.id=c.resource_id
 WHERE c.course_id=sqlc.arg(course_id) AND e.space_id=sqlc.arg(space_id) AND c.active
+AND (sqlc.arg(purpose)::text<>'comparison' OR k.id IS NOT NULL)
 AND ((s.state='active' AND (sqlc.arg(teacher)::boolean OR EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids)))
- OR (k.state='confirmed' AND CASE WHEN sqlc.arg(purpose)::text='grading' THEN k.use_for_grading ELSE k.use_for_learning END AND (sqlc.arg(teacher)::boolean OR k.student_visible)
+ OR (k.state='confirmed' AND CASE WHEN sqlc.arg(purpose)::text='grading' THEN k.use_for_grading WHEN sqlc.arg(purpose)::text='comparison' THEN k.use_for_grading OR k.use_for_learning ELSE k.use_for_learning END AND (sqlc.arg(teacher)::boolean OR k.student_visible)
  AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT sqlc.arg(teacher)::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND ev->>'fragment_id'=ANY(pr.fragment_ids)))))
  OR (r.status='published' AND r.source_id IS NULL))
 ORDER BY distance,c.id LIMIT 20;
@@ -99,8 +100,9 @@ LEFT JOIN material_sources s ON s.id=c.source_id
 LEFT JOIN knowledge_entries k ON k.id=c.knowledge_id
 LEFT JOIN resources r ON r.id=c.resource_id
 WHERE c.course_id=sqlc.arg(course_id) AND c.active AND c.search_document @@ to_tsquery('simple',sqlc.arg(query_tokens)::text)
+AND (sqlc.arg(purpose)::text<>'comparison' OR k.id IS NOT NULL)
 AND ((s.state='active' AND (sqlc.arg(teacher)::boolean OR EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids)))
- OR (k.state='confirmed' AND CASE WHEN sqlc.arg(purpose)::text='grading' THEN k.use_for_grading ELSE k.use_for_learning END AND (sqlc.arg(teacher)::boolean OR k.student_visible)
+ OR (k.state='confirmed' AND CASE WHEN sqlc.arg(purpose)::text='grading' THEN k.use_for_grading WHEN sqlc.arg(purpose)::text='comparison' THEN k.use_for_grading OR k.use_for_learning ELSE k.use_for_learning END AND (sqlc.arg(teacher)::boolean OR k.student_visible)
  AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT sqlc.arg(teacher)::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND ev->>'fragment_id'=ANY(pr.fragment_ids)))))
  OR (r.status='published' AND r.source_id IS NULL))
 ORDER BY rank DESC,c.id LIMIT 20;
@@ -131,13 +133,29 @@ AND (sqlc.arg(kind)::text='' OR kind=sqlc.arg(kind))
 AND (sqlc.arg(question_id)::text='' OR input->>'question_id'=sqlc.arg(question_id))
 AND (sqlc.arg(submission_id)::text='' OR input->>'submission_id'=sqlc.arg(submission_id))
 AND (sqlc.arg(rubric_id)::text='' OR input->>'rubric_id'=sqlc.arg(rubric_id))
+AND (sqlc.arg(source_id)::text='' OR input->>'source_id'=sqlc.arg(source_id))
+AND (sqlc.arg(knowledge_id)::text='' OR input->>'knowledge_id'=sqlc.arg(knowledge_id))
+AND (sqlc.arg(asset_id)::text='' OR input->>'asset_id'=sqlc.arg(asset_id))
 ORDER BY created_at DESC,id LIMIT 60;
 
 -- name: PendingProcessingJobs :many
-SELECT * FROM processing_jobs WHERE state='queued' OR (state='running' AND started_at<now()-interval '15 minutes') ORDER BY created_at LIMIT 20;
+SELECT * FROM processing_jobs WHERE state='queued' OR (state='running' AND kind IN ('parse','index') AND started_at<now()-interval '15 minutes') ORDER BY created_at LIMIT 20;
 
 -- name: ClaimProcessingJob :one
-UPDATE processing_jobs SET state='running',started_at=now(),attempt=attempt+1,error='' WHERE id=$1 AND (state='queued' OR (state='running' AND started_at<now()-interval '15 minutes')) RETURNING *;
+UPDATE processing_jobs SET state='running',started_at=now(),attempt=attempt+1,error='' WHERE id=$1 AND (state='queued' OR (state='running' AND kind IN ('parse','index') AND started_at<now()-interval '15 minutes')) RETURNING *;
+
+-- name: ExpireInterruptedGenerationJobs :exec
+UPDATE processing_jobs SET state='failed',finished_at=now(),error='任务执行中断，模型结果未知；请核对调用记录后显式重试'
+WHERE state='running' AND kind NOT IN ('parse','index') AND started_at<now()-interval '15 minutes';
+
+-- name: SettleInterruptedModelCalls :exec
+WITH expired AS (
+ UPDATE model_calls SET state='unknown',charged_micro_cny=reserved_micro_cny,error_code='worker_interrupted'
+ WHERE state='reserved' AND created_at<now()-interval '15 minutes'
+ RETURNING reserved_micro_cny
+)
+UPDATE model_budget SET reserved_micro_cny=reserved_micro_cny-amount.total,spent_micro_cny=spent_micro_cny+amount.total
+FROM (SELECT coalesce(sum(reserved_micro_cny),0)::bigint AS total FROM expired) amount WHERE id=1;
 
 -- name: FinishProcessingJob :exec
 UPDATE processing_jobs SET state=$2,output=$3,error=$4,progress=CASE WHEN $2='succeeded' THEN 100 ELSE progress END,finished_at=now() WHERE id=$1 AND state='running';
@@ -160,8 +178,8 @@ INSERT INTO model_calls(id,course_id,actor_id,profile_id,purpose,reserved_micro_
 -- name: SettleModelBudget :exec
 UPDATE model_budget SET reserved_micro_cny=reserved_micro_cny-$1,spent_micro_cny=spent_micro_cny+$2 WHERE id=1;
 
--- name: FinishModelCall :exec
-UPDATE model_calls SET state=$2,charged_micro_cny=$3,input_tokens=$4,output_tokens=$5,duration_ms=$6,error_code=$7 WHERE id=$1 AND state='reserved';
+-- name: FinishModelCall :one
+UPDATE model_calls SET state=$2,charged_micro_cny=$3,input_tokens=$4,output_tokens=$5,duration_ms=$6,error_code=$7 WHERE id=$1 AND state='reserved' RETURNING id;
 
 -- name: GetModelBudget :one
 SELECT * FROM model_budget WHERE id=1;

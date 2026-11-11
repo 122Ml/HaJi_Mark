@@ -36,7 +36,7 @@ func (q *Queries) ConfirmRubricVersion(ctx context.Context, id string) (RubricVe
 
 const createPointRevision = `-- name: CreatePointRevision :one
 INSERT INTO grading_revisions(id,submission_id,revision,score,feedback,reviewer_id,request_id,rubric_id,point_scores)
-VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id
+VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id, regrade_batch_id
 `
 
 type CreatePointRevisionParams struct {
@@ -79,6 +79,7 @@ func (q *Queries) CreatePointRevision(ctx context.Context, arg CreatePointRevisi
 		&i.RubricID,
 		&i.PointScores,
 		&i.AiJobID,
+		&i.RegradeBatchID,
 	)
 	return i, err
 }

@@ -484,7 +484,7 @@ func (q *Queries) CreateBusinessIntervention(ctx context.Context, arg CreateBusi
 
 const createBusinessQuestion = `-- name: CreateBusinessQuestion :one
 INSERT INTO questions(id,assignment_id,prompt,type,max_score,rubric,position,options,correct_answer,knowledge_point_id,resource_id)
-VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id, assignment_id, prompt, type, max_score, rubric, options, correct_answer, position, knowledge_point_id, resource_id
+VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id, assignment_id, prompt, type, max_score, rubric, options, correct_answer, position, knowledge_point_id, resource_id, bank_question_version_id, bound_rubric_id
 `
 
 type CreateBusinessQuestionParams struct {
@@ -528,6 +528,8 @@ func (q *Queries) CreateBusinessQuestion(ctx context.Context, arg CreateBusiness
 		&i.Position,
 		&i.KnowledgePointID,
 		&i.ResourceID,
+		&i.BankQuestionVersionID,
+		&i.BoundRubricID,
 	)
 	return i, err
 }
@@ -1121,7 +1123,7 @@ func (q *Queries) GetBusinessIntervention(ctx context.Context, id string) (Inter
 }
 
 const getBusinessQuestion = `-- name: GetBusinessQuestion :one
-SELECT id, assignment_id, prompt, type, max_score, rubric, options, correct_answer, position, knowledge_point_id, resource_id FROM questions WHERE id=$1
+SELECT id, assignment_id, prompt, type, max_score, rubric, options, correct_answer, position, knowledge_point_id, resource_id, bank_question_version_id, bound_rubric_id FROM questions WHERE id=$1
 `
 
 func (q *Queries) GetBusinessQuestion(ctx context.Context, id string) (Question, error) {
@@ -1139,6 +1141,8 @@ func (q *Queries) GetBusinessQuestion(ctx context.Context, id string) (Question,
 		&i.Position,
 		&i.KnowledgePointID,
 		&i.ResourceID,
+		&i.BankQuestionVersionID,
+		&i.BoundRubricID,
 	)
 	return i, err
 }
@@ -1623,7 +1627,7 @@ func (q *Queries) ListBusinessPoints(ctx context.Context, courseID string) ([]Kn
 }
 
 const listBusinessQuestions = `-- name: ListBusinessQuestions :many
-SELECT id, assignment_id, prompt, type, max_score, rubric, options, correct_answer, position, knowledge_point_id, resource_id FROM questions WHERE assignment_id=$1 ORDER BY position,id
+SELECT id, assignment_id, prompt, type, max_score, rubric, options, correct_answer, position, knowledge_point_id, resource_id, bank_question_version_id, bound_rubric_id FROM questions WHERE assignment_id=$1 ORDER BY position,id
 `
 
 func (q *Queries) ListBusinessQuestions(ctx context.Context, assignmentID string) ([]Question, error) {
@@ -1647,6 +1651,8 @@ func (q *Queries) ListBusinessQuestions(ctx context.Context, assignmentID string
 			&i.Position,
 			&i.KnowledgePointID,
 			&i.ResourceID,
+			&i.BankQuestionVersionID,
+			&i.BoundRubricID,
 		); err != nil {
 			return nil, err
 		}

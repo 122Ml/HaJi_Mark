@@ -53,7 +53,7 @@ func (h *Handler) grade(c *gin.Context) {
 			return
 		}
 	} else {
-		versions, err := h.q.ListRubricVersions(c.Request.Context(), question.ID)
+		versions, err := h.q.ListRubricVersions(c.Request.Context(), text(question.ID))
 		if err != nil {
 			result(c, nil, err)
 			return

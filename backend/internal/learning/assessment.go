@@ -40,6 +40,8 @@ func (h *Handler) assignment(c *gin.Context) {
 		for i := range qs {
 			qs[i].Rubric = ""
 			qs[i].CorrectAnswer = ""
+			qs[i].BoundRubricID = pgtype.Text{}
+			qs[i].BankQuestionVersionID = pgtype.Text{}
 		}
 	}
 	result(c, gin.H{"assignment": a, "questions": qs}, e)
@@ -51,13 +53,15 @@ func (h *Handler) createAssignment(c *gin.Context) {
 		Type        string     `json:"type"`
 		DueAt       *time.Time `json:"due_at"`
 		Questions   []struct {
-			Prompt           string   `json:"prompt"`
-			MaxScore         int32    `json:"max_score"`
-			Rubric           string   `json:"rubric"`
-			Options          []string `json:"options"`
-			CorrectAnswer    string   `json:"correct_answer"`
-			KnowledgePointID string   `json:"knowledge_point_id"`
-			ResourceID       string   `json:"resource_id"`
+			Prompt                string   `json:"prompt"`
+			MaxScore              int32    `json:"max_score"`
+			Rubric                string   `json:"rubric"`
+			Options               []string `json:"options"`
+			CorrectAnswer         string   `json:"correct_answer"`
+			KnowledgePointID      string   `json:"knowledge_point_id"`
+			ResourceID            string   `json:"resource_id"`
+			BankQuestionVersionID string   `json:"bank_question_version_id"`
+			BoundRubricID         string   `json:"bound_rubric_id"`
 		} `json:"questions"`
 	}
 	if !bind(c, &in) {
@@ -66,6 +70,38 @@ func (h *Handler) createAssignment(c *gin.Context) {
 	if !validText(in.Title, 500) || len(in.Questions) < 1 || len(in.Questions) > 50 {
 		invalid(c, "请填写作业名称及1到50道题")
 		return
+	}
+	if in.Type == "" {
+		in.Type = "subjective"
+	}
+	for i := range in.Questions {
+		item := &in.Questions[i]
+		if item.BankQuestionVersionID == "" {
+			if item.BoundRubricID != "" {
+				invalid(c, "标准绑定缺少题目版本")
+				return
+			}
+			continue
+		}
+		v, _, e := h.bankSelection(c.Request.Context(), h.q, c.Param("courseID"), item.BankQuestionVersionID, item.BoundRubricID)
+		if e != nil {
+			ragError(c, e)
+			return
+		}
+		if v.Type != in.Type {
+			invalid(c, "题库题型与本次作业类型不一致")
+			return
+		}
+		item.Prompt = v.Prompt
+		item.MaxScore = v.MaxScore
+		item.Options = v.Options
+		item.CorrectAnswer = v.CorrectAnswer
+		item.KnowledgePointID = v.KnowledgePointID.String
+		item.ResourceID = ""
+		item.Rubric = "按题库确认的固定标准逐点给分，具体规则见绑定版本。"
+		if v.Type == "quiz" {
+			item.Rubric = "按教师确认的固定选项与答案规则判分"
+		}
 	}
 	total := int32(0)
 	points, err := h.q.ListBusinessPoints(c.Request.Context(), c.Param("courseID"))
@@ -176,10 +212,23 @@ func (h *Handler) createAssignment(c *gin.Context) {
 		if options == nil {
 			options = []string{}
 		}
-		_, e = q.CreateBusinessQuestion(ctx, store.CreateBusinessQuestionParams{ID: uuid.NewString(), AssignmentID: a.ID, Prompt: item.Prompt, Type: in.Type, MaxScore: item.MaxScore, Rubric: item.Rubric, Position: int32(i), Options: options, CorrectAnswer: item.CorrectAnswer, KnowledgePointID: text(item.KnowledgePointID), ResourceID: text(item.ResourceID)})
+		if item.BankQuestionVersionID != "" {
+			if _, _, e = h.bankSelection(ctx, q, a.CourseID, item.BankQuestionVersionID, item.BoundRubricID); e != nil {
+				ragError(c, e)
+				return
+			}
+		}
+		created, err := q.CreateBusinessQuestion(ctx, store.CreateBusinessQuestionParams{ID: uuid.NewString(), AssignmentID: a.ID, Prompt: item.Prompt, Type: in.Type, MaxScore: item.MaxScore, Rubric: item.Rubric, Position: int32(i), Options: options, CorrectAnswer: item.CorrectAnswer, KnowledgePointID: text(item.KnowledgePointID), ResourceID: text(item.ResourceID)})
+		e = err
 		if e != nil {
 			result(c, nil, e)
 			return
+		}
+		if item.BankQuestionVersionID != "" {
+			if e = q.BindBankQuestion(ctx, store.BindBankQuestionParams{ID: created.ID, BankQuestionVersionID: text(item.BankQuestionVersionID), BoundRubricID: text(item.BoundRubricID)}); e != nil {
+				result(c, nil, e)
+				return
+			}
 		}
 	}
 	e = tx.Commit(ctx)
@@ -207,8 +256,39 @@ func (h *Handler) assignmentState(c *gin.Context) {
 		identity.Fail(c, 409, "state_conflict", "作业状态已改变")
 		return
 	}
-	v, e := h.q.UpdateBusinessAssignmentState(c.Request.Context(), store.UpdateBusinessAssignmentStateParams{ID: a.ID, Status: in.State, Status_2: previous})
-	result(c, v, e)
+	ctx := c.Request.Context()
+	tx, e := h.db.Begin(ctx)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	defer tx.Rollback(ctx)
+	q := h.q.WithTx(tx)
+	if _, e = q.LockBusinessAssignment(ctx, a.ID); e != nil {
+		result(c, nil, e)
+		return
+	}
+	if in.State == "published" {
+		qs, e := q.ListBusinessQuestions(ctx, a.ID)
+		if e != nil {
+			result(c, nil, e)
+			return
+		}
+		for _, item := range qs {
+			if item.BankQuestionVersionID.Valid {
+				if _, _, e = h.bankSelection(ctx, q, a.CourseID, item.BankQuestionVersionID.String, item.BoundRubricID.String); e != nil {
+					ragError(c, e)
+					return
+				}
+			}
+		}
+	}
+	v, e := q.UpdateBusinessAssignmentState(ctx, store.UpdateBusinessAssignmentStateParams{ID: a.ID, Status: in.State, Status_2: previous})
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	result(c, v, tx.Commit(ctx))
 }
 func (h *Handler) submissions(c *gin.Context) {
 	a, ok := h.assignmentRecord(c, c.Param("id"))
@@ -339,6 +419,8 @@ func (h *Handler) submission(c *gin.Context) {
 	if !teacher(c) {
 		question.Rubric = ""
 		question.CorrectAnswer = ""
+		question.BoundRubricID = pgtype.Text{}
+		question.BankQuestionVersionID = pgtype.Text{}
 	}
 	revisions, e := h.q.ListBusinessRevisions(c.Request.Context(), store.ListBusinessRevisionsParams{SubmissionID: s.ID, Teacher: teacher(c)})
 	result(c, gin.H{"submission": s, "question": question, "revisions": revisions}, e)

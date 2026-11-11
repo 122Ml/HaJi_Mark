@@ -33,6 +33,26 @@ type Assignment struct {
 	PublishedAt pgtype.Timestamptz `json:"published_at"`
 }
 
+type BankQuestionVersion struct {
+	ID               string             `json:"id"`
+	BankID           string             `json:"bank_id"`
+	Version          int32              `json:"version"`
+	Title            string             `json:"title"`
+	Prompt           string             `json:"prompt"`
+	Type             string             `json:"type"`
+	MaxScore         int32              `json:"max_score"`
+	Requirements     string             `json:"requirements"`
+	ReferenceAnswer  string             `json:"reference_answer"`
+	ReferenceState   string             `json:"reference_state"`
+	Options          []string           `json:"options"`
+	CorrectAnswer    string             `json:"correct_answer"`
+	KnowledgePointID pgtype.Text        `json:"knowledge_point_id"`
+	EvidenceRefs     json.RawMessage    `json:"evidence_refs"`
+	State            string             `json:"state"`
+	CreatedBy        string             `json:"created_by"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+}
+
 type ChunkEmbedding struct {
 	ChunkID    string             `json:"chunk_id"`
 	SpaceID    string             `json:"space_id"`
@@ -253,17 +273,27 @@ type ProcessingJob struct {
 }
 
 type Question struct {
-	ID               string      `json:"id"`
-	AssignmentID     string      `json:"assignment_id"`
-	Prompt           string      `json:"prompt"`
-	Type             string      `json:"type"`
-	MaxScore         int32       `json:"max_score"`
-	Rubric           string      `json:"rubric"`
-	Options          []string    `json:"options"`
-	CorrectAnswer    string      `json:"correct_answer"`
-	Position         int32       `json:"position"`
-	KnowledgePointID pgtype.Text `json:"knowledge_point_id"`
-	ResourceID       pgtype.Text `json:"resource_id"`
+	ID                    string      `json:"id"`
+	AssignmentID          string      `json:"assignment_id"`
+	Prompt                string      `json:"prompt"`
+	Type                  string      `json:"type"`
+	MaxScore              int32       `json:"max_score"`
+	Rubric                string      `json:"rubric"`
+	Options               []string    `json:"options"`
+	CorrectAnswer         string      `json:"correct_answer"`
+	Position              int32       `json:"position"`
+	KnowledgePointID      pgtype.Text `json:"knowledge_point_id"`
+	ResourceID            pgtype.Text `json:"resource_id"`
+	BankQuestionVersionID pgtype.Text `json:"bank_question_version_id"`
+	BoundRubricID         pgtype.Text `json:"bound_rubric_id"`
+}
+
+type QuestionBank struct {
+	ID        string             `json:"id"`
+	CourseID  string             `json:"course_id"`
+	Archived  bool               `json:"archived"`
+	CreatedBy string             `json:"created_by"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
 type ResearchRecord struct {
@@ -314,15 +344,16 @@ type RetrievalChunk struct {
 }
 
 type RubricVersion struct {
-	ID           string             `json:"id"`
-	QuestionID   string             `json:"question_id"`
-	Version      int32              `json:"version"`
-	Criteria     json.RawMessage    `json:"criteria"`
-	State        string             `json:"state"`
-	CreatedBy    string             `json:"created_by"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	ConfirmedAt  pgtype.Timestamptz `json:"confirmed_at"`
-	EvidenceRefs json.RawMessage    `json:"evidence_refs"`
+	ID                    string             `json:"id"`
+	QuestionID            pgtype.Text        `json:"question_id"`
+	Version               int32              `json:"version"`
+	Criteria              json.RawMessage    `json:"criteria"`
+	State                 string             `json:"state"`
+	CreatedBy             string             `json:"created_by"`
+	CreatedAt             pgtype.Timestamptz `json:"created_at"`
+	ConfirmedAt           pgtype.Timestamptz `json:"confirmed_at"`
+	EvidenceRefs          json.RawMessage    `json:"evidence_refs"`
+	BankQuestionVersionID pgtype.Text        `json:"bank_question_version_id"`
 }
 
 type Session struct {

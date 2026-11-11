@@ -502,6 +502,10 @@ func (h *Handler) createRAGJob(c *gin.Context) {
 		if !ok {
 			return
 		}
+		if question.BankQuestionVersionID.Valid {
+			invalid(c, "请在题库为该版本起草标准")
+			return
+		}
 		in.JobInput = rag.JobInput{QuestionID: question.ID, Prompt: question.Prompt, MaxScore: question.MaxScore, ProfileID: in.ProfileID}
 	}
 	if in.Kind == "grade" {
@@ -514,13 +518,13 @@ func (h *Handler) createRAGJob(c *gin.Context) {
 			result(c, nil, e)
 			return
 		}
-		if r.QuestionID != s.QuestionID || r.State != "confirmed" {
-			invalid(c, "请选择本题已确认标准")
-			return
-		}
 		q, e := h.q.GetBusinessQuestion(ctx, s.QuestionID)
 		if e != nil {
 			result(c, nil, e)
+			return
+		}
+		if !rubricMatches(q, r) {
+			invalid(c, "请选择本次任务固定的确认标准")
 			return
 		}
 		in.JobInput = rag.JobInput{QuestionID: q.ID, SubmissionID: s.ID, AnswerHash: s.AnswerSha256, Answer: s.AnswerText, Prompt: q.Prompt, MaxScore: q.MaxScore, RubricID: r.ID, Criteria: r.Criteria, EvidenceRefs: r.EvidenceRefs, ProfileID: in.ProfileID}

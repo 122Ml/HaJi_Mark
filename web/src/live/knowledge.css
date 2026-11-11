@@ -164,3 +164,7 @@
     max-height: none;
   }
 }
+.bank-editor { border: 0; padding: 0; margin: 0; min-width: 0; }
+.bank-editor > label, .bank-editor > details { display: block; margin-bottom: 18px; }
+.bank-evidence { margin: 16px 0; min-width: 0; }
+.bank-evidence .rag-hit { overflow-wrap: anywhere; }

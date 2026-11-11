@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/122Ml/HaJi_Mark/backend/internal/server"
+	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -136,6 +137,16 @@ func TestTeachingLoop(t *testing.T) {
 	}
 	teacher, student, peer, other := login("teacher"), login("student"), login("peer"), login("other")
 	base := "/learning/courses/course"
+	t.Run("bank_evidence_reads_indexed_source", func(t *testing.T) {
+		if _, err := db.Exec(ctx, `INSERT INTO material_sources(id,course_id,created_by,title,sha256,parse_state,parse_revision) VALUES('bank-source','course','teacher','bank source','hash','ready',1);
+INSERT INTO retrieval_chunks(id,course_id,source_id,title,body,locator,input_hash,search_tokens) VALUES('bank-chunk','course','bank-source','boundary','18 to 60','{}','bank-hash','boundary')`); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := store.New(db).GetBankEvidence(ctx, store.GetBankEvidenceParams{ID: "bank-chunk", CourseID: "course"}); err != nil {
+			t.Fatal(err)
+		}
+		call(teacher, "POST", base+"/question-bank/evidence", map[string]string{"source_id": "bank-source"}, 200)
+	})
 	call(other, "GET", base, nil, 403)
 	call(student, "POST", base+"/assignments", map[string]string{}, 403)
 	call(actor{teacher.cookie, ""}, "POST", base+"/points", map[string]string{"title": "blocked"}, 403)

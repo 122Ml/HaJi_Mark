@@ -9,6 +9,11 @@ export interface Criterion {
   title: string;
   max_score: number;
   rule: string;
+  requirement?: string;
+  partial_credit?: string;
+  acceptable_answers?: string;
+  error_conditions?: string;
+  evidence_ids?: string[];
 }
 export interface RubricVersion {
   id: string;
@@ -371,6 +376,10 @@ export function PointGradeForm({
           <details>
             <summary>给分规则</summary>
             <p>{p.rule}</p>
+            {p.requirement && <p>考查要求：{p.requirement}</p>}
+            {p.partial_credit && <p>部分分：{p.partial_credit}</p>}
+            {p.acceptable_answers && <p>可接受表达：{p.acceptable_answers}</p>}
+            {p.error_conditions && <p>错误条件：{p.error_conditions}</p>}
           </details>
           <label>
             {p.id} 得分

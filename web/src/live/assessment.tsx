@@ -16,6 +16,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { Link, useCourseNavigate as useNavigate } from "./context";
 import { useSession } from "../shared/session";
 import { RubricManager, PointFeedback } from "./rubrics";
+import { BankQuestionPicker } from "./question-bank";
 import {
   useLearning,
   useLiveQuery,
@@ -39,6 +40,8 @@ export interface Assignment {
   feedback_count?: number;
 }
 export interface Question {
+  bank_question_version_id?: string | null;
+  bound_rubric_id?: string | null;
   knowledge_point_id?: string;
   resource_id?: string;
   id: string;
@@ -285,10 +288,11 @@ export function AssignmentEditor({
   const points = useLiveQuery<{ points: Point[] }>("");
   const resources = useLiveQuery<Resource[]>("/resources");
   const [savedId, setSavedId] = useState(assignmentId || "");
+  const [picking, setPicking] = useState(false);
   const { course } = useLearning();
   const action = useAction();
   const navigate = useNavigate();
-  const initialQuestions = original.data?.questions.map((q) => ({
+  const initialQuestions: (Omit<Question, "id" | "type"> & { correct_answer: string })[] = original.data?.questions.map((q) => ({
     ...q,
     options: q.options.length ? q.options : ["", ""],
     knowledge_point_id: q.knowledge_point_id || "",
@@ -406,14 +410,16 @@ export function AssignmentEditor({
               onChange={(e) => setDue(e.target.value)}
             />
           </label>
-          <h2>题目列表</h2>
+          <div className="section-head"><h2>题目列表</h2><button type="button" className="ghost-btn" onClick={() => setPicking(true)}>从题库选题</button></div>
           {questions.map((q, i) => (
             <fieldset key={i}>
               <legend>第{i + 1}题</legend>
+              {q.bank_question_version_id && <p className="live-meta">使用题库确认版本，题目与标准固定。修改请返回题库另建版本后重新选题。</p>}
               <label>
                 题目要求
                 <textarea
                   aria-label="题目要求"
+                  readOnly={!!q.bank_question_version_id}
                   required
                   rows={4}
                   value={q.prompt}
@@ -431,6 +437,7 @@ export function AssignmentEditor({
                 <input
                   required
                   type="number"
+                  readOnly={!!q.bank_question_version_id}
                   min={1}
                   max={10000}
                   value={q.max_score}
@@ -449,6 +456,7 @@ export function AssignmentEditor({
                 评分标准
                 <textarea
                   aria-label="评分标准"
+                  readOnly={!!q.bank_question_version_id}
                   required
                   rows={3}
                   value={q.rubric}
@@ -465,6 +473,7 @@ export function AssignmentEditor({
                 关联知识点
                 <select
                   aria-label="关联知识点"
+                  disabled={!!q.bank_question_version_id}
                   value={q.knowledge_point_id}
                   onChange={(e) =>
                     setQuestions((v) =>
@@ -490,6 +499,7 @@ export function AssignmentEditor({
                 评分依据资料
                 <select
                   aria-label="评分依据资料"
+                  disabled={!!q.bank_question_version_id}
                   value={q.resource_id}
                   onChange={(e) =>
                     setQuestions((v) =>
@@ -515,6 +525,7 @@ export function AssignmentEditor({
                     选项（每行一个）
                     <textarea
                       aria-label="选项（每行一个）"
+                      readOnly={!!q.bank_question_version_id}
                       required
                       value={q.options.join("\n")}
                       onChange={(e) =>
@@ -532,6 +543,7 @@ export function AssignmentEditor({
                     正确答案
                     <select
                       aria-label="正确答案"
+                      disabled={!!q.bank_question_version_id}
                       required
                       value={q.correct_answer}
                       onChange={(e) =>
@@ -599,6 +611,10 @@ export function AssignmentEditor({
             </button>
           </div>
         </form>
+        <BankQuestionPicker open={picking} onClose={() => setPicking(false)} type={quiz ? "quiz" : original.data?.assignment.type || "subjective"} onSelect={(v,r) => {
+          const item = {prompt:v.prompt,max_score:v.max_score,rubric:r ? r.criteria.map(p=>`${p.title}（${p.max_score}分）：${p.rule}`).join("\n") : "按教师确认的选项答案判分",options:v.options,correct_answer:v.correct_answer,knowledge_point_id:v.knowledge_point_id||"",resource_id:"",bank_question_version_id:v.id,bound_rubric_id:r?.id||null};
+          setQuestions(old=>old.length===1&&!old[0].prompt&&!old[0].bank_question_version_id ? [item] : [...old,item]);
+        }} />
       </section>
     </div>
   );
@@ -808,7 +824,7 @@ function QuestionAnswer({
         <>
           <h3>教师评分标准</h3>
           <p className="live-prose">{q.rubric}</p>
-          {q.type !== "quiz" && (
+          {q.bank_question_version_id ? <p className="live-meta">本作业绑定题库确认版本及标准。<Link to={`/teacher/question-bank?bank_version=${q.bank_question_version_id}`}>查看题库版本</Link></p> : q.type !== "quiz" && (
             <RubricManager questionID={q.id} maxScore={q.max_score} />
           )}
         </>

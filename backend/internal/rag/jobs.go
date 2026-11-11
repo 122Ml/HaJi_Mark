@@ -49,18 +49,21 @@ func ValidContentKind(kind string) bool {
 }
 
 type JobInput struct {
-	SourceID     string          `json:"source_id,omitempty"`
-	ProfileID    string          `json:"profile_id,omitempty"`
-	FragmentIDs  []string        `json:"fragment_ids,omitempty"`
-	QuestionID   string          `json:"question_id,omitempty"`
-	SubmissionID string          `json:"submission_id,omitempty"`
-	AnswerHash   string          `json:"answer_hash,omitempty"`
-	RubricID     string          `json:"rubric_id,omitempty"`
-	Prompt       string          `json:"prompt,omitempty"`
-	MaxScore     int32           `json:"max_score,omitempty"`
-	Answer       string          `json:"answer,omitempty"`
-	Criteria     json.RawMessage `json:"criteria,omitempty"`
-	EvidenceRefs json.RawMessage `json:"evidence_refs,omitempty"`
+	SourceID        string          `json:"source_id,omitempty"`
+	ProfileID       string          `json:"profile_id,omitempty"`
+	FragmentIDs     []string        `json:"fragment_ids,omitempty"`
+	QuestionID      string          `json:"question_id,omitempty"`
+	SubmissionID    string          `json:"submission_id,omitempty"`
+	AnswerHash      string          `json:"answer_hash,omitempty"`
+	RubricID        string          `json:"rubric_id,omitempty"`
+	Prompt          string          `json:"prompt,omitempty"`
+	MaxScore        int32           `json:"max_score,omitempty"`
+	Answer          string          `json:"answer,omitempty"`
+	Criteria        json.RawMessage `json:"criteria,omitempty"`
+	EvidenceRefs    json.RawMessage `json:"evidence_refs,omitempty"`
+	Requirements    string          `json:"requirements,omitempty"`
+	ReferenceAnswer string          `json:"reference_answer,omitempty"`
+	Count           int             `json:"count,omitempty"`
 }
 
 func (s *Service) CreateJob(ctx context.Context, course, actor, kind string, in JobInput) (store.ProcessingJob, error) {
@@ -182,6 +185,8 @@ func (s *Service) Process(ctx context.Context, t *asynq.Task) error {
 			output, e = s.Extract(jobCtx, j, in)
 		case "rubric", "grade":
 			output, e = s.Draft(jobCtx, j, in)
+		case "question_generate", "question_analyze", "bank_rubric":
+			output, e = s.BankDraft(jobCtx, j, in)
 		default:
 			e = errors.New("任务类型无效")
 		}

@@ -10,6 +10,27 @@ v0.4 · 2026-11-04，当前真实平台。以下为已注册接口；后半节�
 
 HttpOnly、SameSiteStrict、Path=/api/v1、8小时cookie，DB仅存token哈希；CSRF token在前端内存。所有认证写请求使用 `X-CSRF-Token` 并检查Origin。登录按用户名限制每分钟30次、最多10000个活跃窗口，限流在进程内；不是分布式公网防护。姓名/改密走 `PUT /learning/profile|password`；改密12—72字节，需原密码，成功撤销该账号所有会话。
 
+## 独立题库（2026-11-11本地已实现）
+
+下列路径相对`/learning/courses/:courseID`，全部仅课程教师可用，写请求须CSRF。题目引用的原文与知识仅按服务器重读的索引ID解析，不接受客户端正文充当依据。
+
+| 方法/路径 | 输入与返回 |
+| --- | --- |
+| GET/POST `/question-bank` | GET为各条目最新版本与archived；POST为title/prompt/type/max_score/requirements/reference_answer/options/correct_answer/knowledge_point_id/evidence_ids，可选criteria与题目同事务存草稿 |
+| GET `/question-bank/:bankID` | entry、完整versions、作业uses；只读，不改变历史 |
+| POST `/question-bank/:bankID/versions` | 同建题输入；创建新内容版本，不原地修改确认内容 |
+| POST `/question-bank/:bankID/archive` | archived布尔值，可停用或恢复；阻断新选用和待发布作业，不删除旧作业或成绩 |
+| GET `/question-bank/versions/:versionID` | 授权读取确切版本，供作业深链返回题库 |
+| POST `/question-bank/versions/:versionID/confirm` | 确认题目；重复确认409 |
+| POST `/question-bank/versions/:versionID/reference/confirm` | 单独确认非空参考解答；不代替题目确认 |
+| GET/POST `/question-bank/versions/:versionID/rubrics` | 标准历史／criteria、evidence_ids、可选ai_job_id；标准归属确切题目版本。确认沿用`POST /rubrics/:id/confirm`，要求题目及非空参考解答已确认 |
+| POST `/question-bank/evidence` | query或source_id/knowledge_id范围；返回合法候选hits。范围读取首批最多100条；选定最多8条且合计8000字 |
+| POST `/question-bank/jobs` | kind为question_generate/question_analyze/bank_rubric；profile_id、evidence_ids。出题另含requirements/max_score/count（1—3）；分析／标准必须question_id且从服务器读取版本，忽略外传题干或学生答案 |
+
+题库标准评分点沿用id/title/max_score/rule，扩展requirement、partial_credit、acceptable_answers、error_conditions、evidence_ids；各正整数分值之和必须等于题目满分，逐点引用只能来自所选依据。模型输出必须含pending_teacher_review，缺字段、错引和分数不符的输出失败，不自动确认。
+
+作业创建／草稿编辑的每题新增`bank_question_version_id`、`bound_rubric_id`。服务器用确认版本重读题干、满分、知识点及选项规则；主观题须匹配该题目版本的确认标准，客观题不传标准ID。写入及发布事务重新核对，不能通过传入新满分或题干篡改题库。新实例不接受独立新建标准，逐点评分与AI评分都只接受bound_rubric_id；旧实例仍按原question_id规则兼容。学生读作业或提交时清空内部规则、正确答案及题库绑定ID，题库本身不公开。
+
 ## 教学业务（已实现）
 
 除 `POST /learning/courses` 外，下表相对路径均位于 `/learning/courses/:courseID`。读写先校验课程归属；学生只读已发布课程，教师仅本人课程。T=教师、S=学生、TS=双方。

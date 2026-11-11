@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
+	"github.com/122Ml/HaJi_Mark/backend/internal/rag"
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -12,12 +13,7 @@ import (
 
 // Rules stay teacher-only. A revision contains only the point labels, scores,
 // comments and answer quotations that may become student feedback.
-type criterion struct {
-	ID       string `json:"id"`
-	Title    string `json:"title"`
-	MaxScore int32  `json:"max_score"`
-	Rule     string `json:"rule"`
-}
+type criterion = rag.Criterion
 type pointScore struct {
 	CriterionID string `json:"criterion_id"`
 	Score       int32  `json:"score"`
@@ -51,7 +47,7 @@ func (h *Handler) rubrics(c *gin.Context) {
 	if !ok {
 		return
 	}
-	v, err := h.q.ListRubricVersions(c.Request.Context(), question.ID)
+	v, err := h.q.ListRubricVersions(c.Request.Context(), text(question.ID))
 	result(c, v, err)
 }
 func (h *Handler) createRubric(c *gin.Context) {
@@ -64,6 +60,10 @@ func (h *Handler) createRubric(c *gin.Context) {
 	}
 	question, ok := h.rubricQuestion(c, c.Param("id"))
 	if !ok {
+		return
+	}
+	if question.BankQuestionVersionID.Valid {
+		invalid(c, "题库题目的标准在题库维护，本次作业使用固定版本")
 		return
 	}
 	if len(in.Criteria) < 1 || len(in.Criteria) > 30 {
@@ -117,7 +117,7 @@ func (h *Handler) createRubric(c *gin.Context) {
 		result(c, nil, err)
 		return
 	}
-	v, err := q.CreateRubricVersion(ctx, store.CreateRubricVersionParams{ID: uuid.NewString(), QuestionID: question.ID, Criteria: raw, CreatedBy: identity.Current(c).ID})
+	v, err := q.CreateRubricVersion(ctx, store.CreateRubricVersionParams{ID: uuid.NewString(), QuestionID: text(question.ID), Criteria: raw, CreatedBy: identity.Current(c).ID})
 	if err != nil {
 		result(c, nil, err)
 		return
@@ -132,20 +132,65 @@ func (h *Handler) createRubric(c *gin.Context) {
 	result(c, v, tx.Commit(ctx))
 }
 func (h *Handler) confirmRubric(c *gin.Context) {
-	r, err := h.q.GetRubricVersion(c.Request.Context(), c.Param("id"))
+	ctx := c.Request.Context()
+	tx, err := h.db.Begin(ctx)
 	if err != nil {
 		result(c, nil, err)
 		return
 	}
-	if _, ok := h.rubricQuestion(c, r.QuestionID); !ok {
+	defer tx.Rollback(ctx)
+	q := h.q.WithTx(tx)
+	r, err := q.GetRubricVersion(ctx, c.Param("id"))
+	if err != nil {
+		result(c, nil, err)
+		return
+	}
+	if r.BankQuestionVersionID.Valid {
+		v, e := q.GetBankQuestionVersion(ctx, r.BankQuestionVersionID.String)
+		if e != nil {
+			result(c, nil, e)
+			return
+		}
+		b, e := q.LockQuestionBank(ctx, store.LockQuestionBankParams{ID: v.BankID, CourseID: c.Param("courseID")})
+		if e != nil {
+			identity.Fail(c, 403, "forbidden", "题目不属于当前课程")
+			return
+		}
+		if b.Archived {
+			invalid(c, "题目已停用")
+			return
+		}
+		// Read confirmation states after acquiring the shared bank lock.
+		v, e = q.GetBankQuestionVersion(ctx, v.ID)
+		if e != nil {
+			result(c, nil, e)
+			return
+		}
+		if v.State != "confirmed" || (v.ReferenceAnswer != "" && v.ReferenceState != "confirmed") {
+			invalid(c, "请先确认题目和参考解答")
+			return
+		}
+		ids, e := rag.EvidenceIDs(r.EvidenceRefs)
+		if e == nil {
+			_, e = rag.ResolveEvidence(ctx, q, c.Param("courseID"), ids)
+		}
+		if e != nil {
+			ragError(c, e)
+			return
+		}
+	} else if _, ok := h.rubricQuestion(c, r.QuestionID.String); !ok {
 		return
 	}
 	if r.State != "draft" {
 		identity.Fail(c, 409, "state_conflict", "标准已确认，修改请另建版本")
 		return
 	}
-	v, err := h.q.ConfirmRubricVersion(c.Request.Context(), r.ID)
-	result(c, v, err)
+	v, err := q.ConfirmRubricVersion(ctx, r.ID)
+	if err != nil {
+		identity.Fail(c, 409, "state_conflict", "标准状态已改变，请刷新")
+		return
+	}
+	result(c, v, tx.Commit(ctx))
 }
 
 func (h *Handler) scorePoints(c *gin.Context, rubricID string, points []pointScore, s store.Submission) ([]byte, int32, bool) {
@@ -154,7 +199,12 @@ func (h *Handler) scorePoints(c *gin.Context, rubricID string, points []pointSco
 		result(c, nil, err)
 		return nil, 0, false
 	}
-	if r.QuestionID != s.QuestionID || r.State != "confirmed" {
+	question, err := h.q.GetBusinessQuestion(c.Request.Context(), s.QuestionID)
+	if err != nil {
+		result(c, nil, err)
+		return nil, 0, false
+	}
+	if !rubricMatches(question, r) {
 		invalid(c, "请选择本题已确认的标准版本")
 		return nil, 0, false
 	}

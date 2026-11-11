@@ -102,7 +102,7 @@ python scripts/backup.py --verify-restore
 
 默认Compose保持模型关闭，人工答疑、评分、客观规则和学习路径可单独运行。2026-11-11已获用户授权的本地真实RAG配置见下节；公网仍未启用，不沿用旧AI环境变量隐式开通新功能。
 
-迁移已分配并在本地执行00001—00010，后续从00011新建。修改queries后用sqlc1.30.0生成；不改已执行迁移，不手改store，不删除Goose历史来绕过失败。Nginx使用Docker DNS解析API，API重建后应自动恢复代理。
+迁移已分配并在本地执行00001—00011，后续从00012新建。修改queries后用sqlc1.30.0生成；不改已执行迁移，不手改store，不删除Goose历史来绕过失败。Nginx使用Docker DNS解析API，API重建后应自动恢复代理。
 
 ## 资料与知识库的本地运行
 
@@ -181,6 +181,20 @@ CI沿用必需检查名 `collaboration-check`，覆盖Go测试/vet/构建、前�
 冒烟验证覆盖静态入口/深路由、live、ready、已发布构造课程/草稿过滤；它只说明工程骨架链路。业务验收与AI效果按backlog和evidence另做。Docker没启动时报告未验证，不以静态页面截图代替数据库运行结果。
 
 ## 验证资源预算
+
+题库本地验收：先串行构建RAG覆盖配置的api、worker、web，再`docker compose -f compose.yaml -f compose.rag.yaml up -d --no-build api worker web`执行增量迁移与启动。受网络影响时Go构建可显式传`--build-arg GOPROXY=https://goproxy.cn`，不改仓库的默认代理配置。
+
+```powershell
+python -B scripts/check-question-bank.py --real-ai
+# 若真实评分已成功而最后核对中断，可仅续查反馈与来源边界，不再调用模型
+python -B scripts/check-question-bank.py --continue-real
+# 使用上文Node / NODE_PATH设置，--real-ai会真实生成候选并计入共享预算
+node scripts/check-question-bank-browser.cjs --real-ai
+docker compose -f compose.yaml -f compose.rag.yaml restart api worker web
+python -B scripts/check-question-bank.py --resume
+```
+
+不加`--real-ai`仅做人工题库与固定版本验收。脚本只允许本机固定地址，读取忽略凭据，保留有标签课程与记录；确认操作是自动化测试账号行为，不是独立教师审核。结果保存在`.local/question-bank-check.json`、`.local/question-bank-browser.json`及桌面／移动截图。Go新增依据读取回归在隔离schema运行，避免将索引内部tsvector列误作JSON依据读取。
 
 按preflight模板保留以下任务成本/I/O记录。时间来自本轮日志，内存仅为预算/限制，未测RSS峰值，不把预算称为实测。
 

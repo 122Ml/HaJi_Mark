@@ -14,6 +14,7 @@ import { useLearning } from "./context";
 import { ProfilePage, RecordsPage } from "./account";
 import { EmptyState } from "../shared/ui";
 import { MaterialsPage, KnowledgePage, RetrievalPage } from "./knowledge";
+import { QuestionBankPage } from "./question-bank";
 export function LiveRoutes({ teacher }: { teacher: boolean }) {
   const { course } = useLearning();
   const location = useLocation();
@@ -40,6 +41,7 @@ export function LiveRoutes({ teacher }: { teacher: boolean }) {
       <Route path="course-twin" element={teacher ? <CourseWorkspace /> : courseRedirect} />
       <Route path="homework" element={<AssignmentList />} />
       {teacher && <Route path="materials" element={<MaterialsPage />} />}
+      {teacher && <Route path="question-bank" element={<QuestionBankPage />} />}
       <Route path="knowledge" element={<KnowledgePage />} />
       <Route path="retrieval" element={<RetrievalPage />} />
       <Route path="quiz" element={<AssignmentList quiz />} />

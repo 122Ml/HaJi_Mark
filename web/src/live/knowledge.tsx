@@ -32,6 +32,7 @@ export type Job = {
   error: string;
   created_at: string;
   output: Record<string, unknown>;
+  input: Record<string, unknown>;
 };
 type Source = {
   id: string;
@@ -155,6 +156,9 @@ const labels: Record<string, string> = {
   extract: "知识提炼",
   rubric: "标准起草",
   grade: "评阅草稿",
+  question_generate: "AI出题",
+  question_analyze: "题目分析",
+  bank_rubric: "题库标准起草",
 };
 const kinds = [
   { value: "concept", label: "概念" },
@@ -210,17 +214,26 @@ export function AIDraft({
   target,
   onAdopt,
 }: {
-  kind: "rubric" | "grade";
-  target: Record<string, string>;
+  kind: "rubric" | "grade" | "question_generate" | "question_analyze" | "bank_rubric";
+  target: Record<string, unknown>;
   onAdopt: (output: Record<string, unknown>, id: string) => void;
 }) {
   const action = useAction();
   const [model, setModel] = useState("");
+  const bank = ["question_generate", "question_analyze", "bank_rubric"].includes(kind);
+  const filters = Object.fromEntries(Object.entries(target).filter(([k,v]) => ["question_id", "submission_id", "rubric_id"].includes(k) && typeof v === "string")) as Record<string,string>;
   const jobs = useLiveQuery<Job[]>(
-    `/jobs?${new URLSearchParams({ kind, ...target })}`,
+    `/jobs?${new URLSearchParams({ kind, ...filters })}`,
   );
   const id = jobs.data?.[0]?.id || "";
   const q = useJob(id);
+  const stale = bank && !!q.data && Object.entries(target).some(([key,value]) => {
+    if (key === "evidence_ids") {
+      const ids = (q.data!.input.evidence_refs as Hit[] | undefined)?.map(h=>h.id) || [];
+      return JSON.stringify([...ids].sort()) !== JSON.stringify([...(value as string[])].sort());
+    }
+    return JSON.stringify(q.data!.input[key]) !== JSON.stringify(value);
+  });
   const busy =
     action.busy ||
     (!!id && q.isPending) ||
@@ -234,7 +247,7 @@ export function AIDraft({
           className="ghost-btn"
           disabled={busy || jobs.isPending || !!jobs.error || !!q.error}
           onClick={async () => {
-            await action.run<Job>("/jobs", {
+            await action.run<Job>(bank ? "/question-bank/jobs" : "/jobs", {
               kind,
               profile_id: model,
               ...target,
@@ -243,7 +256,7 @@ export function AIDraft({
         >
           {busy
             ? "生成中…"
-            : kind === "rubric"
+            : bank ? labels[kind] : kind === "rubric"
               ? "AI起草标准"
               : "AI生成评阅草稿"}
         </button>
@@ -260,6 +273,7 @@ export function AIDraft({
             {q.data.error ? `：${q.data.error}` : ""}
           </p>
           {busy && <Progress percent={q.data.progress} size="small" />}
+          {q.data.state === "failed" && typeof q.data.output.raw_response === "string" && <details><summary>查看模型原始回复</summary><pre className="live-prose">{q.data.output.raw_response}</pre></details>}
           {q.data.state === "succeeded" && (
             <>
               <details>
@@ -269,11 +283,12 @@ export function AIDraft({
               <button
                 type="button"
                 className="ghost-btn"
-                disabled={busy}
+                disabled={busy || stale}
                 onClick={() => onAdopt(q.data!.output, id)}
               >
                 载入编辑区
               </button>
+              {stale && <p className="live-meta">当前要求或依据已变化，请按当前条件重新生成。</p>}
             </>
           )}
         </div>
@@ -290,6 +305,10 @@ function DraftPreview({ output }: { output: Record<string, unknown> }) {
     | undefined;
   return (
     <div className="rag-draft-preview">
+      {(output.questions as { title: string; prompt: string; reference_answer: string }[] | undefined)?.map((q,i) => <article key={i}><strong>{q.title}</strong><p className="live-prose">{q.prompt}</p><details><summary>参考解答</summary><p className="live-prose">{q.reference_answer}</p></details></article>)}
+      {(output.requirements as string[] | undefined)?.map((r,i) => <p key={`r${i}`}>回答要求：{r}</p>)}
+      {(output.issues as string[] | undefined)?.map((r,i) => <p key={`i${i}`}>待澄清：{r}</p>)}
+      {(output.associations as {evidence_id:string;reason:string}[] | undefined)?.map((r,i) => <p key={`a${i}`}>关联理由：{r.reason}</p>)}
       {criteria?.map((p) => (
         <article key={p.id}>
           <strong>
@@ -619,6 +638,7 @@ function SourceWorkspace({
         <button className="ghost-btn" onClick={() => setReplacing(!replacing)}>
           {replacing ? "取消上传新版本" : "上传原件新版本"}
         </button>
+        {editable && <Link className="ghost-btn" to={`/teacher/question-bank?new=1&source_id=${id}`}>据此出题</Link>}
         <span className="rag-tag">
           {labels[source.parse_state]} · 原文修订 {query.data.display_revision}
         </span>
@@ -966,6 +986,7 @@ export function KnowledgePage() {
             </details>
             {teacher && (
               <div className="live-inline">
+                {k.state === "confirmed" && k.use_for_grading && <Link className="ghost-btn" to={`/teacher/question-bank?new=1&knowledge_id=${k.id}`}>据此出题</Link>}
                 <button
                   className="ghost-btn"
                   onClick={() => {

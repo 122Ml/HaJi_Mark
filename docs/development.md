@@ -14,7 +14,7 @@
 
 Go 1.26.1、Node 22.22.0；Gin 1.11.0、pgx 5.7.6、Asynq 0.25.1；Goose 3.26.0、sqlc 1.30.0；PostgreSQL 18.1（挂载/var/lib/postgresql）、Redis 7.4.10。数据库镜像复用本机已有的明确版本，避免首次验证重复下载。React/Ant Design/Vite等精确版本在package.json及锁文件。Docker使用明确版本标签，不使用latest；未宣称这些是2026年最新版本。
 
-依赖属于最小工程支持：Gin路由、pgx/sqlc数据、Goose迁移、Asynq队列、React Router路由、Query服务端缓存、Ant Design表单/表格。不开向量库/Agent编排框架。升级依赖由李然集中处理，三人不要分别让AI重写锁文件。
+依赖属于最小工程支持：Gin路由、pgx/sqlc数据、Goose迁移、Asynq队列、React Router路由、Query服务端缓存、Ant Design表单/表格。向量检索复用PostgreSQL/pgvector，不另开向量数据库或Agent编排框架。升级依赖由李然集中处理，三人不要分别让AI重写锁文件。
 
 ## 常用命令
 
@@ -100,9 +100,37 @@ python scripts/backup.py --verify-restore
 
 备份使用pg_dump自定义格式，写入 `.local/backups/*.dump` 和SHA256元信息。`--verify-restore` 实际恢复到唯一 `hajimark_restore_<uuid>` 临时数据库，查询提交/评分后只删除该临时库；不覆盖现有业务库，不删旧备份。备份含账号、作答等私人数据，须在本地妥善保存。实际灾难恢复需先备份现存库，再由维护者选定恢复目标，不能把演练脚本当业务库覆盖命令。
 
-AI按用户要求保持 `AI_ENABLED=false`，`AI_BASE_URL/AI_API_KEY/AI_MODEL`为空。现有 `.env` 不必覆盖；Compose对缺项默认关闭。页面显示未配置，POST assist返回503 model_not_configured；不会用构造样例替代模型。适配器未做真实提供商验收，后续启用须另获明确授权和预算。当前人工答疑、人工评分、客观规则判分和规则路径正常可用。
+默认Compose保持模型关闭，人工答疑、评分、客观规则和学习路径可单独运行。2026-11-11已获用户授权的本地真实RAG配置见下节；公网仍未启用，不沿用旧AI环境变量隐式开通新功能。
 
-迁移已分配00001—00009，后续从00010新建。修改queries后用sqlc1.30.0生成；不改已执行迁移，不手改store，不删除Goose历史来绕过失败。Nginx使用Docker DNS解析API，API重建后应自动恢复代理。
+迁移已分配并在本地执行00001—00010，后续从00011新建。修改queries后用sqlc1.30.0生成；不改已执行迁移，不手改store，不删除Goose历史来绕过失败。Nginx使用Docker DNS解析API，API重建后应自动恢复代理。
+
+## 资料与知识库的本地运行
+
+密钥位于被忽略的`.local/model-secrets.env`，仅写`DASHSCOPE_API_KEY`及`DASHSCOPE_BASE_URL`。北京兼容地址为`https://dashscope.aliyuncs.com/compatible-mode/v1`。不要在终端打印该文件，不提交、不发给浏览器。模型清单在`backend/config/models.json`；可增加多组OpenAI兼容profile，专有协议必须明确实现适配器。`key_env/base_url_env`引用服务端环境变量，`dimensions/send_dimensions/batch_size`按供应商实际能力设置。
+
+```powershell
+# 构建串行；首次需下载解析库和OCR权重，后续复用镜像层
+docker compose -f compose.yaml -f compose.rag.yaml build postgres
+docker compose -f compose.yaml -f compose.rag.yaml build api
+docker compose -f compose.yaml -f compose.rag.yaml build worker
+docker compose -f compose.yaml -f compose.rag.yaml build web
+docker compose -f compose.yaml -f compose.rag.yaml up -d --no-build
+python -u scripts/check-rag.py
+# 修复后在同一验收课程继续，不重复已完成的付费阶段
+python -u scripts/check-rag.py --continue-run
+# 重启同一Compose栈后核对持久化
+python scripts/check-rag.py --resume
+# 浏览器验收；后续可用 --continue-run 复用已完成的付费阶段
+node scripts/check-rag-browser.cjs
+```
+
+Go worker复用Asynq，单任务执行，Python解析进程限制页数、输出大小和图片尺度，OCR模型在镜像构建时初始化验证；运行不依赖GPU。仅本项目`materials-data`新卷保存原件，旧PostgreSQL卷保持原路径。默认基座也使用向量扩展镜像，以保证新迁移可执行；RAG模型调用仍须显式启用。停机使用同一组`-f`参数，不能删卷重建来掩盖数据问题。
+
+若默认Go代理连接失败，对api与worker构建同时加`--build-arg GOPROXY=https://goproxy.cn,direct`；其余构建参数保持一致以复用缓存。浏览器脚本使用上文的NODE_PATH与Edge配置。HTTP和浏览器断点记录是本地构造场景的恢复入口，不作为公网运行脚本。
+
+文件限制：30MiB/个、10个/批、200页PDF或PPTX，解包上限200MiB、提取上限200万字符。文本按UTF-8读取。扫描片段和图片提示须教师核对后才能使用；未做公式、复杂图表和手写语义验收。正文过长可分段发布/提炼，不静默截断。
+
+`model_budget/model_calls`是本轮联调的共享预留账。示例profile使用每Token微元保守费率（Embedding输入1，生成输入10/输出40），不冒充供应商账单。50元包含预检留账；未知/超时调用按预留额保守计入，不自动免费重试。默认profile为`text-embedding-v4`1024维和`qwen-plus`；变更Embedding配置后重建新空间，完成后才切换。
 
 ## 本地账号、身份与成员接入
 
@@ -165,6 +193,7 @@ CI沿用必需检查名 `collaboration-check`，覆盖Go测试/vet/构建、前�
 | 浏览器平台/设计检查 | 单次约1分钟/10秒，Light | Edge无痕上下文，预算1GB；串行执行 | 本机Docker与忽略凭据 → 有标签业务记录、.local截图；设计检查只写会话/截图 |
 | Compose与冒烟 | 秒至分钟级，Light | 本项目小型PG/Redis，无模型/GPU | 迁移/种子 → hajimark专属数据卷 |
 | 文档/哈希/元数据检查 | 秒级，Light | 无网络 | 当前文档、原件哈希、清单 → 标准输出 |
+| RAG浏览器与真实接口验收 | 含OCR/模型等待，单次通常数分钟，按Moderate预留 | Edge预算1GB；worker空闲约160MiB，OCR峰值待量测；无GPU | 有标签本地课程/私密profile → 原件卷、任务、模型共享预算、.local证据 |
 
 共享写入：sqlc写internal/store，npm写package-lock/dist，Compose迁移/seed写数据库；运行生成/迁移时不要同时手改这些目标。批量任务按总内存重估；未知任务先探测，再安排。受资源压力影响时只继续小检查，暂缓新构建。
 

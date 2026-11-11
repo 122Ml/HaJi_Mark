@@ -13,7 +13,7 @@ import (
 )
 
 const confirmRubricVersion = `-- name: ConfirmRubricVersion :one
-UPDATE rubric_versions SET state='confirmed',confirmed_at=now() WHERE id=$1 AND state='draft' RETURNING id, question_id, version, criteria, state, created_by, created_at, confirmed_at
+UPDATE rubric_versions SET state='confirmed',confirmed_at=now() WHERE id=$1 AND state='draft' RETURNING id, question_id, version, criteria, state, created_by, created_at, confirmed_at, evidence_refs
 `
 
 func (q *Queries) ConfirmRubricVersion(ctx context.Context, id string) (RubricVersion, error) {
@@ -28,13 +28,14 @@ func (q *Queries) ConfirmRubricVersion(ctx context.Context, id string) (RubricVe
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.ConfirmedAt,
+		&i.EvidenceRefs,
 	)
 	return i, err
 }
 
 const createPointRevision = `-- name: CreatePointRevision :one
 INSERT INTO grading_revisions(id,submission_id,revision,score,feedback,reviewer_id,request_id,rubric_id,point_scores)
-VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores
+VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id
 `
 
 type CreatePointRevisionParams struct {
@@ -76,13 +77,14 @@ func (q *Queries) CreatePointRevision(ctx context.Context, arg CreatePointRevisi
 		&i.ReleasedAt,
 		&i.RubricID,
 		&i.PointScores,
+		&i.AiJobID,
 	)
 	return i, err
 }
 
 const createRubricVersion = `-- name: CreateRubricVersion :one
 INSERT INTO rubric_versions(id,question_id,version,criteria,created_by)
-SELECT $1,$2,(COALESCE(MAX(version),0)+1)::integer,$3,$4 FROM rubric_versions WHERE question_id=$2 RETURNING id, question_id, version, criteria, state, created_by, created_at, confirmed_at
+SELECT $1,$2,(COALESCE(MAX(version),0)+1)::integer,$3,$4 FROM rubric_versions WHERE question_id=$2 RETURNING id, question_id, version, criteria, state, created_by, created_at, confirmed_at, evidence_refs
 `
 
 type CreateRubricVersionParams struct {
@@ -109,12 +111,13 @@ func (q *Queries) CreateRubricVersion(ctx context.Context, arg CreateRubricVersi
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.ConfirmedAt,
+		&i.EvidenceRefs,
 	)
 	return i, err
 }
 
 const getRubricVersion = `-- name: GetRubricVersion :one
-SELECT id, question_id, version, criteria, state, created_by, created_at, confirmed_at FROM rubric_versions WHERE id=$1
+SELECT id, question_id, version, criteria, state, created_by, created_at, confirmed_at, evidence_refs FROM rubric_versions WHERE id=$1
 `
 
 func (q *Queries) GetRubricVersion(ctx context.Context, id string) (RubricVersion, error) {
@@ -129,12 +132,13 @@ func (q *Queries) GetRubricVersion(ctx context.Context, id string) (RubricVersio
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.ConfirmedAt,
+		&i.EvidenceRefs,
 	)
 	return i, err
 }
 
 const listRubricVersions = `-- name: ListRubricVersions :many
-SELECT id, question_id, version, criteria, state, created_by, created_at, confirmed_at FROM rubric_versions WHERE question_id=$1 ORDER BY version DESC
+SELECT id, question_id, version, criteria, state, created_by, created_at, confirmed_at, evidence_refs FROM rubric_versions WHERE question_id=$1 ORDER BY version DESC
 `
 
 func (q *Queries) ListRubricVersions(ctx context.Context, questionID string) ([]RubricVersion, error) {
@@ -155,6 +159,7 @@ func (q *Queries) ListRubricVersions(ctx context.Context, questionID string) ([]
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.ConfirmedAt,
+			&i.EvidenceRefs,
 		); err != nil {
 			return nil, err
 		}

@@ -2,6 +2,8 @@
 
 部署目标为154.201.71.22，Ubuntu22.04/2核2GB，既有1Panel/OpenResty。AI保持关闭。本目录的Compose只有固定镜像引用，没有服务器构建入口，不与本地开发Compose混用。
 
+2026-11-11的资料/RAG开发仅在本地启用，本次未更新公网。迁移00010要求pgvector：今后发布包需同时携带基于原PostgreSQL 18.1构建的扩展镜像及`POSTGRES_IMAGE`，保留`/var/lib/postgresql`原卷。部署脚本已增加镜像打包/标签选择与迁移前数据库就绪检查，尚未执行新生产发布。现网旧release与旧Compose保留；本地OCR worker和密钥配置不自动进入生产。小内存服务器运行OCR的资源门槛须另验，不直接套用原96MiB worker限制。
+
 ## 运行结构
 
 OpenResty的独立hajistudy.online站点终止TLS，反代127.0.0.1:18080→Web→API；PostgreSQL、Redis、API、worker均无公网映射。PUBLIC_ORIGIN固定https://hajistudy.online，登录cookie启用Secure/HttpOnly/SameSite；不信任客户端自带的X-Forwarded-Proto来决定登录来源。

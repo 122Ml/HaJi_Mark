@@ -35,7 +35,7 @@ export function EditingProvider({ children }: { children: ReactNode }) {
     ({ currentLocation, nextLocation }) =>
       Object.keys(dirtyRef.current).length > 0 &&
       (currentLocation.pathname !== nextLocation.pathname ||
-        ["course", "task", "resource"].some(
+        ["course", "task", "resource", "source", "fragment"].some(
           (key) =>
             new URLSearchParams(currentLocation.search).get(key) !==
             new URLSearchParams(nextLocation.search).get(key),

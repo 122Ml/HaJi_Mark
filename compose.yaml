@@ -15,7 +15,8 @@ x-backend: &backend
 
 services:
   postgres:
-    image: postgres:18.1-alpine3.23
+    image: hajimark-postgres:18.1-vector0.8.7
+    build: ./backend/docker/postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-hajimark}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-dev-change-me}

@@ -57,6 +57,7 @@ func (h *Handler) rubrics(c *gin.Context) {
 func (h *Handler) createRubric(c *gin.Context) {
 	var in struct {
 		Criteria []criterion `json:"criteria"`
+		AIJobID  string      `json:"ai_job_id"`
 	}
 	if !bind(c, &in) {
 		return
@@ -84,6 +85,26 @@ func (h *Handler) createRubric(c *gin.Context) {
 		return
 	}
 	raw, _ := json.Marshal(in.Criteria)
+	evidence := []byte("[]")
+	if in.AIJobID != "" {
+		j, snapshot, err := h.draftJob(c, in.AIJobID, "rubric")
+		if err != nil {
+			ragError(c, err)
+			return
+		}
+		if snapshot.QuestionID != question.ID || snapshot.Prompt != question.Prompt || snapshot.MaxScore != question.MaxScore {
+			invalid(c, "题目已改变，请重新起草标准")
+			return
+		}
+		var out struct {
+			Evidence json.RawMessage `json:"evidence_refs"`
+		}
+		if json.Unmarshal(j.Output, &out) != nil {
+			invalid(c, "AI依据无效")
+			return
+		}
+		evidence = out.Evidence
+	}
 	ctx := c.Request.Context()
 	tx, err := h.db.Begin(ctx)
 	if err != nil {
@@ -100,6 +121,13 @@ func (h *Handler) createRubric(c *gin.Context) {
 	if err != nil {
 		result(c, nil, err)
 		return
+	}
+	if len(evidence) > 0 {
+		if err = q.AttachRubricEvidence(ctx, store.AttachRubricEvidenceParams{ID: v.ID, EvidenceRefs: evidence}); err != nil {
+			result(c, nil, err)
+			return
+		}
+		v.EvidenceRefs = evidence
 	}
 	result(c, v, tx.Commit(ctx))
 }

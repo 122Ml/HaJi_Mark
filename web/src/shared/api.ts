@@ -7,7 +7,7 @@ export class APIError extends Error {
 // csrfToken comes from /me or a successful login and stays in React memory.
 export async function requestJSON<T>(path: string, options: RequestInit = {}, csrfToken?: string): Promise<T> {
   const headers = new Headers(options.headers);
-  if (options.body) headers.set('Content-Type', 'application/json');
+  if (options.body && !(options.body instanceof FormData)) headers.set('Content-Type', 'application/json');
   if (csrfToken) headers.set('X-CSRF-Token', csrfToken);
   const response = await fetch(`/api/v1${path}`, { ...options, headers, credentials: 'same-origin' });
   if (!response.ok) {

@@ -16,22 +16,24 @@ jobs:
     name: collaboration-check
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    services:
-      postgres:
-        image: postgres:18.1-alpine3.23
-        env:
-          POSTGRES_USER: hajimark_test
-          POSTGRES_PASSWORD: ci-only-test
-          POSTGRES_DB: hajimark_test
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd "pg_isready -U hajimark_test -d hajimark_test"
-          --health-interval 5s --health-timeout 3s --health-retries 12
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Start vector-enabled test database
+        run: |
+          docker build -t hajimark-postgres:ci backend/docker/postgres
+          docker run -d --name hajimark-test-db -p 127.0.0.1:5432:5432 \
+            -e POSTGRES_USER=hajimark_test -e POSTGRES_PASSWORD=ci-only-test -e POSTGRES_DB=hajimark_test \
+            --health-cmd 'pg_isready -U hajimark_test -d hajimark_test' \
+            --health-interval 2s --health-timeout 3s --health-retries 30 hajimark-postgres:ci
+          for attempt in $(seq 1 35); do
+            if [ "$(docker inspect --format '{{.State.Health.Status}}' hajimark-test-db)" = healthy ]; then exit 0; fi
+            sleep 2
+          done
+          docker logs hajimark-test-db
+          exit 1
       - name: Check review owner and merge direction
         env:
           EVENT_NAME: ${{ github.event_name }}

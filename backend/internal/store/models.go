@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/pgvector/pgvector-go"
 )
 
 type AnswerDraft struct {
@@ -32,19 +33,38 @@ type Assignment struct {
 	PublishedAt pgtype.Timestamptz `json:"published_at"`
 }
 
+type ChunkEmbedding struct {
+	ChunkID    string             `json:"chunk_id"`
+	SpaceID    string             `json:"space_id"`
+	Dimensions int32              `json:"dimensions"`
+	Embedding  pgvector.Vector    `json:"embedding"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+}
+
 type Course struct {
-	ID        string             `json:"id"`
-	Title     string             `json:"title"`
-	TeacherID string             `json:"teacher_id"`
-	Status    string             `json:"status"`
-	Version   int32              `json:"version"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ID               string             `json:"id"`
+	Title            string             `json:"title"`
+	TeacherID        string             `json:"teacher_id"`
+	Status           string             `json:"status"`
+	Version          int32              `json:"version"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	EmbeddingSpaceID pgtype.Text        `json:"embedding_space_id"`
 }
 
 type CourseEdge struct {
 	CourseID string `json:"course_id"`
 	FromID   string `json:"from_id"`
 	ToID     string `json:"to_id"`
+}
+
+type EmbeddingSpace struct {
+	ID             string             `json:"id"`
+	ProfileID      string             `json:"profile_id"`
+	Fingerprint    string             `json:"fingerprint"`
+	Model          string             `json:"model"`
+	Dimensions     int32              `json:"dimensions"`
+	ChunkerVersion string             `json:"chunker_version"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
 type Enrollment struct {
@@ -66,6 +86,7 @@ type GradingRevision struct {
 	ReleasedAt   pgtype.Timestamptz `json:"released_at"`
 	RubricID     pgtype.Text        `json:"rubric_id"`
 	PointScores  json.RawMessage    `json:"point_scores"`
+	AiJobID      pgtype.Text        `json:"ai_job_id"`
 }
 
 type IndustryRecord struct {
@@ -107,6 +128,29 @@ type Intervention struct {
 	AssignmentID pgtype.Text        `json:"assignment_id"`
 }
 
+type KnowledgeEntry struct {
+	ID                string             `json:"id"`
+	CourseID          string             `json:"course_id"`
+	CreatedBy         string             `json:"created_by"`
+	Title             string             `json:"title"`
+	Body              string             `json:"body"`
+	Category          string             `json:"category"`
+	ContentKind       string             `json:"content_kind"`
+	Conditions        string             `json:"conditions"`
+	KnowledgePointIds []string           `json:"knowledge_point_ids"`
+	Evidence          json.RawMessage    `json:"evidence"`
+	RelatedIds        []string           `json:"related_ids"`
+	StudentVisible    bool               `json:"student_visible"`
+	UseForLearning    bool               `json:"use_for_learning"`
+	UseForGrading     bool               `json:"use_for_grading"`
+	State             string             `json:"state"`
+	Version           int32              `json:"version"`
+	SupersedesID      pgtype.Text        `json:"supersedes_id"`
+	EditVersion       int32              `json:"edit_version"`
+	ConfirmedAt       pgtype.Timestamptz `json:"confirmed_at"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+}
+
 type KnowledgePoint struct {
 	ID          string      `json:"id"`
 	CourseID    string      `json:"course_id"`
@@ -135,6 +179,77 @@ type LearningNote struct {
 	Note       string             `json:"note"`
 	Favorite   bool               `json:"favorite"`
 	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+}
+
+type MaterialFragment struct {
+	ID       string          `json:"id"`
+	SourceID string          `json:"source_id"`
+	Revision int32           `json:"revision"`
+	Position int32           `json:"position"`
+	Heading  string          `json:"heading"`
+	Body     string          `json:"body"`
+	Locator  json.RawMessage `json:"locator"`
+	Quality  string          `json:"quality"`
+}
+
+type MaterialSource struct {
+	ID            string             `json:"id"`
+	CourseID      string             `json:"course_id"`
+	CreatedBy     string             `json:"created_by"`
+	Title         string             `json:"title"`
+	Filename      string             `json:"filename"`
+	MediaType     string             `json:"media_type"`
+	StoragePath   string             `json:"storage_path"`
+	SourceNote    string             `json:"source_note"`
+	SourceUrl     string             `json:"source_url"`
+	Sha256        string             `json:"sha256"`
+	Version       int32              `json:"version"`
+	SupersedesID  pgtype.Text        `json:"supersedes_id"`
+	ParseRevision int32              `json:"parse_revision"`
+	State         string             `json:"state"`
+	ParseState    string             `json:"parse_state"`
+	ParseError    string             `json:"parse_error"`
+	AllowDerived  bool               `json:"allow_derived"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
+type ModelBudget struct {
+	ID               int32 `json:"id"`
+	LimitMicroCny    int64 `json:"limit_micro_cny"`
+	ReservedMicroCny int64 `json:"reserved_micro_cny"`
+	SpentMicroCny    int64 `json:"spent_micro_cny"`
+}
+
+type ModelCall struct {
+	ID               string             `json:"id"`
+	CourseID         string             `json:"course_id"`
+	ActorID          string             `json:"actor_id"`
+	ProfileID        string             `json:"profile_id"`
+	Purpose          string             `json:"purpose"`
+	State            string             `json:"state"`
+	ReservedMicroCny int64              `json:"reserved_micro_cny"`
+	ChargedMicroCny  int64              `json:"charged_micro_cny"`
+	InputTokens      int64              `json:"input_tokens"`
+	OutputTokens     int64              `json:"output_tokens"`
+	DurationMs       int64              `json:"duration_ms"`
+	ErrorCode        string             `json:"error_code"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+}
+
+type ProcessingJob struct {
+	ID         string             `json:"id"`
+	CourseID   string             `json:"course_id"`
+	CreatedBy  string             `json:"created_by"`
+	Kind       string             `json:"kind"`
+	State      string             `json:"state"`
+	Input      json.RawMessage    `json:"input"`
+	Output     json.RawMessage    `json:"output"`
+	Progress   int32              `json:"progress"`
+	Error      string             `json:"error"`
+	Attempt    int32              `json:"attempt"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	StartedAt  pgtype.Timestamptz `json:"started_at"`
+	FinishedAt pgtype.Timestamptz `json:"finished_at"`
 }
 
 type Question struct {
@@ -176,17 +291,38 @@ type Resource struct {
 	PublishedAt      pgtype.Timestamptz `json:"published_at"`
 	SupersedesID     pgtype.Text        `json:"supersedes_id"`
 	SourceNote       string             `json:"source_note"`
+	SourceID         pgtype.Text        `json:"source_id"`
+	FragmentIds      []string           `json:"fragment_ids"`
+	FullSource       bool               `json:"full_source"`
+}
+
+type RetrievalChunk struct {
+	ID             string          `json:"id"`
+	CourseID       string          `json:"course_id"`
+	SourceID       pgtype.Text     `json:"source_id"`
+	KnowledgeID    pgtype.Text     `json:"knowledge_id"`
+	ResourceID     pgtype.Text     `json:"resource_id"`
+	FragmentIds    []string        `json:"fragment_ids"`
+	Title          string          `json:"title"`
+	Heading        string          `json:"heading"`
+	Body           string          `json:"body"`
+	Locator        json.RawMessage `json:"locator"`
+	InputHash      string          `json:"input_hash"`
+	SearchTokens   string          `json:"search_tokens"`
+	SearchDocument interface{}     `json:"search_document"`
+	Active         bool            `json:"active"`
 }
 
 type RubricVersion struct {
-	ID          string             `json:"id"`
-	QuestionID  string             `json:"question_id"`
-	Version     int32              `json:"version"`
-	Criteria    json.RawMessage    `json:"criteria"`
-	State       string             `json:"state"`
-	CreatedBy   string             `json:"created_by"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	ConfirmedAt pgtype.Timestamptz `json:"confirmed_at"`
+	ID           string             `json:"id"`
+	QuestionID   string             `json:"question_id"`
+	Version      int32              `json:"version"`
+	Criteria     json.RawMessage    `json:"criteria"`
+	State        string             `json:"state"`
+	CreatedBy    string             `json:"created_by"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	ConfirmedAt  pgtype.Timestamptz `json:"confirmed_at"`
+	EvidenceRefs json.RawMessage    `json:"evidence_refs"`
 }
 
 type Session struct {

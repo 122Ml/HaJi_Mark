@@ -1,0 +1,4 @@
+[
+  {"id":"bailian-embedding","label":"百炼 · text-embedding-v4","kind":"embedding","protocol":"openai","base_url_env":"DASHSCOPE_BASE_URL","key_env":"DASHSCOPE_API_KEY","model":"text-embedding-v4","dimensions":1024,"send_dimensions":true,"batch_size":10,"input_micro_cny_per_token":1,"output_micro_cny_per_token":0},
+  {"id":"bailian-qwen","label":"百炼 · qwen-plus","kind":"chat","protocol":"openai","base_url_env":"DASHSCOPE_BASE_URL","key_env":"DASHSCOPE_API_KEY","model":"qwen-plus","batch_size":1,"input_micro_cny_per_token":10,"output_micro_cny_per_token":40}
+]

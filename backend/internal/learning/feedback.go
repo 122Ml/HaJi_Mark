@@ -18,6 +18,7 @@ func (h *Handler) grade(c *gin.Context) {
 		RequestID string       `json:"request_id"`
 		RubricID  string       `json:"rubric_id"`
 		Points    []pointScore `json:"points"`
+		AIJobID   string       `json:"ai_job_id"`
 	}
 	if !bind(c, &in) {
 		return
@@ -69,6 +70,17 @@ func (h *Handler) grade(c *gin.Context) {
 		}
 	}
 	ctx := c.Request.Context()
+	if in.AIJobID != "" {
+		_, snapshot, err := h.draftJob(c, in.AIJobID, "grade")
+		if err != nil {
+			ragError(c, err)
+			return
+		}
+		if snapshot.SubmissionID != s.ID || snapshot.AnswerHash != s.AnswerSha256 || snapshot.RubricID != in.RubricID {
+			invalid(c, "AI草稿与本次作答或标准版本不一致")
+			return
+		}
+	}
 	tx, e := h.db.Begin(ctx)
 	if e != nil {
 		result(c, nil, e)
@@ -88,7 +100,7 @@ func (h *Handler) grade(c *gin.Context) {
 			return
 		}
 		canonical, _ := json.Marshal(oldPoints)
-		if old.SubmissionID != s.ID || old.Score != in.Score || old.Feedback != in.Feedback || old.RubricID.String != in.RubricID || !bytes.Equal(canonical, raw) {
+		if old.SubmissionID != s.ID || old.Score != in.Score || old.Feedback != in.Feedback || old.RubricID.String != in.RubricID || old.AiJobID.String != in.AIJobID || !bytes.Equal(canonical, raw) {
 			identity.Fail(c, 409, "request_conflict", "相同请求号不能改变评分")
 			return
 		}
@@ -108,6 +120,13 @@ func (h *Handler) grade(c *gin.Context) {
 	if e != nil {
 		result(c, nil, e)
 		return
+	}
+	if in.AIJobID != "" {
+		if e = q.AttachGradingJob(ctx, store.AttachGradingJobParams{ID: v.ID, AiJobID: text(in.AIJobID)}); e != nil {
+			result(c, nil, e)
+			return
+		}
+		v.AiJobID = text(in.AIJobID)
 	}
 	e = tx.Commit(ctx)
 	result(c, v, e)

@@ -11,14 +11,14 @@
 pwsh -File deploy/deploy.ps1 -Action build
 ```
 
-脚本做的事：从 HEAD 的干净 worktree 构建 `hajimark-backend:<tag>`、`hajimark-web:<tag>`（带 `org.opencontainers.image.revision=<commit>` 标签），然后 `docker save` 并 gzip，写出 `.local/deployment/<release-id>/`：
+脚本做的事：从 HEAD 的干净 worktree 构建 `hajimark-postgres:<tag>`、`hajimark-backend:<tag>`、`hajimark-web:<tag>`（带 `org.opencontainers.image.revision=<commit>` 标签），然后 `docker save` 并 gzip，写出 `.local/deployment/<release-id>/`。2026-11-11起迁移00010依赖pgvector镜像；本次仅修改发布入口，尚未执行新生产发布。RAG/OCR worker默认不进入公网配置。
 
 | 文件 | 用途 |
 | --- | --- |
-| `images.tar.gz` | 两个镜像 |
+| `images.tar.gz` | 三个镜像：数据库扩展基座/API与基础worker/Web |
 | `release.json` | 源提交、镜像 ID、归档 SHA256、上一个 release |
 | `compose.production.yaml` 等 | 与 `deploy/` 相同的生产 Compose 与运维脚本 |
-| `env.template` | `shared/.env` 中需要的变量；升级时只改两行镜像 tag，保留原数据库密码 |
+| `env.template` | `shared/.env` 中需要的变量；升级选择三个镜像tag，保留原数据库密码和数据卷 |
 | `switch-release.sh` | 服务器上校验镜像 ID/revision，改写 `.env` 中的镜像 tag，切换 `current` 链接，运行一次性 migrate，逐服务 `up --no-deps --wait`，检查健康 |
 | `update-release.sh` | 校验 SHA256 → 记录旧 `current` → `backup.sh` → `docker load` → `switch-release.sh` |
 | `rollback.sh` | 切回 `.previous-current`（默认为 release.json 中的 previous_release）；只切镜像，不恢复数据库 |

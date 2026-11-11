@@ -1,0 +1,208 @@
+package rag
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/122Ml/HaJi_Mark/backend/internal/store"
+	"github.com/hibiken/asynq"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+func TestRAGIsolationAndBudget(t *testing.T) {
+	dsn := os.Getenv("TEST_DATABASE_URL")
+	if dsn == "" {
+		t.Skip("TEST_DATABASE_URL is not set")
+	}
+	ctx := context.Background()
+	admin, e := pgxpool.New(ctx, dsn)
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer admin.Close()
+	schema := fmt.Sprintf("rag_test_%d", time.Now().UnixNano())
+	if _, e = admin.Exec(ctx, "CREATE SCHEMA "+schema); e != nil {
+		t.Fatal(e)
+	}
+	defer admin.Exec(ctx, "DROP SCHEMA "+schema+" CASCADE")
+	config, e := pgxpool.ParseConfig(dsn)
+	if e != nil {
+		t.Fatal(e)
+	}
+	config.ConnConfig.RuntimeParams["search_path"] = schema + ",public"
+	db, e := pgxpool.NewWithConfig(ctx, config)
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer db.Close()
+	paths, _ := filepath.Glob("../../db/migrations/*.sql")
+	for _, p := range paths {
+		raw, e := os.ReadFile(p)
+		if e != nil {
+			t.Fatal(e)
+		}
+		sql := strings.Split(strings.Split(string(raw), "-- +goose Up")[1], "-- +goose Down")[0]
+		if _, e = db.Exec(ctx, sql); e != nil {
+			t.Fatal(p, e)
+		}
+	}
+	must := func(sql string) {
+		t.Helper()
+		if _, e := db.Exec(ctx, sql); e != nil {
+			t.Fatal(e)
+		}
+	}
+	must(`INSERT INTO users(id,display_name,role) VALUES('t','Teacher','teacher');INSERT INTO courses(id,title,teacher_id) VALUES('c','RAG test','t'),('foreign','other','t');
+ INSERT INTO material_sources(id,course_id,created_by,title,sha256,parse_state,parse_revision,allow_derived) VALUES('s','c','t','source','hash','ready',1,true),('f','foreign','t','foreign','hash','ready',1,true);
+ INSERT INTO material_fragments(id,source_id,revision,position,body,locator) VALUES('public','s',1,0,'公开边界值分析','{}'),('private','s',1,1,'内部评分细则','{}'),('foreign-f','f',1,0,'异课程机密','{}');
+ INSERT INTO retrieval_chunks(id,course_id,source_id,fragment_ids,title,body,locator,input_hash,search_tokens) VALUES('p','c','s',ARRAY['public'],'public','公开边界值分析','{}','p','边界 测试'),('secret','c','s',ARRAY['private'],'secret','内部评分细则','{}','s','边界 测试'),('foreign-c','foreign','f',ARRAY['foreign-f'],'foreign','异课程机密','{}','f','边界 测试');
+ INSERT INTO resources(id,course_id,title,content,locator,created_by,status,source_id,fragment_ids) VALUES('r','c','published','公开边界值分析','part','t','published','s',ARRAY['public']);`)
+	q := store.New(db)
+	find := func(teacher bool, want int) {
+		t.Helper()
+		rows, e := q.KeywordSearch(ctx, store.KeywordSearchParams{CourseID: "c", QueryTokens: "'边界'", Teacher: teacher, Purpose: "learning"})
+		if e != nil || len(rows) != want {
+			t.Fatalf("teacher=%v rows=%d want=%d err=%v", teacher, len(rows), want, e)
+		}
+		for _, r := range rows {
+			if r.ID == "foreign-c" || !teacher && r.ID == "secret" {
+				t.Fatal("private content leaked")
+			}
+		}
+	}
+	find(true, 2)
+	find(false, 1)
+	allowed, e := q.StudentCanDownloadSource(ctx, store.StudentCanDownloadSourceParams{ID: "s", CourseID: "c"})
+	if e != nil || allowed {
+		t.Fatal("partial publication must not allow original download")
+	}
+	must(`INSERT INTO knowledge_entries(id,course_id,created_by,title,body,state,student_visible,evidence) VALUES('kp','c','t','private knowledge','secret','confirmed',true,'[{"source_id":"s","fragment_id":"private","quote":"内部评分细则"}]');`)
+	knowledge, e := q.ListKnowledgeEntries(ctx, store.ListKnowledgeEntriesParams{CourseID: "c", Teacher: false})
+	if e != nil || len(knowledge) != 0 {
+		t.Fatal("knowledge derived from private fragments leaked", e)
+	}
+	must(`UPDATE knowledge_entries SET evidence='[{"source_id":"s","fragment_id":"public","quote":"公开边界值分析"}]' WHERE id='kp'`)
+	knowledge, e = q.ListKnowledgeEntries(ctx, store.ListKnowledgeEntriesParams{CourseID: "c", Teacher: false})
+	if e != nil || len(knowledge) != 1 {
+		t.Fatal("confirmed public knowledge is missing", e)
+	}
+	must(`UPDATE material_sources SET allow_derived=false WHERE id='s'`)
+	knowledge, e = q.ListKnowledgeEntries(ctx, store.ListKnowledgeEntriesParams{CourseID: "c", Teacher: false})
+	if e != nil || len(knowledge) != 0 {
+		t.Fatal("derived knowledge survived revoked derivation permission", e)
+	}
+	must(`UPDATE material_sources SET allow_derived=true WHERE id='s'`)
+	_, e = q.MissingChunkEmbeddings(ctx, store.MissingChunkEmbeddingsParams{CourseID: "c", SpaceID: "not-created"})
+	if e != nil {
+		t.Fatal("pending chunks failed to decode", e)
+	}
+	must(`UPDATE material_sources SET state='archived' WHERE id='s'`)
+	find(true, 0)
+	find(false, 0)
+	must(`UPDATE model_budget SET limit_micro_cny=100000,reserved_micro_cny=0,spent_micro_cny=0`)
+	var count atomic.Int32
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, e := q.ReserveModelBudget(ctx, 30000); e == nil {
+				count.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+	if count.Load() != 3 {
+		t.Fatal("concurrent reservations exceeded budget", count.Load())
+	}
+	must(`UPDATE model_budget SET limit_micro_cny=50000000,reserved_micro_cny=0,spent_micro_cny=0`)
+	t.Setenv("RAG_ENABLED", "true")
+	t.Setenv("RAG_TEST_KEY", "unit-test-not-a-real-secret")
+	duplicate := false
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if r.Header.Get("Authorization") != "Bearer unit-test-not-a-real-secret" || body["model"] != "test-model" {
+			t.Error("adapter request invalid")
+		}
+		second := 0
+		if duplicate {
+			second = 1
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": []map[string]any{{"index": 1, "embedding": []float64{0, 1}}, {"index": second, "embedding": []float64{1, 0}}}, "usage": map[string]int{"prompt_tokens": 8}})
+	}))
+	defer provider.Close()
+	t.Setenv("RAG_TEST_BASE", provider.URL)
+	m := &Models{DB: db, Client: provider.Client()}
+	p := Profile{ID: "test", Model: "test-model", BaseURLEnv: "RAG_TEST_BASE", KeyEnv: "RAG_TEST_KEY", InputRate: 1, Dimensions: 2, BatchSize: 2}
+	vectors, e := m.Embed(ctx, "c", "t", p, []string{"first", "second"})
+	if e != nil || vectors[0][0] != 1 {
+		t.Fatal("adapter failed to restore order", e)
+	}
+	duplicate = true
+	if _, e = m.Embed(ctx, "c", "t", p, []string{"first", "second"}); e == nil {
+		t.Fatal("duplicate vector index must fail")
+	}
+	must(`UPDATE material_sources SET state='active',allow_derived=true WHERE id='s'`)
+	var chatCalls atomic.Int32
+	cancelJob := ""
+	chat := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		chatCalls.Add(1)
+		if cancelJob != "" {
+			if _, err := q.CancelProcessingJob(ctx, store.CancelProcessingJobParams{ID: cancelJob, CourseID: "c"}); err != nil {
+				t.Error(err)
+			}
+		}
+		content := `{"candidates":[{"title":"候选","body":"公开边界值分析","content_kind":"method","evidence":[{"source_id":"s","fragment_id":"public","quote":"公开边界值分析"}]}]}`
+		_ = json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]string{"content": content}, "finish_reason": "stop"}}, "usage": map[string]int{"prompt_tokens": 8, "completion_tokens": 8}})
+	}))
+	defer chat.Close()
+	t.Setenv("RAG_CHAT_TEST_BASE", chat.URL)
+	service := New(&Models{DB: db, Client: chat.Client(), Profiles: []Profile{{ID: "chat-test", Kind: "chat", Model: "test", KeyEnv: "RAG_TEST_KEY", BaseURLEnv: "RAG_CHAT_TEST_BASE", InputRate: 1, OutputRate: 1}}})
+	input, _ := json.Marshal(JobInput{SourceID: "s", FragmentIDs: []string{"public"}})
+	create := func(id string) store.ProcessingJob {
+		t.Helper()
+		job, err := q.CreateProcessingJob(ctx, store.CreateProcessingJobParams{ID: id, CourseID: "c", CreatedBy: "t", Kind: "extract", Input: input})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return job
+	}
+	job := create("extract-once")
+	task := asynq.NewTask(taskType, []byte(job.ID))
+	if e = service.Process(ctx, task); e != nil {
+		t.Fatal(e)
+	}
+	completed, e := q.GetProcessingJob(ctx, store.GetProcessingJobParams{ID: job.ID, CourseID: "c"})
+	var output struct {
+		CandidateIDs []string `json:"candidate_ids"`
+	}
+	_ = json.Unmarshal(completed.Output, &output)
+	if e != nil || completed.State != "succeeded" || len(output.CandidateIDs) != 1 {
+		t.Fatal("candidate commit and completion must persist together", completed.State, e)
+	}
+	before, _ := q.ListKnowledgeEntries(ctx, store.ListKnowledgeEntriesParams{CourseID: "c", Teacher: true})
+	if e = service.Process(ctx, task); e != nil || chatCalls.Load() != 1 {
+		t.Fatal("redelivery repeated a completed model call", chatCalls.Load(), e)
+	}
+	canceled := create("extract-canceled")
+	cancelJob = canceled.ID
+	if e = service.Process(ctx, asynq.NewTask(taskType, []byte(canceled.ID))); e != nil {
+		t.Fatal(e)
+	}
+	after, _ := q.ListKnowledgeEntries(ctx, store.ListKnowledgeEntriesParams{CourseID: "c", Teacher: true})
+	current, _ := q.GetProcessingJob(ctx, store.GetProcessingJobParams{ID: canceled.ID, CourseID: "c"})
+	if len(after) != len(before) || current.State != "canceled" {
+		t.Fatal("canceled extraction published candidates")
+	}
+}

@@ -40,7 +40,7 @@ func TestPostgresSessionsAndAuthorization(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	config.ConnConfig.RuntimeParams["search_path"] = schema
+	config.ConnConfig.RuntimeParams["search_path"] = schema + ",public"
 	db, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		t.Fatal(err)

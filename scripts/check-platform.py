@@ -255,9 +255,12 @@ try:
         foreign_post = t.call('POST', other_prefix + '/interactions', {'kind': 'discussion', 'title': '另一课程', 'content': '独立讨论'})
         a.call('POST', prefix + '/interactions', {'kind': 'reply', 'parent_id': foreign_post['id'], 'content': '不能跨课程回复'}, expected=403)
         print('PASS: zero-score evidence differs from no result, deadline enforcement and cross-course reference isolation')
-        assert not a.call('GET',prefix+'/assist')['configured']
-        a.call('POST',prefix+'/assist',{'topic':'解释数据质量'},expected=503)
-        print('PASS: curriculum hierarchy, dependency cycle rejection, persistent paths, immutable resource history and AI disabled state')
+        if not a.call('GET',prefix+'/assist')['configured']:
+            a.call('POST',prefix+'/assist',{'topic':'解释数据质量'},expected=503)
+            print('PASS: unconfigured AI reports unavailable; manual platform remains usable')
+        else:
+            print('AI configured: real model acceptance is exercised separately by check-rag.py')
+        print('PASS: curriculum hierarchy, dependency cycle rejection, persistent paths and immutable resource history')
         Path(args.output).write_text(json.dumps({'course_id': course['id'], 'assignment_id': assignment['id'], 'submission_id': submission['id'], 'resource_id': resource['id'], 'knowledge_point_id': point['id'], 'answer_text': answer, 's1_handoff': {'student_id': submission['student_id'], 'question_id': question['id'], 'attempt': submission['attempt'], 'assignment_version': submission['assignment_version'], 'answer_sha256': submission['answer_sha256'], 'submitted_at': submission['submitted_at'], 'resource_version': resource['version'], 'source_note': resource['source_note'], 'locator': resource['locator'], 'event_count_before_grading': len(activity), 'roster_before_grading': {'total': roster['total'], 'submitted': roster['submitted'], 'not_submitted': roster['not_submitted']}}}, ensure_ascii=False, indent=2), encoding='utf8')
         print('Real test IDs saved locally for browser/restart checks; labelled test course retained.')
 finally:

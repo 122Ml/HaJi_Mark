@@ -1,0 +1,33 @@
+services:
+  api:
+    image: hajimark-backend:rag-local
+    build:
+      context: ./backend
+      target: runtime
+    env_file: [.local/model-secrets.env]
+    environment:
+      RAG_ENABLED: 'true'
+      MATERIALS_DIR: /data/materials
+    volumes: [materials-data:/data/materials]
+  migrate:
+    image: hajimark-backend:rag-local
+    build:
+      context: ./backend
+      target: runtime
+  worker:
+    image: hajimark-worker:rag-local
+    build:
+      context: ./backend
+      target: rag-worker
+    env_file: [.local/model-secrets.env]
+    environment:
+      RAG_ENABLED: 'true'
+      MATERIALS_DIR: /data/materials
+      PARSER_SCRIPT: /app/tools/parser/parse.py
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+    volumes: [materials-data:/data/materials]
+  backend-test:
+    image: hajimark-backend-test:rag-local
+volumes:
+  materials-data:

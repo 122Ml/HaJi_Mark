@@ -1,13 +1,11 @@
 import { useState } from "react";
 import { useLiveQuery, useAction, Feedback } from "./context";
+import { GroundedAnswer, type AssistAnswer } from "./knowledge";
 export function LearningAssistant() {
   const status = useLiveQuery<{ configured: boolean }>("/assist");
   const action = useAction();
   const [topic, setTopic] = useState("");
-  const [output, setOutput] = useState<{
-    text: string;
-    sources: { id: string; version: number; locator: string }[];
-  } | null>(null);
+  const [output, setOutput] = useState<AssistAnswer | null>(null);
   return (
     <section className="card-panel">
       <h2>课程助教</h2>
@@ -18,10 +16,7 @@ export function LearningAssistant() {
             className="live-form"
             onSubmit={async (e) => {
               e.preventDefault();
-              const r = await action.run<{
-                text: string;
-                sources: { id: string; version: number; locator: string }[];
-              }>("/assist", { topic });
+              const r = await action.run<AssistAnswer>("/assist", { topic });
               if (r) setOutput(r);
             }}
           >
@@ -43,18 +38,14 @@ export function LearningAssistant() {
       ) : (
         <p>模型服务尚未配置。可阅读课程资料，或在互动答疑中向教师提问。</p>
       )}
-      <Feedback error={status.error} message={action.message} failed={action.failed} />
+      <Feedback
+        error={status.error}
+        message={action.message}
+        failed={action.failed}
+      />
       {output && (
         <>
-          <article className="live-prose">{output.text}</article>
-          <details>
-            <summary>本次提供给助教的资料来源</summary>
-            {output.sources.map((s) => (
-              <p key={s.id}>
-                {s.locator} · v{s.version} · {s.id}
-              </p>
-            ))}
-          </details>
+          <GroundedAnswer answer={output} />
         </>
       )}
     </section>

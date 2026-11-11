@@ -20,7 +20,7 @@ x-backend: &backend
 
 services:
   postgres:
-    image: postgres:18.1-alpine3.23
+    image: ${POSTGRES_IMAGE:?Set a PostgreSQL 18 image with pgvector 0.8.7}
     restart: unless-stopped
     environment:
       POSTGRES_USER: hajimark

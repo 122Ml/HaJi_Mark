@@ -38,7 +38,7 @@ HttpOnly、SameSiteStrict、Path=/api/v1、8小时cookie，DB仅存token哈希�
 | GET/POST /interventions；POST /interventions/:id/state | TS按范围/T创建 | student_id/title/description/可选resource_id/assignment_id；draft→assigned→submitted→reviewed |
 | GET/POST /interactions | TS | kind/title/content/parent_id；学生question/reply，教师另有announcement/discussion；同课程回复 |
 | GET/POST/PUT/DELETE /research[/:id]；/industry[/:id] | T | 教研title/content；行业title/source_url/skills；按课程管理记录 |
-| GET/POST /assist | TS | configured；topic请求。AI_ENABLED=false时503 model_not_configured，不返回假答案 |
+| GET/POST /assist | TS | configured；topic/profile_id请求。未启用RAG或无可用模型时明确失败；回答/引用核查见下节 |
 
 `questions` 每项包含prompt/max_score/rubric/knowledge_point_id/resource_id，quiz另含options/correct_answer。资料引用只能绑定当前课程已审核发布记录。发布后题目/标准禁止原地更新。当前每个正式submission对应一道题，多题作业逐题提交；教师提交覆盖按不同question_id计数，partial与未提交分开。分值为整数，不隐式四舍五入。
 
@@ -50,7 +50,35 @@ HttpOnly、SameSiteStrict、Path=/api/v1、8小时cookie，DB仅存token哈希�
 
 迁移00001底座、00002身份、00003学习/作业/评分/干预/互动、00004草稿与资料绑定/笔记、00005课程层级/依赖/路径、00006资料历史、00007干预关联。SQL在learning.sql等queries中，store由sqlc生成。
 
-当前兼容整题人工标准，并已增加独立rubric确认版本与人工逐点评分；评分点和分项结果存JSONB，没有独立criterion表或AI原稿/任务。可选quote必须是该提交原文的子串；没有code point区间高亮。原题目文本标准仍随assignment_version冻结，结构化标准另存版本并绑定到对应评分修订。资料修订以resource_id绑定不可变版本。列表当前未分页，适合本地小规模课程；批量导入/高并发/大文件尚未验收。AI适配器默认关闭，未测试真实提供商，不能据此宣称E6已完成。
+当前兼容整题人工标准、独立rubric确认版本与逐点评分；评分点和分项结果存JSONB，没有独立criterion表。可选quote必须是该提交原文的子串；没有code point区间高亮。原题目文本标准仍随assignment_version冻结，结构化标准另存版本并绑定到对应评分修订。资料修订以resource_id绑定不可变版本。作业/批阅队列支持服务端分页，资料和知识列表暂按课程完整加载，未做大规模负载验收。AI任务与本地真实联调按2026-11-11增量实现，不代表独立教学效果评测完成。
+
+## 2026-11-11 资料、知识与模型任务
+
+所有路径相对`/learning/courses/:courseID`。T=课程教师，TS=教师或已选课学生；所有写请求保留CSRF及课程归属校验。`RAG_ENABLED=true`仅在本地覆盖配置启用；不可用时返回503，不返回样例冒充模型。
+
+| 方法/路径 | 权限 | 主要契约 |
+| --- | --- | --- |
+| GET /sources；GET /sources/:sourceID | T | 原件清单；当前解析修订/片段，`?fragment_id=`可回看引用所属历史修订 |
+| POST /sources | T | multipart `files`、`source_note`、`allow_derived`；可选`supersedes_id`上传一件新版本，返回解析任务列表 |
+| GET /sources/:sourceID/download | TS | 教师可读原件；学生须存在当前发布且`full_source=true`绑定，部分片段发布不能下载全件 |
+| PUT /sources/:sourceID/fragments | T | `revision/fragments`完整当前列表；检查旧版本和片段顺序，新建解析修订，OCR可校正为ready |
+| POST /sources/:sourceID/publish | T | `title/fragment_ids/full_source/knowledge_point_id`；仅当前ready片段，创建并发布学习资源 |
+| POST /sources/:sourceID/archive；PUT /sources/:sourceID/derivation | T | 来源归档；`allow_derived`调整提炼许可，派生检索实时检查当前许可 |
+| GET /knowledge | TS | 教师看本课程全部状态；学生仅公开、确认、用于学习且出处已发布/仍可用的知识 |
+| POST /knowledge；PUT /knowledge/:knowledgeID | T | title/body/category/content_kind/conditions/evidence/knowledge_point_ids/related_ids及可见性、用途；草稿编辑携edit_version，确认条目只能另建supersedes_id版本 |
+| POST /knowledge/:knowledgeID/state | T | state=confirmed或archived；确认重查逐字出处、当前来源和学生发布范围 |
+| GET /models | T | 脱敏profile、全局保守预算、当前课程最近50次调用；不含密钥或私有认证头 |
+| POST /jobs | T | kind=parse/index/extract/rubric/grade及对应来源、片段、模型/题目/作答/确认标准ID；服务端重新读取冻结输入 |
+| GET /jobs；GET /jobs/:jobID | T | 最近60任务或指定任务的状态、进度、错误和输出草稿 |
+| POST /jobs/:jobID/cancel；POST /jobs/:jobID/retry | T | 取消排队/运行任务；仅失败可重试，新增任务保留原失败记录 |
+| POST /retrieval；GET /retrieval/status | TS | query/purpose；学生不能grading用途；返回hits/mode，未启用向量时明确关键词降级原因 |
+| POST /assist | TS | topic/profile_id；返回text/sources/citations/status/mode；无依据返回insufficient_evidence，伪造引用拒绝展示 |
+
+知识`content_kind`为concept/method/rule/example/misconception；evidence包含`source_id/fragment_id/quote`，quote逐字来自本课程ready原文。候选不自动创建课程知识点，不把相似条目强行合并。确认知识仍分`student_visible/use_for_learning/use_for_grading`。学生私有笔记、作答和未发布评分不进入共享检索索引。
+
+任务状态为queued→running→succeeded/failed，queued/running可取消；输出必须`pending_teacher_review`。标准任务不读取submission；评阅任务冻结answer/hash、question、confirmed criteria、rubric evidence_refs。评分点完整、范围、加和和逐字作答引用必须通过，非零分须有引用。此机械核对不证明给分语义正确。
+
+教师载入AI标准/评分到原编辑器后仍可修改，保存时传`ai_job_id`；后端检查任务、课程、对象与冻结版本，标准附带原任务检索依据，评分关联原AI任务。浏览器恢复编辑同时保留该关联。标准确认与评分确认/发布保持原接口，AI任务成功不发布成绩。学生只得到released反馈，不读模型输入、内部标准或任务列表。
 
 ## 2026-11-04 逐点评分（已实现）
 

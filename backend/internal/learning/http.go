@@ -3,6 +3,7 @@ package learning
 import (
 	"errors"
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
+	"github.com/122Ml/HaJi_Mark/backend/internal/rag"
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -13,18 +14,25 @@ import (
 )
 
 type Handler struct {
-	db *pgxpool.Pool
-	q  *store.Queries
+	db  *pgxpool.Pool
+	q   *store.Queries
+	rag *rag.Service
 }
 
 func Register(api *gin.RouterGroup, db *pgxpool.Pool, auth *identity.Handler) {
 	h := &Handler{db: db, q: store.New(db)}
+	if rag.Enabled() {
+		if models, err := rag.LoadModels(db); err == nil {
+			h.rag = rag.New(models)
+		}
+	}
 	base := api.Group("/learning", auth.RequireSession())
 	base.POST("/courses", identity.RequireRole("teacher"), auth.RequireCSRF(), h.createCourse)
 	base.PUT("/profile", auth.RequireCSRF(), h.profile)
 	base.PUT("/password", auth.RequireCSRF(), h.password)
 	g := base.Group("/courses/:courseID", auth.RequireCourse("courseID"))
 	g.GET("", h.context)
+	h.registerRAG(g, auth)
 	g.POST("/publish", identity.RequireRole("teacher"), auth.RequireCSRF(), h.publishCourse)
 	g.PUT("", identity.RequireRole("teacher"), auth.RequireCSRF(), h.renameCourse)
 	g.POST("/curriculum", identity.RequireRole("teacher"), auth.RequireCSRF(), h.importCurriculum)

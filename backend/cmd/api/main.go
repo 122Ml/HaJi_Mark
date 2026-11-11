@@ -26,7 +26,7 @@ func main() {
 	defer db.Close()
 	cache := redis.NewClient(&redis.Options{Addr: config.RedisAddr})
 	defer cache.Close()
-	app := &http.Server{Addr: config.HTTPAddr, Handler: server.New(db, cache, config.SecureSessionCookie), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 45 * time.Second, IdleTimeout: 60 * time.Second}
+	app := &http.Server{Addr: config.HTTPAddr, Handler: server.New(db, cache, config.SecureSessionCookie), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 120 * time.Second, WriteTimeout: 120 * time.Second, IdleTimeout: 60 * time.Second}
 	serverErrors := make(chan error, 1)
 	go func() { serverErrors <- app.ListenAndServe() }()
 	log.Printf("api listening on %s", config.HTTPAddr)

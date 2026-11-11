@@ -27,7 +27,7 @@ flowchart LR
 | --- | --- |
 | backend/internal/identity | bcrypt、8小时数据库会话、角色/课程/本人权限、CSRF与登录频率限制 |
 | backend/internal/learning | 课程/目录/资料/成员，作业/提交/评分，学情/路径/干预，互动和账号、教研/行业记录 |
-| backend/internal/store；backend/db | sqlc类型查询，Goose迁移00001—00009；原文和修订的唯一事实源 |
+| backend/internal/store；backend/db | sqlc类型查询，Goose迁移00001—00010；原文和修订的唯一事实源 |
 | web/src/live | course/curriculum/graph/notes、assessment、insight/path、communication、account、assistant |
 | web/src/shared | API、会话与错误恢复；原课程示例保留但不作为活动主入口 |
 | backend/internal/course | 兼容公开的已发布课程摘要；不包含学生数据 |
@@ -38,7 +38,7 @@ flowchart LR
 
 ## 运行与数据
 
-Compose 运行 Nginx Web、Gin API、PostgreSQL、Redis、worker；migrate 一次性执行，API就绪后Web启动。仅Web绑定 `127.0.0.1:18080`，数据库/API/Redis无宿主端口。Nginx通过Docker DNS更新API地址，保留Host端口供同源校验；API有读写/空闲超时。Redis/Asynq和worker仍是保留基础，目前学习业务同步写PostgreSQL，没有已接入的评分队列或outbox。
+Compose 运行 Nginx Web、Gin API、PostgreSQL/pgvector、Redis、worker；migrate 一次性执行，API就绪后Web启动。仅Web绑定 `127.0.0.1:18080`，数据库/API/Redis无宿主端口。Nginx通过Docker DNS更新API地址，保留Host端口供同源校验；API有读写/空闲超时。普通教学写入仍同步事务提交；启用本地RAG配置后，数据库processing_jobs持久记录配合Asynq执行耗时任务。
 
 | 对象 | 实际状态与版本 |
 | --- | --- |
@@ -62,7 +62,7 @@ CO-01/AS-01已按[贡献映射](../references/contributions/README.md)适配到l
 
 教师评分同屏查看冻结题目标准、学生原文、资料版本/段落/来源；已发布结果保留submission/revision/resource ID。资料由教师录入并审核，平台不证明内容的学术正确性。知识点表现为得分/满分汇总并展示证据，不等于真实能力；无记录显示证据不足。
 
-本轮AI按用户要求关闭，课程助手明确未配置，人工答疑/评分不受影响。兼容模型适配入口存在但未实测、未授权启用；已有人工作用的独立rubric版本、逐点评分和可选原文引用的字符串定位检查；没有AI评阅或E6效果实验。当前原文引用按字符串定位并高亮首次匹配，保留中文、emoji和换行；尚无带位置编号的多处同文消歧。知识点图谱为依赖卡片，教研和行业功能为人工记录CRUD，没有招聘采集/自动能力推断；资料目前支持文本和外部链接，没有文件上传/OCR/视频处理。班级表现与证据下钻已经可用，E4错因分类与独立研究评测仍是后续研究任务。
+2026-11-11用户已授权本地RAG和真实模型联调，具体边界见下节；默认配置和公网仍关闭模型。原文引用按字符串定位并高亮首次匹配，保留中文、emoji和换行；尚无带位置编号的多处同文消歧。知识点图谱为依赖卡片，教研和行业功能为人工记录CRUD，没有招聘采集/自动能力推断；视频处理未实现。班级表现与证据下钻已经可用，E4错因分类与独立教学效果评测仍是后续研究任务。
 
 公网域名采用OpenResty/Let's Encrypt TLS，邮件/找回密码和多机构管理仍未配置，未做大规模并发/安全审计。当前按课堂试用验收，不声称与参考平台所有高级菜单或视觉完全等价。备份与隔离恢复见 [development](development.md)，历史三图保留在 references/diagrams。
 
@@ -91,3 +91,63 @@ flowchart LR
 ```
 
 本次先完成本地Docker验收；随后按用户明确要求发布到公网hajistudy.online，release为hajimark-workspace-f40872a-20261105。部署与数据保全证据见验证记录。
+
+## 资料与知识库
+
+学习资料保存完整学习内容；知识库保存带条件、用途与出处的精炼条目。共享来源和检索能力，不共用发布状态。旧文本/外链资料继续有效；链接只保存地址，不等于已抓取网页全文。
+
+```mermaid
+flowchart TB
+  File[教师：课程文件＋来源＋提炼许可] --> Source[原件：哈希 / 来源版本 / 文件卷]
+  Source --> Parse[异步解析：正文 / 表格 / 中文OCR / 位置]
+  Parse --> Review[教师：核对异常 / 校正原文 → 新修订]
+  Parse --> Ready[可靠原文片段]
+  Review --> Ready
+  Ready --> Publish[教师：选择章节或全文发布]
+  Publish --> Material[学习资料：正文 / 来源 / 阅读与笔记]
+  Ready --> Index[分块 → Embedding与关键词索引]
+  Ready --> Extract[按需AI：提炼 / 分类 / 条件 / 关联建议]
+  Extract --> Draft[知识候选：逐字出处 / 关联知识点 / 相关条目]
+  Draft --> Human[教师：编辑 / 比较 / 确认]
+  Human --> KB[确认知识：学习用途 / 评分用途 / 可见性]
+  KB --> Index
+  Index --> Access[课程＋发布＋用途权限过滤 / RRF融合]
+  Access --> Search[检索与带引用问答]
+  Access --> Rubric[题目 → AI独立起草标准]
+  Rubric --> Confirm[教师编辑确认标准 / 冻结依据]
+  Answer[不可变学生作答] --> Grade[AI逐点评阅草稿 / 原文核对]
+  Confirm --> Grade
+  Grade --> Release[教师修改 / 确认 / 发布]
+  Release --> Student[学生反馈 / 学情与后续补学]
+  Material --> Student
+  KB --> Student
+```
+
+`learning/materials.go`复用课程/角色/CSRF，`internal/rag`负责模型、检索与任务，`tools/parser/parse.py`仅做文件解析，`live/knowledge.tsx`提供资料核对、知识审核、检索、模型草稿界面。标准起草只接收题目和评分用途依据；评阅接收冻结题目、作答哈希、确认标准和当时依据，禁止检索追加扣分项。AI输出不自动改写教师编辑，不直接生成正式成绩。
+
+```mermaid
+flowchart LR
+  Browser[React师生页面] --> API[Gin：会话 / 课程 / CSRF]
+  API --> PG[(PostgreSQL：版本 / 权限 / 任务 / 预算)]
+  API --> Volume[(资料原件持久化卷)]
+  API --> Queue[(Redis / Asynq)]
+  Queue --> Worker[Go worker：单任务执行 / 取消 / 恢复]
+  Worker --> Parser[Python：原生格式解析 / RapidOCR CPU]
+  Parser --> Volume
+  Worker --> PG
+  PG --> Recovery[15秒扫描待执行 / 过期租约]
+  Recovery --> Queue
+  Worker --> Provider[服务端模型profile → 百炼或兼容接口]
+  API --> Provider
+  Provider --> Vector[(pgvector：独立模型与维度空间)]
+  PG --> FTS[gse / simple全文检索 / GIN]
+  Vector --> RRF[RRF 60：两路各20 → 最多6段]
+  FTS --> RRF
+  RRF --> API
+```
+
+向量从精确余弦检索起步，尚无HNSW或reranker。分块目标约800字、上限1200 Unicode字符；单次上下文最多4000字符。空间指纹包括profile、实际地址、模型、维度与分块版本；完整建索引成功才切换活动空间。供应商别名不当作不可变模型版本。兼容协议适配验证条数、index重排、维度、有限值和非零向量；专有协议需另写适配器。
+
+原件保存SHA256；解析修订和资料发布绑定不可变片段。扫描/OCR与图表提示标为待核，核对前不能发布、提炼或索引。定位为PDF页、DOCX内容块/表格、PPTX幻灯片/对象及文本段落；未实现PDF精确框选坐标、Office版式还原、公式/复杂图表/手写语义、网页抓取和视频。部分发布不允许整件下载。已公开的旧原文片段仍可供历史引用；归档来源或撤回提炼许可会立即限制派生知识未来检索，历史评分不覆盖。
+
+模型任务由数据库保存输入/输出和状态，队列可恢复补投；失败显式创建新任务重试，不把超时视为免费。调用前全局事务预留50元预算，成功按配置保守费率与Token结算，未知调用保留预留额。供应商真实账单、其他应用调用及价格变化不由本地预算控制。模型密钥只由API/worker环境变量读取，浏览器只得到脱敏profile。

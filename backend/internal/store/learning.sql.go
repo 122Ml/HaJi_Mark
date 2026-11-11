@@ -262,7 +262,7 @@ func (q *Queries) BusinessOverview(ctx context.Context, courseID string) ([]Busi
 const courseReleasedEvidence = `-- name: CourseReleasedEvidence :many
 SELECT DISTINCT ON (s.student_id,s.question_id) s.id AS submission_id,s.student_id,s.question_id,s.answer_text,s.attempt,r.id AS revision_id,r.score,r.feedback,q.max_score,q.prompt,q.knowledge_point_id,q.resource_id,r.released_at,r.rubric_id,r.point_scores
 FROM submissions s JOIN questions q ON q.id=s.question_id
-JOIN LATERAL (SELECT id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores FROM grading_revisions g WHERE g.submission_id=s.id AND g.state='released' ORDER BY g.revision DESC LIMIT 1) r ON true
+JOIN LATERAL (SELECT id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id FROM grading_revisions g WHERE g.submission_id=s.id AND g.state='released' ORDER BY g.revision DESC LIMIT 1) r ON true
 WHERE s.course_id=$1 AND ($2::boolean OR s.student_id=$3)
 ORDER BY s.student_id,s.question_id,s.attempt DESC
 `
@@ -373,7 +373,7 @@ func (q *Queries) CreateBusinessAssignment(ctx context.Context, arg CreateBusine
 }
 
 const createBusinessCourse = `-- name: CreateBusinessCourse :one
-INSERT INTO courses(id,title,teacher_id) VALUES($1,$2,$3) RETURNING id, title, teacher_id, status, version, created_at
+INSERT INTO courses(id,title,teacher_id) VALUES($1,$2,$3) RETURNING id, title, teacher_id, status, version, created_at, embedding_space_id
 `
 
 type CreateBusinessCourseParams struct {
@@ -392,6 +392,7 @@ func (q *Queries) CreateBusinessCourse(ctx context.Context, arg CreateBusinessCo
 		&i.Status,
 		&i.Version,
 		&i.CreatedAt,
+		&i.EmbeddingSpaceID,
 	)
 	return i, err
 }
@@ -533,7 +534,7 @@ func (q *Queries) CreateBusinessQuestion(ctx context.Context, arg CreateBusiness
 
 const createBusinessResource = `-- name: CreateBusinessResource :one
 INSERT INTO resources(id,course_id,title,content,source_url,locator,created_by,knowledge_point_id,source_note)
-VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id, course_id, knowledge_point_id, title, content, source_url, locator, version, status, created_by, reviewed_by, created_at, published_at, supersedes_id, source_note
+VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id, course_id, knowledge_point_id, title, content, source_url, locator, version, status, created_by, reviewed_by, created_at, published_at, supersedes_id, source_note, source_id, fragment_ids, full_source
 `
 
 type CreateBusinessResourceParams struct {
@@ -577,13 +578,16 @@ func (q *Queries) CreateBusinessResource(ctx context.Context, arg CreateBusiness
 		&i.PublishedAt,
 		&i.SupersedesID,
 		&i.SourceNote,
+		&i.SourceID,
+		&i.FragmentIds,
+		&i.FullSource,
 	)
 	return i, err
 }
 
 const createBusinessRevision = `-- name: CreateBusinessRevision :one
 INSERT INTO grading_revisions(id,submission_id,revision,score,feedback,reviewer_id,request_id)
-VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores
+VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id
 `
 
 type CreateBusinessRevisionParams struct {
@@ -621,6 +625,7 @@ func (q *Queries) CreateBusinessRevision(ctx context.Context, arg CreateBusiness
 		&i.ReleasedAt,
 		&i.RubricID,
 		&i.PointScores,
+		&i.AiJobID,
 	)
 	return i, err
 }
@@ -743,7 +748,7 @@ func (q *Queries) CreateResearchRecord(ctx context.Context, arg CreateResearchRe
 
 const createResourceRevision = `-- name: CreateResourceRevision :one
 INSERT INTO resources(id,course_id,knowledge_point_id,title,content,source_url,locator,version,created_by,supersedes_id,source_note)
-SELECT $1,r.course_id,r.knowledge_point_id,$2,$3,$4,$5,r.version+1,$6,r.id,$8 FROM resources r WHERE r.id=$7 AND r.status='published' RETURNING id, course_id, knowledge_point_id, title, content, source_url, locator, version, status, created_by, reviewed_by, created_at, published_at, supersedes_id, source_note
+SELECT $1,r.course_id,r.knowledge_point_id,$2,$3,$4,$5,r.version+1,$6,r.id,$8 FROM resources r WHERE r.id=$7 AND r.status='published' RETURNING id, course_id, knowledge_point_id, title, content, source_url, locator, version, status, created_by, reviewed_by, created_at, published_at, supersedes_id, source_note, source_id, fragment_ids, full_source
 `
 
 type CreateResourceRevisionParams struct {
@@ -785,13 +790,16 @@ func (q *Queries) CreateResourceRevision(ctx context.Context, arg CreateResource
 		&i.PublishedAt,
 		&i.SupersedesID,
 		&i.SourceNote,
+		&i.SourceID,
+		&i.FragmentIds,
+		&i.FullSource,
 	)
 	return i, err
 }
 
 const createRuleRevision = `-- name: CreateRuleRevision :one
 INSERT INTO grading_revisions(id,submission_id,revision,score,feedback,method,state,reviewer_id,request_id,released_at)
-VALUES($1,$2,1,$3,'根据教师已发布的标准答案自动判分','rule','released',$4,$5,now()) RETURNING id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores
+VALUES($1,$2,1,$3,'根据教师已发布的标准答案自动判分','rule','released',$4,$5,now()) RETURNING id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id
 `
 
 type CreateRuleRevisionParams struct {
@@ -825,6 +833,7 @@ func (q *Queries) CreateRuleRevision(ctx context.Context, arg CreateRuleRevision
 		&i.ReleasedAt,
 		&i.RubricID,
 		&i.PointScores,
+		&i.AiJobID,
 	)
 	return i, err
 }
@@ -1046,7 +1055,7 @@ func (q *Queries) GetBusinessAssignment(ctx context.Context, id string) (Assignm
 }
 
 const getBusinessCourse = `-- name: GetBusinessCourse :one
-SELECT id, title, teacher_id, status, version, created_at FROM courses WHERE id=$1
+SELECT id, title, teacher_id, status, version, created_at, embedding_space_id FROM courses WHERE id=$1
 `
 
 func (q *Queries) GetBusinessCourse(ctx context.Context, id string) (Course, error) {
@@ -1059,6 +1068,7 @@ func (q *Queries) GetBusinessCourse(ctx context.Context, id string) (Course, err
 		&i.Status,
 		&i.Version,
 		&i.CreatedAt,
+		&i.EmbeddingSpaceID,
 	)
 	return i, err
 }
@@ -1134,7 +1144,7 @@ func (q *Queries) GetBusinessQuestion(ctx context.Context, id string) (Question,
 }
 
 const getBusinessResource = `-- name: GetBusinessResource :one
-SELECT id, course_id, knowledge_point_id, title, content, source_url, locator, version, status, created_by, reviewed_by, created_at, published_at, supersedes_id, source_note FROM resources WHERE id=$1
+SELECT id, course_id, knowledge_point_id, title, content, source_url, locator, version, status, created_by, reviewed_by, created_at, published_at, supersedes_id, source_note, source_id, fragment_ids, full_source FROM resources WHERE id=$1
 `
 
 func (q *Queries) GetBusinessResource(ctx context.Context, id string) (Resource, error) {
@@ -1156,12 +1166,15 @@ func (q *Queries) GetBusinessResource(ctx context.Context, id string) (Resource,
 		&i.PublishedAt,
 		&i.SupersedesID,
 		&i.SourceNote,
+		&i.SourceID,
+		&i.FragmentIds,
+		&i.FullSource,
 	)
 	return i, err
 }
 
 const getBusinessRevision = `-- name: GetBusinessRevision :one
-SELECT id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores FROM grading_revisions WHERE id=$1
+SELECT id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id FROM grading_revisions WHERE id=$1
 `
 
 func (q *Queries) GetBusinessRevision(ctx context.Context, id string) (GradingRevision, error) {
@@ -1181,6 +1194,7 @@ func (q *Queries) GetBusinessRevision(ctx context.Context, id string) (GradingRe
 		&i.ReleasedAt,
 		&i.RubricID,
 		&i.PointScores,
+		&i.AiJobID,
 	)
 	return i, err
 }
@@ -1255,7 +1269,7 @@ func (q *Queries) GetLearningEventByRequest(ctx context.Context, arg GetLearning
 }
 
 const getRevisionByRequest = `-- name: GetRevisionByRequest :one
-SELECT id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores FROM grading_revisions WHERE reviewer_id=$1 AND request_id=$2
+SELECT id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id FROM grading_revisions WHERE reviewer_id=$1 AND request_id=$2
 `
 
 type GetRevisionByRequestParams struct {
@@ -1280,6 +1294,7 @@ func (q *Queries) GetRevisionByRequest(ctx context.Context, arg GetRevisionByReq
 		&i.ReleasedAt,
 		&i.RubricID,
 		&i.PointScores,
+		&i.AiJobID,
 	)
 	return i, err
 }
@@ -1644,7 +1659,7 @@ func (q *Queries) ListBusinessQuestions(ctx context.Context, assignmentID string
 }
 
 const listBusinessResources = `-- name: ListBusinessResources :many
-SELECT id, course_id, knowledge_point_id, title, content, source_url, locator, version, status, created_by, reviewed_by, created_at, published_at, supersedes_id, source_note FROM resources WHERE course_id=$1 AND ($2::boolean OR status='published') ORDER BY created_at,id
+SELECT id, course_id, knowledge_point_id, title, content, source_url, locator, version, status, created_by, reviewed_by, created_at, published_at, supersedes_id, source_note, source_id, fragment_ids, full_source FROM resources WHERE course_id=$1 AND ($2::boolean OR status='published') ORDER BY created_at,id
 `
 
 type ListBusinessResourcesParams struct {
@@ -1677,6 +1692,9 @@ func (q *Queries) ListBusinessResources(ctx context.Context, arg ListBusinessRes
 			&i.PublishedAt,
 			&i.SupersedesID,
 			&i.SourceNote,
+			&i.SourceID,
+			&i.FragmentIds,
+			&i.FullSource,
 		); err != nil {
 			return nil, err
 		}
@@ -1689,7 +1707,7 @@ func (q *Queries) ListBusinessResources(ctx context.Context, arg ListBusinessRes
 }
 
 const listBusinessRevisions = `-- name: ListBusinessRevisions :many
-SELECT id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores FROM grading_revisions WHERE submission_id=$1 AND ($2::boolean OR state='released') ORDER BY revision DESC
+SELECT id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id FROM grading_revisions WHERE submission_id=$1 AND ($2::boolean OR state='released') ORDER BY revision DESC
 `
 
 type ListBusinessRevisionsParams struct {
@@ -1720,6 +1738,7 @@ func (q *Queries) ListBusinessRevisions(ctx context.Context, arg ListBusinessRev
 			&i.ReleasedAt,
 			&i.RubricID,
 			&i.PointScores,
+			&i.AiJobID,
 		); err != nil {
 			return nil, err
 		}
@@ -2130,7 +2149,7 @@ func (q *Queries) NextSubmissionAttempt(ctx context.Context, arg NextSubmissionA
 }
 
 const publishBusinessCourse = `-- name: PublishBusinessCourse :one
-UPDATE courses SET status='published',version=version+1 WHERE id=$1 AND teacher_id=$2 RETURNING id, title, teacher_id, status, version, created_at
+UPDATE courses SET status='published',version=version+1 WHERE id=$1 AND teacher_id=$2 RETURNING id, title, teacher_id, status, version, created_at, embedding_space_id
 `
 
 type PublishBusinessCourseParams struct {
@@ -2148,12 +2167,13 @@ func (q *Queries) PublishBusinessCourse(ctx context.Context, arg PublishBusiness
 		&i.Status,
 		&i.Version,
 		&i.CreatedAt,
+		&i.EmbeddingSpaceID,
 	)
 	return i, err
 }
 
 const publishBusinessResource = `-- name: PublishBusinessResource :one
-UPDATE resources SET status='published',reviewed_by=$2,published_at=now() WHERE id=$1 AND status='draft' RETURNING id, course_id, knowledge_point_id, title, content, source_url, locator, version, status, created_by, reviewed_by, created_at, published_at, supersedes_id, source_note
+UPDATE resources SET status='published',reviewed_by=$2,published_at=now() WHERE id=$1 AND status='draft' RETURNING id, course_id, knowledge_point_id, title, content, source_url, locator, version, status, created_by, reviewed_by, created_at, published_at, supersedes_id, source_note, source_id, fragment_ids, full_source
 `
 
 type PublishBusinessResourceParams struct {
@@ -2180,12 +2200,15 @@ func (q *Queries) PublishBusinessResource(ctx context.Context, arg PublishBusine
 		&i.PublishedAt,
 		&i.SupersedesID,
 		&i.SourceNote,
+		&i.SourceID,
+		&i.FragmentIds,
+		&i.FullSource,
 	)
 	return i, err
 }
 
 const renameBusinessCourse = `-- name: RenameBusinessCourse :one
-UPDATE courses SET title=$2 WHERE id=$1 RETURNING id, title, teacher_id, status, version, created_at
+UPDATE courses SET title=$2 WHERE id=$1 RETURNING id, title, teacher_id, status, version, created_at, embedding_space_id
 `
 
 type RenameBusinessCourseParams struct {
@@ -2203,6 +2226,7 @@ func (q *Queries) RenameBusinessCourse(ctx context.Context, arg RenameBusinessCo
 		&i.Status,
 		&i.Version,
 		&i.CreatedAt,
+		&i.EmbeddingSpaceID,
 	)
 	return i, err
 }
@@ -2307,7 +2331,7 @@ func (q *Queries) TransitionBusinessIntervention(ctx context.Context, arg Transi
 
 const transitionBusinessRevision = `-- name: TransitionBusinessRevision :one
 UPDATE grading_revisions SET state=$2,released_at=CASE WHEN $2='released' THEN now() ELSE released_at END
-WHERE id=$1 AND state=$3 RETURNING id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores
+WHERE id=$1 AND state=$3 RETURNING id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id
 `
 
 type TransitionBusinessRevisionParams struct {
@@ -2333,6 +2357,7 @@ func (q *Queries) TransitionBusinessRevision(ctx context.Context, arg Transition
 		&i.ReleasedAt,
 		&i.RubricID,
 		&i.PointScores,
+		&i.AiJobID,
 	)
 	return i, err
 }

@@ -41,7 +41,7 @@ func TestTeachingLoop(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	config.ConnConfig.RuntimeParams["search_path"] = schema
+	config.ConnConfig.RuntimeParams["search_path"] = schema + ",public"
 	db, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		t.Fatal(err)
@@ -300,4 +300,47 @@ func TestTeachingLoop(t *testing.T) {
 	input["request_id"] = "after-close"
 	call(student, "POST", ap+"/submissions", input, 409)
 	call(student, "POST", base+"/assist", map[string]string{"topic": "Explain"}, 503)
+	t.Run("AI_adoption_returns_persisted_provenance", func(t *testing.T) {
+		questionID := detail.Questions[0].ID
+		jobInput, _ := json.Marshal(map[string]any{"question_id": questionID, "prompt": "Explain", "max_score": 10})
+		if _, err := db.Exec(ctx, `INSERT INTO processing_jobs(id,course_id,created_by,kind,state,input,output) VALUES('rubric-job','course','teacher','rubric','succeeded',$1,'{"evidence_refs":[{"id":"frozen-reference","body":"fixture"}]}')`, jobInput); err != nil {
+			t.Fatal(err)
+		}
+		created := call(teacher, "POST", base+"/questions/"+questionID+"/rubrics", map[string]any{"ai_job_id": "rubric-job", "criteria": []any{map[string]any{"id": "D1", "title": "Evidence", "max_score": 10, "rule": "Explain using evidence"}}}, 200)
+		var rubric struct {
+			ID       string            `json:"id"`
+			Evidence []json.RawMessage `json:"evidence_refs"`
+		}
+		if err := json.Unmarshal(created, &rubric); err != nil || len(rubric.Evidence) != 1 {
+			t.Fatal("POST omitted the evidence it persisted", string(created), err)
+		}
+		var versions []struct {
+			Evidence []json.RawMessage `json:"evidence_refs"`
+		}
+		if err := json.Unmarshal(call(teacher, "GET", base+"/questions/"+questionID+"/rubrics", nil, 200), &versions); err != nil || len(versions) != 1 || len(versions[0].Evidence) != 1 {
+			t.Fatal("rubric evidence did not persist", err)
+		}
+		call(teacher, "POST", base+"/rubrics/"+rubric.ID+"/confirm", map[string]string{}, 200)
+		var answerHash string
+		if err := db.QueryRow(ctx, `SELECT answer_sha256 FROM submissions WHERE id=$1`, sid).Scan(&answerHash); err != nil {
+			t.Fatal(err)
+		}
+		jobInput, _ = json.Marshal(map[string]any{"submission_id": sid, "rubric_id": rubric.ID, "answer_hash": answerHash})
+		if _, err := db.Exec(ctx, `INSERT INTO processing_jobs(id,course_id,created_by,kind,state,input) VALUES('grading-job','course','teacher','grade','succeeded',$1)`, jobInput); err != nil {
+			t.Fatal(err)
+		}
+		request := map[string]any{"score": 6, "feedback": "reviewed draft", "request_id": "adopt-ai", "rubric_id": rubric.ID, "ai_job_id": "grading-job", "points": []any{map[string]any{"criterion_id": "D1", "score": 6, "feedback": "partial evidence", "quote": "原文😀"}}}
+		var revision struct {
+			ID    string `json:"id"`
+			JobID string `json:"ai_job_id"`
+		}
+		if err := json.Unmarshal(call(teacher, "POST", sp+"/revisions", request, 200), &revision); err != nil || revision.JobID != "grading-job" {
+			t.Fatal("POST omitted its AI job link", revision.JobID, err)
+		}
+		if got := id(call(teacher, "POST", sp+"/revisions", request, 200)); got != revision.ID {
+			t.Fatal("same provenance retry was not idempotent")
+		}
+		request["ai_job_id"] = ""
+		call(teacher, "POST", sp+"/revisions", request, 409)
+	})
 }

@@ -34,6 +34,7 @@ $Tag = $ReleaseId -replace '^hajimark-', ''
 $Bundle = Join-Path $Root ".local/deployment/$ReleaseId"
 $RemoteDir = "/opt/hajimark/releases/$ReleaseId"
 $images = @(
+  @{ name = 'postgres'; tag = "hajimark-postgres:$Tag"; context = 'backend/docker/postgres' },
   @{ name = 'backend'; tag = "hajimark-backend:$Tag"; context = 'backend' },
   @{ name = 'web'; tag = "hajimark-web:$Tag"; context = 'web' }
 )
@@ -82,12 +83,13 @@ function Write-EnvTemplate {
   @"
 # /opt/hajimark/shared/.env (root:root 0600). Never commit. Keep the existing POSTGRES_PASSWORD on upgrade.
 POSTGRES_PASSWORD=<existing-random-password>
+POSTGRES_IMAGE=hajimark-postgres:$Tag
 BACKEND_IMAGE=hajimark-backend:$Tag
 WEB_IMAGE=hajimark-web:$Tag
 "@ | Set-Content -Encoding utf8NoBOM "$Bundle/env.template"
 }
 function Write-ServerScripts {
-  # Runs on the server inside the release dir. Selects images by rewriting the two tag lines of shared/.env.
+  # Runs on the server inside the release dir. Preserves secrets and selects bundled images.
   $switch = @'
 #!/bin/bash
 # usage: switch-release.sh <release-id>   (run as root on the server)
@@ -105,10 +107,13 @@ for item in manifest['images']:
  actual=json.loads(subprocess.check_output(['docker','image','inspect',item['tag']],text=True))[0]
  assert actual['Id'] in (item['local_image_id'],item['config_id']),item['tag']
  assert actual['Config']['Labels']['org.opencontainers.image.revision']==manifest['source_commit'],item['tag']
- tags['BACKEND_IMAGE' if 'backend' in item['tag'] else 'WEB_IMAGE']=item['tag']
+ kind=next(k for k in ('backend','web','postgres') if item['tag'].startswith('hajimark-'+k+':'))
+ tags[kind.upper()+'_IMAGE']=item['tag']
 env=Path('/opt/hajimark/shared/.env');lines=env.read_text().splitlines()
 (release/'.env.before-switch').write_text(env.read_text())
 out=[f"{k}={tags[k]}" if (k:=l.split('=',1)[0]) in tags else l for l in lines]
+existing={l.split('=',1)[0] for l in lines}
+out.extend(f'{k}={v}' for k,v in tags.items() if k not in existing)
 nxt=env.with_name('.env.next');nxt.write_text('\n'.join(out)+'\n');nxt.chmod(0o600);nxt.replace(env)
 link=Path('/opt/hajimark/.current-next')
 if link.is_symlink(): link.unlink()
@@ -116,6 +121,9 @@ link.symlink_to(release);link.replace('/opt/hajimark/current')
 print('IMAGES_VERIFIED_AND_RELEASE_SELECTED',manifest['release_id'])
 PY
 docker compose --env-file /opt/hajimark/shared/.env -f /opt/hajimark/current/compose.production.yaml config -q
+if grep -q '^POSTGRES_IMAGE=' /opt/hajimark/shared/.env && grep -q 'POSTGRES_IMAGE' /opt/hajimark/current/compose.production.yaml; then
+  docker compose --env-file /opt/hajimark/shared/.env -f /opt/hajimark/current/compose.production.yaml up -d --no-build --no-deps --wait --wait-timeout 150 postgres
+fi
 docker compose --env-file /opt/hajimark/shared/.env -f /opt/hajimark/current/compose.production.yaml run --rm --no-deps migrate
 docker compose --env-file /opt/hajimark/shared/.env -f /opt/hajimark/current/compose.production.yaml up -d --no-build --no-deps --wait --wait-timeout 150 api worker web
 curl -fsS --max-time 10 -H 'Host: hajistudy.online' http://127.0.0.1:18080/api/v1/health/ready
@@ -163,8 +171,9 @@ function Verify-Bundle {
   $env:POSTGRES_PASSWORD = 'compose-config-check-only'
   $env:BACKEND_IMAGE = ($m.images | Where-Object { $_.tag -like '*backend*' }).tag
   $env:WEB_IMAGE = ($m.images | Where-Object { $_.tag -like '*web*' }).tag
+  $env:POSTGRES_IMAGE = ($m.images | Where-Object { $_.tag -like '*postgres*' }).tag
   try { Run docker @('compose', '-f', "$Bundle/compose.production.yaml", 'config', '-q') }
-  finally { Remove-Item Env:POSTGRES_PASSWORD, Env:BACKEND_IMAGE, Env:WEB_IMAGE }
+  finally { Remove-Item Env:POSTGRES_PASSWORD, Env:BACKEND_IMAGE, Env:WEB_IMAGE, Env:POSTGRES_IMAGE }
   Step 'Check server scripts are LF-only and parse with bash -n'
   foreach ($s in 'switch-release.sh', 'update-release.sh', 'rollback.sh', 'backup.sh') {
     if ((Get-Content -Raw "$Bundle/$s").Contains("`r")) { throw "$s has CRLF" }

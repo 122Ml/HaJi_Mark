@@ -2,6 +2,7 @@ import { useEditorDraft, DraftNotice } from "./editing";
 import type { Revision } from "./assessment";
 import { useEffect, useState } from "react";
 import { Feedback, names, useAction, useLiveQuery } from "./context";
+import { AIDraft } from "./knowledge";
 
 export interface Criterion {
   id: string;
@@ -35,11 +36,25 @@ export function RubricManager({
     `/questions/${questionID}/rubrics`,
   );
   const action = useAction();
-  const draft = useEditorDraft<Criterion[]>(`rubric:${questionID}`, [
-    { id: "D1", title: "", max_score: maxScore, rule: "" },
-  ]);
-  const criteria = draft.value,
-    setCriteria = draft.change;
+  const draft = useEditorDraft<
+    { criteria: Criterion[]; ai_job_id: string } | Criterion[]
+  >(`rubric:${questionID}`, {
+    criteria: [{ id: "D1", title: "", max_score: maxScore, rule: "" }],
+    ai_job_id: "",
+  });
+  const criteria = Array.isArray(draft.value)
+    ? draft.value
+    : draft.value.criteria;
+  const aiJobID = Array.isArray(draft.value) ? "" : draft.value.ai_job_id;
+  function setCriteria(
+    next: Criterion[] | ((v: Criterion[]) => Criterion[]),
+    origin = aiJobID,
+  ) {
+    draft.change({
+      criteria: typeof next === "function" ? next(criteria) : next,
+      ai_job_id: origin,
+    });
+  }
   const [editor, setEditor] = useState(false);
   const total = criteria.reduce((sum, p) => sum + p.max_score, 0);
   function update(index: number, patch: Partial<Criterion>) {
@@ -49,6 +64,15 @@ export function RubricManager({
     <details className="live-rubrics">
       <summary>逐点评分标准 · 满分 {maxScore}</summary>
       <DraftNotice {...draft} />
+      <AIDraft
+        kind="rubric"
+        target={{ question_id: questionID }}
+        onAdopt={(output, id) => {
+          if (draft.dirty && !confirm("用AI草稿替换当前编辑内容？")) return;
+          setCriteria(output.criteria as Criterion[], id);
+          setEditor(true);
+        }}
+      />
       <Feedback
         error={query.error}
         message={action.message}
@@ -88,7 +112,10 @@ export function RubricManager({
             type="button"
             className="ghost-btn"
             onClick={() => {
-              setCriteria(r.criteria.map((p) => ({ ...p })));
+              setCriteria(
+                r.criteria.map((p) => ({ ...p })),
+                "",
+              );
               setEditor(true);
             }}
           >
@@ -113,7 +140,10 @@ export function RubricManager({
                 type="button"
                 className="ghost-btn"
                 onClick={() => {
-                  setCriteria(r.criteria.map((p) => ({ ...p })));
+                  setCriteria(
+                    r.criteria.map((p) => ({ ...p })),
+                    "",
+                  );
                   setEditor(true);
                 }}
               >
@@ -136,10 +166,14 @@ export function RubricManager({
           className="live-form"
           onSubmit={async (e) => {
             e.preventDefault();
+            const snapshot = draft.value;
             if (
-              await action.run(`/questions/${questionID}/rubrics`, { criteria })
+              await action.run(`/questions/${questionID}/rubrics`, {
+                criteria,
+                ai_job_id: aiJobID,
+              })
             ) {
-              if (draft.saved(criteria)) setEditor(false);
+              if (draft.saved(snapshot)) setEditor(false);
             }
           }}
         >
@@ -265,6 +299,7 @@ export function PointGradeForm({
           "",
       })),
       feedback: initial?.feedback || "",
+      ai_job_id: "",
     },
   );
   const { points, feedback } = draft.value;
@@ -296,6 +331,7 @@ export function PointGradeForm({
             score,
             feedback,
             request_id: requestID,
+            ai_job_id: draft.value.ai_job_id || "",
           })
         ) {
           draft.saved(snapshot);
@@ -305,6 +341,19 @@ export function PointGradeForm({
       }}
     >
       <DraftNotice {...draft} />
+      <AIDraft
+        kind="grade"
+        target={{ submission_id: submissionID, rubric_id: rubric.id }}
+        onAdopt={(output, id) => {
+          if (draft.dirty && !confirm("用AI草稿替换当前编辑内容？")) return;
+          draft.change({
+            points: output.points as typeof points,
+            feedback: String(output.feedback),
+            ai_job_id: id,
+          });
+          setRequestID(crypto.randomUUID());
+        }}
+      />
       <Feedback message={action.message} failed={action.failed} />
       {rubric.criteria.map((p, i) => (
         <fieldset

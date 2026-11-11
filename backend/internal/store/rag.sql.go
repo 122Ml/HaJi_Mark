@@ -1020,11 +1020,30 @@ func (q *Queries) ListMaterialSources(ctx context.Context, courseID string) ([]L
 }
 
 const listProcessingJobs = `-- name: ListProcessingJobs :many
-SELECT id, course_id, created_by, kind, state, input, output, progress, error, attempt, created_at, started_at, finished_at FROM processing_jobs WHERE course_id=$1 ORDER BY created_at DESC LIMIT 60
+SELECT id, course_id, created_by, kind, state, input, output, progress, error, attempt, created_at, started_at, finished_at FROM processing_jobs WHERE course_id=$1
+AND ($2::text='' OR kind=$2)
+AND ($3::text='' OR input->>'question_id'=$3)
+AND ($4::text='' OR input->>'submission_id'=$4)
+AND ($5::text='' OR input->>'rubric_id'=$5)
+ORDER BY created_at DESC,id LIMIT 60
 `
 
-func (q *Queries) ListProcessingJobs(ctx context.Context, courseID string) ([]ProcessingJob, error) {
-	rows, err := q.db.Query(ctx, listProcessingJobs, courseID)
+type ListProcessingJobsParams struct {
+	CourseID     string `json:"course_id"`
+	Kind         string `json:"kind"`
+	QuestionID   string `json:"question_id"`
+	SubmissionID string `json:"submission_id"`
+	RubricID     string `json:"rubric_id"`
+}
+
+func (q *Queries) ListProcessingJobs(ctx context.Context, arg ListProcessingJobsParams) ([]ProcessingJob, error) {
+	rows, err := q.db.Query(ctx, listProcessingJobs,
+		arg.CourseID,
+		arg.Kind,
+		arg.QuestionID,
+		arg.SubmissionID,
+		arg.RubricID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -1362,12 +1381,27 @@ func (q *Queries) ResourceContainsFragment(ctx context.Context, arg ResourceCont
 	return exists, err
 }
 
-const retireCourseChunks = `-- name: RetireCourseChunks :exec
-UPDATE retrieval_chunks SET active=false WHERE course_id=$1
+const restoreSourceParse = `-- name: RestoreSourceParse :exec
+UPDATE material_sources SET parse_state=$3,parse_error=$4
+WHERE id=$1 AND course_id=$2 AND parse_revision=$5 AND parse_state='running'
 `
 
-func (q *Queries) RetireCourseChunks(ctx context.Context, courseID string) error {
-	_, err := q.db.Exec(ctx, retireCourseChunks, courseID)
+type RestoreSourceParseParams struct {
+	ID            string `json:"id"`
+	CourseID      string `json:"course_id"`
+	ParseState    string `json:"parse_state"`
+	ParseError    string `json:"parse_error"`
+	ParseRevision int32  `json:"parse_revision"`
+}
+
+func (q *Queries) RestoreSourceParse(ctx context.Context, arg RestoreSourceParseParams) error {
+	_, err := q.db.Exec(ctx, restoreSourceParse,
+		arg.ID,
+		arg.CourseID,
+		arg.ParseState,
+		arg.ParseError,
+		arg.ParseRevision,
+	)
 	return err
 }
 
@@ -1380,45 +1414,6 @@ AND NOT EXISTS(SELECT 1 FROM resources r WHERE r.status='published' AND c.fragme
 func (q *Queries) RetireObsoleteSourceChunks(ctx context.Context, courseID string) error {
 	_, err := q.db.Exec(ctx, retireObsoleteSourceChunks, courseID)
 	return err
-}
-
-const retireSourceChunks = `-- name: RetireSourceChunks :exec
-UPDATE retrieval_chunks SET active=false WHERE source_id=$1
-`
-
-func (q *Queries) RetireSourceChunks(ctx context.Context, sourceID pgtype.Text) error {
-	_, err := q.db.Exec(ctx, retireSourceChunks, sourceID)
-	return err
-}
-
-const retryProcessingJob = `-- name: RetryProcessingJob :one
-UPDATE processing_jobs SET state='queued',error='',progress=0,started_at=NULL,finished_at=NULL WHERE id=$1 AND course_id=$2 AND state='failed' RETURNING id, course_id, created_by, kind, state, input, output, progress, error, attempt, created_at, started_at, finished_at
-`
-
-type RetryProcessingJobParams struct {
-	ID       string `json:"id"`
-	CourseID string `json:"course_id"`
-}
-
-func (q *Queries) RetryProcessingJob(ctx context.Context, arg RetryProcessingJobParams) (ProcessingJob, error) {
-	row := q.db.QueryRow(ctx, retryProcessingJob, arg.ID, arg.CourseID)
-	var i ProcessingJob
-	err := row.Scan(
-		&i.ID,
-		&i.CourseID,
-		&i.CreatedBy,
-		&i.Kind,
-		&i.State,
-		&i.Input,
-		&i.Output,
-		&i.Progress,
-		&i.Error,
-		&i.Attempt,
-		&i.CreatedAt,
-		&i.StartedAt,
-		&i.FinishedAt,
-	)
-	return i, err
 }
 
 const setSourceDerivation = `-- name: SetSourceDerivation :one
@@ -1489,14 +1484,15 @@ func (q *Queries) StudentCanDownloadSource(ctx context.Context, arg StudentCanDo
 
 const transitionKnowledgeEntry = `-- name: TransitionKnowledgeEntry :one
 UPDATE knowledge_entries SET state=$3,confirmed_at=CASE WHEN $3='confirmed' THEN now() ELSE confirmed_at END
-WHERE id=$1 AND course_id=$2 AND state=$4 RETURNING id, course_id, created_by, title, body, category, content_kind, conditions, knowledge_point_ids, evidence, related_ids, student_visible, use_for_learning, use_for_grading, state, version, supersedes_id, edit_version, confirmed_at, created_at
+WHERE id=$1 AND course_id=$2 AND state=$4 AND edit_version=$5 RETURNING id, course_id, created_by, title, body, category, content_kind, conditions, knowledge_point_ids, evidence, related_ids, student_visible, use_for_learning, use_for_grading, state, version, supersedes_id, edit_version, confirmed_at, created_at
 `
 
 type TransitionKnowledgeEntryParams struct {
-	ID       string `json:"id"`
-	CourseID string `json:"course_id"`
-	State    string `json:"state"`
-	State_2  string `json:"state_2"`
+	ID          string `json:"id"`
+	CourseID    string `json:"course_id"`
+	State       string `json:"state"`
+	State_2     string `json:"state_2"`
+	EditVersion int32  `json:"edit_version"`
 }
 
 func (q *Queries) TransitionKnowledgeEntry(ctx context.Context, arg TransitionKnowledgeEntryParams) (KnowledgeEntry, error) {
@@ -1505,6 +1501,7 @@ func (q *Queries) TransitionKnowledgeEntry(ctx context.Context, arg TransitionKn
 		arg.CourseID,
 		arg.State,
 		arg.State_2,
+		arg.EditVersion,
 	)
 	var i KnowledgeEntry
 	err := row.Scan(

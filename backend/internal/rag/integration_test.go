@@ -205,4 +205,185 @@ func TestRAGIsolationAndBudget(t *testing.T) {
 	if len(after) != len(before) || current.State != "canceled" {
 		t.Fatal("canceled extraction published candidates")
 	}
+	t.Run("canceled_index_cannot_activate_embedding_space", func(t *testing.T) {
+		provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var input struct {
+				Input []string `json:"input"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+				t.Error(err)
+			}
+			if _, err := q.CancelProcessingJob(ctx, store.CancelProcessingJobParams{ID: "index-canceled", CourseID: "c"}); err != nil {
+				t.Error(err)
+			}
+			data := []map[string]any{}
+			for i := range input.Input {
+				data = append(data, map[string]any{"index": i, "embedding": []float64{1, 0}})
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": data, "usage": map[string]int{"prompt_tokens": 8}})
+		}))
+		defer provider.Close()
+		t.Setenv("RAG_INDEX_TEST_BASE", provider.URL)
+		service := New(&Models{DB: db, Client: provider.Client(), Profiles: []Profile{{ID: "index-test", Kind: "embedding", Model: "test", KeyEnv: "RAG_TEST_KEY", BaseURLEnv: "RAG_INDEX_TEST_BASE", InputRate: 1, Dimensions: 2, BatchSize: 100}}})
+		if _, err := q.CreateProcessingJob(ctx, store.CreateProcessingJobParams{ID: "index-canceled", CourseID: "c", CreatedBy: "t", Kind: "index", Input: []byte("{}")}); err != nil {
+			t.Fatal(err)
+		}
+		if err := service.Process(ctx, asynq.NewTask(taskType, []byte("index-canceled"))); err != nil {
+			t.Fatal(err)
+		}
+		course, err := q.GetBusinessCourse(ctx, "c")
+		if err != nil || course.EmbeddingSpaceID.Valid {
+			t.Fatal("canceled index activated a new space", err)
+		}
+		job, err := q.GetProcessingJob(ctx, store.GetProcessingJobParams{ID: "index-canceled", CourseID: "c"})
+		if err != nil || job.State != "canceled" {
+			t.Fatal("canceled index changed state", job.State, err)
+		}
+	})
+	t.Run("reparse_failure_and_cancellation_preserve_previous_text", func(t *testing.T) {
+		bin := t.TempDir()
+		parser := "#!/bin/sh\nif [ \"$PARSER_TEST_FAIL\" = 1 ]; then printf '%s' '{\"error\":\"test parse failed\"}'; exit 1; fi\nprintf '%s' '{\"fragments\":[{\"body\":\"新的解析结果\",\"locator\":{},\"quality\":\"ready\"}]}'\n"
+		if err := os.WriteFile(filepath.Join(bin, "python"), []byte(parser), 0700); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+		t.Setenv("PARSER_TEST_FAIL", "1")
+		parseInput, _ := json.Marshal(JobInput{SourceID: "s"})
+		makeJob := func(id string) store.ProcessingJob {
+			t.Helper()
+			j, err := q.CreateProcessingJob(ctx, store.CreateProcessingJobParams{ID: id, CourseID: "c", CreatedBy: "t", Kind: "parse", Input: parseInput})
+			if err != nil {
+				t.Fatal(err)
+			}
+			return j
+		}
+		failed := makeJob("parse-failure")
+		if err := service.Process(ctx, asynq.NewTask(taskType, []byte(failed.ID))); err != nil {
+			t.Fatal(err)
+		}
+		source, err := q.GetMaterialSource(ctx, store.GetMaterialSourceParams{ID: "s", CourseID: "c"})
+		if err != nil || source.ParseState != "ready" || source.ParseRevision != 1 {
+			t.Fatal("failed reparse hid previous valid text", source.ParseState, source.ParseRevision, err)
+		}
+		t.Setenv("PARSER_TEST_FAIL", "0")
+		canceled := makeJob("parse-canceled")
+		claimed, err := q.ClaimProcessingJob(ctx, canceled.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = q.CancelProcessingJob(ctx, store.CancelProcessingJobParams{ID: canceled.ID, CourseID: "c"}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = service.Parse(ctx, claimed, JobInput{SourceID: "s"}); err == nil {
+			t.Fatal("canceled parse still wrote a revision")
+		}
+		source, err = q.GetMaterialSource(ctx, store.GetMaterialSourceParams{ID: "s", CourseID: "c"})
+		if err != nil || source.ParseState != "ready" || source.ParseRevision != 1 {
+			t.Fatal("canceled parse changed source", source.ParseState, source.ParseRevision, err)
+		}
+		success := makeJob("parse-success")
+		if err = service.Process(ctx, asynq.NewTask(taskType, []byte(success.ID))); err != nil {
+			t.Fatal(err)
+		}
+		source, err = q.GetMaterialSource(ctx, store.GetMaterialSourceParams{ID: "s", CourseID: "c"})
+		if err != nil || source.ParseRevision != 2 || source.ParseState != "ready" {
+			t.Fatal("successful reparse did not persist its new revision", source.ParseRevision, err)
+		}
+		old, err := q.ListMaterialFragments(ctx, store.ListMaterialFragmentsParams{SourceID: "s", Revision: 1})
+		if err != nil || len(old) != 2 {
+			t.Fatal("reparse overwrote historical fragments", err)
+		}
+		if _, err = q.PendingCourseIndex(ctx, "c"); err != nil {
+			t.Fatal("parsed source lost its durable index request", err)
+		}
+		if _, err = service.CreateJob(ctx, "c", "t", "index", JobInput{ProfileID: "different-profile"}); err == nil {
+			t.Fatal("different index configuration silently coalesced")
+		}
+	})
+	t.Run("database_claim_failures_are_not_reported_as_success", func(t *testing.T) {
+		closed, err := pgxpool.NewWithConfig(ctx, config.Copy())
+		if err != nil {
+			t.Fatal(err)
+		}
+		closed.Close()
+		if err = New(&Models{DB: closed}).Process(ctx, asynq.NewTask(taskType, []byte("job"))); err == nil {
+			t.Fatal("database outage was acknowledged as completed work")
+		}
+	})
+	t.Run("outbox_recovers_after_redis_and_database_claim_failure", func(t *testing.T) {
+		addr := os.Getenv("TEST_REDIS_ADDR")
+		if addr == "" {
+			t.Skip("TEST_REDIS_ADDR must point to an isolated test Redis")
+		}
+		bin := t.TempDir()
+		if err := os.WriteFile(filepath.Join(bin, "python"), []byte("#!/bin/sh\nprintf '%s' '{\"fragments\":[{\"body\":\"恢复测试正文\",\"locator\":{},\"quality\":\"ready\"}]}'\n"), 0700); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+		t.Setenv("REDIS_ADDR", "127.0.0.1:1")
+		service := New(&Models{DB: db})
+		job, err := service.CreateJob(ctx, "c", "t", "parse", JobInput{SourceID: "s"})
+		if err != nil || job.State != "queued" {
+			t.Fatal("Redis outage lost the durable job", err)
+		}
+		t.Setenv("REDIS_ADDR", addr)
+		closed, err := pgxpool.NewWithConfig(ctx, config.Copy())
+		if err != nil {
+			t.Fatal(err)
+		}
+		closed.Close()
+		broken := New(&Models{DB: closed})
+		var first atomic.Bool
+		first.Store(true)
+		redis := asynq.RedisClientOpt{Addr: addr}
+		server := asynq.NewServer(redis, asynq.Config{Concurrency: 1, TaskCheckInterval: 50 * time.Millisecond, ShutdownTimeout: time.Second})
+		if err = server.Start(asynq.HandlerFunc(func(ctx context.Context, task *asynq.Task) error {
+			if first.Swap(false) {
+				return broken.Process(ctx, task)
+			}
+			return service.Process(ctx, task)
+		})); err != nil {
+			t.Fatal(err)
+		}
+		defer server.Shutdown()
+		client := asynq.NewClient(redis)
+		defer client.Close()
+		inspector := asynq.NewInspector(redis)
+		defer inspector.Close()
+		if err = enqueue(client, job.ID); err != nil {
+			t.Fatal(err)
+		}
+		deadline := time.Now().Add(10 * time.Second)
+		for {
+			info, err := inspector.GetQueueInfo("default")
+			if err == nil && info.Archived >= 1 && !first.Load() {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatal("first delivery did not reach the simulated database outage", err)
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		recoveryCtx, cancel := context.WithCancel(ctx)
+		done := make(chan struct{})
+		go func() { defer close(done); service.Recover(recoveryCtx) }()
+		defer func() { cancel(); <-done }()
+		deadline = time.Now().Add(2*recoveryInterval + time.Second)
+		for {
+			current, err := q.GetProcessingJob(ctx, store.GetProcessingJobParams{ID: job.ID, CourseID: "c"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if current.State == "succeeded" {
+				if current.Attempt != 1 {
+					t.Fatal("failed database claim counted as execution", current.Attempt)
+				}
+				break
+			}
+			if current.State == "failed" || time.Now().After(deadline) {
+				t.Fatal("recovery was blocked by the old queue delivery", current.State, current.Error)
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+	})
 }

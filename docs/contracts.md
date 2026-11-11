@@ -62,23 +62,25 @@ HttpOnly、SameSiteStrict、Path=/api/v1、8小时cookie，DB仅存token哈希�
 | POST /sources | T | multipart `files`、`source_note`、`allow_derived`；可选`supersedes_id`上传一件新版本，返回解析任务列表 |
 | GET /sources/:sourceID/download | TS | 教师可读原件；学生须存在当前发布且`full_source=true`绑定，部分片段发布不能下载全件 |
 | PUT /sources/:sourceID/fragments | T | `revision/fragments`完整当前列表；检查旧版本和片段顺序，新建解析修订，OCR可校正为ready |
-| POST /sources/:sourceID/publish | T | `title/fragment_ids/full_source/knowledge_point_id`；仅当前ready片段，创建并发布学习资源 |
+| POST /sources/:sourceID/publish | T | `title/fragment_ids/full_source/knowledge_point_id`；锁定来源后校验当前ready片段；片段ID不得重复，full_source须包含全部已核对片段；创建并发布学习资源 |
 | POST /sources/:sourceID/archive；PUT /sources/:sourceID/derivation | T | 来源归档；`allow_derived`调整提炼许可，派生检索实时检查当前许可 |
 | GET /knowledge | TS | 教师看本课程全部状态；学生仅公开、确认、用于学习且出处已发布/仍可用的知识 |
 | POST /knowledge；PUT /knowledge/:knowledgeID | T | title/body/category/content_kind/conditions/evidence/knowledge_point_ids/related_ids及可见性、用途；草稿编辑携edit_version，确认条目只能另建supersedes_id版本 |
-| POST /knowledge/:knowledgeID/state | T | state=confirmed或archived；确认重查逐字出处、当前来源和学生发布范围 |
+| POST /knowledge/:knowledgeID/state | T | `state/edit_version`；state=confirmed或archived，编辑版本过期409；确认重查逐字出处、当前来源和学生发布范围，状态转换与索引请求同事务 |
 | GET /models | T | 脱敏profile、全局保守预算、当前课程最近50次调用；不含密钥或私有认证头 |
 | POST /jobs | T | kind=parse/index/extract/rubric/grade及对应来源、片段、模型/题目/作答/确认标准ID；服务端重新读取冻结输入 |
-| GET /jobs；GET /jobs/:jobID | T | 最近60任务或指定任务的状态、进度、错误和输出草稿 |
+| GET /jobs；GET /jobs/:jobID | T | 列表可按`kind/question_id/submission_id/rubric_id`组合过滤，先过滤再取最近60条；指定任务返回状态、进度、错误和输出草稿 |
 | POST /jobs/:jobID/cancel；POST /jobs/:jobID/retry | T | 取消排队/运行任务；仅失败可重试，新增任务保留原失败记录 |
 | POST /retrieval；GET /retrieval/status | TS | query/purpose；学生不能grading用途；返回hits/mode，未启用向量时明确关键词降级原因 |
-| POST /assist | TS | topic/profile_id；返回text/sources/citations/status/mode；无依据返回insufficient_evidence，伪造引用拒绝展示 |
+| POST /assist | TS | topic/profile_id；返回text/sources/citations/status/mode；无依据返回insufficient_evidence；逐字核对quote，正文R编号与引用列表须对应，伪造或未对应引用拒绝展示 |
 
 知识`content_kind`为concept/method/rule/example/misconception；evidence包含`source_id/fragment_id/quote`，quote逐字来自本课程ready原文。候选不自动创建课程知识点，不把相似条目强行合并。确认知识仍分`student_visible/use_for_learning/use_for_grading`。学生私有笔记、作答和未发布评分不进入共享检索索引。
 
-任务状态为queued→running→succeeded/failed，queued/running可取消；输出必须`pending_teacher_review`。标准任务不读取submission；评阅任务冻结answer/hash、question、confirmed criteria、rubric evidence_refs。评分点完整、范围、加和和逐字作答引用必须通过，非零分须有引用。此机械核对不证明给分语义正确。
+任务状态为queued→running→succeeded/failed，queued/running可取消；知识候选、标准和评阅草稿带`pending_teacher_review`。标准任务不读取submission；评阅任务冻结answer/hash、question、confirmed criteria、rubric evidence_refs。评分点完整、范围、加和和逐字作答引用必须通过，非零分须有引用。此机械核对不证明给分语义正确。
 
-教师载入AI标准/评分到原编辑器后仍可修改，保存时传`ai_job_id`；后端检查任务、课程、对象与冻结版本，标准附带原任务检索依据，评分关联原AI任务。浏览器恢复编辑同时保留该关联。标准确认与评分确认/发布保持原接口，AI任务成功不发布成绩。学生只得到released反馈，不读模型输入、内部标准或任务列表。
+原文校正、解析成功、知识确认/归档与对应索引请求同事务保存，由数据库恢复扫描补投。Redis短期不可用不丢任务；数据库claim失败返回错误，不冒充完成。解析/提炼/索引完成提交前锁定任务并核对attempt，已取消或旧尝试不能写入新修订、候选或激活向量空间。重新解析失败保留已有可用原文和错误说明；首次解析失败仍为failed。
+
+教师载入AI标准/评分到原编辑器后仍可修改，保存时传`ai_job_id`；后端检查任务、课程、对象与冻结版本，标准附带原任务检索依据，评分关联原AI任务。页面按课程和具体题目/作答/标准从数据库找回最近任务，刷新不自动重新生成；未保存编辑的浏览器恢复同时保留该关联。标准、历史版本和评分编辑区可展开冻结依据。标准确认与评分确认/发布保持原接口，AI任务成功不发布成绩。学生只得到released反馈，不读模型输入、内部标准或任务列表。
 
 ## 2026-11-04 逐点评分（已实现）
 

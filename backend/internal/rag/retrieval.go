@@ -259,8 +259,22 @@ func (s *Service) Index(ctx context.Context, j store.ProcessingJob, in JobInput)
 	if e = ctx.Err(); e != nil {
 		return nil, e
 	}
-	if e = s.Q.ActivateEmbeddingSpace(ctx, store.ActivateEmbeddingSpaceParams{ID: j.CourseID, EmbeddingSpaceID: nullable(space.ID)}); e != nil {
+	tx, e := s.Models.DB.Begin(ctx)
+	if e != nil {
 		return nil, e
 	}
-	return map[string]any{"space_id": space.ID, "embedded": len(pending), "status": "ready"}, nil
+	defer tx.Rollback(ctx)
+	q := s.Q.WithTx(tx)
+	if e = lockRunningJob(ctx, q, j); e != nil {
+		return nil, e
+	}
+	if e = q.ActivateEmbeddingSpace(ctx, store.ActivateEmbeddingSpaceParams{ID: j.CourseID, EmbeddingSpaceID: nullable(space.ID)}); e != nil {
+		return nil, e
+	}
+	output := map[string]any{"space_id": space.ID, "embedded": len(pending), "status": "ready"}
+	raw, _ := json.Marshal(output)
+	if e = q.FinishProcessingJob(ctx, store.FinishProcessingJobParams{ID: j.ID, State: "succeeded", Output: raw}); e != nil {
+		return nil, e
+	}
+	return output, tx.Commit(ctx)
 }

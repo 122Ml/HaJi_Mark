@@ -19,7 +19,10 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-const taskType = "materials:process"
+const (
+	taskType         = "materials:process"
+	recoveryInterval = 15 * time.Second
+)
 
 type Evidence struct {
 	SourceID   string `json:"source_id"`
@@ -36,6 +39,15 @@ type Candidate struct {
 	KnowledgePointIDs []string   `json:"knowledge_point_ids"`
 	RelatedIDs        []string   `json:"related_ids"`
 }
+
+func ValidContentKind(kind string) bool {
+	switch kind {
+	case "concept", "method", "rule", "example", "misconception":
+		return true
+	}
+	return false
+}
+
 type JobInput struct {
 	SourceID     string          `json:"source_id,omitempty"`
 	ProfileID    string          `json:"profile_id,omitempty"`
@@ -55,7 +67,18 @@ func (s *Service) CreateJob(ctx context.Context, course, actor, kind string, in 
 	raw, _ := json.Marshal(in)
 	j, e := s.Q.CreateProcessingJob(ctx, store.CreateProcessingJobParams{ID: uuid.NewString(), CourseID: course, CreatedBy: actor, Kind: kind, Input: raw})
 	if errors.Is(e, pgx.ErrNoRows) && kind == "index" {
-		return s.Q.PendingCourseIndex(ctx, course)
+		pending, err := s.Q.PendingCourseIndex(ctx, course)
+		if err != nil {
+			return pending, err
+		}
+		var prior JobInput
+		if err = json.Unmarshal(pending.Input, &prior); err != nil {
+			return pending, err
+		}
+		if prior.ProfileID != in.ProfileID {
+			return pending, errors.New("已有其他向量配置的排队任务，请待其完成或取消后再切换模型")
+		}
+		return pending, nil
 	}
 	if e != nil {
 		return j, e
@@ -63,12 +86,34 @@ func (s *Service) CreateJob(ctx context.Context, course, actor, kind string, in 
 	// PostgreSQL is the durable outbox. The recovery scan enqueues after Redis outages.
 	client := asynq.NewClient(asynq.RedisClientOpt{Addr: os.Getenv("REDIS_ADDR")})
 	defer client.Close()
-	_ = enqueue(client, j.ID, j.Attempt)
+	_ = enqueue(client, j.ID)
 	return j, nil
 }
-func enqueue(c *asynq.Client, id string, attempt int32) error {
-	_, e := c.Enqueue(asynq.NewTask(taskType, []byte(id)), asynq.TaskID(fmt.Sprintf("%s:%d", id, attempt)), asynq.MaxRetry(0), asynq.Timeout(12*time.Minute), asynq.Retention(24*time.Hour))
+func enqueue(c *asynq.Client, id string) error {
+	// Database claims deduplicate execution. A short queue lock must not block
+	// recovery for a day when a task failed before its database claim succeeded.
+	_, e := c.Enqueue(asynq.NewTask(taskType, []byte(id)), asynq.Unique(recoveryInterval), asynq.MaxRetry(0), asynq.Timeout(12*time.Minute))
 	return e
+}
+
+// QueueIndex joins the caller's transaction; recovery delivers the durable job.
+func QueueIndex(ctx context.Context, q *store.Queries, course, actor string) error {
+	_, err := q.CreateProcessingJob(ctx, store.CreateProcessingJobParams{ID: uuid.NewString(), CourseID: course, CreatedBy: actor, Kind: "index", Input: []byte("{}")})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	return err
+}
+
+func lockRunningJob(ctx context.Context, q *store.Queries, job store.ProcessingJob) error {
+	current, err := q.LockProcessingJob(ctx, job.ID)
+	if err != nil {
+		return err
+	}
+	if current.State != "running" || current.Attempt != job.Attempt {
+		return errors.New("任务已取消或由其他尝试接管")
+	}
+	return nil
 }
 func (s *Service) Recover(ctx context.Context) {
 	client := asynq.NewClient(asynq.RedisClientOpt{Addr: os.Getenv("REDIS_ADDR")})
@@ -80,11 +125,11 @@ func (s *Service) Recover(ctx context.Context) {
 			return
 		}
 		for _, j := range jobs {
-			_ = enqueue(client, j.ID, j.Attempt)
+			_ = enqueue(client, j.ID)
 		}
 	}
 	scan()
-	ticker := time.NewTicker(15 * time.Second)
+	ticker := time.NewTicker(recoveryInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -98,7 +143,10 @@ func (s *Service) Recover(ctx context.Context) {
 func (s *Service) Process(ctx context.Context, t *asynq.Task) error {
 	j, e := s.Q.ClaimProcessingJob(ctx, string(t.Payload()))
 	if e != nil {
-		return nil
+		if errors.Is(e, pgx.ErrNoRows) {
+			return nil
+		}
+		return e
 	}
 	jobCtx, cancel := context.WithTimeout(ctx, 11*time.Minute)
 	defer cancel()
@@ -152,17 +200,43 @@ func (s *Service) Process(ctx context.Context, t *asynq.Task) error {
 	return s.Q.FinishProcessingJob(finishCtx, store.FinishProcessingJobParams{ID: j.ID, State: state, Output: raw, Error: msg})
 }
 func (s *Service) Parse(ctx context.Context, j store.ProcessingJob, in JobInput) (any, error) {
-	src, e := s.Q.GetMaterialSource(ctx, store.GetMaterialSourceParams{ID: in.SourceID, CourseID: j.CourseID})
+	tx, e := s.Models.DB.Begin(ctx)
+	if e != nil {
+		return nil, e
+	}
+	defer tx.Rollback(ctx)
+	q := s.Q.WithTx(tx)
+	if e = lockRunningJob(ctx, q, j); e != nil {
+		return nil, e
+	}
+	src, e := q.LockMaterialSource(ctx, store.LockMaterialSourceParams{ID: in.SourceID, CourseID: j.CourseID})
 	if e != nil {
 		return nil, e
 	}
 	if src.State != "active" {
 		return nil, errors.New("原件已归档")
 	}
-	_, e = s.Q.UpdateSourceParse(ctx, store.UpdateSourceParseParams{ID: src.ID, CourseID: j.CourseID, ParseState: "running", ParseRevision: src.ParseRevision})
+	_, e = q.UpdateSourceParse(ctx, store.UpdateSourceParseParams{ID: src.ID, CourseID: j.CourseID, ParseState: "running", ParseRevision: src.ParseRevision})
 	if e != nil {
 		return nil, e
 	}
+	if e = tx.Commit(ctx); e != nil {
+		return nil, e
+	}
+	committed := false
+	parseError := "解析未完成或已取消，可重试；已有原文修订保留"
+	defer func() {
+		if committed {
+			return
+		}
+		restoreCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		state := "failed"
+		if src.ParseRevision > 0 {
+			state = "ready"
+		}
+		_ = s.Q.RestoreSourceParse(restoreCtx, store.RestoreSourceParseParams{ID: src.ID, CourseID: j.CourseID, ParseState: state, ParseError: parseError, ParseRevision: src.ParseRevision})
+	}()
 	script := os.Getenv("PARSER_SCRIPT")
 	if script == "" {
 		script = "tools/parser/parse.py"
@@ -186,21 +260,24 @@ func (s *Service) Parse(ctx context.Context, j store.ProcessingJob, in JobInput)
 		if msg == "" {
 			msg = "解析进程失败或已取消，请检查文件后重试"
 		}
-		_, _ = s.Q.UpdateSourceParse(context.WithoutCancel(ctx), store.UpdateSourceParseParams{ID: src.ID, CourseID: j.CourseID, ParseState: "failed", ParseError: msg, ParseRevision: src.ParseRevision})
+		parseError = msg
 		return nil, errors.New(msg)
 	}
-	tx, e := s.Models.DB.Begin(ctx)
+	tx, e = s.Models.DB.Begin(ctx)
 	if e != nil {
 		return nil, e
 	}
 	defer tx.Rollback(ctx)
-	q := s.Q.WithTx(tx)
-	src, e = q.LockMaterialSource(ctx, store.LockMaterialSourceParams{ID: src.ID, CourseID: j.CourseID})
+	q = s.Q.WithTx(tx)
+	if e = lockRunningJob(ctx, q, j); e != nil {
+		return nil, e
+	}
+	current, e := q.LockMaterialSource(ctx, store.LockMaterialSourceParams{ID: src.ID, CourseID: j.CourseID})
 	if e != nil {
 		return nil, e
 	}
-	if src.State != "active" {
-		return nil, errors.New("原件已归档")
+	if current.State != "active" || current.ParseRevision != src.ParseRevision {
+		return nil, errors.New("原件已归档或原文版本已改变，请重新核对")
 	}
 	revision := src.ParseRevision + 1
 	for i, f := range parsed.Fragments {
@@ -211,11 +288,19 @@ func (s *Service) Parse(ctx context.Context, j store.ProcessingJob, in JobInput)
 	if _, e = q.UpdateSourceParse(ctx, store.UpdateSourceParseParams{ID: src.ID, CourseID: j.CourseID, ParseState: "ready", ParseRevision: revision}); e != nil {
 		return nil, e
 	}
+	output := map[string]any{"source_id": src.ID, "revision": revision, "fragment_count": len(parsed.Fragments)}
+	raw, _ := json.Marshal(output)
+	if e = q.FinishProcessingJob(ctx, store.FinishProcessingJobParams{ID: j.ID, State: "succeeded", Output: raw}); e != nil {
+		return nil, e
+	}
+	if e = QueueIndex(ctx, q, j.CourseID, j.CreatedBy); e != nil {
+		return nil, e
+	}
 	if e = tx.Commit(ctx); e != nil {
 		return nil, e
 	}
-	_, _ = s.CreateJob(ctx, j.CourseID, j.CreatedBy, "index", JobInput{})
-	return map[string]any{"source_id": src.ID, "revision": revision, "fragment_count": len(parsed.Fragments)}, nil
+	committed = true
+	return output, nil
 }
 func materialsDir() string {
 	v := os.Getenv("MATERIALS_DIR")
@@ -306,16 +391,12 @@ func (s *Service) Extract(ctx context.Context, j store.ProcessingJob, in JobInpu
 	}
 	defer tx.Rollback(ctx)
 	q := s.Q.WithTx(tx)
-	current, e := q.LockProcessingJob(ctx, j.ID)
-	if e != nil {
+	if e = lockRunningJob(ctx, q, j); e != nil {
 		return nil, e
-	}
-	if current.State != "running" || current.Attempt != j.Attempt {
-		return nil, errors.New("提炼任务已取消或由其他尝试接管")
 	}
 	ids := []string{}
 	for _, v := range out.Candidates {
-		if strings.TrimSpace(v.Title) == "" || strings.TrimSpace(v.Body) == "" || !contains([]string{"concept", "method", "rule", "example", "misconception"}, v.ContentKind) {
+		if strings.TrimSpace(v.Title) == "" || strings.TrimSpace(v.Body) == "" || !ValidContentKind(v.ContentKind) {
 			return nil, errors.New("知识候选字段无效")
 		}
 		if e = s.ValidateEvidence(ctx, j.CourseID, v.Evidence, false); e != nil {

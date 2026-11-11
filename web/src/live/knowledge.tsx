@@ -92,6 +92,27 @@ export type AssistAnswer = {
   status: string;
   citations?: { id: string; quote: string }[];
 };
+export function FrozenEvidence({ sources }: { sources?: Hit[] }) {
+  if (!sources?.length) return null;
+  return (
+    <details>
+      <summary>引用依据（{sources.length}）</summary>
+      {sources.map((hit) => (
+        <article className="rag-hit" key={hit.id}>
+          <strong>{hit.title}</strong>
+          <small>{location(hit.locator)}</small>
+          <p className="live-prose">{hit.body}</p>
+          {hit.source_id && (
+            <Link to={`/teacher/materials?source=${hit.source_id}&fragment=${hit.fragment_ids?.[0] || ""}`}>
+              查看引用原文
+            </Link>
+          )}
+          {hit.knowledge_id && <Link to="/teacher/knowledge">查看知识库</Link>}
+        </article>
+      ))}
+    </details>
+  );
+}
 export function GroundedAnswer({ answer }: { answer: AssistAnswer }) {
   const { session } = useSession();
   return (
@@ -195,10 +216,15 @@ export function AIDraft({
 }) {
   const action = useAction();
   const [model, setModel] = useState("");
-  const [id, setID] = useState("");
+  const jobs = useLiveQuery<Job[]>(
+    `/jobs?${new URLSearchParams({ kind, ...target })}`,
+  );
+  const id = jobs.data?.[0]?.id || "";
   const q = useJob(id);
   const busy =
-    action.busy || ["queued", "running"].includes(q.data?.state || "");
+    action.busy ||
+    (!!id && q.isPending) ||
+    ["queued", "running"].includes(q.data?.state || "");
   return (
     <section className="rag-ai-tool">
       <div className="live-inline">
@@ -206,14 +232,13 @@ export function AIDraft({
         <button
           type="button"
           className="ghost-btn"
-          disabled={busy}
+          disabled={busy || jobs.isPending || !!jobs.error || !!q.error}
           onClick={async () => {
-            const j = await action.run<Job>("/jobs", {
+            await action.run<Job>("/jobs", {
               kind,
               profile_id: model,
               ...target,
             });
-            if (j) setID(j.id);
           }}
         >
           {busy
@@ -224,7 +249,7 @@ export function AIDraft({
         </button>
       </div>
       <Feedback
-        error={q.error}
+        error={jobs.error || q.error}
         message={action.message}
         failed={action.failed}
       />
@@ -244,6 +269,7 @@ export function AIDraft({
               <button
                 type="button"
                 className="ghost-btn"
+                disabled={busy}
                 onClick={() => onAdopt(q.data!.output, id)}
               >
                 载入编辑区
@@ -282,6 +308,7 @@ function DraftPreview({ output }: { output: Record<string, unknown> }) {
         </article>
       ))}
       {typeof output.feedback === "string" && <p>{output.feedback}</p>}
+      <FrozenEvidence sources={output.evidence_refs as Hit[] | undefined} />
       <span className="rag-tag">待教师审核</span>
     </div>
   );
@@ -955,6 +982,7 @@ export function KnowledgePage() {
                     onClick={() =>
                       action.run(`/knowledge/${k.id}/state`, {
                         state: "confirmed",
+                        edit_version: k.edit_version,
                       })
                     }
                   >
@@ -969,6 +997,7 @@ export function KnowledgePage() {
                       if (confirm("归档此知识条目？历史版本和引用仍保留。"))
                         void action.run(`/knowledge/${k.id}/state`, {
                           state: "archived",
+                          edit_version: k.edit_version,
                         });
                     }}
                   >
@@ -1007,6 +1036,7 @@ function KnowledgeEditor({
   onDone: () => void;
 }) {
   const action = useAction();
+  const { course } = useLearning();
   const sources = useLiveQuery<Source[]>("/sources");
   const [sourceID, setSourceID] = useState(
     initial?.evidence[0]?.source_id || "",
@@ -1015,7 +1045,7 @@ function KnowledgeEditor({
   const graph = useLiveQuery<{ points: { id: string; title: string }[] }>("");
   const all = useLiveQuery<Knowledge[]>("/knowledge");
   const draft = useEditorDraft(
-    `knowledge:${initial?.id || "new"}`,
+    `knowledge:${initial?.id || `${course!.id}:new`}`,
     initial || {
       title: "",
       body: "",

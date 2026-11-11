@@ -16,6 +16,7 @@ import (
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 func (h *Handler) registerRAG(g *gin.RouterGroup, auth *identity.Handler) {
@@ -253,11 +254,14 @@ func (h *Handler) correctFragments(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
+	if e = rag.QueueIndex(ctx, q, src.CourseID, identity.Current(c).ID); e != nil {
+		result(c, nil, e)
+		return
+	}
 	if e = tx.Commit(ctx); e != nil {
 		result(c, nil, e)
 		return
 	}
-	_, _ = h.rag.CreateJob(ctx, src.CourseID, identity.Current(c).ID, "index", rag.JobInput{})
 	result(c, v, nil)
 }
 func (h *Handler) publishFragments(c *gin.Context) {
@@ -270,8 +274,17 @@ func (h *Handler) publishFragments(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
-	src, ok := h.sourceRecord(c)
-	if !ok {
+	ctx := c.Request.Context()
+	tx, e := h.db.Begin(ctx)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	defer tx.Rollback(ctx)
+	q := h.q.WithTx(tx)
+	src, e := q.LockMaterialSource(ctx, store.LockMaterialSourceParams{ID: c.Param("sourceID"), CourseID: c.Param("courseID")})
+	if e != nil {
+		result(c, nil, e)
 		return
 	}
 	if src.State != "active" || src.ParseState != "ready" || len(in.FragmentIDs) == 0 || !validText(in.Title, 500) {
@@ -282,13 +295,17 @@ func (h *Handler) publishFragments(c *gin.Context) {
 		ragError(c, e)
 		return
 	}
-	fs, e := h.q.ListMaterialFragments(c.Request.Context(), store.ListMaterialFragmentsParams{SourceID: src.ID, Revision: src.ParseRevision})
+	fs, e := q.ListMaterialFragments(ctx, store.ListMaterialFragmentsParams{SourceID: src.ID, Revision: src.ParseRevision})
 	if e != nil {
 		result(c, nil, e)
 		return
 	}
 	selected := map[string]bool{}
 	for _, id := range in.FragmentIDs {
+		if selected[id] {
+			invalid(c, "片段不能重复，发布完整原件须包含全部已核对片段")
+			return
+		}
 		selected[id] = true
 	}
 	content := ""
@@ -308,14 +325,6 @@ func (h *Handler) publishFragments(c *gin.Context) {
 		invalid(c, "片段版本无效、内容过长，或尚未选择全部原文")
 		return
 	}
-	ctx := c.Request.Context()
-	tx, e := h.db.Begin(ctx)
-	if e != nil {
-		result(c, nil, e)
-		return
-	}
-	defer tx.Rollback(ctx)
-	q := h.q.WithTx(tx)
 	loc, _ := json.Marshal(locators)
 	r, e := q.CreateBusinessResource(ctx, store.CreateBusinessResourceParams{ID: uuid.NewString(), CourseID: src.CourseID, CreatedBy: identity.Current(c).ID, Title: in.Title, Content: content, SourceUrl: src.SourceUrl, SourceNote: src.SourceNote, Locator: src.Filename + " " + string(loc), KnowledgePointID: text(in.KnowledgePointID)})
 	if e != nil {
@@ -373,7 +382,7 @@ func (h *Handler) saveKnowledge(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
-	if !validText(in.Title, 500) || !validText(in.Body, 60000) || !strings.Contains("|concept|method|rule|example|misconception|", "|"+in.ContentKind+"|") {
+	if !validText(in.Title, 500) || !validText(in.Body, 60000) || !rag.ValidContentKind(in.ContentKind) {
 		invalid(c, "知识标题、正文或类型无效")
 		return
 	}
@@ -416,7 +425,8 @@ func nonNilStrings(v []string) []string {
 }
 func (h *Handler) knowledgeState(c *gin.Context) {
 	var in struct {
-		State string `json:"state"`
+		State       string `json:"state"`
+		EditVersion int32  `json:"edit_version"`
 	}
 	if !bind(c, &in) {
 		return
@@ -424,6 +434,10 @@ func (h *Handler) knowledgeState(c *gin.Context) {
 	k, e := h.q.GetKnowledgeEntry(c.Request.Context(), store.GetKnowledgeEntryParams{ID: c.Param("knowledgeID"), CourseID: c.Param("courseID")})
 	if e != nil {
 		result(c, nil, e)
+		return
+	}
+	if in.EditVersion != k.EditVersion {
+		identity.Fail(c, 409, "stale_revision", "知识已被修改，请刷新并重新审核")
 		return
 	}
 	if in.State == "confirmed" && k.State == "draft" {
@@ -437,11 +451,27 @@ func (h *Handler) knowledgeState(c *gin.Context) {
 		invalid(c, "只允许确认草稿或归档条目")
 		return
 	}
-	v, e := h.q.TransitionKnowledgeEntry(c.Request.Context(), store.TransitionKnowledgeEntryParams{ID: k.ID, CourseID: k.CourseID, State: in.State, State_2: k.State})
-	if e == nil {
-		_, _ = h.rag.CreateJob(c.Request.Context(), k.CourseID, identity.Current(c).ID, "index", rag.JobInput{})
+	ctx := c.Request.Context()
+	tx, e := h.db.Begin(ctx)
+	if e != nil {
+		result(c, nil, e)
+		return
 	}
-	result(c, v, e)
+	defer tx.Rollback(ctx)
+	q := h.q.WithTx(tx)
+	v, e := q.TransitionKnowledgeEntry(ctx, store.TransitionKnowledgeEntryParams{ID: k.ID, CourseID: k.CourseID, State: in.State, State_2: k.State, EditVersion: in.EditVersion})
+	if errors.Is(e, pgx.ErrNoRows) {
+		identity.Fail(c, 409, "stale_revision", "知识已被修改，请刷新并重新审核")
+		return
+	}
+	if e == nil {
+		e = rag.QueueIndex(ctx, q, k.CourseID, identity.Current(c).ID)
+	}
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	result(c, v, tx.Commit(ctx))
 }
 func (h *Handler) createRAGJob(c *gin.Context) {
 	var in struct {
@@ -513,7 +543,7 @@ func (h *Handler) createRAGJob(c *gin.Context) {
 	result(c, j, e)
 }
 func (h *Handler) jobs(c *gin.Context) {
-	v, e := h.q.ListProcessingJobs(c.Request.Context(), c.Param("courseID"))
+	v, e := h.q.ListProcessingJobs(c.Request.Context(), store.ListProcessingJobsParams{CourseID: c.Param("courseID"), Kind: c.Query("kind"), QuestionID: c.Query("question_id"), SubmissionID: c.Query("submission_id"), RubricID: c.Query("rubric_id")})
 	result(c, v, e)
 }
 func (h *Handler) job(c *gin.Context) {

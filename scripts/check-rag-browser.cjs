@@ -190,6 +190,35 @@ const pass = message => { if (!report.checks.includes(message)) report.checks.pu
     pass('AI grading adoption survives reload and saves a linked private revision without publishing');
     }
 
+    let newDraftCalls = 0;
+    const countDraftCalls = request => {
+      if (request.method() === 'POST' && request.url().endsWith('/jobs')) newDraftCalls++;
+    };
+    t.on('request', countDraftCalls);
+    await t.setViewportSize({ width: 1440, height: 1000 });
+    await t.goto(`${base}/teacher/homework/${httpReport.assignment_id}?course=${httpReport.course_id}`);
+    await t.locator('summary').filter({ hasText: '逐点评分标准' }).click();
+    await t.getByRole('button', { name: '载入编辑区', exact: true }).waitFor();
+    await t.reload();
+    await t.locator('summary').filter({ hasText: '逐点评分标准' }).click();
+    await t.getByRole('button', { name: '载入编辑区', exact: true }).waitFor();
+    await t.getByText('查看AI草稿', { exact: true }).click();
+    const frozen = t.locator('.rag-draft-preview');
+    await frozen.locator('summary').filter({ hasText: '引用依据' }).click();
+    await frozen.locator('.rag-hit').first().waitFor();
+    await screenshot('rag-frozen-rubric-evidence');
+    await frozen.getByRole('link', { name: '查看引用原文', exact: true }).first().click();
+    await t.getByRole('dialog').getByText('原文修订', { exact: false }).waitFor();
+    await t.goto(`${base}/teacher/homework/submissions/${httpReport.submission_id}/grade?course=${httpReport.course_id}`);
+    await t.getByRole('button', { name: '基于当前评分修改', exact: true }).click();
+    await t.getByRole('button', { name: '载入编辑区', exact: true }).waitFor();
+    await t.reload();
+    await t.getByRole('button', { name: '基于当前评分修改', exact: true }).click();
+    await t.getByRole('button', { name: '载入编辑区', exact: true }).waitFor();
+    assert(newDraftCalls === 0, 'Reload triggered another paid draft generation');
+    t.off('request', countDraftCalls);
+    pass('Completed rubric and grading jobs recover from database after reload without model calls; frozen evidence links open original text');
+
     const sourceID = (await tc('GET', api + '/sources'))[0].id;
     const original = (await tc('GET', api + '/resources'))[0];
     if (!report.history_checked) {

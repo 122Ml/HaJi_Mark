@@ -13,6 +13,10 @@ SELECT * FROM material_sources WHERE id=$1 AND course_id=$2;
 -- name: UpdateSourceParse :one
 UPDATE material_sources SET parse_state=$3,parse_error=$4,parse_revision=$5 WHERE id=$1 AND course_id=$2 RETURNING *;
 
+-- name: RestoreSourceParse :exec
+UPDATE material_sources SET parse_state=$3,parse_error=$4
+WHERE id=$1 AND course_id=$2 AND parse_revision=$5 AND parse_state='running';
+
 -- name: ArchiveMaterialSource :exec
 UPDATE material_sources SET state='archived' WHERE id=$1 AND course_id=$2;
 
@@ -51,14 +55,11 @@ WHERE id=$1 AND course_id=$2 AND state='draft' AND edit_version=$14 RETURNING *;
 
 -- name: TransitionKnowledgeEntry :one
 UPDATE knowledge_entries SET state=$3,confirmed_at=CASE WHEN $3='confirmed' THEN now() ELSE confirmed_at END
-WHERE id=$1 AND course_id=$2 AND state=$4 RETURNING *;
+WHERE id=$1 AND course_id=$2 AND state=$4 AND edit_version=$5 RETURNING *;
 
 -- name: PutRetrievalChunk :exec
 INSERT INTO retrieval_chunks(id,course_id,source_id,knowledge_id,resource_id,fragment_ids,title,heading,body,locator,input_hash,search_tokens)
 VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT(id) DO UPDATE SET active=true;
-
--- name: RetireSourceChunks :exec
-UPDATE retrieval_chunks SET active=false WHERE source_id=$1;
 
 -- name: GetEmbeddingSpace :one
 SELECT * FROM embedding_spaces WHERE id=$1;
@@ -125,7 +126,12 @@ AND NOT EXISTS(SELECT 1 FROM resources r WHERE r.status='published' AND c.fragme
 SELECT * FROM processing_jobs WHERE id=$1 AND course_id=$2;
 
 -- name: ListProcessingJobs :many
-SELECT * FROM processing_jobs WHERE course_id=$1 ORDER BY created_at DESC LIMIT 60;
+SELECT * FROM processing_jobs WHERE course_id=$1
+AND (sqlc.arg(kind)::text='' OR kind=sqlc.arg(kind))
+AND (sqlc.arg(question_id)::text='' OR input->>'question_id'=sqlc.arg(question_id))
+AND (sqlc.arg(submission_id)::text='' OR input->>'submission_id'=sqlc.arg(submission_id))
+AND (sqlc.arg(rubric_id)::text='' OR input->>'rubric_id'=sqlc.arg(rubric_id))
+ORDER BY created_at DESC,id LIMIT 60;
 
 -- name: PendingProcessingJobs :many
 SELECT * FROM processing_jobs WHERE state='queued' OR (state='running' AND started_at<now()-interval '15 minutes') ORDER BY created_at LIMIT 20;
@@ -144,9 +150,6 @@ UPDATE processing_jobs SET progress=$2 WHERE id=$1 AND state='running';
 
 -- name: CancelProcessingJob :one
 UPDATE processing_jobs SET state='canceled',finished_at=now() WHERE id=$1 AND course_id=$2 AND state IN ('queued','running') RETURNING *;
-
--- name: RetryProcessingJob :one
-UPDATE processing_jobs SET state='queued',error='',progress=0,started_at=NULL,finished_at=NULL WHERE id=$1 AND course_id=$2 AND state='failed' RETURNING *;
 
 -- name: ReserveModelBudget :one
 UPDATE model_budget SET reserved_micro_cny=reserved_micro_cny+sqlc.arg(amount)::bigint WHERE id=1 AND spent_micro_cny+reserved_micro_cny+sqlc.arg(amount)::bigint<=limit_micro_cny RETURNING *;
@@ -168,9 +171,6 @@ UPDATE rubric_versions SET evidence_refs=$2 WHERE id=$1 AND state='draft';
 
 -- name: AttachGradingJob :exec
 UPDATE grading_revisions SET ai_job_id=$2 WHERE id=$1 AND state='draft';
-
--- name: RetireCourseChunks :exec
-UPDATE retrieval_chunks SET active=false WHERE course_id=$1;
 
 -- name: LockMaterialSource :one
 SELECT * FROM material_sources WHERE id=$1 AND course_id=$2 FOR UPDATE;

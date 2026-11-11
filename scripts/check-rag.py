@@ -163,8 +163,8 @@ assert k
 if k["state"] == "draft":
     assert student.call("GET", base + "/knowledge") == []
     k.update(student_visible=True, use_for_grading=True)
-    teacher.call("PUT", base + "/knowledge/" + k["id"], k)
-    teacher.call("POST", base + "/knowledge/" + k["id"] + "/state", {"state": "confirmed"})
+    k = teacher.call("PUT", base + "/knowledge/" + k["id"], k)
+    teacher.call("POST", base + "/knowledge/" + k["id"] + "/state", {"state": "confirmed", "edit_version": k["edit_version"]})
 checkpoint(knowledge_id=k["id"])
 assert student.call("GET", base + "/knowledge")
 passed("real knowledge candidates remain private until teacher edits and confirms")

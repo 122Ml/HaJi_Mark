@@ -2,7 +2,7 @@ import { useEditorDraft, DraftNotice } from "./editing";
 import type { Revision } from "./assessment";
 import { useEffect, useState } from "react";
 import { Feedback, names, useAction, useLiveQuery } from "./context";
-import { AIDraft } from "./knowledge";
+import { AIDraft, FrozenEvidence, type Hit } from "./knowledge";
 
 export interface Criterion {
   id: string;
@@ -15,6 +15,7 @@ export interface RubricVersion {
   version: number;
   state: string;
   criteria: Criterion[];
+  evidence_refs?: Hit[];
 }
 export interface PointFeedback {
   criterion_id: string;
@@ -98,6 +99,7 @@ export function RubricManager({
               ：{p.rule}
             </p>
           ))}
+          <FrozenEvidence sources={r.evidence_refs} />
           {r.state === "draft" && (
             <button
               type="button"
@@ -136,6 +138,7 @@ export function RubricManager({
                   {p.title}（{p.max_score}分）：{p.rule}
                 </p>
               ))}
+              <FrozenEvidence sources={r.evidence_refs} />
               <button
                 type="button"
                 className="ghost-btn"
@@ -341,6 +344,7 @@ export function PointGradeForm({
       }}
     >
       <DraftNotice {...draft} />
+      <FrozenEvidence sources={rubric.evidence_refs} />
       <AIDraft
         kind="grade"
         target={{ submission_id: submissionID, rubric_id: rubric.id }}

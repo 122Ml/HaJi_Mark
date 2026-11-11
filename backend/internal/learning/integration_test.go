@@ -343,4 +343,74 @@ func TestTeachingLoop(t *testing.T) {
 		request["ai_job_id"] = ""
 		call(teacher, "POST", sp+"/revisions", request, 409)
 	})
+	t.Run("RAG_publication_rejects_duplicate_and_unreviewed_fragments", func(t *testing.T) {
+		t.Setenv("RAG_ENABLED", "true")
+		t.Setenv("MODEL_PROFILES_PATH", "../../config/models.json")
+		router = server.New(db, nil, false)
+		if _, err := db.Exec(ctx, `INSERT INTO material_sources(id,course_id,created_by,title,sha256,parse_state,parse_revision,allow_derived) VALUES('publication-source','course','teacher','source','hash','ready',1,true);
+INSERT INTO material_fragments(id,source_id,revision,position,body,locator,quality) VALUES('publication-public','publication-source',1,0,'公开内容','{}','ready'),('publication-private','publication-source',1,1,'未核对的内部内容','{}','needs_review')`); err != nil {
+			t.Fatal(err)
+		}
+		path := base + "/sources/publication-source/publish"
+		call(teacher, "POST", path, map[string]any{"title": "duplicate", "fragment_ids": []string{"publication-public", "publication-public"}, "full_source": true}, 422)
+		call(teacher, "POST", path, map[string]any{"title": "unreviewed", "fragment_ids": []string{"publication-public", "publication-private"}, "full_source": true}, 422)
+		call(teacher, "POST", path, map[string]any{"title": "partial", "fragment_ids": []string{"publication-public"}, "full_source": false}, 200)
+		t.Run("answer_markers_must_match_verified_citations", func(t *testing.T) {
+			if _, err := db.Exec(ctx, `INSERT INTO retrieval_chunks(id,course_id,source_id,fragment_ids,title,body,locator,input_hash,search_tokens) VALUES('qa-public','course','publication-source',ARRAY['publication-public'],'公开内容','公开内容','{}','qa','公开 内容')`); err != nil {
+				t.Fatal(err)
+			}
+			modelText := "依据公开内容回答[R1]。"
+			provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				content, _ := json.Marshal(map[string]any{"text": modelText, "citations": []map[string]string{{"id": "R1", "quote": "公开内容"}}})
+				_ = json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]string{"content": string(content)}, "finish_reason": "stop"}}, "usage": map[string]int{"prompt_tokens": 8, "completion_tokens": 8}})
+			}))
+			defer provider.Close()
+			t.Setenv("QA_TEST_BASE", provider.URL)
+			t.Setenv("QA_TEST_KEY", "test-only-key")
+			profiles := filepath.Join(t.TempDir(), "models.json")
+			if err := os.WriteFile(profiles, []byte(`[{"id":"test","kind":"chat","protocol":"openai","base_url_env":"QA_TEST_BASE","key_env":"QA_TEST_KEY","model":"test","batch_size":1,"input_micro_cny_per_token":1,"output_micro_cny_per_token":1}]`), 0600); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("MODEL_PROFILES_PATH", profiles)
+			router = server.New(db, nil, false)
+			for _, test := range []struct {
+				text   string
+				status int
+			}{{"依据公开内容回答[R1]。", 200}, {"依据公开内容回答[R99]。", 422}, {"依据公开内容回答。", 422}, {"依据公开内容回答[R1]和[R99]。", 422}} {
+				modelText = test.text
+				call(student, "POST", base+"/assist", map[string]string{"topic": "公开内容"}, test.status)
+			}
+		})
+		call(student, "GET", base+"/sources/publication-source/download", nil, 403)
+		call(peer, "POST", path, map[string]any{"title": "student", "fragment_ids": []string{"publication-public"}}, 403)
+		call(teacher, "POST", "/learning/courses/foreign/sources/publication-source/publish", map[string]any{"title": "foreign", "fragment_ids": []string{"publication-public"}}, 403)
+		call(teacher, "POST", base+"/knowledge", map[string]any{"title": "invalid kind", "body": "content", "content_kind": "concept|method"}, 422)
+		knowledge := map[string]any{"title": "knowledge", "body": "公开内容", "content_kind": "concept", "evidence": []any{map[string]string{"source_id": "publication-source", "fragment_id": "publication-public", "quote": "公开内容"}}, "student_visible": true, "use_for_learning": true}
+		kid := id(call(teacher, "POST", base+"/knowledge", knowledge, 200))
+		knowledge["edit_version"] = 1
+		knowledge["body"] = "修改后的公开内容"
+		call(teacher, "PUT", base+"/knowledge/"+kid, knowledge, 200)
+		call(teacher, "POST", base+"/knowledge/"+kid+"/state", map[string]any{"state": "confirmed", "edit_version": 1}, 409)
+		call(teacher, "POST", base+"/knowledge/"+kid+"/state", map[string]any{"state": "confirmed", "edit_version": 2}, 200)
+		var queued int
+		if err := db.QueryRow(ctx, `SELECT count(*) FROM processing_jobs WHERE course_id='course' AND kind='index' AND state='queued'`).Scan(&queued); err != nil || queued != 1 {
+			t.Fatal("knowledge confirmation did not persist its index job", queued, err)
+		}
+		if _, err := db.Exec(ctx, `UPDATE material_fragments SET quality='ready' WHERE id='publication-private'`); err != nil {
+			t.Fatal(err)
+		}
+		call(teacher, "POST", path, map[string]any{"title": "complete", "fragment_ids": []string{"publication-public", "publication-private"}, "full_source": true}, 200)
+		call(teacher, "POST", base+"/sources/publication-source/archive", map[string]string{}, 200)
+		call(teacher, "POST", path, map[string]any{"title": "archived", "fragment_ids": []string{"publication-public"}}, 422)
+		if _, err := db.Exec(ctx, `INSERT INTO processing_jobs(id,course_id,created_by,kind,state,input) VALUES('history-rubric','course','teacher','rubric','succeeded','{"question_id":"recovery-question"}'),('history-other','course','teacher','grade','succeeded','{"question_id":"recovery-question"}')`); err != nil {
+			t.Fatal(err)
+		}
+		var jobs []struct {
+			Kind string `json:"kind"`
+		}
+		if err := json.Unmarshal(call(teacher, "GET", base+"/jobs?kind=rubric&question_id=recovery-question", nil, 200), &jobs); err != nil || len(jobs) != 1 || jobs[0].Kind != "rubric" {
+			t.Fatal("draft history did not filter by target", string(call(teacher, "GET", base+"/jobs", nil, 200)), err)
+		}
+		call(student, "GET", base+"/jobs?kind=rubric", nil, 403)
+	})
 }

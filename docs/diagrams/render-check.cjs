@@ -27,7 +27,7 @@ const { chromium } = require('playwright');
           const r = t.getBoundingClientRect();
           if (r.x < -1 || r.y < -1 || r.right > w+1 || r.bottom > h+1)
             issues.push({ type:'canvas', text:t.textContent });
-          const n = t.closest('.node');
+          const n = t.closest('.node,.runtime-component');
           if (n) {
             const box = n.querySelector('rect');
             const x = Number(box.getAttribute('x')), y = Number(box.getAttribute('y'));

@@ -94,15 +94,15 @@ NETWORK = {
     "ingest": ("资料解析与原文核对", "system", [
         ("done", "正文 / 常规表格 / 中文印刷OCR / 定位"),
         ("done", "异常片段待核；教师校正 → 新修订"),
-        ("done", "印刷公式图表 / 视觉核对 / 目录建议")]),
+        ("done", "印刷公式图表 / 按需视觉 / 目录建议")]),
     "knowledge-review": ("知识候选与教师审核", "teacher", [
         ("done", "AI提炼 / 分类 / 条件 / 关联候选"),
         ("done", "教师编辑、确认；候选不生效"),
-        ("done", "AI比较出处；教师决定合并与替换")]),
+        ("done", "双侧证据；教师决定合并、并存与替换")]),
     "question": ("独立课程题库", "system", [
         ("done", "手工录题 / JSON候选 / 多版本"),
         ("done", "使用记录 / 停用恢复；独立于作答"),
-        ("done", "整卷拆题 / 校正 / 分页 / 审计")]),
+        ("done", "三题型拆题 / 校正 / 分页 / 出处审计")]),
     "materials": ("学习资料：完整内容", "data", [
         ("done", "教师选段或全文发布；保留来源与定位"),
         ("done", "阅读 / 笔记 / 收藏 / 完成记录"),
@@ -112,7 +112,7 @@ NETWORK = {
         ("done", "概念 / 规则 / 方法 / 示例 / 误区"),
         ("done", "多专题 / 标签 / 条件 / 出处 / 知识点"),
         ("done", "独立版本；学习 / 评分用途分别设置"),
-        ("done", "学生可见性独立；确认新条目不替换旧版"),
+        ("done", "学生可见性独立；普通新版不自动停旧"),
         ("done", "权限RAG → 问答 / 出题 / 标准依据")]),
     "authoring": ("AI出题、分析与标准草稿", "ai", [
         ("done", "选资料 / 知识依据 + 考查要求"),
@@ -168,8 +168,8 @@ NETWORK = {
         ("done", "学生本人可见 / 教师CSV导出"),
         ("done", "历次作答 / 学习 / 干预与复查")]),
     "maintenance": ("来源与知识生命周期", "system", [
-        ("done", "修订保留历史；归档 / 撤回许可阻断未来使用；旧评分快照保留"),
-        ("done", "影响清单 / 站内处理决定 / 整组重评"),
+        ("done", "普通新版不自动停旧；明确归档 / 撤回 / 替换才限制未来"),
+        ("done", "影响清单 / 站内决定 / 整组重评；旧成绩与依据保留"),
         ("planned", "典型作答匿名化沉淀案例")]),
 }
 
@@ -195,10 +195,6 @@ def panorama():
             t.text = "HaJi Mark · 全景业务与实现架构图"
         elif t.text == "学习推荐与补练生成":
             t.text = "规则学习路径与补练"
-        elif t.text == "共享运行底座":
-            t.text = "共享RAG与运行底座 · 本地已接通"
-        elif t.text and t.text.startswith("PostgreSQL：业务"):
-            t.text = "PostgreSQL / pgvector：版本、权限、向量    ·    gse / GIN关键词 + RRF    ·    Redis / Asynq：持久任务    ·    文件卷：原件    ·    Gin / sqlc / pgx    ·    React / TypeScript / Ant Design    ·    Docker"
         elif t.text == "AI处理":
             t.text = "AI功能"
     for g in root.iter(tag("g")):
@@ -208,7 +204,72 @@ def panorama():
     lg = el(main, "g", **{"class": "implementation-legend"})
     legend(lg, 198)
     txt(lg, 3520, 198, "节点内圆点逐项标状态；非公网部署状态", 22, "#62656A", text_anchor="end")
-    txt(main, 110, 2668, "可靠原文直接索引；生成模型与Embedding分开配置。问答、出题与标准共用权限检索；评阅只读冻结依据，不临时检索追加扣分点。", 23, "#526575")
+    # Expand only the old shared-base area; all business geometry stays intact.
+    root.set("height", "3250")
+    root.set("viewBox", "0 0 3600 3250")
+    main.find(tag("rect")).set("height", "3250")
+    for child in list(main):
+        if ((child.tag == tag("rect") and child.get("y") == "2540")
+                or (child.tag == tag("text") and child.text
+                    and (child.text == "共享运行底座" or child.text.startswith("PostgreSQL：业务")))):
+            main.remove(child)
+    runtime = el(main, "g", **{"class": "runtime-architecture"})
+    box(runtime, 80, 2540, 3440, 610, "#EAE9E3", rx=10)
+    txt(runtime, 110, 2585, "共享运行架构 · Go单体 + 独立worker · Docker Compose", 29, font_weight=600)
+    defs = root.find(tag("defs"))
+    marker = el(defs, "marker", id="runtime-arrow", viewBox="0 0 10 10", refX=9, refY=5,
+                markerWidth=7, markerHeight=7, orient="auto-start-reverse")
+    el(marker, "path", d="M 0 1 L 9 5 L 0 9 Z", fill="#638092")
+    connections = el(runtime, "g", **{"class": "runtime-connections"})
+    for route, both in [
+        ("M 710 2725 H 830", False),
+        ("M 1230 2630 V 2610 H 3160 V 2630", False),
+        ("M 1630 2725 H 1830", False),
+        ("M 2630 2725 H 2830", False),
+        ("M 1230 2820 V 2890", True),
+        ("M 1930 2820 V 2860 H 1510 V 2890", True),
+        ("M 2330 2820 V 2890", True),
+        ("M 2630 2785 H 2740 V 2970 H 2830", True),
+    ]:
+        attrs = {"marker-end": "url(#runtime-arrow)"}
+        if both:
+            attrs["marker-start"] = "url(#runtime-arrow)"
+        el(connections, "path", d=route, fill="none", stroke="#638092", stroke_width=2, **attrs)
+    components = [
+        ("web", 110, 2630, 600, 190, "浏览器 / Nginx Web", "system", [
+            "React / TypeScript / Ant Design", "教师工作区 / 学生工作区", "同源请求；会话与编辑恢复"]),
+        ("api", 830, 2630, 800, 190, "Go / Gin API", "system", [
+            "会话 / 角色 / 课程 / CSRF", "同步事务 / 固定版本 / 整组发布", "sqlc / pgx；机械核对与教师状态"]),
+        ("worker", 1830, 2630, 800, 190, "Go worker / Asynq", "system", [
+            "本地Python解析 / 中文OCR / 图像裁剪", "索引 / 提炼 / 出题 / 标准 / 评阅", "PG持久任务 + Redis执行队列"]),
+        ("models", 2830, 2630, 660, 190, "第三方模型 API", "ai", [
+            "Embedding / 生成 / 视觉分别选择", "服务端profile / 模型 / 维度 / 凭据", "累计50元预算：事务预留 → 结算"]),
+        ("postgres", 830, 2890, 800, 160, "PostgreSQL / pgvector", "data", [
+            "业务 / 版本 / 权限 / 任务 / 预算账", "pgvector精确余弦 / 中文GIN索引"]),
+        ("redis", 1830, 2890, 800, 160, "Redis / Asynq", "data", [
+            "队列投递 / 领取 / 执行；AOF持久化", "失联任务状态由PG核对与恢复"]),
+        ("files", 2830, 2890, 660, 160, "共享文件卷", "data", [
+            "原件 / 网页快照 / 图像与裁剪定位", "API与worker共享；保留历史"]),
+    ]
+    for name, x, y, w, h, title, role, lines in components:
+        component = el(runtime, "g", **{"class": "runtime-component", "data-component": name})
+        fill, stroke, fg, muted, _ = ROLE[role]
+        box(component, x, y, w, h, fill, stroke, stroke_width=2)
+        txt(component, x+24, y+41, title, 26, fg, font_weight=600)
+        for i, line in enumerate(lines):
+            assert width(line, 22) <= w-48, f"Runtime text overflow: {name}: {line}"
+            txt(component, x+24, y+80+i*32, line, 22, muted)
+    for x, y, label in [(2200, 2600, "同步问答 / 查询向量"),
+                         (770, 2703, "HTTP"), (1730, 2693, "任务ID"),
+                         (1730, 2770, "Redis / Asynq"), (2730, 2703, "模型调用"),
+                         (1350, 2867, "业务 / 事务"), (1730, 2850, "任务 / 预算 / 索引"),
+                         (2450, 2867, "执行队列")]:
+        txt(runtime, x, y, label, 21, "#526575", text_anchor="middle")
+    txt(runtime, 110, 2930, "Docker Compose · 本地", 26, font_weight=600)
+    txt(runtime, 110, 2971, "web / api / worker / postgres / redis", 22, "#526575")
+    txt(runtime, 110, 3006, "migrate一次性执行；具名数据卷", 22, "#526575")
+    txt(runtime, 110, 3107, "中断恢复：生成失败显式重试 · 解析 / 索引幂等恢复 · 未知调用按预留保守结算一次 · 评分草稿须教师确认发布", 23, "#526575")
+    txt(main, 110, 3200, "可靠原文直接索引；问答、出题与标准共用权限RAG（Go内RRF融合）；评阅只读冻结依据，不临时检索追加扣分点。", 23, "#526575")
     changes = {
         ("ingest", "knowledge-review"): "按需提炼 / 分类 / 关联候选",
         ("ingest", "materials"): "可靠原文 · 教师独立发布",

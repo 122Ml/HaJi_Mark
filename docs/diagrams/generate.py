@@ -1,0 +1,473 @@
+"""Generate the current local implementation diagrams; preserve the original network."""
+from pathlib import Path
+from copy import deepcopy
+import json
+import xml.etree.ElementTree as ET
+
+from PIL import ImageFont
+
+HERE = Path(__file__).resolve().parent
+OUT = HERE / "current"
+NS = "http://www.w3.org/2000/svg"
+ET.register_namespace("", NS)
+FONT = "C:/Windows/Fonts/msyh.ttc"
+FONTS = {}
+COL = {"done": "#187653", "partial": "#A06413", "planned": "#78818A"}
+STATUS = {"done": "已实现", "partial": "部分实现", "planned": "待实现"}
+ROLE = {
+    "system": ("#FFFFFF", "#CFD5D5", "#242424", "#58616A", "系统"),
+    "teacher": ("#303235", "#303235", "#FFFFFF", "#E1E5E8", "教师"),
+    "ai": ("#FFF1E5", "#E3B89A", "#242424", "#62656A", "AI"),
+    "data": ("#EAF1F5", "#AFC9DA", "#242424", "#526575", "数据"),
+    "external": ("#F0F0EA", "#C8CBC5", "#242424", "#62656A", "衔接"),
+}
+
+
+def tag(name):
+    return f"{{{NS}}}{name}"
+
+
+def el(parent, name, **attrs):
+    return ET.SubElement(parent, tag(name), {k.replace("_", "-"): str(v) for k, v in attrs.items()})
+
+
+def width(text, size):
+    if size not in FONTS:
+        FONTS[size] = ImageFont.truetype(FONT, size)
+    return FONTS[size].getlength(text)
+
+
+def txt(parent, x, y, value, size=23, fill="#242424", **attrs):
+    t = el(parent, "text", x=x, y=y, font_size=size, fill=fill, **attrs)
+    t.text = value
+    return t
+
+
+def box(parent, x, y, w, h, fill, stroke="none", **attrs):
+    return el(parent, "rect", x=x, y=y, width=w, height=h, fill=fill, stroke=stroke, **({"rx": 12} | attrs))
+
+
+def badge(parent, x, y, status):
+    box(parent, x, y, 128, 31, "#E3F0E9" if status == "done" else "#FFF0D8" if status == "partial" else "#EBEDF0", rx=7)
+    txt(parent, x + 64, y + 23, STATUS[status], 20, COL[status], text_anchor="middle", font_weight=600)
+
+
+def node_content(g, x, y, w, h, title, lines, role, status=None, compact=False):
+    status = status or ("partial" if any(s != "done" for s, _ in lines) else "done")
+    fill, stroke, fg, muted, actor = ROLE[role]
+    g.set("data-status", status)
+    box(g, x, y, w, h, fill, stroke, stroke_width=2)
+    badge(g, x + w - 144, y - 14, status)
+    tx = x + 24
+    if role in ("ai", "teacher") and not compact:
+        txt(g, tx, y + 29, actor, 17, "#F1BB90" if role == "teacher" else "#AE4D25", font_weight=600)
+        title_y, body_y = y + 64, y + 99
+    else:
+        title_y, body_y = y + 44, y + 85
+    txt(g, tx, title_y, title, 26, fg, font_weight=600)
+    step = 32 if compact else 33
+    for i, (state, line) in enumerate(lines):
+        cy = body_y + i * step
+        el(g, "circle", cx=x+30, cy=cy-7, r=4.5, fill=COL[state], **{"data-item-status": state})
+        txt(g, x + 44, cy, line, 22, muted if state == "done" else "#C98C40" if role == "teacher" else COL[state])
+        if width(line, 22) > w - 61:
+            raise ValueError(f"Node text overflow: {title}: {line}")
+        if cy + 5 > y + h - 9:
+            raise ValueError(f"Node height overflow: {title}")
+
+
+def legend(parent, y, detailed=False):
+    for x, state in ((80, "done"), (275, "partial"), (490, "planned")):
+        el(parent, "circle", cx=x+8, cy=y-7, r=6, fill=COL[state])
+        txt(parent, x+26, y, STATUS[state], 23, COL[state])
+    txt(parent, 720, y, "实线：已接通关系　虚线：待接通关系", 22, "#62656A")
+    if detailed:
+        txt(parent, 2320, y, "AI橙 / 教师深色 / 数据蓝", 22, "#62656A", text_anchor="end")
+
+
+# Every original node and every original relationship remains in the panorama.
+NETWORK = {
+    "sources": ("课程资料导入", "system", [
+        ("done", "PDF / DOCX / PPTX / 文本 / 表格"),
+        ("done", "原件 / 来源 / 许可 / 哈希 / 版本"),
+        ("planned", "外链全文抓取（现仅保存地址）")]),
+    "ingest": ("资料解析与原文核对", "system", [
+        ("done", "正文 / 常规表格 / 中文印刷OCR / 定位"),
+        ("done", "异常片段待核；教师校正 → 新修订"),
+        ("planned", "复杂公式图表 / 手写 / 智能目录编排")]),
+    "knowledge-review": ("知识候选与教师审核", "teacher", [
+        ("done", "AI提炼 / 分类 / 条件 / 关联候选"),
+        ("done", "教师编辑、确认；候选不生效"),
+        ("planned", "自动去重合并 / 冲突裁决")]),
+    "question": ("独立课程题库", "system", [
+        ("done", "手工录题 / JSON候选 / 多版本"),
+        ("done", "使用记录 / 停用恢复；独立于作答"),
+        ("planned", "PDF整卷自动分题")]),
+    "materials": ("学习资料：完整内容", "data", [
+        ("done", "教师选段或全文发布；保留来源与定位"),
+        ("done", "阅读 / 笔记 / 收藏 / 完成记录"),
+        ("done", "可靠原文直接分块索引，无须AI提炼"),
+        ("done", "选段发布不开放完整原件下载")]),
+    "knowledge": ("知识库：精炼条目", "data", [
+        ("done", "概念 / 规则 / 方法 / 示例 / 误区"),
+        ("done", "条件 / 原文出处 / 知识点与条目关联"),
+        ("done", "独立版本；学习 / 评分用途分别设置"),
+        ("done", "学生可见性独立；确认新条目不替换旧版"),
+        ("done", "权限RAG → 问答 / 出题 / 标准依据")]),
+    "authoring": ("AI出题、分析与标准草稿", "ai", [
+        ("done", "选资料 / 知识依据 + 考查要求"),
+        ("done", "题目 + 参考解答 + 标准；分别编辑"),
+        ("done", "评分点 / 部分分 / 表达 / 错误条件"),
+        ("done", "不读取待评答案；过期候选不覆盖")]),
+    "rubric": ("分别确认与版本绑定", "teacher", [
+        ("done", "题目 / 参考解答 / 匹配标准分别确认"),
+        ("done", "同题统一满分；改满分另建匹配版本"),
+        ("done", "作业固定题目、标准与依据快照"),
+        ("done", "新版本不改旧作业与历史成绩")]),
+    "learning": ("学生学习工作区", "system", [
+        ("done", "完整资料 ↔ 精炼知识 ↔ 原文定位"),
+        ("done", "阅读 / 笔记 / 收藏 / 学习完成"),
+        ("done", "检索提问 / 正式反馈 / 执行补学"),
+        ("planned", "问答持久历史（现为当次结果）")]),
+    "qa": ("RAG检索答疑", "ai", [
+        ("done", "可见资料 + 学习用途确认知识"),
+        ("done", "向量 + 关键词 → RRF融合"),
+        ("done", "带引用回答 / 原文定位；不足可提问")]),
+    "tasks": ("作业与测验", "system", [
+        ("done", "选确认版本 / 发布 / 截止 / 关闭"),
+        ("done", "课程 / 名单 / 题目与任务版本"),
+        ("done", "未交 / 部分 / 已交；学生看不到规则")]),
+    "answers": ("原始作答", "data", [
+        ("done", "学生草稿自动保存 / 回执 / 提交历史"),
+        ("done", "不可变原文 / attempt / 任务版本 / 哈希"),
+        ("planned", "教师批量导入学生作答")]),
+    "grading": ("有据智能评阅", "ai", [
+        ("done", "原文 + 固定标准 + 当时依据快照"),
+        ("done", "逐点得分 / 学生原句 / 依据来源"),
+        ("done", "失败显式重试或人工；不追加扣分点"),
+        ("done", "客观题固定规则；代码仅作文本评阅")]),
+    "review": ("机械核对、教师复核与发布", "teacher", [
+        ("done", "系统：字段 / 加和 / 引用 / 绑定检查"),
+        ("done", "教师：原文、标准、依据同屏对照"),
+        ("done", "修改 → 确认 → 发布；保留修订"),
+        ("planned", "跨作业定向批量重评")]),
+    "intervention": ("教师干预与复查", "teacher", [
+        ("done", "选学生 / 资料 / 补练 / 完成条件"),
+        ("done", "下发 → 新学习 / 新提交 → 教师复查"),
+        ("done", "只采纳下发后证据；可继续干预")]),
+    "recommend": ("规则学习路径与补练", "system", [
+        ("done", "低表现 / 无证据 + 前置知识 → 路径"),
+        ("done", "教师指定资料与已确认练习"),
+        ("planned", "AI个性推荐 / 自动补练生成")]),
+    "diagnose": ("学情证据与错因诊断", "system", [
+        ("done", "正式结果去重 / 分母 / 班级个人表现"),
+        ("done", "反馈 → 评分点 → 原文；缺证据单列"),
+        ("planned", "E4：AI班级共性错因诊断")]),
+    "results": ("正式结果与学习证据", "data", [
+        ("done", "分项反馈 / 引用 / 标准与版本"),
+        ("done", "学生本人可见 / 教师CSV导出"),
+        ("done", "历次作答 / 学习 / 干预与复查")]),
+    "maintenance": ("来源与知识生命周期", "system", [
+        ("done", "修订保留历史；归档 / 撤回许可阻断未来使用；旧评分快照保留"),
+        ("planned", "变更影响清单 / 通知 / 跨作业定向重评 / 作答匿名化沉淀案例")]),
+}
+
+
+def panorama():
+    root = ET.parse(HERE / "base-network.svg").getroot()
+    original = deepcopy(root)
+    groups = [g for g in root.iter(tag("g")) if g.get("class") == "node"]
+    assert {g.get("data-node") for g in groups} == set(NETWORK)
+    for g in groups:
+        r = g.find(tag("rect"))
+        x, y, w, h = [float(r.get(k)) for k in ("x", "y", "width", "height")]
+        title, role, lines = NETWORK[g.get("data-node")]
+        for child in list(g):
+            g.remove(child)
+        g.set("aria-label", title)
+        node_content(g, x, y, w, h, title, lines, role, compact=True)
+    main = root.find(tag("g"))
+    for t in root.iter(tag("text")):
+        if t.text == "目标设计":
+            t.text = "本地实现状态 · 2026-11-11"
+        elif t.text == "HaJi Mark · 全系统业务与智能数据关系图":
+            t.text = "HaJi Mark · 全景业务与实现架构图"
+        elif t.text == "学习推荐与补练生成":
+            t.text = "规则学习路径与补练"
+        elif t.text == "共享运行底座":
+            t.text = "共享RAG与运行底座 · 本地已接通"
+        elif t.text and t.text.startswith("PostgreSQL：业务"):
+            t.text = "PostgreSQL / pgvector：版本、权限、向量    ·    gse / GIN关键词 + RRF    ·    Redis / Asynq：持久任务    ·    文件卷：原件    ·    Gin / sqlc / pgx    ·    React / TypeScript / Ant Design    ·    Docker"
+        elif t.text == "AI处理":
+            t.text = "AI功能"
+    for g in root.iter(tag("g")):
+        if g.get("class") == "module-label" and g.get("data-module") == "shared":
+            g.set("transform", "translate(1480 0)")
+    # Place the status legend in existing whitespace; role colors remain unchanged.
+    lg = el(main, "g", **{"class": "implementation-legend"})
+    legend(lg, 198)
+    txt(lg, 3520, 198, "节点内圆点逐项标状态；非公网部署状态", 22, "#62656A", text_anchor="end")
+    txt(main, 110, 2668, "可靠原文直接索引；生成模型与Embedding分开配置。问答、出题与标准共用权限检索；评阅只读冻结依据，不临时检索追加扣分点。", 23, "#526575")
+    changes = {
+        ("ingest", "knowledge-review"): "按需提炼 / 分类 / 关联候选",
+        ("ingest", "materials"): "可靠原文 · 教师独立发布",
+        ("knowledge", "authoring"): "检索选依据 / 考查要求",
+        ("knowledge", "grading"): "标准确认时冻结的依据",
+        ("knowledge", "recommend"): "待 · 精炼知识接入推荐",
+        ("question", "authoring"): "独立题库 / 生成要求",
+        ("authoring", "rubric"): "三类草稿",
+        ("rubric", "tasks"): "确认题目 + 匹配标准",
+        ("learning", "diagnose"): "学习记录 / 作答与发布反馈",
+        ("diagnose", "recommend"): "表现 / 证据",
+        ("recommend", "intervention"): "规则路径",
+        ("intervention", "tasks"): "补练 / 已确认练习",
+        ("results", "diagnose"): "正式证据",
+        ("maintenance", "question"): "待 · 变更影响清单 / 重评",
+        ("results", "maintenance"): "待 · 典型作答案例候选",
+        ("maintenance", "knowledge-review"): "待 · 匿名化 / 审核入库",
+        ("recommend", "question"): "待 · 自动补练题 → 教师审核",
+    }
+    pending = {("maintenance", "question"), ("results", "maintenance"), ("knowledge", "recommend"),
+               ("maintenance", "knowledge-review"), ("recommend", "question")}
+    for g in root.iter(tag("g")):
+        if g.get("class") not in ("edge", "edge-label"):
+            continue
+        key = (g.get("data-from"), g.get("data-to"))
+        g.set("data-status", "planned" if key in pending else "done")
+        p = g.find(tag("path"))
+        if p is not None:
+            if key in pending:
+                p.set("stroke-dasharray", "10 7")
+            else:
+                p.attrib.pop("stroke-dasharray", None)
+        if g.get("class") == "edge-label" and key in changes:
+            t, r = g.find(tag("text")), g.find(tag("rect"))
+            t.text = changes[key]
+            tw, cx = width(t.text, 22), float(t.get("x"))
+            r.set("x", str(cx - tw / 2 - 9))
+            r.set("width", str(tw + 18))
+    root.find(tag("title")).text = "HaJi Mark 全景关系网 · 本地实现状态"
+    root.find(tag("desc")).text = "保留19个业务节点和42条关系，逐项标注本地已实现及待实现。学习资料、知识库、独立题库经版本与权限RAG关联，贯通作业、评阅、反馈及干预。"
+    for cls in ("node", "edge"):
+        def identities(tree):
+            return [(e.get("data-node"), e.get("data-from"), e.get("data-to"))
+                    for e in tree.iter(tag("g")) if e.get("class") == cls]
+        assert identities(root) == identities(original), f"Original {cls} removed or reordered"
+    def paths(tree):
+        return [g.find(tag("path")).get("d") for g in tree.iter(tag("g")) if g.get("class") == "edge"]
+    assert paths(root) == paths(original), "Original edge routes changed"
+    def regions(tree):
+        return [ET.tostring(g, encoding="unicode") for g in tree.iter(tag("g")) if g.get("class") == "module-region"]
+    assert regions(root) == regions(original), "Original module boundaries changed"
+    return root
+
+
+class Figure:
+    def __init__(self, title, height=1480):
+        self.root = ET.Element(tag("svg"), {"width": "2400", "height": str(height), "viewBox": f"0 0 2400 {height}", "role": "img", "aria-label": title})
+        el(self.root, "title").text = title
+        defs = el(self.root, "defs")
+        for state, color in (("done", "#85929B"), ("planned", COL["planned"])):
+            m = el(defs, "marker", id=state, viewBox="0 0 10 10", refX=9, refY=5, markerWidth=8, markerHeight=8, orient="auto-start-reverse")
+            el(m, "path", d="M 0 1 L 9 5 L 0 9 Z", fill=color)
+        self.main = el(self.root, "g", font_family="Microsoft YaHei, sans-serif")
+        box(self.main, 0, 0, 2400, height, "#F7F6F2", rx=0)
+        txt(self.main, 80, 76, title, 40, font_weight=600)
+        txt(self.main, 2320, 76, "2026-11-11 · 本地", 23, "#62656A", text_anchor="end")
+        legend(self.main, 136, detailed=True)
+        self.edges = el(self.main, "g", **{"class": "links"})
+        self.nodes = el(self.main, "g", **{"class": "nodes"})
+        self.labels = el(self.main, "g", **{"class": "labels"})
+        self.geometry, self.paths = {}, []
+
+    def node(self, id, x, y, title, body, role="system", w=500, h=180, status="done"):
+        self.geometry[id] = (x, y, w, h)
+        g = el(self.nodes, "g", **{"class": "node", "data-node": id, "role": "button", "tabindex": "0", "aria-label": title})
+        node_content(g, x, y, w, h, title, [(status, s) for s in body], role, status)
+
+    def edge(self, a, b, pts, label="", at=None, state="done"):
+        self.paths.append((a, b, pts))
+        g = el(self.edges, "g", **{"class": "edge", "data-from": a, "data-to": b, "data-status": state})
+        attrs = {"stroke_dasharray": "10 7"} if state == "planned" else {}
+        el(g, "path", d="M " + " L ".join(f"{x} {y}" for x, y in pts), fill="none", stroke="#85929B", stroke_width=2.7, stroke_linejoin="round", marker_end=f"url(#{state})", **attrs)
+        if label:
+            x, y = at
+            tw = width(label, 21)
+            g = el(self.labels, "g", **{"class": "edge-label", "data-from": a, "data-to": b, "data-status": state})
+            box(g, x-tw/2-8, y-23, tw+16, 30, "#F7F6F2", rx=4)
+            txt(g, x, y, label, 21, "#526575", text_anchor="middle")
+
+    def note(self, text, y=1395):
+        box(self.main, 80, y-37, 2240, 64, "#EAE9E3", rx=8)
+        txt(self.main, 105, y+3, text, 23, "#62656A")
+
+    def validate(self):
+        issues = []
+        for a, b, pts in self.paths:
+            assert a in self.geometry and b in self.geometry
+            for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
+                assert x1 == x2 or y1 == y2, (a, b, "not orthogonal")
+                for key, (x, y, w, h) in self.geometry.items():
+                    if key in (a, b):
+                        continue
+                    if (x1 == x2 and x+2 < x1 < x+w-2 and max(min(y1, y2), y+2) < min(max(y1, y2), y+h-2)) or (y1 == y2 and y+2 < y1 < y+h-2 and max(min(x1, x2), x+2) < min(max(x1, x2), x+w-2)):
+                        issues.append(f"{a}->{b} crosses {key}")
+        assert not issues, issues
+        return self.root
+
+
+def materials():
+    f = Figure("01  学习资料模块")
+    f.node("input",80,200,"教师导入",["文件 + 来源说明 / 地址 + 提炼许可", "PDF / DOCX / PPTX / 文本 / 表格"],"teacher")
+    f.node("source",660,200,"原始资料",["原件文件卷 / SHA256 / 来源版本", "保留完整原件；外链仅保存地址"],"data")
+    f.node("parse",1240,200,"解析与质量检查",["正文 / 常规表格 / 中文印刷OCR", "保留页、幻灯片、内容块定位", "失败保留旧修订，显式重试"])
+    f.node("gate",1820,200,"按片段检查质量",["可靠片段可以继续处理", "OCR / 异常片段进入待核队列"])
+    f.node("ready",80,510,"可靠原文片段",["不可变片段ID / 位置 / 原文版本", "学习资料发布与知识提炼各自独立"],"data")
+    f.node("revision",1240,510,"生成原文新修订",["追加校正文本与可靠性标记", "旧修订与历史引用保留"])
+    f.node("review",1820,510,"教师核对与校正",["对照原件检查异常或OCR片段", "未核对片段不能发布、提炼或索引"],"teacher")
+    f.node("publish",80,830,"教师编排与发布",["选择全文或指定片段", "学习资料独立版本与发布状态"],"teacher")
+    f.node("material",660,830,"已发布学习资料",["正文 / 来源 / 位置 / 资料版本", "部分发布不允许完整原件下载"],"data")
+    f.node("index",1240,830,"原文直接建立索引",["按可靠片段分块 → Embedding", "生成中文关键词索引", "无需先调用生成模型精炼"])
+    f.node("extract",1820,830,"按需AI提炼",["仅使用许可允许的可靠原文", "提出概念、规则、方法等候选", "不阻塞完整学习资料发布"],"ai")
+    f.node("student",660,1140,"学生学习",["阅读 / 原文定位 / 笔记 / 收藏", "学习完成记录 → 学情与干预"],"external")
+    f.node("rag",1240,1140,"共享权限RAG",["发布状态 / 课程 / 用途过滤", "向量 + 关键词 → RRF融合", "供问答、出题与标准选依据"],"external")
+    f.node("knowledge",1820,1140,"知识库模块",["接收原文逐字出处与候选", "教师审定后独立生效"],"external")
+    f.edge("input","source",[(580,290),(660,290)])
+    f.edge("source","parse",[(1160,290),(1240,290)])
+    f.edge("parse","gate",[(1740,290),(1820,290)])
+    f.edge("gate","ready",[(2070,380),(2070,435),(330,435),(330,510)],"可靠片段",(1150,425))
+    f.edge("gate","review",[(2070,380),(2070,510)],"待核",(2145,475))
+    f.edge("review","revision",[(1820,600),(1740,600)])
+    f.edge("revision","ready",[(1240,600),(580,600)],"校正后可靠原文",(910,585))
+    f.edge("ready","publish",[(330,690),(330,830)],"选段 / 全文",(425,765))
+    f.edge("ready","index",[(580,600),(910,600),(910,755),(1490,755),(1490,830)],"直接索引",(1230,742))
+    f.edge("ready","extract",[(580,565),(1190,565),(1190,725),(2070,725),(2070,830)],"许可允许时",(1910,712))
+    f.edge("publish","material",[(580,920),(660,920)])
+    f.edge("material","student",[(910,1010),(910,1140)],"发布内容",(1015,1082))
+    f.edge("index","rag",[(1490,1010),(1490,1140)],"片段索引",(1590,1082))
+    f.edge("extract","knowledge",[(2070,1010),(2070,1140)],"候选 + 原文回链",(2195,1082))
+    f.note("来源归档或撤回提炼许可：限制派生知识未来检索与选用，保留历史快照。待实现：网页抓取、复杂图表 / 公式 / 手写理解、智能目录编排。")
+    return f.validate()
+
+
+def knowledge():
+    f = Figure("02  知识库模块")
+    f.node("source",80,200,"许可允许的可靠原文",["原文片段 / 来源版本 / 定位", "学习资料与知识库不共用发布状态"],"data")
+    f.node("ai",660,200,"按需AI提炼与关联",["概念 / 规则 / 方法 / 示例 / 误区", "分类、适用条件、知识点与关联建议", "保留逐字出处；只生成候选"],"ai")
+    f.node("candidate",1240,200,"知识候选",["内容 / 条件 / 关联建议 / 原文证据", "候选不可直接供学生或评分使用"],"data")
+    f.node("review",1820,200,"教师审核",["编辑内容、分类、条件与关联", "核对出处；不合适的候选不确认"],"teacher")
+    f.node("trace",80,510,"原文与知识互链",["定位原片段与来源版本", "旧知识、旧依据快照保留"],"data")
+    f.node("policy",660,510,"教师设定用途与可见性",["学习用途 / 评分用途分别设置", "学生可见性独立控制"],"teacher")
+    f.node("confirmed",1240,510,"确认知识版本",["教师确认后成为可用知识条目", "新条目不自动替换或归档旧版"],"data")
+    f.node("lifecycle",1820,510,"修订、归档与撤回许可",["维护来源与知识生命周期", "立即限制未来检索与选用", "不覆盖历史评分依据与成绩"],"teacher")
+    f.node("student",80,830,"学生精炼学习与问答",["可见且学习用途的确认知识", "带引用解释 → 原文定位", "不开放教师内部评分知识"],"external")
+    f.node("index",660,830,"知识索引与资格过滤",["Embedding空间按模型 / 维度隔离", "课程 / 确认 / 用途 / 来源许可", "检索不能扩大数据访问权限"])
+    f.node("rag",1240,830,"共享混合检索",["pgvector精确余弦 + 中文FTS", "RRF融合 → 有权限的原文 / 知识", "学习检索与评分选依据分开"],"data")
+    f.node("question",1820,830,"题目与标准选依据",["教师选择资料 / 知识片段", "服务端重读并核对真实来源", "题目、解答和标准先作草稿"],"external")
+    f.node("todo",80,1140,"待完善的知识维护",["自动重复合并 / 冲突裁决", "来源影响清单 / 通知 / 定向重评", "典型作答匿名化沉淀 / 检索质量基准"],"system",w=1080,status="planned")
+    f.node("frozen",1820,1140,"评阅只使用冻结依据",["标准确认时保留依据快照", "正式评阅不临时检索增加扣分点", "历史结果可回查当时原文"],"external")
+    for a,b,pts in [
+        ("source","ai",[(580,290),(660,290)]),
+        ("ai","candidate",[(1160,290),(1240,290)]),
+        ("candidate","review",[(1740,290),(1820,290)]),
+        ("review","confirmed",[(2070,380),(2070,435),(1490,435),(1490,510)]),
+        ("confirmed","policy",[(1240,600),(1160,600)]),
+        ("policy","index",[(910,690),(910,830)]),
+        ("confirmed","lifecycle",[(1740,600),(1820,600)]),
+        ("confirmed","trace",[(1490,690),(1490,720),(330,720),(330,690)]),
+        ("index","rag",[(1160,920),(1240,920)]),
+        ("rag","question",[(1740,920),(1820,920)]),
+        ("question","frozen",[(2070,1010),(2070,1140)]),
+    ]: f.edge(a,b,pts)
+    f.edge("lifecycle","index",[(2070,690),(2070,755),(910,755),(910,830)],"更新未来使用资格",(1710,744))
+    f.edge("rag","student",[(1490,1010),(1490,1080),(330,1080),(330,1010)],"只返回学生可见学习内容",(930,1068))
+    f.note("学习资料是完整教学内容；知识库是带条件、用途与出处的精炼条目。二者共用检索能力，各自审核、发布与保留版本。")
+    return f.validate()
+
+
+def questions():
+    f = Figure("03  题目与评分标准模块", height=1660)
+    f.node("basis",80,200,"资料 / 知识依据",["教师选择课程内合法片段", "服务端重读出处、版本与用途", "不接收客户端伪造的依据正文"],"data",w=680)
+    f.node("generate",860,200,"AI出题 / 分析 / 标准起草",["选定依据 + 考查要求 → 三类草稿", "可单独分析题目或起草标准", "不读取待评学生答案"],"ai",w=680)
+    f.node("manual",1640,200,"手工录入或JSON候选",["题干 / 题型 / 分值 / 参考解答", "无模型也能维护题目与评分标准"],"teacher",w=680)
+    f.node("requirement",80,500,"教师考查要求",["考查内容 / 难度 / 题型 / 满分", "独立于具体作业与学生答案"],"teacher",w=680)
+    f.node("draft",860,500,"生成候选与主动采纳",["题目 + 参考解答 + 标准草稿", "分别编辑与采纳；不自动生效", "条件变化后旧候选不能覆盖新编辑"],"data",w=680)
+    f.node("edit",1640,500,"教师分开审定",["检查题意、参考解答、评分点和来源", "标准含部分分、可接受表达和错误条件", "题目 / 参考解答 / 标准分别确认"],"teacher",w=680)
+    f.node("question",80,800,"确认题目版本",["课程下独立题库 / 不可变版本", "历史、使用记录、停用 / 恢复", "可复用于多个作业"],"data",w=680)
+    f.node("reference",860,800,"确认参考解答",["同一题目版本独立确认状态", "仅教师可见，不向学生开放", "不能用待评答案反推或调整规则"],"data",w=680)
+    f.node("rubric",1640,800,"匹配的确认标准版本",["归属确切题目版本 / 分项加和等于满分", "关联原文、知识与依据快照", "改满分另建题目及匹配标准版本"],"data",w=680)
+    f.node("assignment",80,1120,"作业选用与发布",["选确认题目 + 匹配标准 + 依据快照", "发布时事务固定，整组作答同一绑定", "新版本不改变旧作业与历史成绩"],"external",w=680)
+    f.node("grading",860,1120,"固定规则评阅与核对",["主观题AI草稿 / 客观题固定规则", "核对字段、分数、引用与版本绑定", "代码题仅按文本评阅，不执行代码"],"external",w=680)
+    f.node("release",1640,1120,"教师复核与正式结果",["教师修改 → 确认 → 发布", "学生正式反馈 / CSV导出 / 学情证据", "AI草稿不直接成为正式成绩"],"external",w=680)
+    f.node("answer",860,1410,"原始学生作答",["不可变原文 / attempt / 哈希 / 任务版本", "只进入评阅，不参与制定题目与标准"],"data",w=680,h=155)
+    f.edge("basis","generate",[(760,290),(860,290)],"所选依据",(809,270))
+    f.edge("requirement","generate",[(760,590),(810,590),(810,345),(860,345)])
+    f.edge("generate","draft",[(1200,380),(1200,500)],"三类候选",(1310,450))
+    f.edge("manual","edit",[(1980,380),(1980,500)])
+    f.edge("draft","edit",[(1540,590),(1640,590)])
+    f.edge("edit","question",[(1980,680),(1980,740),(420,740),(420,800)])
+    f.edge("edit","reference",[(1980,680),(1980,740),(1200,740),(1200,800)])
+    f.edge("edit","rubric",[(1980,680),(1980,800)])
+    f.edge("question","assignment",[(420,980),(420,1120)])
+    f.edge("reference","assignment",[(1200,980),(1200,1040),(500,1040),(500,1120)])
+    f.edge("rubric","assignment",[(1980,980),(1980,1070),(580,1070),(580,1120)],"发布前校验版本、满分与来源许可",(1480,1058))
+    f.edge("assignment","grading",[(760,1210),(860,1210)])
+    f.edge("answer","grading",[(1200,1410),(1200,1300)],"原文版本",(1310,1370))
+    f.edge("grading","release",[(1540,1210),(1640,1210)])
+    f.note("待实现：PDF整卷自动分题、来源变更影响通知、跨作业定向批量重评、题目 / 标准采纳任务的反向审计索引。", y=1610)
+    return f.validate()
+
+
+FIGURES = [
+    ("00_全景架构_实现状态", "全景架构", panorama),
+    ("01_学习资料_业务流程", "学习资料", materials),
+    ("02_知识库_业务流程", "知识库", knowledge),
+    ("03_题目与评分标准_业务流程", "题目与评分标准", questions),
+]
+
+VIEWER = '''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HaJi Mark · 业务流程与实现架构</title><style>
+*{box-sizing:border-box}body{margin:0;background:#E4E3DE;color:#242424;font:14px "Microsoft YaHei",sans-serif;height:100vh;display:flex;flex-direction:column}header{padding:12px 20px;background:#242424;color:white;display:flex;flex-wrap:wrap;align-items:center;gap:10px}strong{font-size:17px;margin-right:auto}nav{display:flex;gap:6px;flex-wrap:wrap}button,a,select{font:inherit;border:1px solid #888;border-radius:5px;padding:6px 11px;background:transparent;color:white;text-decoration:none;cursor:pointer}button.active{background:#BB5226;border-color:#BB5226}select option{color:#242424;background:white}.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}main{overflow:auto;padding:24px;flex:1;min-height:0}.canvas{margin:auto}svg{display:block;width:100%;height:auto}.node{cursor:pointer}.dim{opacity:.12}.selected>rect:first-child{stroke:#BB5226;stroke-width:5}output{min-width:48px;text-align:center}.hide-modules .module-zones{display:none}.panel{display:none}.panel.active{display:block}button:focus-visible,a:focus-visible,select:focus-visible{outline:3px solid #F8B06C;outline-offset:2px}
+</style></head><body><header><strong>HaJi Mark · 流程与实现架构</strong><nav aria-label="图表">TABS</nav><div class="toolbar"><select id="module" aria-label="查看模块关系"><option value="">全部模块</option>MODULES</select><label><input id="boundaries" type="checkbox" checked>模块边界</label><button id="fit">适宽</button><button id="minus" aria-label="缩小">−</button><output id="level"></output><button id="plus" aria-label="放大">＋</button><button id="reset">重置关系</button><a id="svg-link">SVG</a><a id="png-link">PNG</a></div></header><main>PANELS</main><script>
+const files=FILES,panels=[...document.querySelectorAll('.panel')],buttons=[...document.querySelectorAll('nav button')],pane=document.querySelector('main'),picker=document.getElementById('module');let active=0,scale=1;
+function canvas(){return panels[active].querySelector('.canvas')}function all(sel){return [...canvas().querySelectorAll(sel)]}
+function zoom(s){scale=Math.max(.15,Math.min(2.5,s));canvas().style.width=(Number(canvas().querySelector('svg').getAttribute('width'))*scale)+'px';document.getElementById('level').value=Math.round(scale*100)+'%'}
+function fit(){zoom((pane.clientWidth-48)/Number(canvas().querySelector('svg').getAttribute('width')))}
+function highlight(ids=[]){const wanted=new Set(ids),near=new Set(ids);all('.edge,.edge-label').forEach(e=>{const hit=!wanted.size||wanted.has(e.dataset.from)||wanted.has(e.dataset.to);e.classList.toggle('dim',!hit);if(hit){near.add(e.dataset.from);near.add(e.dataset.to)}});all('.node').forEach(n=>{n.classList.toggle('dim',wanted.size>0&&!near.has(n.dataset.node));n.classList.toggle('selected',wanted.has(n.dataset.node))})}
+function show(index){active=index;panels.forEach((p,i)=>p.classList.toggle('active',i===index));buttons.forEach((b,i)=>{b.classList.toggle('active',i===index);b.setAttribute('aria-pressed',String(i===index))});picker.disabled=index!==0;document.getElementById('boundaries').disabled=index!==0;picker.value='';document.getElementById('svg-link').href=files[index]+'.svg';document.getElementById('png-link').href=files[index]+'.png';highlight();fit();pane.scrollTo(0,0);history.replaceState(null,'','#'+index)}
+buttons.forEach((b,i)=>b.onclick=()=>show(i));document.querySelectorAll('.node').forEach(n=>{const run=()=>{picker.value='';highlight(n.classList.contains('selected')?[]:[n.dataset.node])};n.onclick=run;n.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();run()}}});
+picker.onchange=()=>highlight(all('.node').filter(n=>n.dataset.module===picker.value).map(n=>n.dataset.node));document.querySelectorAll('.module-label').forEach(n=>{const run=()=>{picker.value=n.dataset.module;picker.dispatchEvent(new Event('change'))};n.onclick=run;n.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();run()}}});document.getElementById('boundaries').onchange=e=>canvas().classList.toggle('hide-modules',!e.target.checked);document.getElementById('fit').onclick=fit;document.getElementById('plus').onclick=()=>zoom(scale*1.25);document.getElementById('minus').onclick=()=>zoom(scale/1.25);document.getElementById('reset').onclick=()=>{picker.value='';highlight()};document.addEventListener('keydown',e=>{if(e.key==='Escape'){picker.value='';highlight()}});show(Math.min(3,Math.max(0,Number(location.hash.slice(1))||0)));
+</script></body></html>'''
+
+
+def main():
+    OUT.mkdir(exist_ok=True)
+    panels, report = [], []
+    for filename, label, build in FIGURES:
+        root = build()
+        # Prefix fragment IDs so four inline SVGs have independent markers / titles.
+        prefix = filename[:2] + "-"
+        for e in root.iter():
+            if e.get("id"):
+                e.set("id", prefix + e.get("id"))
+            for attr, val in list(e.attrib.items()):
+                if "url(#" in val:
+                    e.set(attr, val.replace("url(#", f"url(#{prefix}"))
+                elif attr == "aria-labelledby":
+                    e.set(attr, " ".join(prefix+x for x in val.split()))
+        svg = ET.tostring(root, encoding="unicode")
+        (OUT / (filename + ".svg")).write_text(svg, encoding="utf-8")
+        panels.append(f'<section class="panel" aria-label="{label}"><div class="canvas">{svg}</div></section>')
+        report.append({"file": filename, "nodes": sum(e.get("class")=="node" for e in root.iter()),
+                       "edges": sum(e.get("class")=="edge" for e in root.iter()),
+                       "size": [int(root.get("width")), int(root.get("height"))]})
+    modules = [("materials","学习资料"),("knowledge","知识库"),("questions","题目与标准"),("learning","学习与答疑"),("assignments","作业测验"),("grading","评阅反馈"),("intervention","推荐干预"),("diagnosis","学情诊断")]
+    html = VIEWER.replace("TABS", "".join(f'<button data-index="{i}">{label}</button>' for i,(_,label,_) in enumerate(FIGURES)))
+    html = html.replace("MODULES", "".join(f'<option value="{k}">{v}</option>' for k,v in modules))
+    html = html.replace("PANELS", "".join(panels)).replace("FILES", json.dumps([f[0] for f in FIGURES], ensure_ascii=False))
+    (OUT / "index.html").write_text(html, encoding="utf-8")
+    (OUT / "structure-check.json").write_text(json.dumps({"scope":"local-implementation", "date":"2026-11-11", "original_network_preserved":True, "original_edge_routes_preserved":True, "original_module_boundaries_preserved":True, "figures":report}, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(json.dumps(report, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,45 @@
+{
+  "scope": "local-implementation",
+  "date": "2026-11-11",
+  "original_network_preserved": true,
+  "original_edge_routes_preserved": true,
+  "original_module_boundaries_preserved": true,
+  "figures": [
+    {
+      "file": "00_全景架构_实现状态",
+      "nodes": 19,
+      "edges": 42,
+      "size": [
+        3600,
+        2700
+      ]
+    },
+    {
+      "file": "01_学习资料_业务流程",
+      "nodes": 14,
+      "edges": 14,
+      "size": [
+        2400,
+        1480
+      ]
+    },
+    {
+      "file": "02_知识库_业务流程",
+      "nodes": 14,
+      "edges": 13,
+      "size": [
+        2400,
+        1480
+      ]
+    },
+    {
+      "file": "03_题目与评分标准_业务流程",
+      "nodes": 13,
+      "edges": 14,
+      "size": [
+        2400,
+        1660
+      ]
+    }
+  ]
+}

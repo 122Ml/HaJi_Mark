@@ -1,0 +1,51 @@
+{
+  "scope": "diagrams-only",
+  "date": "2026-11-11",
+  "geometry": [
+    {
+      "file": "00_全景架构_实现状态",
+      "text_bounds": "pass",
+      "png_size": [
+        3600,
+        2700
+      ]
+    },
+    {
+      "file": "01_学习资料_业务流程",
+      "text_bounds": "pass",
+      "png_size": [
+        2400,
+        1480
+      ]
+    },
+    {
+      "file": "02_知识库_业务流程",
+      "text_bounds": "pass",
+      "png_size": [
+        2400,
+        1480
+      ]
+    },
+    {
+      "file": "03_题目与评分标准_业务流程",
+      "text_bounds": "pass",
+      "png_size": [
+        2400,
+        1660
+      ]
+    }
+  ],
+  "checks": [
+    "node-highlighting",
+    "module-filter",
+    "module-boundaries",
+    "reset",
+    "zoom-fit",
+    "four-tabs",
+    "svg-png-links",
+    "keyboard",
+    "unique-svg-ids",
+    "390px-viewer"
+  ],
+  "page_errors": []
+}

@@ -61,3 +61,25 @@ AI未接入；结构化逐点rubric已在本地和公网实现并验证，独立
 ## 公网展示数据
 
 2026-11-05按用户要求清理13门旧测试课程及4个辅助测试账号，公网当前使用一门完整演示课程。jiaoshi/xuesheng的ID与密码保留，显示名更新；演示学员为模拟内容。展示路线与直达链接见[演示说明](../docs/demo-walkthrough.md)，备份/清理和只读验收见[验证记录](../docs/verification.md)。旧验收脚本中的辅助账号和课程ID已失效；日常展示复查优先只读，不自动重跑写入式公网测试造回旧数据。
+
+## 2026-11-12 静态设计图册
+
+按用户要求将完整[交互图册](https://hajistudy.online/design-atlas/)发布到独立路由 `/design-atlas/`，可直达 [F02 概念 ER 图](https://hajistudy.online/design-atlas/#F02)。F02 将教师和学生拆为两个概念角色，并分别关联授课、选课、作答、人工复核、个人学习记录和干预任务；物理库继续使用统一 `users` 表。
+
+本次只发布 `index.html`、27 个 SVG 与27 个 PNG，共55 个静态文件。没有发布结构快照、生成脚本或凭据。图中本地业务能力与模型链路不因图册可访问而成为公网应用功能；应用仍为 `hajimark-workspace-f40872a-20261105`，未执行迁移或应用升级。
+
+- 图册源码：`31b8ad0286e147fc15bc9c60ebe754c53c1c8ae8`。
+- 静态 release：`design-atlas-31b8ad0-20261112T042018Z`。
+- 发布归档及记录：`/opt/hajimark/releases/design-atlas-31b8ad0-20261112T042018Z/` 下的 `atlas.tar.gz`、`release.json`；记录源 SHA、每文件 SHA256、静态目录和站点配置备份。
+- 归档 SHA256：`35a3c7d8e7f3d89348487de9c4c5da0b5610989ae46da654df8190f8813adcde`。
+- 静态文件：`/opt/1panel/www/hajimark-static/releases/design-atlas-31b8ad0-20261112T042018Z/`。
+- 当前图册链接：`/opt/1panel/www/hajimark-static/design-atlas` → `releases/design-atlas-31b8ad0-20261112T042018Z`。
+- 原站点配置备份：`/opt/hajimark/releases/design-atlas-31b8ad0-20261112T042018Z/hajistudy.online.before.conf`。
+
+利用既有 `/opt/1panel/www` → OpenResty `/www` 挂载，仅在实际域名配置中新增静态 location；保留原代理、TLS、1m 请求体限制和35s 代理超时，不整份覆盖为仓库模板。`/design-atlas` 返回301补尾斜杠；`/design-atlas/` 使用静态 index，未知文件直接404，关闭目录列表。配置经过 `nginx -t` 后热加载，未重启容器。
+
+发布后从公网逐一下载55 个文件，SHA256与发布包一致，HTML／SVG／PNG 的 Content-Type 正确；HTTP跳转、尾斜杠跳转正常，未知文件、`schema.json` 和 `figures.py` 均404。浏览器检查27 张图切换、分图、教师／学生节点及课程关系标签、下载链接、缩放、高亮、标签开关与桌面／窄屏入口通过。原 `/login` 和 `/api/v1/health/ready` 均200；六个原容器ID未变，均在运行、重启计数均为0，配置 healthcheck 的四个业务容器均 healthy。站点配置与备份的差异仅为新增图册路由。
+
+后续更新应在提交并校验图册后建立新的不可变静态 release，核对55 文件哈希，再原子切换 `design-atlas` 链接；链接使用相对 `releases/<版本>`，确保容器内也能解析。更新前记录旧链接目标并保留旧目录，回退时切回已验证的旧静态 release；不切换业务 `/opt/hajimark/current`，不恢复数据库。
+
+若需撤销首次路由，先备份当前配置，再恢复上述 `hajistudy.online.before.conf`，执行 `docker exec 1Panel-openresty-VndB nginx -t`，成功后执行 `docker exec 1Panel-openresty-VndB nginx -s reload`。若检查失败应恢复刚备份的当前配置。发布包、静态目录和备份均保留，不通过删除目录回滚。

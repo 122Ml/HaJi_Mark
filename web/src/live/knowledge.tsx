@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Drawer, Select, Progress } from "antd";
+import { Drawer, Select, Progress, Tabs } from "antd";
 import { useSession } from "../shared/session";
 import { requestJSON } from "../shared/api";
 import { LoadingState, ErrorState, EmptyState } from "../shared/ui";
@@ -21,19 +21,14 @@ import {
   type TopicData,
 } from "./content-topics";
 import { MaterialAssets } from "./material-assets";
-import { URLImport, SourceSuggestions, PaperImport } from "./material-assist";
+import { URLImport, SourceSuggestions } from "./material-assist";
 import { KnowledgeReview } from "./knowledge-review";
 import { RichContent } from "./content-render";
-import { Tabs } from "antd";
+import { CourseWorkspace } from "./course";
 
 type Profile = { id: string; label: string; kind: string; available: boolean };
 type ModelInfo = {
   profiles: Profile[];
-  budget: {
-    limit_micro_cny: number;
-    reserved_micro_cny: number;
-    spent_micro_cny: number;
-  };
 };
 export type Job = {
   id: string;
@@ -418,18 +413,19 @@ function DraftPreview({ output }: { output: Record<string, unknown> }) {
     </div>
   );
 }
-export function JobsPanel() {
+export function JobsPanel({ kinds }: { kinds?: string[] }) {
   const query = useLiveQuery<Job[]>("/jobs");
   const action = useAction();
   const { reload } = useLearning();
-  const active = query.data?.some((j) =>
+  const rows = query.data?.filter((j) => !kinds || kinds.includes(j.kind)) || [];
+  const active = rows.some((j) =>
     ["queued", "running"].includes(j.state),
   );
   useEffect(() => {
     if (!active) return;
     const t = setInterval(async () => {
       const r = await query.refetch();
-      if (!r.data?.some((j) => ["queued", "running"].includes(j.state)))
+      if (!r.data?.some((j) => (!kinds || kinds.includes(j.kind)) && ["queued", "running"].includes(j.state)))
         await reload();
     }, 2000);
     return () => clearInterval(t);
@@ -442,8 +438,8 @@ export function JobsPanel() {
         message={action.message}
         failed={action.failed}
       />
-      {!query.data?.length && <p>暂无处理任务。</p>}
-      {query.data?.slice(0, 15).map((j) => (
+      {!rows.length && <p>暂无处理任务。</p>}
+      {rows.slice(0, 15).map((j) => (
         <article key={j.id} className="rag-job">
           <div>
             <strong>{labels[j.kind]}</strong>
@@ -492,7 +488,7 @@ export function MaterialsPage() {
   const [upload, setUpload] = useState(false);
   const action = useAction();
   const [embedding, setEmbedding] = useState("");
-  const models = useLiveQuery<ModelInfo>("/models");
+  const tab = params.get("tab") === "published" || params.has("resource") ? "published" : "sources";
   return (
     <div className="live-page">
       <div className="workspace-heading">
@@ -503,7 +499,12 @@ export function MaterialsPage() {
           导入资料
         </button>
       </div>
-      <div className="rag-toolbar card-panel">
+      <Tabs activeKey={tab} onChange={(value) => { const next = new URLSearchParams(params); next.set("tab", value); next.delete("resource"); next.delete("source"); next.delete("fragment"); setParams(next); }} items={[
+        { key: "sources", label: "原始资料" }, { key: "published", label: "学习内容" },
+      ]} />
+      {tab === "published" ? <CourseWorkspace embedded /> : <>
+      <details className="card-panel">
+        <summary>检索索引</summary>
         <div className="live-inline">
           <ModelSelect
             kind="embedding"
@@ -519,21 +520,10 @@ export function MaterialsPage() {
           >
             更新检索索引
           </button>
-          <Link to="/teacher/retrieval">检索验证</Link>
+          <Link to="/teacher/retrieval">检索与问答</Link>
         </div>
-        {models.data && (
-          <small>
-            联调记账 ¥
-            {(
-              (models.data.budget.spent_micro_cny +
-                models.data.budget.reserved_micro_cny) /
-              1e6
-            ).toFixed(3)}{" "}
-            / ¥{models.data.budget.limit_micro_cny / 1e6}（保守估算）
-          </small>
-        )}
         <Feedback message={action.message} failed={action.failed} />
-      </div>
+      </details>
       {sources.isPending ? (
         <LoadingState />
       ) : sources.error ? (
@@ -544,7 +534,7 @@ export function MaterialsPage() {
       ) : !sources.data?.length ? (
         <section className="card-panel">
           <EmptyState title="还没有资料">
-            导入课程文件后，可核对原文、发布章节和提炼知识。
+            导入课程文件后，可核对原文、发布学习内容和提炼知识。
           </EmptyState>
         </section>
       ) : (
@@ -571,7 +561,8 @@ export function MaterialsPage() {
           ))}
         </div>
       )}
-      <JobsPanel />
+      <JobsPanel kinds={["parse", "index", "extract", "vision", "source_suggest"]} />
+      </>}
       <Drawer
         title="导入资料"
         aria-label="导入资料"
@@ -794,9 +785,7 @@ function SourceWorkspace({
         revision={source.parse_revision}
         editable={editable}
       />
-      {editable && fragments.length > 0 && (
-        <PaperImport id={id} fragments={fragments} />
-      )}
+      {editable && fragments.length > 0 && <Link className="ghost-btn" to={`/teacher/question-bank?paper_source=${id}`}>到题库拆分试卷</Link>}
       <DecisionHistory id={id} />
       {replacing && (
         <UploadForm supersedesID={id} onDone={() => setReplacing(false)} />
@@ -1215,7 +1204,7 @@ export function KnowledgePage() {
           </article>
         ))
       )}
-      {teacher && <JobsPanel />}
+      {teacher && <JobsPanel kinds={["extract", "knowledge_compare"]} />}
       <Drawer
         title="知识比较与决策"
         aria-label="知识比较与决策"

@@ -15,6 +15,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { requestJSON, APIError } from "../shared/api";
 import { useSession } from "../shared/session";
+import { teacherNavigation, studentNavigation } from "../app/navigation";
 export interface Course {
   id: string;
   title: string;
@@ -42,6 +43,7 @@ export function LearningProvider({ children }: { children: ReactNode }) {
     queryFn: async () =>
       (await requestJSON<{ data: Course[] }>("/me/courses")).data,
   });
+  const globalPage = ["/teacher/courses", "/teacher/profile", "/student/profile"].includes(location.pathname);
   useEffect(() => {
     if (query.error instanceof APIError && query.error.status === 401)
       refresh();
@@ -51,7 +53,7 @@ export function LearningProvider({ children }: { children: ReactNode }) {
     ? courses.find((c) => c.id === requested) || null
     : courses.find((c) => c.id === selected) || courses[0] || null;
   useEffect(() => {
-    if (course && !requested) {
+    if (course && !requested && !globalPage) {
       const params = new URLSearchParams(location.search);
       params.set("course", course.id);
       navigate(
@@ -63,7 +65,7 @@ export function LearningProvider({ children }: { children: ReactNode }) {
       setSelected(course.id);
       sessionStorage.setItem(`haji-course:${session?.user.id}`, course.id);
     }
-  }, [course, requested, location.pathname, location.search, navigate]);
+  }, [course, requested, globalPage, location.pathname, location.search, navigate]);
   const reload = async () => {
     // A first read may still contain a pre-write snapshot. Cancel it before refetching.
     await queryClient.cancelQueries({ queryKey: ["live", course?.id] });
@@ -73,11 +75,11 @@ export function LearningProvider({ children }: { children: ReactNode }) {
     });
   };
   function select(id: string) {
+    const root = session?.user.role === "teacher" ? "/teacher" : "/student";
+    const links = (session?.user.role === "teacher" ? teacherNavigation : studentNavigation).flatMap((g) => g.links);
+    const current = links.find(([path]) => location.pathname === `${root}/${path}` || location.pathname.startsWith(`${root}/${path}/`));
     navigate({
-      pathname:
-        session?.user.role === "teacher"
-          ? "/teacher/dashboard"
-          : "/student/home",
+      pathname: current ? `${root}/${current[0]}` : `${root}/${session?.user.role === "teacher" ? "dashboard" : "home"}`,
       search: `?course=${encodeURIComponent(id)}`,
     });
   }
@@ -90,40 +92,23 @@ export function LearningProvider({ children }: { children: ReactNode }) {
     );
   return (
     <Context.Provider value={{ course, courses, select, reload }}>
-      <section className="live-course-bar" aria-label="课程选择">
-        <label>
-          当前课程
-          <select
-            aria-label="当前课程"
-            value={course?.id || ""}
-            onChange={(e) => select(e.target.value)}
-          >
-            <option value="" disabled>
-              选择课程
-            </option>
-            {courses.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.title}
-                {c.status === "draft" ? "（草稿）" : ""}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button className="ghost-btn" onClick={reload}>
-          刷新
-        </button>
-        {query.error && <span role="alert">{query.error.message}</span>}
-        {!query.isPending && !course && <span>暂无课程</span>}
-      </section>
-      {requested && !course && !query.isPending ? (
-        <p role="alert" className="live-error">
-          无法访问链接中的课程，请选择有权限的课程。
-        </p>
-      ) : (
-        children
-      )}
+      {query.error && <p role="alert" className="live-error">{query.error.message}</p>}
+      {children}
     </Context.Provider>
   );
+}
+export function CourseSelector() {
+  const { course, courses, select, reload } = useLearning();
+  const { pathname } = useLocation();
+  if (pathname.endsWith("/profile")) return null;
+  return <div className="workspace-course-select">
+    <label htmlFor="current-course">当前课程</label>
+    <select id="current-course" aria-label="当前课程" value={course?.id || ""} onChange={(e) => select(e.target.value)}>
+      <option value="" disabled>选择课程</option>
+      {courses.map((c) => <option key={c.id} value={c.id}>{c.title}{c.status === "draft" ? "（草稿）" : ""}</option>)}
+    </select>
+    <button type="button" className="ghost-btn" onClick={() => void reload()}>刷新</button>
+  </div>;
 }
 export function useLearning() {
   const c = useContext(Context);

@@ -5,7 +5,7 @@ import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from
 import { Login } from "./Login";
 import { SessionProvider, RequireSession, useSession } from "../shared/session";
 import { EditingProvider, useUnsavedChanges } from "../live/editing";
-import { LearningProvider } from "../live/context";
+import { LearningProvider, CourseSelector } from "../live/context";
 import { LiveRoutes } from "../live/routes";
 import { ErrorBoundary } from "../shared/ErrorBoundary";
 import "../live/styles.css";
@@ -33,7 +33,7 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
     setNavOpen(false);
     main.current?.focus({ preventScroll: true });
     window.scrollTo(0, 0);
-    const label = pathname.endsWith("/profile") ? "个人设置" : current?.label || "工作台";
+    const label = pathname.endsWith("/profile") ? "个人设置" : current?.links.find(([path]) => pathname === `${root}/${path}` || pathname.startsWith(`${root}/${path}/`))?.[1] || "工作台";
     document.title = `${label} · HaJi Mark`;
   }, [pathname, current]);
 
@@ -72,6 +72,7 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
           </button>
           <Link className="brand" to={withCourse(home)}><span className="brand-mark" aria-hidden="true">H</span>HaJi Mark</Link>
           <span className="topbar-role">{roleLabel}</span>
+          <CourseSelector />
           <span className="topbar-spacer" />
           <div className="nav-user">
             <NavLink className="account-link" to={withCourse(`${root}/profile`)} aria-label="个人设置">
@@ -103,7 +104,7 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
         <div className="shell-content">
           <main ref={main} tabIndex={-1} id="main-content" className="page-container">
             {error && <Alert type="error" message={error} role="alert" showIcon closable onClose={() => setError("")} />}
-            <LearningProvider key={session?.user.id}><LiveRoutes teacher={teacher} /></LearningProvider>
+            <LiveRoutes teacher={teacher} />
           </main>
           <footer className="workspace-footer">
             <span>HaJi Mark · {roleLabel}</span>
@@ -115,6 +116,11 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
   );
 }
 
+function Workspace({ teacher = false }: { teacher?: boolean }) {
+  const { session } = useSession();
+  return <EditingProvider key={session?.user.id}><LearningProvider><Shell teacher={teacher} /></LearningProvider></EditingProvider>;
+}
+
 export function App() {
   return (
     <ErrorBoundary>
@@ -124,8 +130,8 @@ export function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/student" element={<Navigate replace to="/student/home" />} />
           <Route path="/teacher" element={<Navigate replace to="/teacher/dashboard" />} />
-          <Route path="/student/*" element={<RequireSession role="student"><EditingProvider><Shell /></EditingProvider></RequireSession>} />
-          <Route path="/teacher/*" element={<RequireSession role="teacher"><EditingProvider><Shell teacher /></EditingProvider></RequireSession>} />
+          <Route path="/student/*" element={<RequireSession role="student"><Workspace /></RequireSession>} />
+          <Route path="/teacher/*" element={<RequireSession role="teacher"><Workspace teacher /></RequireSession>} />
           <Route path="*" element={<Navigate replace to="/login" />} />
         </Routes>
       </SessionProvider>

@@ -90,6 +90,7 @@ function pass(message) { checks.push(message); console.log('PASS:', message); }
     await t.getByRole('button', { name: '退出登录', exact: true }).click();
     await t.getByText('还有未保存的内容，确认退出？', { exact: true }).waitFor();
     await t.getByRole('button', { name: '继续编辑', exact: true }).click();
+    await t.getByText('还有未保存的内容，确认退出？', { exact: true }).waitFor({ state: 'hidden' });
     const anotherCourse = await t.getByLabel('当前课程', { exact: true }).locator('option').evaluateAll((options, id) => options.find(o => o.value && o.value !== id)?.value, course.id);
     if (anotherCourse) {
       await t.getByLabel('当前课程', { exact: true }).selectOption(anotherCourse);
@@ -211,12 +212,12 @@ function pass(message) { checks.push(message); console.log('PASS:', message); }
         }
       }
     }
-    await t.setViewportSize({ width: 1440, height: 1000 }); await t.goto(url('teacher', 'course-twin'));
-    await t.getByRole('tab', { name: '内容与目录', exact: true }).waitFor();
+    await t.setViewportSize({ width: 1440, height: 1000 }); await t.goto(url('teacher', 'curriculum'));
+    await t.getByRole('heading', { name: '课程目录', exact: true, level: 1 }).waitFor();
     await t.screenshot({ path: path.join(root, '.local/workspace-course.png'), fullPage: true });
-    await t.getByRole('tab', { name: '课程设置', exact: true }).click(); await t.getByLabel('新课程名称', { exact: true }).waitFor();
-    await t.getByRole('tab', { name: '学生与进度', exact: true }).click(); await t.getByLabel('学生用户名', { exact: true }).waitFor();
-    assert(await t.getByLabel('新课程名称', { exact: true }).count() === 0, 'Settings mixed into members tab');
+    await t.goto(url('teacher', 'courses')); await t.getByLabel('新课程名称', { exact: true }).waitFor();
+    await t.getByRole('tab', { name: '课程成员', exact: true }).click(); await t.getByLabel('学生用户名', { exact: true }).waitFor();
+    assert(await t.getByLabel('课程名称', { exact: true }).count() === 0, 'Settings mixed into members tab');
     assert(errors.length === 0, errors.join('\n'));
     pass('课程分区、12条师生路线在1440/390px无横向溢出、课程深链、无页面异常');
     fs.writeFileSync(path.join(root, '.local/workspace-check.json'), JSON.stringify({ passed: true, course_id: course.id, assignment_id: assignment.id, submission_id: submissions[0].id, task_id: task, checks, model_calls: 0, production_changed: false }, null, 2));

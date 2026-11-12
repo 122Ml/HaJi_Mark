@@ -246,6 +246,21 @@ export function ContentLinks({
   );
 }
 
+const decisionNames: Record<string, string> = {
+  source_suggestions: "资料归类确认",
+  paper_adopt: "试卷拆题入库",
+  question_adopt: "题目草稿采纳",
+  rubric_adopt: "标准草稿采纳",
+  knowledge_discard: "不采纳知识",
+  knowledge_merge: "合并知识",
+  knowledge_coexist: "按条件并存",
+  knowledge_replace: "替换旧知识",
+  knowledge_defer: "暂缓处理",
+  impact_no_action: "保留历史内容",
+  impact_future_version: "后续任务选用新版",
+  impact_regrade: "安排整组重评",
+};
+
 export function DecisionHistory({ id }: { id: string }) {
   const q = useLiveQuery<
     {
@@ -253,8 +268,6 @@ export function DecisionHistory({ id }: { id: string }) {
       kind: string;
       reason: string;
       created_at: string;
-      inputs: { job_id?: string };
-      output: unknown;
     }[]
   >(`/decisions?object_id=${encodeURIComponent(id)}`);
   return (
@@ -264,20 +277,9 @@ export function DecisionHistory({ id }: { id: string }) {
       {q.data?.length ? (
         q.data.map((d) => (
           <article className="rag-hit" key={d.id}>
-            <strong>{d.kind}</strong>
+            <strong>{decisionNames[d.kind] || "内容处理"}</strong>
             <p>{d.reason}</p>
             <small>{new Date(d.created_at).toLocaleString()}</small>
-            {d.inputs.job_id && <p>任务 {d.inputs.job_id}</p>}
-            <details>
-              <summary>输入与结果</summary>
-              <pre className="rag-json">
-                {JSON.stringify(
-                  { inputs: d.inputs, output: d.output },
-                  null,
-                  2,
-                )}
-              </pre>
-            </details>
           </article>
         ))
       ) : (

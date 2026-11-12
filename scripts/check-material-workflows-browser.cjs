@@ -148,8 +148,8 @@ const pass = why => { report.checks.push(why); save(); console.log('PASS', why);
     await shot('comparison');
     pass('comparison shows both exact quotations and rejects an obsolete candidate without closing the editor');
 
-    await leave('materials', { source: ids.sources['paper.pdf'].source.id });
-    const paper = drawer.locator('details').filter({ has: t.locator('summary').filter({ hasText: /^整卷拆题$/ }) }).first();
+    await leave('question-bank', { paper_source: ids.sources['paper.pdf'].source.id });
+    const paper = t.getByRole('dialog', { name: '整卷导入', exact: true }).locator('details').filter({ has: t.locator('summary').filter({ hasText: /^整卷拆题$/ }) }).first();
     await paper.locator('summary').first().click();
     await paper.getByRole('button', { name: '载入候选', exact: true }).click();
     await paper.getByLabel('题目', { exact: true }).waitFor();

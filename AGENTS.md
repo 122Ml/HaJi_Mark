@@ -27,3 +27,5 @@
 - regrade_batches冻结关闭作业的一道题、每人最新正式提交、哈希、评分基线和统一规则；regrade_items逐份确认，事务整组发布。原绑定和旧结果不改写；进入重评管理后普通评分不能覆盖，后续更正仍另建批次。
 
 - 中断模型调用：15分钟后孤儿reserved按预留额转unknown一次结算；生成类running转failed等待显式重试，parse/index保持幂等恢复。勿清零预算、自动重发未知生成或把unknown当未调用。
+
+- 2026-11-12前端分区：courses管理课程/成员，curriculum维护目录/依赖，materials分原件与学习内容，knowledge独立，question-bank承接题目/标准/整卷拆题；旧course-twin按对象重定向。课程选择在顶栏，切课保持模块并清理对象参数；不展示联调账目/调试JSON。导航回归入口check-navigation-browser.cjs；人工演示账号与S1自动化数据分开，均只在忽略的.local保存。

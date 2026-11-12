@@ -57,21 +57,25 @@ CSS 变量在 `styles.css :root`，颜色同步到 `theme.ts palette`。修改�
 
 ## 导航与路由
 
-顶栏：品牌 → 角色标签 → 账户（头像+姓名，进入个人设置）→ 退出登录。左侧分组导航（`<nav aria-label="教师导航|学生导航">`，每组 `role="group"`）。1023px 以下侧栏收为抽屉，顶栏左侧出现“打开导航”按钮，点击遮罩、按 Esc 或切换页面后关闭。
+顶栏：品牌 → 角色标签 → 当前课程 → 账户（头像+姓名，进入个人设置）→ 退出登录。课程选择只在顶栏出现一次，个人设置隐藏。左侧分组导航（`<nav aria-label="教师导航|学生导航">`，每组 `role="group"`）。1023px 以下侧栏收为抽屉，点击遮罩、按 Esc 或切换页面后关闭；640px 以下课程选择独占第二行。
 
 | 角色 | 分组 | 链接 → 路径 |
 | --- | --- | --- |
 | 教师 | 教学概览 | 教学看板 `/teacher/dashboard`、干预任务 `/teacher/intervention` |
-| 教师 | 课程与资源 | 课程与资料 `/teacher/course-twin` |
-| 教师 | 作业与评价 | 作业中心 `/teacher/homework`、测验 `/teacher/quiz` |
+| 教师 | 课程与资源 | 课程管理 `/teacher/courses`、课程目录 `/teacher/curriculum`、学习资料 `/teacher/materials`、知识库 `/teacher/knowledge`、检索与问答 `/teacher/retrieval`、内容变更 `/teacher/content-impact` |
+| 教师 | 作业与评价 | 题库 `/teacher/question-bank`、作业中心 `/teacher/homework`、测验 `/teacher/quiz`、整组重评 `/teacher/regrades` |
 | 教师 | 交流与教研 | 课程互动 `/teacher/interaction`、教研记录 `/teacher/research`、行业能力 `/teacher/industry-intelligence` |
 | 学生 | 学习概览 | 我的概览 `/student/home`、学习路径 `/student/learning` |
-| 学生 | 课程与资源 | 课程学习 `/student/course-content` |
+| 学生 | 课程与资源 | 课程学习 `/student/course-content`、知识库 `/student/knowledge`、资料问答 `/student/retrieval` |
 | 学生 | 作业与测验 | 作业 `/student/homework`、测验 `/student/quiz` |
 | 学生 | 任务与交流 | 老师任务 `/student/intervention`、课程互动 `/student/interaction` |
 | 两者 | 账户 | 个人设置 `/<role>/profile` |
 
-别名（`replace` 重定向，保留查询参数）：`student-twin`、`teacher-twin/drilldown`、`insight`、教师 `home`、学生 `dashboard` → 角色概览；教师 `course-content`、学生 `course-twin` → 各自课程页；`grading` → 作业列表；`courses`、`assignments` → 课程页 / 作业列表。未知角色内路径显示 404 空状态并提供返回概览；角色外未知路径回到 `/login`。
+课程管理只负责创建、命名、发布和成员；课程目录只负责章节、小节、知识点及依赖。学习资料分为原始资料与学习内容，知识库独立维护精炼知识。资料页可跳到题库出题或整卷拆题，题目、参考解答与标准仍在题库分别确认。切换课程留在当前模块并清除旧对象和筛选，作业详情返回新课程作业列表；未保存编辑先确认，取消时保留原课程。
+
+别名使用 `replace` 并保留课程与对象参数：`student-twin`、`teacher-twin/drilldown`、`insight`、教师 `home`、学生 `dashboard` → 角色概览；教师 `course-twin`／`course-content` 默认转课程目录，携带 `resource` 转学习资料的学习内容，`tab=members|settings` 转课程管理，`tab=work` 转作业；学生 `course-twin`／`courses` 转课程学习；`grading`／`assignments` 转作业列表。未知角色内路径显示404空状态；角色外未知路径回到登录。
+
+教学页面不展示联调预算、调用流水或原始调试JSON；保留有业务意义的处理原因、时间与出处。服务端仍保留完整审计记录。自动化账号的构造课程不冒充教学内容；本地人工演示使用独立账号，不按标题过滤或删除测试记录。
 
 作业详情、编辑、提交列表、评分、正式反馈保留原深链接与对象 ID。路由不是权限边界，授权由后端执行。
 

@@ -1,4 +1,4 @@
-import { Tabs, Drawer, Tree, Input } from "antd";
+import { Drawer, Tree, Input } from "antd";
 import { Link } from "./context";
 import { useEditorDraft, DraftNotice } from "./editing";
 import { KnowledgeGraph } from "./graph";
@@ -9,14 +9,11 @@ import {
   LoadingState,
   StatusTag,
 } from "../shared/ui";
-import { CurriculumTools } from "./curriculum";
 import { useSearchParams } from "react-router-dom";
 import { ResourceNotes } from "./notes";
-import { LearningAssistant } from "./assistant";
 import { RichContent, PublishedAssets } from "./content-render";
 import { useEffect, useState } from "react";
 import { useSession } from "../shared/session";
-import { requestJSON } from "../shared/api";
 import {
   useLearning,
   useLiveQuery,
@@ -45,31 +42,21 @@ export interface Resource {
   knowledge_point_id?: string;
   published_at?: string;
 }
-interface Member {
-  id: string;
-  display_name: string;
-  username: string;
-}
 interface Event {
   id: string;
   verb: string;
   resource_id: string;
   occurred_at: string;
 }
-export function CourseWorkspace() {
+export function CourseWorkspace({ embedded = false }: { embedded?: boolean }) {
   const { session } = useSession();
   const teacher = session?.user.role === "teacher";
-  const { course, reload } = useLearning();
+  const { course } = useLearning();
   const ctx = useLiveQuery<{ points: Point[] }>("");
   const resources = useLiveQuery<Resource[]>("/resources");
-  const events = useLiveQuery<Event[]>("/events");
-  const members = useLiveQuery<Member[]>("/members", teacher);
+  const events = useLiveQuery<Event[]>("/events", !teacher);
   const action = useAction();
-  const [newCourse, setNewCourse] = useState("");
-  const [point, setPoint] = useState("");
-  const [username, setUsername] = useState("");
   const [params, setParams] = useSearchParams();
-  const tab = params.get("tab") || "content";
   const [editorOpen, setEditorOpen] = useState(false);
   const [resourceSearch, setResourceSearch] = useState("");
   function setParam(key: string, value: string) {
@@ -83,8 +70,6 @@ export function CourseWorkspace() {
     setParam("resource", r?.id || "");
   }
   const selected = params.get("node") || "";
-  const [nodeKind, setNodeKind] = useState("point");
-  const [parentID, setParentID] = useState("");
   const resourceDraft = useEditorDraft(`resource:${course?.id}`, {
     revision_id: "",
     title: "",
@@ -96,15 +81,9 @@ export function CourseWorkspace() {
   });
   const resource = resourceDraft.value,
     setResource = resourceDraft.change;
-  const [notice, setNotice] = useState("");
   const revisionBase = resource.revision_id;
   const setRevisionBase = (revision_id: string) =>
     resourceDraft.change((v) => ({ ...v, revision_id }));
-  const [student, setStudent] = useState({
-    username: "",
-    display_name: "",
-    password: "",
-  });
   const [view, setView] = useState<Resource | null>(null);
   useEffect(() => {
     const id = params.get("resource");
@@ -113,20 +92,6 @@ export function CourseWorkspace() {
       setView(found || null);
     } else if (!id) setView(null);
   }, [params, resources.data]);
-  async function createCourse() {
-    try {
-      await requestJSON(
-        "/learning/courses",
-        { method: "POST", body: JSON.stringify({ title: newCourse }) },
-        session?.csrf_token,
-      );
-      setNewCourse("");
-      reload();
-      setNotice("课程已创建，请从顶部选择新课程");
-    } catch (e) {
-      setNotice((e as Error).message);
-    }
-  }
   const selectedNodes = new Set(selected ? [selected] : []);
   let changed = true;
   while (changed) {
@@ -149,10 +114,7 @@ export function CourseWorkspace() {
   );
   return (
     <div className="live-page">
-      <PageHeader
-        eyebrow={teacher ? "课程与资源" : "课程学习"}
-        title={teacher ? "课程与资料" : "学习中心"}
-      />
+      {!embedded && <PageHeader title="课程学习" />}
       {params.get("task") && (
         <Link
           className="context-banner"
@@ -161,71 +123,11 @@ export function CourseWorkspace() {
           返回补学补练任务，检查完成条件
         </Link>
       )}
-      {teacher && course && (
-        <Tabs
-          activeKey={tab}
-          onChange={(v) => setParam("tab", v)}
-          items={[
-            { key: "content", label: "内容与目录" },
-            { key: "work", label: "作业与标准" },
-            { key: "members", label: "学生与进度" },
-            { key: "settings", label: "课程设置" },
-          ]}
-        />
-      )}
-      {teacher && tab === "work" && (
-        <section className="card-panel">
-          <h2>作业与评分标准</h2>
-          <div className="live-inline">
-            <Link className="primary-link" to="/teacher/homework">
-              管理作业与标准
-            </Link>
-            <Link className="ghost-btn" to="/teacher/quiz">
-              管理测验
-            </Link>
-          </div>
-        </section>
-      )}
-      <Feedback
-        failed={action.failed}
-        error={ctx.error || resources.error}
-        message={notice || action.message}
-      />
-      {teacher && (tab === "settings" || !course) && (
-        <section className="card-panel">
-          <h2>课程管理</h2>
-          <div className="live-inline">
-            <label>
-              新课程名称
-              <input
-                value={newCourse}
-                onChange={(e) => setNewCourse(e.target.value)}
-              />
-            </label>
-            <button
-              className="primary-link"
-              disabled={!newCourse.trim()}
-              onClick={createCourse}
-            >
-              新建课程
-            </button>
-            {course?.status === "draft" && (
-              <button
-                className="ghost-btn"
-                disabled={action.busy}
-                onClick={() => action.run("/publish")}
-              >
-                发布课程底座
-              </button>
-            )}
-          </div>
-        </section>
-      )}
+      <Feedback failed={action.failed} error={ctx.error || resources.error} message={action.message} />
       {course && (
         <>
-          {teacher && tab === "settings" && <CurriculumTools />}
-          {(!teacher || tab === "content") && (
-            <div className="live-grid course-content-grid">
+            <div className={teacher ? "published-materials" : "live-grid course-content-grid"}>
+              {!teacher && (
               <aside className="card-panel">
                 <h2>课程目录</h2>
                 <button
@@ -247,67 +149,8 @@ export function CourseWorkspace() {
                 {!ctx.data?.points.length && (
                   <p className="live-meta">尚未维护知识点</p>
                 )}
-                {teacher && (
-                  <details>
-                    <summary>添加目录节点</summary>
-                    <form
-                      onSubmit={async (e) => {
-                        e.preventDefault();
-                        if (
-                          await action.run("/points", {
-                            title: point,
-                            position: ctx.data?.points.length || 0,
-                            kind: nodeKind,
-                            parent_id: parentID,
-                          })
-                        )
-                          setPoint("");
-                      }}
-                    >
-                      <label>
-                        目录类型
-                        <select
-                          aria-label="目录类型"
-                          value={nodeKind}
-                          onChange={(e) => setNodeKind(e.target.value)}
-                        >
-                          <option value="point">知识点</option>
-                          <option value="chapter">章节</option>
-                          <option value="section">小节</option>
-                        </select>
-                      </label>
-                      <label>
-                        所属目录
-                        <select
-                          aria-label="所属目录"
-                          value={parentID}
-                          onChange={(e) => setParentID(e.target.value)}
-                        >
-                          <option value="">顶层目录</option>
-                          {ctx.data?.points
-                            .filter((p) => p.kind !== "point")
-                            .map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.title}
-                              </option>
-                            ))}
-                        </select>
-                      </label>
-                      <label>
-                        知识点名称
-                        <input
-                          required
-                          value={point}
-                          onChange={(e) => setPoint(e.target.value)}
-                        />
-                      </label>
-                      <button className="ghost-btn" disabled={action.busy}>
-                        添加知识点
-                      </button>
-                    </form>
-                  </details>
-                )}
               </aside>
+              )}
               <section className="card-panel">
                 <div className="section-head">
                   <h2>{view ? view.title : "学习资料"}</h2>
@@ -480,7 +323,6 @@ export function CourseWorkspace() {
                 )}
               </section>
             </div>
-          )}
           {teacher && (
             <>
               <Drawer
@@ -611,97 +453,6 @@ export function CourseWorkspace() {
                   </form>
                 </section>
               </Drawer>
-              {tab === "members" && (
-                <section className="card-panel">
-                  <h2>课程成员</h2>
-                  <Feedback error={members.error} />
-                  <form
-                    className="live-inline"
-                    onSubmit={async (e) => {
-                      e.preventDefault();
-                      if (await action.run("/members", { username }))
-                        setUsername("");
-                    }}
-                  >
-                    <label>
-                      学生用户名
-                      <input
-                        required
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                      />
-                    </label>
-                    <button className="ghost-btn" disabled={action.busy}>
-                      加入课程
-                    </button>
-                  </form>
-                  {!!members.data?.length && (
-                    <ul className="member-list">
-                      {members.data.map((m) => (
-                        <li key={m.id}>
-                          <Link to={`/teacher/dashboard?student=${m.id}`}>
-                            {m.display_name}
-                          </Link>{" "}
-                          · {m.username}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <h3>新建学生账号并加入本课程</h3>
-                  <form
-                    className="live-form"
-                    onSubmit={async (e) => {
-                      e.preventDefault();
-                      if (await action.run("/students", student))
-                        setStudent({
-                          username: "",
-                          display_name: "",
-                          password: "",
-                        });
-                    }}
-                  >
-                    <label>
-                      新学生用户名
-                      <input
-                        required
-                        value={student.username}
-                        onChange={(e) =>
-                          setStudent({ ...student, username: e.target.value })
-                        }
-                      />
-                    </label>
-                    <label>
-                      学生姓名
-                      <input
-                        required
-                        value={student.display_name}
-                        onChange={(e) =>
-                          setStudent({
-                            ...student,
-                            display_name: e.target.value,
-                          })
-                        }
-                      />
-                    </label>
-                    <label>
-                      初始密码
-                      <input
-                        required
-                        type="password"
-                        minLength={12}
-                        autoComplete="new-password"
-                        value={student.password}
-                        onChange={(e) =>
-                          setStudent({ ...student, password: e.target.value })
-                        }
-                      />
-                    </label>
-                    <button className="ghost-btn" disabled={action.busy}>
-                      创建学生账号
-                    </button>
-                  </form>
-                </section>
-              )}
             </>
           )}
           {!teacher && (
@@ -729,18 +480,8 @@ export function CourseWorkspace() {
       )}
       {course && (
         <>
-          {(!teacher || tab === "settings") && (
-            <details className="card-panel">
-              <summary>知识依赖关系</summary>
-              <KnowledgeGraph />
-            </details>
-          )}
-          {!teacher && (
-            <details className="card-panel">
-              <summary>学习帮助</summary>
-              <LearningAssistant />
-            </details>
-          )}
+          {!teacher && <details className="card-panel"><summary>知识依赖关系</summary><KnowledgeGraph /></details>}
+          {!teacher && <Link className="ghost-btn" to="/student/retrieval">资料问答</Link>}
         </>
       )}
     </div>

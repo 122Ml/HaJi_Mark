@@ -59,10 +59,10 @@ const fixtures = JSON.parse(fs.readFileSync(path.join(root, '.local/s1-accounts.
       }
       await page.goto(`${base}/${role}/grading`);
       await page.waitForURL(u=>u.pathname===`/${role}/homework`);
-      const course = role === 'teacher' ? 'course-twin' : 'course-content';
+      const course = role === 'teacher' ? 'curriculum' : 'course-content';
       await page.goto(`${base}/${role}/${role === 'teacher' ? 'course-content' : 'course-twin'}?node=design-check`);
       await page.waitForURL(u=>u.pathname===`/${role}/${course}` && u.searchParams.get("node")==="design-check");
-      await page.goto(`${base}/${role}/${role === 'teacher' ? 'course-twin' : 'course-content'}`);
+      await page.goto(`${base}/${role}/${role === 'teacher' ? 'curriculum' : 'course-content'}`);
       await capture(role + '-course', true);
       await page.goto(`${base}/${role}/${home}`);
       await page.getByRole('heading', {level: 1}).waitFor();
@@ -73,7 +73,7 @@ const fixtures = JSON.parse(fs.readFileSync(path.join(root, '.local/s1-accounts.
       await page.setViewportSize({width: 390, height: 844});
       const toggle = page.getByRole('button', {name: '打开导航', exact: true});
       await toggle.click();
-      await nav.getByRole('link', {name: role === 'teacher' ? '课程与资料' : '课程学习', exact: true}).waitFor({state: 'visible'});
+      await nav.getByRole('link', {name: role === 'teacher' ? '课程目录' : '课程学习', exact: true}).waitFor({state: 'visible'});
       await capture(`${role}-390-menu`);
       await page.keyboard.press('Escape');
       await page.getByRole('button', {name: '打开导航', exact: true}).waitFor();

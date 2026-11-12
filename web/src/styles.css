@@ -79,6 +79,10 @@ p { margin: 0 0 var(--space-4); }
 .topbar-inner { height: 100%; padding: 0 var(--space-5); display: flex; align-items: center; gap: var(--space-4); }
 .topbar-role { font-size: var(--text-xs); color: var(--teal); background: var(--mint); border-radius: var(--radius-pill); padding: 2px 10px; font-weight: 600; white-space: nowrap; }
 .topbar-spacer { flex: 1; }
+.workspace-course-select { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: min(380px, 34vw); font-size: var(--text-sm); color: var(--muted); }
+.workspace-course-select > label { white-space: nowrap; }
+.workspace-course-select > button { flex-shrink: 0; min-height: 40px; padding: 6px 10px; }
+.workspace-course-select select { width: 100%; min-width: 0; min-height: 40px; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: white; color: var(--ink); font: inherit; text-overflow: ellipsis; }
 .menu-toggle { display: none; width: 40px; height: 40px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: white; color: var(--ink); place-items: center; padding: 0; }
 .menu-toggle:hover { background: var(--mint-soft); }
 .menu-toggle svg { width: 20px; height: 20px; }
@@ -186,6 +190,9 @@ p { margin: 0 0 var(--space-4); }
   .flow-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 640px) {
+  .layout-shell:has(.workspace-course-select) { --topbar-h: 116px; }
+  .topbar-inner { flex-wrap: wrap; gap: 8px; padding-top: 8px; padding-bottom: 8px; }
+  .workspace-course-select { order: 5; flex: 1 1 100%; max-width: 100%; }
   .topbar-role { display: none; }
   .nav-user-name { display: none; }
   .brand { font-size: 18px; }

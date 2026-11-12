@@ -17,15 +17,23 @@ import { MaterialsPage, KnowledgePage, RetrievalPage } from "./knowledge";
 import { QuestionBankPage } from "./question-bank";
 import { RegradesPage } from "./regrades";
 import { ContentImpactPage } from "./content-impact";
+import { CourseManagement } from "./course-management";
+import { CurriculumPage } from "./curriculum";
 export function LiveRoutes({ teacher }: { teacher: boolean }) {
   const { course } = useLearning();
   const location = useLocation();
   const root = teacher ? "/teacher" : "/student";
   const overviewRedirect = <Navigate replace to={`${root}/${teacher ? "dashboard" : "home"}${location.search}`} />;
-  const courseRedirect = <Navigate replace to={`${root}/${teacher ? "course-twin" : "course-content"}${location.search}`} />;
-  if (!course && !location.pathname.endsWith("/profile"))
+  const params = new URLSearchParams(location.search);
+  const legacyTab = params.get("tab");
+  const legacyTarget = params.has("resource") ? "materials" : legacyTab === "members" || legacyTab === "settings" ? "courses" : legacyTab === "work" ? "homework" : "curriculum";
+  if (params.has("resource")) params.set("tab", "published");
+  const courseRedirect = <Navigate replace to={`${root}/${teacher ? legacyTarget : "course-content"}?${params}`} />;
+  if (params.has("course") && !course && !location.pathname.endsWith("/profile"))
+    return <section className="card-panel"><EmptyState heading title="无法访问该课程" action={teacher ? <Link className="ghost-btn" to="/teacher/courses">课程管理</Link> : undefined}>请从顶部选择有权限的课程。</EmptyState></section>;
+  if (!course && !location.pathname.endsWith("/profile") && !location.pathname.endsWith("/courses"))
     return teacher ? (
-      <CourseWorkspace />
+      <Navigate replace to="/teacher/courses" />
     ) : (
       <section className="card-panel">
         <EmptyState heading title="尚未加入课程">请联系课程教师将你的账号加入课程，然后刷新页面。</EmptyState>
@@ -34,13 +42,15 @@ export function LiveRoutes({ teacher }: { teacher: boolean }) {
   return (
     <Routes key={`${course?.id}:${location.pathname}`}>
       <Route path="profile" element={<ProfilePage />} />
+      {teacher && <Route path="courses" element={<CourseManagement />} />}
+      {teacher && <Route path="curriculum" element={<CurriculumPage />} />}
       {teacher && <Route path="research" element={<RecordsPage />} />}
       {teacher && <Route path="industry-intelligence" element={<RecordsPage industry />} />}
       <Route path="teacher-twin/drilldown" element={overviewRedirect} />
       <Route path="home" element={teacher ? overviewRedirect : <OverviewPage />} />
       <Route path="dashboard" element={teacher ? <OverviewPage /> : overviewRedirect} />
       <Route path="course-content" element={teacher ? courseRedirect : <CourseWorkspace />} />
-      <Route path="course-twin" element={teacher ? <CourseWorkspace /> : courseRedirect} />
+      <Route path="course-twin" element={courseRedirect} />
       <Route path="homework" element={<AssignmentList />} />
       {teacher && <Route path="materials" element={<MaterialsPage />} />}
       {teacher && <Route path="question-bank" element={<QuestionBankPage />} />}
@@ -76,15 +86,7 @@ export function LiveRoutes({ teacher }: { teacher: boolean }) {
       <Route path="interaction" element={<InteractionPage />} />
       <Route path="student-twin" element={overviewRedirect} />
       {!teacher && <Route path="learning" element={<StudyPath />} />}
-      <Route
-        path="courses"
-        element={
-          <Navigate
-            replace
-            to={`${root}/${teacher ? "course-twin" : "course-content"}${location.search}`}
-          />
-        }
-      />
+      {!teacher && <Route path="courses" element={courseRedirect} />}
       <Route
         path="assignments"
         element={

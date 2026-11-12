@@ -216,6 +216,10 @@ python -B scripts/check-question-bank.py --resume
 
 ## 工作台交互回归（2026-11-05，本地）
 
+2026-11-12路由分区回归：`node scripts/check-navigation-browser.cjs` 使用本地Docker和忽略的S1凭据，创建带标签的课程，验证课程管理／目录／资料／题库的页面归属、同模块切课与旧对象清理、未保存编辑拦截、旧链接跳转、拆题来源深链及学生笔记持久化；检查1440/390px布局。报告与截图在 `.local/navigation/`，不调用模型、不访问公网。原平台、设计和工作台脚本已按新入口调整，断言仍检查真实服务端内容。
+
+本地人工演示凭据与课程ID保存在忽略的 `.local/manual-demo-accounts.json`，与自动化S1账号分开。创建的演示课程采用自编资料，不伪装成AI生成或真实教学结果；后续验收继续用自动化账号，避免演示列表积累测试记录。
+
 `node scripts/check-workspace-browser.cjs`读取忽略的本地种子凭据，只允许固定回环地址；创建有标签的两题作业和21次提交，保留数据。覆盖分页与权限、十份连续查看和20条分页边界、Unicode原文引用、评分复制/编辑恢复、慢保存竞态、失败恢复、逐题提交、发布隔离、具体反馈→任务→新证据→复查，以及12条路线的1440/390px布局。结果和截图保存在`.local/workspace-check.json`、`.local/workspace-*.png`。不是模型效果实验。
 
 先串行`docker compose build api`、`docker compose build web`，再`docker compose up -d --no-build api web`。Node路径与NODE_PATH沿上文配置。旧平台/评分/设计/导出回归脚本已按新分区、抽屉、确认框和带课程URL维护；不能以旧DOM选择器失效代替业务失败诊断。

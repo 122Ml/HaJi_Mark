@@ -29,6 +29,8 @@ flowchart LR
 
 `App.tsx` 装配角色路由、顶栏与分组侧栏；`app/navigation.ts` 管理导航分组，`app/Login.tsx` 提供活动登录页，`app/theme.ts` 与 `styles.css` 管理设计变量，`shared/ui.tsx` 提供页头与加载/空/错误状态组件。重复概览/课程地址通过 `live/routes.tsx` 重定向到角色规范入口，具体映射和截图见 [设计指南](../design.md)。
 
+`LearningProvider` 在角色工作台外层提供课程上下文，供顶栏唯一选择器和页面共用。教师课程管理在 `live/course-management.tsx`，目录在 `live/curriculum.tsx`，原件在 `live/knowledge.tsx` 的资料页，发布内容复用 `live/course.tsx` 的资料阅读／编辑组件；不再以同一个课程页承担全部入口。题库 `live/question-bank.tsx` 承接整卷拆题，资料只提供带来源的跳转。知识库、检索、内容影响和作业仍用各自页面。新模块边界只改变前端归属，不改变后端权限、对象版本与发布规则。
+
 `LearningProvider` 读取本人课程，URL 的 `course` 优先于浏览器记忆；对象深链、侧栏和跨模块返回保留课程。不存在或无权限的课程明确报错。Query 缓存来自 API，写入后只取消并刷新当前课程的关联查询。`editing.tsx` 将未保存编辑按账号和对象暂存在 sessionStorage，供失败或离页后恢复；正式草稿、提交、评分和状态仍以服务端为准。身份切换清空查询缓存，401 回到会话检查。页面异常边界允许重新加载。
 
 ## 模块位置

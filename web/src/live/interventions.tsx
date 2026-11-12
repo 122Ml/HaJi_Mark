@@ -429,7 +429,7 @@ function TaskDetail({
         {i.resource_id && (
           <Link
             className="primary-link"
-            to={`/${teacher ? "teacher/course-twin" : "student/course-content"}?resource=${i.resource_id}&task=${i.id}`}
+            to={`/${teacher ? "teacher/materials" : "student/course-content"}?resource=${i.resource_id}&task=${i.id}`}
           >
             打开补学资料：
             {resources.data?.find((r) => r.id === i.resource_id)?.title ||

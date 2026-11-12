@@ -141,8 +141,8 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
         {(teacher
           ? [
               [
-                "课程与资料",
-                "/teacher/course-twin",
+                "学习资料",
+                "/teacher/materials",
                 "M6 5h12v14H6z M9 9h6 M9 13h6",
               ],
               [

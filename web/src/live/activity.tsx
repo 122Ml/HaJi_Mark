@@ -39,7 +39,7 @@ export function ActivityTimeline({ teacher, studentID }: { teacher: boolean; stu
           </div>
           <Link to={event.submission_id
             ? `/${teacher ? "teacher" : "student"}/homework/submissions/${event.submission_id}/${teacher ? "grade" : "feedback"}`
-            : `/${teacher ? "teacher/course-twin" : "student/course-content"}?resource=${event.resource_id}`}>
+            : `/${teacher ? "teacher/materials" : "student/course-content"}?resource=${event.resource_id}`}>
             查看{event.submission_id ? "原始作答" : "资料原文"}
           </Link>
         </article>

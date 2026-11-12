@@ -26,6 +26,7 @@ import {
   type TopicData,
 } from "./content-topics";
 import { RichContent } from "./content-render";
+import { PaperImport } from "./material-assist";
 
 export interface BankVersion {
   id: string;
@@ -136,7 +137,7 @@ const typeNames: Record<string, string> = {
 
 function BankProvenance({ id }: { id: string }) {
   const q = useLiveQuery<{
-    decisions: { id: string; kind: string; inputs: unknown }[];
+    decisions: { id: string; kind: string; reason: string; created_at: string }[];
     assets: { id: string }[];
   }>(`/question-bank/versions/${id}/provenance`);
   const { course } = useLearning();
@@ -157,7 +158,8 @@ function BankProvenance({ id }: { id: string }) {
           <strong>
             {d.kind === "paper_adopt" ? "原卷拆题采纳" : "AI草稿采纳"}
           </strong>
-          <pre className="rag-json">{JSON.stringify(d.inputs, null, 2)}</pre>
+          <p>{d.reason}</p>
+          <small>{new Date(d.created_at).toLocaleString()}</small>
         </article>
       ))}
     </details>
@@ -166,6 +168,8 @@ function BankProvenance({ id }: { id: string }) {
 
 export function QuestionBankPage() {
   const [params, setParams] = useSearchParams();
+  const paperOpen = params.has("paper_source") || params.get("paper") === "1";
+  const paperSource = params.get("paper_source") || "";
   const bankID = params.get("bank") || "";
   const linked = useLiveQuery<BankVersion>(
     `/question-bank/versions/${params.get("bank_version")}`,
@@ -197,6 +201,8 @@ export function QuestionBankPage() {
       <PageHeader
         title="题库"
         actions={
+          <>
+          <button className="ghost-btn" onClick={() => { const next = new URLSearchParams(params); next.set("paper", "1"); setParams(next); }}>整卷导入</button>
           <button
             className="primary-link"
             onClick={() => {
@@ -208,8 +214,21 @@ export function QuestionBankPage() {
           >
             新建题目
           </button>
+          </>
         }
       />
+      <Drawer title="整卷导入" aria-label="整卷导入" open={paperOpen} width={900} destroyOnHidden onClose={() => {
+        const next = new URLSearchParams(params);
+        next.delete("paper_source");
+        next.delete("paper");
+        setParams(next);
+      }}>
+        <PaperSource selected={paperSource} onSelect={(id) => {
+          const next = new URLSearchParams(params);
+          next.set("paper_source", id);
+          setParams(next);
+        }} />
+      </Drawer>
       {query.error ? (
         <ErrorState
           message={query.error.message}
@@ -357,6 +376,21 @@ export function QuestionBankPage() {
       )}
     </div>
   );
+}
+
+function PaperSource({ selected, onSelect }: { selected: string; onSelect: (id: string) => void }) {
+  const sources = useLiveQuery<{ id: string; title: string; state: string; fragment_count: number }[]>("/sources");
+  const source = useLiveQuery<{ source: { state: string }; fragments: { id: string; body: string }[] }>(`/sources/${selected}`, !!selected);
+  return <div className="live-form">
+    <Feedback error={sources.error || source.error} />
+    <label>试卷原件<select aria-label="试卷原件" value={selected} onChange={(e) => onSelect(e.target.value)}>
+      <option value="">选择已解析的原件</option>
+      {sources.data?.filter((s) => s.state === "active" && s.fragment_count > 0).map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
+    </select></label>
+    <Link to={selected ? `/teacher/materials?source=${selected}` : "/teacher/materials"}>导入或核对原件</Link>
+    {selected && source.isPending && <LoadingState />}
+    {source.data?.source.state === "active" && source.data.fragments.length > 0 && <PaperImport key={selected} id={selected} fragments={source.data.fragments} />}
+  </div>;
 }
 
 function BankDetailView({ bankID }: { bankID: string }) {

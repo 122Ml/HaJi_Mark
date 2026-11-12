@@ -857,6 +857,7 @@ function QuestionAnswer({
           { question_id: q.id, answer_text: answer, request_id: requestID },
         );
         if (!v) throw Error("提交失败，请重试");
+        draft.saved(answer);
         setRequestID(crypto.randomUUID());
         action.setMessage(
           `提交成功 · 第${v.attempt}次 · ${when(v.submitted_at)}`,

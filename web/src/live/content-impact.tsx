@@ -48,7 +48,7 @@ export function ContentImpactPage() {
       case "assignment":
         return `/teacher/homework/${i.id}`;
       case "resource":
-        return `/teacher/course-twin?resource=${i.id}`;
+        return `/teacher/materials?resource=${i.id}`;
       case "result":
         return `/teacher/homework/${i.parent_id}/submissions`;
       default:

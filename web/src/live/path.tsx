@@ -1,5 +1,5 @@
 import { Button, Card, Collapse } from "antd";
-import { LoadingState, ErrorState } from "../shared/ui";
+import { LoadingState, ErrorState, EmptyState, MetaTag, MetaTags, StatusTag } from "../shared/ui";
 import { Link } from "./context";
 import { useLiveQuery, useAction, Feedback, when } from "./context";
 import type { Resource } from "./course";
@@ -72,7 +72,7 @@ export function StudyPath() {
           </Card>
           {!query.data.items.length && (
             <Card className="card-panel">
-              <p>已完成当前学习路径。</p>
+              <EmptyState title="已完成当前学习路径" />
             </Card>
           )}
           {query.data.items.map((p, i) => {
@@ -89,19 +89,20 @@ export function StudyPath() {
                 <p>{p.description}</p>
                 {linked.length ? (
                   linked.map((r) => (
-                    <p key={r.id}>
-                      <Link
-                        to={`/student/course-content?node=${p.knowledge_point_id}&resource=${r.id}`}
-                      >
-                        {r.title} · {r.locator}
-                      </Link>{" "}
-                      ·{" "}
-                      {events.data?.some(
-                        (e) => e.resource_id === r.id && e.verb === "completed",
-                      )
-                        ? "已完成学习"
-                        : "待学习"}
-                    </p>
+                    <div className="live-row" key={r.id}>
+                      <div>
+                        <Link to={`/student/course-content?node=${p.knowledge_point_id}&resource=${r.id}`}>
+                          {r.title}
+                        </Link>
+                        <MetaTags>
+                          <StatusTag
+                            status={events.data?.some(e => e.resource_id === r.id && e.verb === "completed") ? "completed" : "pending"}
+                            label={events.data?.some(e => e.resource_id === r.id && e.verb === "completed") ? "已完成学习" : "待学习"}
+                          />
+                          {r.locator && <MetaTag>{r.locator}</MetaTag>}
+                        </MetaTags>
+                      </div>
+                    </div>
                   ))
                 ) : (
                   <p>当前缺少已审核的对应学习资料，请联系教师补充。</p>
@@ -115,7 +116,7 @@ export function StudyPath() {
         </>
       ) : (
         <Card className="card-panel">
-          <p>尚未生成学习路径。</p>
+          <EmptyState title="尚未生成学习路径" />
         </Card>
       )}
     </div>

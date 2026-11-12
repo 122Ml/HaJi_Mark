@@ -2,6 +2,7 @@ import { Field } from "../shared/Field";
 import { useEffect, useState } from "react";
 import { Select, Collapse, Button, Form, Input } from "antd";
 import { Feedback, useAction, useLiveQuery } from "./context";
+import { StatusTag } from "../shared/ui";
 
 export type Topic = {
   id: string;
@@ -57,7 +58,7 @@ export function TopicManager() {
                     }}
                   >
                     {t.title}
-                    {!t.active && " · 已停用"}
+                    {!t.active && <StatusTag status="archived" label="已停用" />}
                   </Button>
                 ))}
               </div>

@@ -3,10 +3,10 @@ import { useConfirm } from "../shared/confirm";
 import { FileUpload } from "../shared/FileUpload";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Drawer, Select, Progress, Tabs, Collapse, Button, Card, Form, Input, Checkbox, Tag, Alert } from "antd";
+import { Drawer, Select, Progress, Tabs, Collapse, Button, Card, Form, Input, Checkbox, Alert } from "antd";
 import { useSession } from "../shared/session";
 import { requestJSON } from "../shared/api";
-import { LoadingState, ErrorState, EmptyState } from "../shared/ui";
+import { LoadingState, ErrorState, EmptyState, MetaTag, MetaTags, StatusTag } from "../shared/ui";
 import {
   Feedback,
   Link,
@@ -451,7 +451,7 @@ function DraftPreview({ output }: { output: Record<string, unknown> }) {
       ))}
       {typeof output.feedback === "string" && <p>{output.feedback}</p>}
       <FrozenEvidence sources={output.evidence_refs as Hit[] | undefined} />
-      <Tag >待教师审核</Tag>
+      <StatusTag status="pending" label="待教师审核" />
     </div>
   );
 }
@@ -483,7 +483,7 @@ export function JobsPanel({ kinds }: { kinds?: string[] }) {
       items={[
         {
           key: "content",
-          label: <>处理任务{active ? " · 处理中" : ""}</>,
+          label: <MetaTags><span>处理任务</span>{active && <StatusTag status="running" label="处理中" />}</MetaTags>,
           children: (
             <>
               <Feedback
@@ -496,9 +496,10 @@ export function JobsPanel({ kinds }: { kinds?: string[] }) {
                 <article key={j.id} className="rag-job">
                   <div>
                     <strong>{labels[j.kind]}</strong>
-                    <span>
-                      {labels[j.state]} · {when(j.created_at)}
-                    </span>
+                    <MetaTags>
+                      <StatusTag status={j.state} label={labels[j.state]} />
+                      <span className="live-meta">{when(j.created_at)}</span>
+                    </MetaTags>
                     {j.error && <Alert type="error" showIcon role="alert" message={<>{j.error}</>} />}
                   </div>
                   {j.state === "running" && (
@@ -628,20 +629,16 @@ export function MaterialsPage() {
                   className={"card-panel rag-source"}
                 >
                   <strong>{s.title}</strong>
-                  <span>{s.filename}</span>
-                  <div className="live-inline">
-                    <Tag >
-                      {s.state === "archived"
+                  {s.filename !== s.title && <span>{s.filename}</span>}
+                  <MetaTags>
+                    <StatusTag status={s.state === "archived" ? "archived" : s.parse_state} label={s.state === "archived"
                         ? "已归档"
-                        : labels[s.parse_state]}
-                    </Tag>
-                    <span>{s.fragment_count || 0}个片段</span>
+                        : labels[s.parse_state]} />
+                    <MetaTag>{s.fragment_count || 0} 个片段</MetaTag>
                     {!!s.review_count && (
-                      <Tag color="warning">
-                        {s.review_count}个待核对
-                      </Tag>
+                      <StatusTag status="needs_review" label={`${s.review_count} 个待核对`} />
                     )}
-                  </div>
+                  </MetaTags>
                   {s.parse_error && <p>{s.parse_error}</p>}
                 </Button>
               ))}
@@ -835,9 +832,10 @@ function SourceWorkspace({
             据此出题
           </Link>
         )}
-        <Tag >
-          {labels[source.parse_state]} · 原文修订 {query.data.display_revision}
-        </Tag>
+        <MetaTags>
+          <StatusTag status={source.parse_state} label={labels[source.parse_state]} />
+          <MetaTag>原文修订 {query.data.display_revision}</MetaTag>
+        </MetaTags>
         <Button
 
           href={`/api/v1/learning/courses/${course!.id}/sources/${id}/download`}
@@ -1185,17 +1183,20 @@ export function KnowledgePage() {
           >
             <div className="workspace-heading">
               <h2>{k.title}</h2>
-              <Tag >
-                {labels[k.state]} · v{k.version}
-              </Tag>
+              <MetaTags>
+                <StatusTag status={k.state} label={labels[k.state]} />
+                <MetaTag>v{k.version}</MetaTag>
+              </MetaTags>
             </div>
-            <p className="live-meta">
-              {kinds.find((v) => v.value === k.content_kind)?.label} ·{" "}
-              {k.category}
-              {teacher
-                ? ` · ${k.use_for_learning ? "学习" : ""} ${k.use_for_grading ? "评分" : ""} · ${k.student_visible ? "学生可见" : "教师内部"}`
-                : ""}
-            </p>
+            <MetaTags>
+              <MetaTag>{kinds.find((v) => v.value === k.content_kind)?.label}</MetaTag>
+              {k.category && <MetaTag>{k.category}</MetaTag>}
+              {teacher && <>
+                {k.use_for_learning && <MetaTag>用于学习</MetaTag>}
+                {k.use_for_grading && <MetaTag>用于评分</MetaTag>}
+                <MetaTag>{k.student_visible ? "学生可见" : "教师内部"}</MetaTag>
+              </>}
+            </MetaTags>
             <RichContent text={k.body} />
             {k.conditions && (
               <p>

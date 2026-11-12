@@ -34,6 +34,13 @@
 .live-grid .ant-card-body > .live-form { margin-top: var(--space-3); }
 .ant-card.card-panel, .ant-collapse.card-panel { padding: 0; }
 .ant-card.card-panel > .ant-card-body { min-width: 0; }
+.ant-card.card-panel { border-radius: var(--radius-md); }
+.ant-card.card-panel > .ant-card-head { border-color: var(--line); }
+.live-page .ant-card-body > .ant-tabs:first-child { margin-top: -8px; }
+.live-page .ant-card-body > .ant-form + .live-inline,
+.live-page .ant-card-body > .ant-form + .ant-btn,
+.live-page .ant-card-body > .live-inline + .ant-form,
+.live-page .ant-card-body > .ant-input-search + .table-wrap { margin-top: var(--space-4); }
 .live-page .ant-card-head-title h2 { margin: 0; font-size: var(--text-lg); }
 .ant-card .ant-card-head-title { white-space: normal; }
 .live-page .ant-btn { white-space: normal; height: auto; min-height: 40px; }
@@ -47,11 +54,17 @@
 .live-row { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); padding: var(--space-4) 0; border-bottom: 1px solid var(--line); }
 .live-row:last-child { border-bottom: 0; padding-bottom: 0; }
 .live-row > div { min-width: 0; }
-.live-row h2, .live-row h3 { margin: 0 0 4px; }
+.live-row > div:first-child { flex: 1; }
+.live-row h2, .live-row h3 { margin: 0 0 8px; font-size: var(--text-md); line-height: 1.5; }
 .live-row p { margin: 0 0 4px; color: var(--muted); font-size: 14px; }
 .live-row p:last-child { margin-bottom: 0; }
 .live-row small { color: var(--muted); }
-.live-row > .live-inline { flex-shrink: 0; align-items: center; }
+.live-row > .live-inline { flex: 0 1 auto; align-items: center; justify-content: flex-end; gap: var(--space-2); }
+.live-row > .ant-btn { flex-shrink: 0; }
+.live-row > div:first-child > .ui-meta-tags + .ui-meta-tags { margin-top: var(--space-2); }
+.live-row p + .ui-meta-tags { margin-top: var(--space-2); }
+.live-row > div:first-child > .ui-status-tag { margin-top: var(--space-2); }
+.ant-card-body > .ui-meta-tags + .live-prose { margin-top: var(--space-4); }
 .card-panel.live-row { padding: var(--space-5); border-bottom: 1px solid var(--line); }
 
 /* Tree nodes in the course aside */
@@ -73,14 +86,16 @@ article.live-prose { padding: var(--space-4) var(--space-5); background: var(--s
 
 /* Overview: stat tiles */
 .live-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); }
-.live-metrics .card-panel { padding: var(--space-5); box-shadow: none; background: var(--surface); }
-.live-metrics .card-panel > span { color: var(--muted); font-size: var(--text-sm); }
-.live-metrics strong { display: block; font-size: 34px; font-weight: 500; letter-spacing: -.02em; line-height: 1.2; margin-top: 6px; color: var(--teal-deep); font-variant-numeric: tabular-nums; }
+.live-metrics .card-panel { padding: var(--space-5); box-shadow: none; background: white; }
+.live-metrics .ant-statistic-content { color: var(--teal-deep); font-weight: 600; font-size: 30px; }
+.live-metrics .ant-statistic-content-suffix { font-size: 18px; }
+.live-metrics .ant-statistic-title { color: var(--muted); font-size: var(--text-sm); margin-bottom: 12px; }
 
 /* Overview: knowledge point performance */
 .live-performance { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-3); }
 .live-performance article { padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); }
 .live-performance article > span { color: var(--muted); font-size: var(--text-sm); }
+.live-performance article > .ui-meta-tags { margin-top: var(--space-2); }
 .live-performance progress { display: block; width: 100%; height: 8px; margin-top: 10px; accent-color: var(--teal); }
 .live-performance:empty::after { content: "尚未维护知识点"; color: var(--muted); font-size: 14px; }
 
@@ -108,9 +123,13 @@ article.live-prose { padding: var(--space-4) var(--space-5); background: var(--s
   .live-page { gap: var(--space-4); }
   .live-metrics { gap: var(--space-3); }
   .live-metrics .card-panel { padding: var(--space-4); }
-  .live-metrics strong { font-size: 26px; }
+  .live-metrics .ant-statistic-content { font-size: 24px; }
   .live-row { flex-direction: column; align-items: stretch; }
   .live-row > .live-inline { margin-top: var(--space-2); }
+  .live-row > .live-inline { justify-content: flex-start; }
+  .live-row > .ant-btn { align-self: flex-start; }
+  .ant-card.card-panel > .ant-card-body { padding: var(--space-4); }
+  .ant-card.card-panel > .ant-card-head { padding: 0 var(--space-4); }
   .live-inline > .ui-field, .live-page > .live-inline > .ui-field { flex-basis: 100%; }
   .live-page > .live-inline { padding: var(--space-4); }
   .live-shortcuts { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }

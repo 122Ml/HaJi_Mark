@@ -335,7 +335,7 @@ export function Link({ to, ...props }: LinkProps) {
 function ActionLink({ to, className, replace, state, target, preventScrollReset, relative, reloadDocument, viewTransition, onClick, color: _color, type: _type, ...props }: LinkProps) {
   const href = useHref(to, { relative });
   const navigate = useLinkClickHandler(to, { replace, state, target, preventScrollReset, relative, viewTransition });
-  return <Button {...props} href={href} target={target} type={String(className).includes("primary-link") ? "primary" : "default"} onClick={(event) => {
+  return <Button {...props} className={className?.split(/\s+/).filter(c => c !== "primary-link" && c !== "ghost-btn").join(" ")} href={href} target={target} type={String(className).includes("primary-link") ? "primary" : "default"} onClick={(event) => {
     const click = event as React.MouseEvent<HTMLAnchorElement>;
     onClick?.(click);
     if (!click.defaultPrevented && !reloadDocument) navigate(click);

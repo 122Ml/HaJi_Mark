@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | 色彩 | 深青主色，薄荷/青绿渐变只出现在主视觉和插图区，画布以白色为主 | 主色 `#006764`；渐变只用于登录主视觉、流程卡和概览快捷卡插图区 |
 | 字体层级 | 大标题细字重（约 500），正文小而清晰 | 主页面直接展示操作区；保留业务对象标题和卡片标题，正文 15px |
-| 卡片 | 白底、16px 圆角、细边框、轻阴影；标题在上，彩色插图区在下 | `.card-panel` 与 `.live-shortcut` / `.flow-card` |
+| 卡片 | 白底、细边框、轻阴影；标题在上，彩色插图区在下 | 工作台浅灰绿底，业务卡片12px圆角，快捷卡与登录卡16px圆角 |
 | 按钮 | 纯色深青、小圆角、轻阴影 | 主按钮纯色，8px 圆角，hover/active 加深 |
 | 导航 | 白色顶栏，主菜单分组，右上角账户和主操作 | 顶栏放品牌、唯一课程选择器和账户；业务导航使用 Ant Design Menu |
 | 留白 | 宽松，内容最大宽度约 1200px | 内容区最大 1200px，组件间距 24px |
@@ -24,8 +24,8 @@
 | --- | --- |
 | `web/src/app/theme.ts` | Ant Design token（颜色、圆角、控件高度、字体），与 CSS 变量同名同值 |
 | `web/src/styles.css` | `:root` 设计变量、应用壳（顶栏/侧栏/页脚）、按钮、表格、状态组件、登录页、断点 |
-| `web/src/live/styles.css` | 业务页模板：页头、课程切换条、表单、行列表、指标卡、知识点、快捷卡 |
-| `web/src/shared/ui.tsx` | `EmptyState`、`ErrorState`、`LoadingState`、`StatusTag` |
+| `web/src/live/styles.css` | 业务页模板：操作区、表单、行列表、指标卡、知识点、快捷卡 |
+| `web/src/shared/ui.tsx` | `EmptyState`、`ErrorState`、`LoadingState`、`StatusTag`、`MetaTag`、`MetaTags` |
 | `web/src/shared/Field.tsx`、`FileUpload.tsx`、`confirm.ts` | 复用 Ant Design 表单项、文件选择和确认弹窗 |
 | `web/src/live/content-render.tsx` | Markdown/GFM 与 KaTeX 正文渲染；原文保持不变，不执行 HTML |
 | `web/src/app/navigation.ts` | 教师/学生导航分组与链接名称（验收脚本依赖链接名） |
@@ -47,7 +47,7 @@ CSS 变量在 `styles.css :root`，颜色同步到 `theme.ts palette`。修改�
 | `--teal-bright` | `#00938b` | 焦点环 |
 | `--ink` / `--ink-soft` / `--muted` | `#0d2b29` / `#3d5652` / `#61736f` | 标题正文 / 表单标签 / 说明 |
 | `--mint` / `--mint-soft` / `--mint-line` | `#e0f8f0` / `#f3f9f7` / `#bfe0d9` | 选中背景 / 悬停背景 / 次按钮边框 |
-| `--line` / `--surface` / `--canvas` | `#e3ebe8` / `#f7faf9` / `#fff` | 分隔线 / 侧栏与次级面板 / 画布 |
+| `--line` / `--surface` / `--canvas` | `#e3ebe8` / `#f7faf9` / `#fff` | 分隔线 / 工作台底色与次级面板 / 白色卡片 |
 | `--danger` `--warning` `--success` 及 `-bg` | `#b42318` `#b54708` `#027a48` | 错误、草稿、已发布状态 |
 | `--text-xs…--text-xl`, `--text-h1` | 12/13/15/18/22px，h1 `clamp(28px, 2.6vw, 38px)` | 字号 |
 | `--space-1…--space-7` | 4/8/12/16/24/32/48px | 间距 |
@@ -91,7 +91,7 @@ CSS 变量在 `styles.css :root`，颜色同步到 `theme.ts palette`。修改�
     {query.isPending ? <LoadingState /> : !list.length ? <EmptyState title="当前没有作业">…</EmptyState> :
       list.map((a) => (
         <article className="live-row" key={a.id}>
-          <div><h3>{a.title}</h3><p className="live-meta"><StatusTag status={a.status} label={names[a.status]} /> …</p></div>
+          <div><h3>{a.title}</h3><MetaTags><StatusTag status={a.status} label={names[a.status]} /><MetaTag>满分 {a.max_score}</MetaTag></MetaTags></div>
           <div className="live-inline">{/* ghost-btn / primary-link */}</div>
         </article>
       ))}
@@ -104,6 +104,9 @@ CSS 变量在 `styles.css :root`，颜色同步到 `theme.ts palette`。修改�
 - 两栏：`.live-grid`（窄侧栏 + 内容），`.live-grid.is-even`（等宽两栏）；1023px 以下单列。
 - 表单：使用 `Form`、共享 `Field`（`Form.Item`）、`Input`、`Select`、`InputNumber`、`Radio`、`Checkbox`、`Upload`；可见标签与实际控件关联。`.live-form` 纵向，`.live-inline` 横排。
 - 状态：加载 `LoadingState`（`Spin`），空 `EmptyState`（`Empty`），加载失败 `ErrorState`（`Alert`），操作结果 `Feedback`。失败为 `role="alert"`，成功为 `role="status"`。
+- 元信息：状态用 `StatusTag`，数量、版本、类型、用途用中性 `MetaTag`，`MetaTags`负责间距与换行；均基于 Ant Design `Tag`。时间、出处和正文保留普通文字，不把整段说明塞进标签。状态同时有文字、颜色与圆点，长标签可换行。
+- 列表：标题、元信息、操作分层；工具栏承载筛选和主要动作，操作列可折行，手机端落到内容下方。看板数字使用 `Statistic`，目录和表单仍使用原有 Ant Design 组件；不通过全局原生 input/label 样式覆盖抽屉内部控件。
+- 角色动作：新建作业、测验和补学补练入口只向教师显示；界面权限不替代 API 授权。`ActionLink`保留布局类名和 React Router 行为，只将旧按钮样式标记转换为 Ant Design 的按钮类型。
 - 文案：只写标题、实际数据和操作名；不在页面重复功能说明。概览只用真实证据，无评分时显示“证据不足”。
 - Ant Design 统一菜单、按钮、表单、目录树、表格、分页、页签、折叠、抽屉和确认框。业务链接使用 `Button` 并保留 React Router 导航；正文中的表格和代码保持内容语义。两字按钮设 `autoInsertSpace={false}`。
 - 资料、题干、参考解答、知识与问答正文用 `RichContent` 渲染 Markdown 和公式；编辑框与评分引用仍保留原文。减少动画通过主题 `motion` 控制，不全局覆盖下拉层动画或定位。

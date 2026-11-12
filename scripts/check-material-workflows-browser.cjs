@@ -60,7 +60,8 @@ const pass = why => { report.checks.push(why); save(); console.log('PASS', why);
           } else if (route === 'question-bank') {
             await t.getByText('题图与原始来源', { exact: true }).waitFor();
           } else {
-            await t.getByRole('heading', { name: '已统一发布 · 2/2', exact: true }).waitFor();
+            await t.locator('.workspace-heading .ui-status-tag').getByText('已统一发布', { exact: true }).waitFor();
+            await t.locator('.workspace-heading .ui-meta-tag').getByText('已确认 2/2', { exact: true }).waitFor();
           }
           await t.evaluate(() => document.fonts.ready);
           assert(await t.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${route} overflows at ${width}`);
@@ -79,7 +80,7 @@ const pass = why => { report.checks.push(why); save(); console.log('PASS', why);
     const topic = (await tc('GET', '/topics')).topics[0];
     const topics = t.locator('.ant-collapse-item').filter({ has: t.locator('.ant-collapse-header').filter({ hasText: /^专题管理$/ }) }).first();
     await topics.locator('.ant-collapse-header').first().click();
-    await topics.getByRole('button', { name: topic.title + (topic.active ? '' : ' · 已停用'), exact: true }).click();
+    await topics.getByRole('button', { name: topic.title + (topic.active ? '' : ' 已停用'), exact: true }).click();
     for (const name of topic.active ? ['停用', '恢复'] : ['恢复', '停用']) {
       const [changed] = await Promise.all([response('PUT', '/topics/' + topic.id), topics.getByRole('button', { name, exact: true }).click()]);
       assert(changed.ok(), 'topic toggle failed with an obsolete edit version');
@@ -218,7 +219,8 @@ const pass = why => { report.checks.push(why); save(); console.log('PASS', why);
         }
       }
       await t.getByRole('button', { name: '整组发布', exact: true }).click();
-      await t.getByRole('heading', { name: '已统一发布 · 2/2', exact: true }).waitFor();
+      await t.locator('.workspace-heading .ui-status-tag').filter({hasText: /^已统一发布$/}).waitFor();
+      await t.locator('.workspace-heading .ui-meta-tag').filter({hasText: /^已确认 2\/2$/}).waitFor();
     }
     batch = await tc('GET', bp);
     assert(batch.batch.state === 'released', 'batch not released');

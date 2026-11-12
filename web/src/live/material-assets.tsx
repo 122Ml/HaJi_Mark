@@ -6,6 +6,7 @@ import { Feedback, useAction, useLearning, useLiveQuery } from "./context";
 import { WorkflowJob } from "./workflow-job";
 import { RichContent, type Asset } from "./content-render";
 import { DraftNotice, useEditorDraft } from "./editing";
+import { MetaTag, MetaTags, StatusTag } from "../shared/ui";
 
 type Revision = {
   id: string;
@@ -228,11 +229,12 @@ function AssetEditor({
           ]}
         />
       )}
-      <p className="live-meta">
-        {latest
-          ? `转写修订 ${latest.revision} · ${latest.state === "confirmed" ? "已确认" : "待核对"}`
-          : "尚无转写"}
-      </p>
+      <MetaTags>
+        {latest ? <>
+          <StatusTag status={latest.state} label={latest.state === "confirmed" ? "已确认" : "待核对"} />
+          <MetaTag>转写修订 {latest.revision}</MetaTag>
+        </> : <MetaTag>尚无转写</MetaTag>}
+      </MetaTags>
       {editable && (
         <>
           <WorkflowJob
@@ -289,10 +291,10 @@ function AssetEditor({
                 <>
                   {revisions.map((r) => (
                     <article className="rag-hit" key={r.id}>
-                      <strong>
-                        修订 {r.revision} ·{" "}
-                        {r.state === "confirmed" ? "已确认" : "模型候选"}
-                      </strong>
+                      <MetaTags>
+                        <MetaTag>修订 {r.revision}</MetaTag>
+                        <StatusTag status={r.state} label={r.state === "confirmed" ? "已确认" : "模型候选"} />
+                      </MetaTags>
                       <RichContent text={r.body} />
                     </article>
                   ))}

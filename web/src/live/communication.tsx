@@ -3,6 +3,7 @@ import { Card, Form, Select, Input, Button } from "antd";
 import { useState } from "react";
 import { useSession } from "../shared/session";
 import { useAction, useLiveQuery, Feedback, when } from "./context";
+import { EmptyState, LoadingState, MetaTag, MetaTags } from "../shared/ui";
 interface Post {
   id: string;
   kind: string;
@@ -109,9 +110,11 @@ export function InteractionPage() {
                 }[p.kind]}
             </h2>}>
 
-            <p className="live-meta">
-              {p.author_name} · {when(p.created_at)}
-            </p>
+            <MetaTags>
+              <MetaTag>{{ announcement: "公告", question: "提问", discussion: "讨论" }[p.kind]}</MetaTag>
+              <span className="live-meta">{p.author_name}</span>
+              <span className="live-meta">{when(p.created_at)}</span>
+            </MetaTags>
             <p className="live-prose">{p.content}</p>
             {query.data
               ?.filter((r) => r.parent_id === p.id)
@@ -136,7 +139,7 @@ export function InteractionPage() {
             </Button>
           </Card>
         ))}
-      {!query.data?.length && <p>还没有课程互动。</p>}
+      {query.isPending ? <LoadingState /> : !query.error && !query.data?.length && <Card className="card-panel"><EmptyState title="还没有课程互动" /></Card>}
     </div>
   );
 }

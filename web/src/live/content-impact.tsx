@@ -1,7 +1,8 @@
 import { Field } from "../shared/Field";
 import { Card, Button, Select, Input } from "antd";
 import { useState } from "react";
-import { Feedback, Link, useAction, useLiveQuery } from "./context";
+import { Feedback, Link, names as stateNames, useAction, useLiveQuery } from "./context";
+import { EmptyState, LoadingState, MetaTag, MetaTags, StatusTag } from "../shared/ui";
 import { DecisionHistory } from "./content-topics";
 
 type Change = {
@@ -67,15 +68,15 @@ export function ContentImpactPage() {
       </header>
       <Feedback error={q.error} />
       <Card className="card-panel">
-        {q.data?.changes.length ? (
+        {q.isPending ? <LoadingState /> : q.data?.changes.length ? (
           q.data.changes.map((c) => (
             <div key={c.id} className="live-row">
               <div>
                 <h2>{c.title}</h2>
-                <p>
-                  v{c.version} ·{" "}
-                  {c.state === "archived" ? "已归档" : "版本／许可变更"}
-                </p>
+                <MetaTags>
+                  <StatusTag status={c.state} label={c.state === "archived" ? "已归档" : "版本／许可变更"} />
+                  <MetaTag>v{c.version}</MetaTag>
+                </MetaTags>
               </div>
               <Button
                 onClick={() => {
@@ -88,7 +89,7 @@ export function ContentImpactPage() {
             </div>
           ))
         ) : (
-          <p>暂无内容变更</p>
+          <EmptyState title="暂无内容变更" />
         )}
       </Card>
       {selected && (
@@ -97,17 +98,17 @@ export function ContentImpactPage() {
           {q.data?.items.map((i) => (
             <div className="live-row" key={`${i.kind}:${i.id}`}>
               <div>
-                <strong>
-                  {names[i.kind]} · {i.title}
-                </strong>
-                <p>
-                  v{i.version} · {i.state}
-                </p>
+                <h3>{i.title}</h3>
+                <MetaTags>
+                  <StatusTag status={i.state} label={stateNames[i.state] || i.state} />
+                  <MetaTag>{names[i.kind]}</MetaTag>
+                  <MetaTag>v{i.version}</MetaTag>
+                </MetaTags>
               </div>
               <Link to={path(i)}>查看</Link>
             </div>
           ))}
-          {!q.data?.items.length && <p>未查到关联内容</p>}
+          {!q.data?.items.length && <EmptyState title="未查到关联内容" />}
           <Field className="ui-field" label={<>处理决定</>}>
             <Select
               aria-label="处理决定"

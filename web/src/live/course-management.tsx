@@ -4,7 +4,7 @@ import { Tabs, Input, Pagination, Card, Form, Button, Collapse, List, Alert } fr
 import { useSearchParams } from "react-router-dom";
 import { useSession } from "../shared/session";
 import { requestJSON } from "../shared/api";
-import { EmptyState, ErrorState } from "../shared/ui";
+import { EmptyState, ErrorState, MetaTag, MetaTags, StatusTag } from "../shared/ui";
 import {
   Feedback,
   Link,
@@ -93,9 +93,10 @@ export function CourseManagement() {
           <article className="live-row" key={c.id}>
             <div>
               <h2>{c.title}</h2>
-              <span className="live-meta">
-                {names[c.status]} · {c.knowledge_point_count}个知识点
-              </span>
+              <MetaTags>
+                <StatusTag status={c.status} label={names[c.status]} />
+                <MetaTag>{c.knowledge_point_count} 个知识点</MetaTag>
+              </MetaTags>
             </div>
             <Button
               onClick={() => select(c.id)}

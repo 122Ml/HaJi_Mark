@@ -10,7 +10,19 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
 export function LoadingState({ label = "正在加载…" }: { label?: string }) {
   return <div className="state-block" role="status"><Spin /><span>{label}</span></div>;
 }
-const tones: Record<string, string> = { published: "success", released: "success", reviewed: "success", confirmed: "processing", assigned: "processing", submitted: "processing", draft: "warning", closed: "default" };
+const tones: Record<string, string> = {
+  published: "success", released: "success", reviewed: "success", confirmed: "success",
+  succeeded: "success", ready: "success", completed: "success", approved: "success",
+  assigned: "processing", submitted: "processing", running: "processing", parsing: "processing", active: "processing",
+  draft: "warning", pending: "warning", queued: "warning", needs_review: "warning", partial: "warning",
+  failed: "error", rejected: "error", withdrawn: "error",
+};
 export function StatusTag({ status, label }: { status: string; label: string }) {
-  return <Tag color={tones[status] || "default"}>{label}</Tag>;
+  return <Tag className="ui-status-tag" color={tones[status] || "default"}>{label}</Tag>;
+}
+export function MetaTag({ children }: { children: ReactNode }) {
+  return <Tag className="ui-meta-tag">{children}</Tag>;
+}
+export function MetaTags({ children }: { children: ReactNode }) {
+  return <div className="ui-meta-tags">{children}</div>;
 }

@@ -13,7 +13,7 @@ import {
   when,
 } from "./context";
 import { useEditorDraft, DraftNotice } from "./editing";
-import { LoadingState, ErrorState, StatusTag, EmptyState } from "../shared/ui";
+import { LoadingState, ErrorState, StatusTag, EmptyState, MetaTag, MetaTags } from "../shared/ui";
 import type { Resource } from "./course";
 import type { Assignment, Submission, Question } from "./assessment";
 interface Intervention {
@@ -68,13 +68,6 @@ export function InterventionPage() {
   );
   return (
     <div className="live-page">
-      <div className="page-actions">
-        teacher && (
-        <Button onClick={() => setCreating(true)} type="primary">
-          新建补学补练任务
-        </Button>
-        )
-      </div>
       <div className="list-toolbar">
         <Input.Search
           aria-label="搜索任务"
@@ -105,6 +98,11 @@ export function InterventionPage() {
         {student && (
           <Button onClick={() => patch({ student: "" })}>查看全部学生</Button>
         )}
+        {teacher && (
+          <Button className="toolbar-primary" onClick={() => setCreating(true)} type="primary">
+            新建补学补练任务
+          </Button>
+        )}
       </div>
       {query.isPending ? (
         <LoadingState />
@@ -120,15 +118,12 @@ export function InterventionPage() {
             <article className="live-row" key={i.id}>
               <div>
                 <h2>{i.title}</h2>
-                <p>
-                  {teacher ? i.student_name : ""}{" "}
+                <MetaTags>
                   <StatusTag status={i.status} label={names[i.status]} />
-                </p>
-                <p>
-                  {i.resource_id ? "补学资料" : ""}
-                  {i.resource_id && i.assignment_id ? " ＋ " : ""}
-                  {i.assignment_id ? "补练作业" : ""}
-                </p>
+                  {teacher && <MetaTag>{i.student_name}</MetaTag>}
+                  {i.resource_id && <MetaTag>补学资料</MetaTag>}
+                  {i.assignment_id && <MetaTag>补练作业</MetaTag>}
+                </MetaTags>
               </div>
               <Button onClick={() => patch({ task: i.id })} type="primary">
                 {teacher

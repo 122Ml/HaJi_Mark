@@ -13,7 +13,7 @@ import {
 import { Link } from "./context";
 import { useEditorDraft, DraftNotice } from "./editing";
 import { KnowledgeGraph } from "./graph";
-import { EmptyState, ErrorState, LoadingState, StatusTag } from "../shared/ui";
+import { EmptyState, ErrorState, LoadingState, StatusTag, MetaTag, MetaTags } from "../shared/ui";
 import { useSearchParams } from "react-router-dom";
 import { ResourceNotes } from "./notes";
 import { RichContent, PublishedAssets } from "./content-render";
@@ -183,9 +183,11 @@ export function CourseWorkspace() {
               )}
               {view ? (
                 <>
-                  <p className="live-meta">
-                    {view.locator} · v{view.version} · {when(view.published_at)}
-                  </p>
+                  <MetaTags>
+                    <MetaTag>v{view.version}</MetaTag>
+                    {view.locator && <MetaTag>{view.locator}</MetaTag>}
+                    <span className="live-meta">{when(view.published_at)}</span>
+                  </MetaTags>
                   <RichContent text={view.content} />
                   <PublishedAssets kind="resources" id={view.id} />
                   {!teacher && (
@@ -248,23 +250,25 @@ export function CourseWorkspace() {
                       <article className="live-row" key={r.id}>
                         <div>
                           <h3>{r.title}</h3>
-                          <p>
+                          <MetaTags>
                             <StatusTag
                               status={r.status}
                               label={names[r.status]}
-                            />{" "}
-                            {r.locator} · v{r.version}
-                          </p>
+                            />
+                            <MetaTag>v{r.version}</MetaTag>
+                            {r.locator && <MetaTag>{r.locator}</MetaTag>}
+                          </MetaTags>
                           {!teacher && (
-                            <small>
-                              {events.data?.some(
+                            <StatusTag
+                              status={events.data?.some(e => e.resource_id === r.id && e.verb === "completed") ? "completed" : "pending"}
+                              label={events.data?.some(
                                 (e) =>
                                   e.resource_id === r.id &&
                                   e.verb === "completed",
                               )
                                 ? "已完成学习"
                                 : "待学习"}
-                            </small>
+                            />
                           )}
                         </div>
                         <div className="live-inline">

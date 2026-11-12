@@ -36,7 +36,7 @@ const assert = (v, m) => { if (!v) throw Error(m); };
       t.getByRole('button', { name: '保存标准草稿', exact: true }).click()
     ]);
     const saved = (await savedResponse.json()).data;
-    await t.getByRole('heading', { name: `标准 v${saved.version} · 草稿`, exact: true }).waitFor();
+    await t.locator('.live-revision').filter({has: t.getByRole('heading', { name: `标准 v${saved.version}`, exact: true })}).locator('.ui-status-tag').filter({hasText: /^草稿$/}).waitFor();
     await t.screenshot({ path: path.join(root, '.local/rubric-standard.png'), fullPage: true });
     console.log('PASS: browser independently saved a new rubric draft; confirmed versions unchanged');
     await t.goto(`${base}/teacher/homework/submissions/${ids.submission_id}/grade`);

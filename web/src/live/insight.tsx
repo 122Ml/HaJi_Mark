@@ -1,6 +1,6 @@
 import { Field } from "../shared/Field";
-import { Table, Progress, Tabs, Input, Pagination, Button, Card, Select } from "antd";
-import { LoadingState, ErrorState } from "../shared/ui";
+import { Table, Progress, Tabs, Input, Pagination, Button, Card, Select, Statistic } from "antd";
+import { LoadingState, ErrorState, MetaTag, MetaTags, StatusTag } from "../shared/ui";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Link } from "./context";
@@ -282,29 +282,23 @@ export function OverviewPage() {
       )}
       <div className="live-metrics">
         <Card className="card-panel">
-          <span>{teacher && !studentFilter ? "课程学生" : "有效评分记录"}</span>
-          <strong>
-            {teacher && !studentFilter
+          <Statistic title={teacher && !studentFilter ? "课程学生" : "有效评分记录"}
+            value={teacher && !studentFilter
               ? overview.data?.length || 0
               : rows.length}
-          </strong>
+          />
         </Card>
         <Card className="card-panel">
-          <span>已发布作业</span>
-          <strong>
-            {assignments.data?.filter((a) => a.status === "published").length ||
+          <Statistic title="已发布作业"
+            value={assignments.data?.filter((a) => a.status === "published").length ||
               0}
-          </strong>
+          />
         </Card>
         <Card className="card-panel">
-          <span>正式结果表现</span>
-          <strong>
-            {max ? `${Math.round((score / max) * 100)}%` : "证据不足"}
-          </strong>
+          <Statistic title="正式结果表现" value={max ? Math.round((score / max) * 100) : "证据不足"} suffix={max ? "%" : undefined} />
         </Card>
         <Card className="card-panel">
-          <span>需复习记录</span>
-          <strong>{low.length}</strong>
+          <Statistic title="需复习记录" value={low.length} />
         </Card>
       </div>
       <Card className="card-panel knowledge-section" title={<h2>知识点表现</h2>}>
@@ -319,13 +313,12 @@ export function OverviewPage() {
               return (
                 <article key={p.id}>
                   <strong>{p.title}</strong>
-                  <span>
-                    {" "}
-                    ·{" "}
-                    {maximum
-                      ? `${Math.round((sum / maximum) * 100)}% · ${group.length}条有效结果`
-                      : "证据不足"}
-                  </span>
+                  <MetaTags>
+                    {maximum ? <>
+                      <MetaTag>{Math.round((sum / maximum) * 100)}%</MetaTag>
+                      <MetaTag>{group.length} 条有效结果</MetaTag>
+                    </> : <StatusTag status="pending" label="证据不足" />}
+                  </MetaTags>
                   {maximum > 0 && (
                     <Progress aria-label={`${p.title}表现`} percent={Math.round(sum / maximum * 100)} showInfo={false} size="small" />
                   )}
@@ -408,10 +401,11 @@ export function OverviewPage() {
             <article className="live-row" key={r.submission_id}>
               <div>
                 <h3>{r.prompt}</h3>
-                <p>
-                  {r.score}/ {r.max_score} · 第{r.attempt}次作答 ·{" "}
-                  {when(r.released_at)}
-                </p>
+                <MetaTags>
+                  <MetaTag>{r.score}/{r.max_score} 分</MetaTag>
+                  <MetaTag>第 {r.attempt} 次作答</MetaTag>
+                  <span className="live-meta">{when(r.released_at)}</span>
+                </MetaTags>
                 <p>{r.feedback}</p>
                 <RevisionPoints points={r.point_scores} />
                 {teacher && (

@@ -4,7 +4,7 @@ import { Button, Card, Select, Input, InputNumber, Alert } from "antd";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Feedback, Link, useAction, useLiveQuery } from "./context";
-import { LoadingState } from "../shared/ui";
+import { LoadingState, EmptyState, MetaTag, MetaTags, StatusTag } from "../shared/ui";
 import { ModelSelect, FrozenEvidence, useJob, type Job } from "./knowledge";
 import { DraftNotice, useEditorDraft } from "./editing";
 import { RichContent } from "./content-render";
@@ -76,14 +76,13 @@ export function RegradesPage() {
         />
       )}
       <Card className="card-panel">
-        {q.data?.length ? (
+        {q.isPending ? <LoadingState /> : q.data?.length ? (
           q.data.map((b) => (
             <div className="live-row" key={b.id}>
               <div>
-                <strong>{b.question_snapshot.prompt.slice(0, 100)}</strong>
-                <p>
-                  {b.reason} · {stateNames[b.state]}
-                </p>
+                <h3>{b.question_snapshot.prompt.slice(0, 100)}</h3>
+                <p>{b.reason}</p>
+                <StatusTag status={b.state} label={stateNames[b.state]} />
               </div>
               <Button
                 onClick={() => {
@@ -97,7 +96,7 @@ export function RegradesPage() {
             </div>
           ))
         ) : (
-          <p>暂无重评批次</p>
+          <EmptyState title="暂无重评批次" />
         )}
       </Card>
       {id && <RegradeDetail key={id} id={id} />}
@@ -317,9 +316,10 @@ function RegradeDetail({ id }: { id: string }) {
   return (
     <Card className="card-panel live-form">
       <div className="workspace-heading">
-        <h2>
-          {stateNames[d.batch.state]} · {done}/{d.items.length}
-        </h2>
+        <MetaTags>
+          <StatusTag status={d.batch.state} label={stateNames[d.batch.state]} />
+          <MetaTag>已确认 {done}/{d.items.length}</MetaTag>
+        </MetaTags>
         <div className="live-inline">
           <Button
             disabled={

@@ -6,6 +6,7 @@ import type { Revision } from "./assessment";
 import { useEffect, useState } from "react";
 import { Feedback, names, useAction, useLiveQuery } from "./context";
 import { AIDraft, FrozenEvidence, type Hit } from "./knowledge";
+import { MetaTag, MetaTags, StatusTag } from "../shared/ui";
 
 export interface Criterion {
   id: string;
@@ -76,7 +77,7 @@ export function RubricManager({
       items={[
         {
           key: "content",
-          label: <>逐点评分标准 · 满分 {maxScore}</>,
+          label: <MetaTags><span>逐点评分标准</span><MetaTag>满分 {maxScore}</MetaTag></MetaTags>,
           children: (
             <>
               <DraftNotice {...draft} />
@@ -100,9 +101,10 @@ export function RubricManager({
               </Button>
               {query.data?.slice(0, 1).map((r) => (
                 <article key={r.id} className="live-revision">
-                  <h4>
-                    标准 v{r.version} · {names[r.state]}
-                  </h4>
+                  <div className="section-head">
+                    <h4>标准 v{r.version}</h4>
+                    <StatusTag status={r.state} label={names[r.state]} />
+                  </div>
                   {r.criteria.map((p) => (
                     <p key={p.id}>
                       <strong>
@@ -148,9 +150,10 @@ export function RubricManager({
                         <>
                           {query.data?.slice(1).map((r) => (
                             <article key={r.id} className="live-revision">
-                              <h4>
-                                标准 v{r.version} · {names[r.state]}
-                              </h4>
+                              <div className="section-head">
+                                <h4>标准 v{r.version}</h4>
+                                <StatusTag status={r.state} label={names[r.state]} />
+                              </div>
                               {r.criteria.map((p) => (
                                 <p key={p.id}>
                                   {p.title}（{p.max_score}分）：{p.rule}

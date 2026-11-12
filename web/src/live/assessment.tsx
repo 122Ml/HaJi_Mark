@@ -17,7 +17,7 @@ import { requestJSON } from "../shared/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { reviewNames, type QueueItem } from "./grading";
 import type { Point, Resource } from "./course";
-import { EmptyState, ErrorState, LoadingState, StatusTag } from "../shared/ui";
+import { EmptyState, ErrorState, LoadingState, StatusTag, MetaTag, MetaTags } from "../shared/ui";
 import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Link, useCourseNavigate as useNavigate } from "./context";
@@ -107,16 +107,6 @@ export function AssignmentList({ quiz = false }: { quiz?: boolean }) {
   }
   return (
     <div className="live-page">
-      <div className="page-actions">
-        teacher && (
-        <Link
-          className="primary-link"
-          to={quiz ? "/teacher/quiz/new" : "/teacher/homework/new"}
-        >
-          {quiz ? "新建测验" : "新建作业"}
-        </Link>
-        )
-      </div>
       <div className="list-toolbar">
         <Input.Search
           aria-label="搜索作业"
@@ -150,6 +140,11 @@ export function AssignmentList({ quiz = false }: { quiz?: boolean }) {
             清除知识点筛选
           </Button>
         )}
+        {teacher && (
+          <Link className="primary-link toolbar-primary" to={quiz ? "/teacher/quiz/new" : "/teacher/homework/new"}>
+            {quiz ? "新建测验" : "新建作业"}
+          </Link>
+        )}
       </div>
       <Feedback message={action.message} failed={action.failed} />
       {query.error ? (
@@ -175,7 +170,7 @@ export function AssignmentList({ quiz = false }: { quiz?: boolean }) {
         <Card className="card-panel">
           <div className="section-head">
             <h2>{quiz ? "全部测验" : "全部作业"}</h2>
-            <span className="live-meta">共 {query.data?.total || 0}项</span>
+            <MetaTag>共 {query.data?.total || 0} 项</MetaTag>
           </div>
           {list.map((a) => (
             <article className="live-row" key={a.id}>
@@ -183,9 +178,10 @@ export function AssignmentList({ quiz = false }: { quiz?: boolean }) {
                 <h3>{a.title}</h3>
                 {a.description && <p>{a.description}</p>}
                 {!teacher && (
-                  <p className="assignment-progress">
-                    <strong>
-                      {a.feedback_count
+                  <MetaTags>
+                    <StatusTag
+                      status={a.feedback_count ? "released" : a.submitted_count ? (a.submitted_count === a.question_count ? "submitted" : "partial") : a.draft_count ? "draft" : "not_started"}
+                      label={a.feedback_count
                         ? "反馈已发布"
                         : a.submitted_count
                           ? a.submitted_count === a.question_count
@@ -194,15 +190,16 @@ export function AssignmentList({ quiz = false }: { quiz?: boolean }) {
                           : a.draft_count
                             ? "草稿"
                             : "未开始"}
-                    </strong>{" "}
-                    · 已提交 {a.submitted_count}/ {a.question_count}题 ·{" "}
-                    {a.feedback_count}题有反馈
-                  </p>
+                    />
+                    <MetaTag>已提交 {a.submitted_count}/{a.question_count} 题</MetaTag>
+                    <MetaTag>{a.feedback_count} 题有反馈</MetaTag>
+                  </MetaTags>
                 )}
-                <p className="live-meta">
+                <MetaTags>
                   <StatusTag status={a.status} label={names[a.status]} />
-                  满分 {a.max_score} · 截止 {when(a.due_at)}
-                </p>
+                  <MetaTag>满分 {a.max_score}</MetaTag>
+                  <span className="live-meta">截止 {when(a.due_at)}</span>
+                </MetaTags>
               </div>
               <div className="live-inline">
                 <Link
@@ -743,19 +740,20 @@ export function AssignmentDetail() {
             children: (
               <>
                 {submissions.data?.map((s) => (
-                  <p key={s.id}>
-                    <Link
-                      to={`/${teacher ? "teacher" : "student"}/homework/submissions/${s.id}/${teacher ? "grade" : "feedback"}`}
-                    >
-                      {
-                        query.data?.questions.find(
-                          (q) => q.id === s.question_id,
-                        )?.prompt
-                      }{" "}
-                      · 第{s.attempt}次提交 · {when(s.submitted_at)} ·{" "}
-                      {names[s.status]}
-                    </Link>
-                  </p>
+                  <article className="live-row" key={s.id}>
+                    <div>
+                      <Link
+                        to={`/${teacher ? "teacher" : "student"}/homework/submissions/${s.id}/${teacher ? "grade" : "feedback"}`}
+                      >
+                        {query.data?.questions.find((q) => q.id === s.question_id)?.prompt}
+                      </Link>
+                      <MetaTags>
+                        <StatusTag status={s.status} label={names[s.status]} />
+                        <MetaTag>第 {s.attempt} 次提交</MetaTag>
+                        <span className="live-meta">{when(s.submitted_at)}</span>
+                      </MetaTags>
+                    </div>
+                  </article>
                 ))}
                 {!submissions.data?.length && <p>暂无提交记录。</p>}
               </>
@@ -1025,8 +1023,12 @@ export function SubmissionList() {
       <Feedback error={q.error || roster.error || detail.error} />
       {roster.data && (
         <section className="assignment-summary">
-          共 {roster.data.total}人 · 全部提交 {roster.data.submitted} · 部分提交{" "}
-          {roster.data.partial} · 未提交 {roster.data.not_submitted}
+          <MetaTags>
+            <MetaTag>共 {roster.data.total} 人</MetaTag>
+            <StatusTag status="submitted" label={`全部提交 ${roster.data.submitted}`} />
+            <StatusTag status="partial" label={`部分提交 ${roster.data.partial}`} />
+            <StatusTag status="pending" label={`未提交 ${roster.data.not_submitted}`} />
+          </MetaTags>
         </section>
       )}
       <Collapse
@@ -1038,12 +1040,12 @@ export function SubmissionList() {
             children: (
               <>
                 {roster.data?.rows.map((m) => (
-                  <p key={m.student_id}>
+                  <div className="live-row" key={m.student_id}>
                     <Link to={`/teacher/dashboard?student=${m.student_id}`}>
                       {m.display_name}
-                    </Link>{" "}
-                    · {m.submitted_questions}/ {m.total_questions}题
-                  </p>
+                    </Link>
+                    <MetaTag>{m.submitted_questions}/{m.total_questions} 题</MetaTag>
+                  </div>
                 ))}
               </>
             ),
@@ -1084,7 +1086,7 @@ export function SubmissionList() {
                 { title: "题目", dataIndex: "prompt", ellipsis: true },
                 { title: "次数", dataIndex: "attempt" },
                 { title: "时间", dataIndex: "submitted_at", render: (value: string) => when(value) },
-                { title: "状态", dataIndex: "review_state", render: (value: string) => reviewNames[value] },
+                { title: "状态", dataIndex: "review_state", render: (value: string) => <StatusTag status={value} label={reviewNames[value]} /> },
                 { title: "操作", key: "actions", render: (_, s) => <Link to={`/teacher/homework/submissions/${s.id}/grade?${params}`}>批改详情</Link> },
               ]}
             />

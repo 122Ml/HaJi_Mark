@@ -25,7 +25,7 @@ import {
   names,
   when,
 } from "./context";
-import { LoadingState, ErrorState, StatusTag } from "../shared/ui";
+import { LoadingState, ErrorState, StatusTag, MetaTag, MetaTags } from "../shared/ui";
 import { PointGradeForm, RevisionPoints, type RubricVersion } from "./rubrics";
 import { useEditorDraft, DraftNotice } from "./editing";
 import type { Question, Submission, Revision } from "./assessment";
@@ -240,7 +240,7 @@ export function GradePage() {
               />
             ) : (
               <>
-                <p className="live-meta">共 {queue.data?.total || 0}份</p>
+                <MetaTag>共 {queue.data?.total || 0} 份</MetaTag>
                 {queue.data?.rows.map((r) => (
                   <Button
                     key={r.id}
@@ -249,9 +249,10 @@ export function GradePage() {
                     className={`queue-item ${r.id === submissionId ? "active" : ""}`}
                   >
                     <strong>{r.student_name}</strong>
-                    <span>
-                      {reviewNames[r.review_state]} · 第{r.attempt}次
-                    </span>
+                    <MetaTags>
+                      <StatusTag status={r.review_state} label={reviewNames[r.review_state]} />
+                      <MetaTag>第 {r.attempt} 次</MetaTag>
+                    </MetaTags>
                     <small>{r.prompt}</small>
                   </Button>
                 ))}
@@ -270,7 +271,7 @@ export function GradePage() {
         <Card className="card-panel grading-original" title={<h2>题目与原始作答</h2>}>
 
           <p>{data.question.prompt}</p>
-          <p className="live-meta">满分 {data.question.max_score}</p>
+          <MetaTags><MetaTag>满分 {data.question.max_score}</MetaTag></MetaTags>
           <article
             ref={original}
             className="live-prose original-answer"
@@ -521,10 +522,13 @@ export function GradePage() {
       >
         {data.revisions.map((r) => (
           <article className="live-revision" key={r.id}>
-            <h3>
-              修订 {r.revision} · {names[r.state]} · {r.score}/{" "}
-              {data.question.max_score}
-            </h3>
+            <div className="section-head">
+              <h3>修订 {r.revision}</h3>
+              <MetaTags>
+                <StatusTag status={r.state} label={names[r.state]} />
+                <MetaTag>{r.score}/{data.question.max_score} 分</MetaTag>
+              </MetaTags>
+            </div>
             <p>{r.feedback}</p>
             <RevisionPoints
               points={r.point_scores}

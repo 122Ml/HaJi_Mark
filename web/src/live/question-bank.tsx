@@ -4,7 +4,7 @@ import { FileUpload } from "../shared/FileUpload";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Drawer, Pagination, Tabs, Collapse, Button, Form, Input, Select, Card, Checkbox, InputNumber, Alert } from "antd";
-import { LoadingState, EmptyState, ErrorState, StatusTag } from "../shared/ui";
+import { LoadingState, EmptyState, ErrorState, StatusTag, MetaTag, MetaTags } from "../shared/ui";
 import {
   Link,
   Feedback,
@@ -351,7 +351,7 @@ export function QuestionBankPage() {
                 ))}
               </Select>
             </Field>
-            <span className="live-meta">{query.data?.total || 0}道题目</span>
+            <MetaTag>{query.data?.total || 0} 道题目</MetaTag>
           </div>
           {creating && (
             <Card className="card-panel">
@@ -375,13 +375,15 @@ export function QuestionBankPage() {
                 <article className="live-row" key={q.bank_id}>
                   <div>
                     <h2>{q.title}</h2>
-                    <p className="live-meta">
-                      {typeNames[q.type]} · v{q.version} · {q.max_score}分 ·{" "}
+                    <MetaTags>
                       <StatusTag
                         status={q.archived ? "closed" : q.state}
                         label={q.archived ? "已停用" : names[q.state]}
                       />
-                    </p>
+                      <MetaTag>{typeNames[q.type]}</MetaTag>
+                      <MetaTag>v{q.version}</MetaTag>
+                      <MetaTag>{q.max_score} 分</MetaTag>
+                    </MetaTags>
                   </div>
                   <Button onClick={() => select(q.bank_id)}>管理题目</Button>
                 </article>
@@ -563,9 +565,10 @@ function BankDetailView({ bankID }: { bankID: string }) {
               children: (
                 <>
                   <RichContent text={v.prompt} />
-                  <p className="live-meta">
-                    {typeNames[v.type]} · 满分 {v.max_score}
-                  </p>
+                  <MetaTags>
+                    <MetaTag>{typeNames[v.type]}</MetaTag>
+                    <MetaTag>满分 {v.max_score}</MetaTag>
+                  </MetaTags>
                   {v.requirements && (
                     <p className="live-prose">考查要求：{v.requirements}</p>
                   )}
@@ -657,15 +660,14 @@ function BankDetailView({ bankID }: { bankID: string }) {
                       <Link to={`/teacher/homework/${u.assignment_id}`}>
                         {u.title}
                       </Link>
-                      <p className="live-meta">
-                        题目 v
-                        {
+                      <MetaTags>
+                        <MetaTag>题目 v{
                           versions.find(
                             (v) => v.id === u.bank_question_version_id,
                           )?.version
-                        }{" "}
-                        · {names[u.status]}
-                      </p>
+                        }</MetaTag>
+                        <StatusTag status={u.status} label={names[u.status]} />
+                      </MetaTags>
                     </div>
                   </article>
                 ))
@@ -1425,9 +1427,10 @@ function BankStandards({
       {query.isPending && <LoadingState />}
       {query.data?.map((r) => (
         <article className="live-revision" key={r.id}>
-          <h3>
-            标准 v{r.version} · {names[r.state]}
-          </h3>
+          <div className="section-head">
+            <h3>标准 v{r.version}</h3>
+            <StatusTag status={r.state} label={names[r.state]} />
+          </div>
           {r.criteria.map((p) => (
             <div className="rag-hit" key={p.id}>
               <strong>

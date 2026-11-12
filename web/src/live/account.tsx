@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useSession } from "../shared/session";
 import { requestJSON } from "../shared/api";
 import { useLiveQuery, useAction, Feedback, when } from "./context";
+import { EmptyState, LoadingState } from "../shared/ui";
 export function ProfilePage() {
   const { session, refresh } = useSession();
   const navigate = useNavigate();
@@ -238,6 +239,7 @@ export function RecordsPage({ industry = false }: { industry?: boolean }) {
               编辑
             </Button>
             <Button
+              danger
               disabled={action.busy}
               onClick={async () => {
                 if (
@@ -265,7 +267,7 @@ export function RecordsPage({ industry = false }: { industry?: boolean }) {
           )}
         </Card>
       ))}
-      {!query.data?.length && <p>暂无记录。</p>}
+      {query.isPending ? <LoadingState /> : !query.error && !query.data?.length && <Card className="card-panel"><EmptyState title="暂无记录" /></Card>}
     </div>
   );
 }

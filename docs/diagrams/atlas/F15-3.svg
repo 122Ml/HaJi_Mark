@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2700" height="2827" viewBox="0 0 2700 2827" role="img" aria-labelledby="title desc">
+<title id="title">F15-3 AI 评分草稿：预算、快照与教师发布</title><desc id="desc">从上到下读取真实调用；实线请求、虚线返回；分支文字说明拒绝、回滚、重试与人工兜底。</desc>
+<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 1L9 5L0 9Z" fill="#85929B"/></marker></defs>
+<g font-family="Microsoft YaHei, sans-serif">
+<rect x="0" y="0" width="2700" height="2827" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="80" y="76" font-size="40" fill="#242424" font-weight="700" text-anchor="start" >F15-3　AI 评分草稿：预算、快照与教师发布</text>
+<text x="2620" y="76" font-size="22" fill="#58616A" font-weight="400" text-anchor="end" >2026-11-12 · 本地代码</text>
+<text x="80" y="130" font-size="25" fill="#58616A" font-weight="400" text-anchor="start" >从上到下读取真实调用；实线请求、虚线返回；分支文字说明拒绝、回滚、重试与人工兜底。</text>
+<text x="80" y="185" font-size="22" fill="#187653" font-weight="400" text-anchor="start" >时序分图 3/4</text>
+<rect x="90" y="338" width="2520" height="49" rx="10" fill="#E7EAE5" stroke="#C4CECA" />
+<text x="112" y="371" font-size="23" fill="#242424" font-weight="600" text-anchor="start" >A　API 重读固定输入；不接受客户端伪造标准</text>
+<rect x="90" y="832" width="2520" height="49" rx="10" fill="#E7EAE5" stroke="#C4CECA" />
+<text x="112" y="865" font-size="23" fill="#242424" font-weight="600" text-anchor="start" >B　真实调用与计费边界</text>
+<rect x="125" y="1022" width="2450" height="65" rx="10" fill="#FFF3E4" stroke="#E1C59E" />
+<text x="145" y="1054" font-size="22" fill="#8A622E" font-weight="400" text-anchor="start" >预算不足 / profile 无效 / 证据不符 → 失败，不伪造草稿，也不发正式评分。</text>
+<rect x="125" y="1444" width="2450" height="65" rx="10" fill="#FFF3E4" stroke="#E1C59E" />
+<text x="145" y="1476" font-size="22" fill="#8A622E" font-weight="400" text-anchor="start" >生成调用中断：超时孤儿 reserved 保守转 unknown 结算；任务 failed，等待显式重试，不自动重发。</text>
+<rect x="90" y="1546" width="2520" height="49" rx="10" fill="#E7EAE5" stroke="#C4CECA" />
+<text x="112" y="1579" font-size="23" fill="#242424" font-weight="600" text-anchor="start" >C　候选必须经过人工；job succeeded 不等于成绩发布</text>
+<rect x="45.0" y="240" width="350" height="82" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="220.0" y="291" font-size="25" fill="#FFFFFF" font-weight="650" text-anchor="middle" >教师浏览器</text>
+<line x1="220.0" y1="322" x2="220.0" y2="2567" stroke="#BCC7C6" stroke-width="2" stroke-dasharray="9 8"/>
+<rect x="610.0" y="240" width="350" height="82" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="785.0" y="291" font-size="25" fill="#242424" font-weight="650" text-anchor="middle" >API / learning</text>
+<line x1="785.0" y1="322" x2="785.0" y2="2567" stroke="#BCC7C6" stroke-width="2" stroke-dasharray="9 8"/>
+<rect x="1175.0" y="240" width="350" height="82" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="1350.0" y="291" font-size="25" fill="#242424" font-weight="650" text-anchor="middle" >PostgreSQL</text>
+<line x1="1350.0" y1="322" x2="1350.0" y2="2567" stroke="#BCC7C6" stroke-width="2" stroke-dasharray="9 8"/>
+<rect x="1740.0" y="240" width="350" height="82" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="1915.0" y="291" font-size="25" fill="#242424" font-weight="650" text-anchor="middle" >worker / rag</text>
+<line x1="1915.0" y1="322" x2="1915.0" y2="2567" stroke="#BCC7C6" stroke-width="2" stroke-dasharray="9 8"/>
+<rect x="2305.0" y="240" width="350" height="82" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2"/>
+<text x="2480.0" y="291" font-size="25" fill="#242424" font-weight="650" text-anchor="middle" >外部模型</text>
+<line x1="2480.0" y1="322" x2="2480.0" y2="2567" stroke="#BCC7C6" stroke-width="2" stroke-dasharray="9 8"/>
+<path d="M220.0,463 H785.0" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="502.5" y="449" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label">创建 kind=grade，选择 submission 与 rubric</text>
+<path d="M785.0,567 H1350.0" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="1067.5" y="553" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label">重读原文、哈希、题目、匹配 confirmed 标准</text>
+<path d="M785.0,671 H1350.0" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="1067.5" y="631" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label">持久化任务 input：AnswerHash + Criteria +</text>
+<text x="1067.5" y="657" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label">EvidenceRefs</text>
+<path d="M785.0,775 H1915.0" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="1350.0" y="761" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label">经 Redis/Asynq 投递 ID；worker 原子领取</text>
+<path d="M1915.0,957 H1350.0" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="1632.5" y="943" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label">校验输入；模型调用前预留预算</text>
+<path d="M1915.0,1171 H2480.0" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="2197.5" y="1157" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label">冻结题目、标准与原始答案 → 逐点草稿请求</text>
+<path d="M2480.0,1275 H1915.0" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)" stroke-dasharray="9 6"/>
+<text x="2197.5" y="1261" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label">逐点分、学生原句、依据和反馈 / 供应商错误</text>
+<path d="M1915.0,1379 H1350.0" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="1632.5" y="1365" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label">结算 model_calls；保存任务成功产物或失败</text>
+<path d="M220.0,1671 H785.0" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="502.5" y="1657" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label">轮询 GET job，读取草稿并核对原文 / 标准 / 依据</text>
+<path d="M785.0,1775 H220.0" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)" stroke-dasharray="9 6"/>
+<text x="502.5" y="1761" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label">返回任务输出供编辑，不暴露给学生</text>
+<path d="M220.0,1879 H785.0" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="502.5" y="1865" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label">POST submission revisions：逐点分、rubric、ai_job</text>
+<path d="M785.0,1983 H1350.0" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="1067.5" y="1969" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label">核对任务哈希、标准绑定、总分；锁定并追加 draft</text>
+<path d="M220.0,2087 H785.0" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="502.5" y="2073" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label">教师确认：POST revisions/:id/state confirmed</text>
+<path d="M785.0,2191 H1350.0" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="1067.5" y="2177" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label">仅最新 draft → confirmed；重查批次管理边界</text>
+<path d="M220.0,2295 H785.0" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="502.5" y="2281" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label">教师再单独发布：state released</text>
+<path d="M785.0,2399 H1350.0" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="1067.5" y="2385" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label">事务转 released 并标记 graded；保留旧修订</text>
+<path d="M785.0,2503 H220.0" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)" stroke-dasharray="9 6"/>
+<text x="502.5" y="2489" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label">正式结果供学生反馈 / CSV / 学情读取</text>
+<text x="80" y="2632" font-size="23" fill="#8A622E" font-weight="400" text-anchor="start" >AI 失败可人工评阅；规则形成不读待评答案，评分不临时检索追加扣分点。调用记录和引用不能替代教师语义审核。</text>
+<text x="80" y="2699" font-size="20" fill="#58616A" font-weight="400" text-anchor="start" >源码核查：materials.go:createRAGJob；rag/jobs.go:Draft；rag/models.go；learning/feedback.go:{grade,gradeState}</text>
+</g></svg>

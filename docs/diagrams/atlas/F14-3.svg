@@ -1,0 +1,414 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2700" height="2940" viewBox="0 0 2700 2940" role="img" aria-labelledby="title desc">
+<title id="title">F14-3 题库、作答、评价与重评：物理外键</title><desc id="desc">FK 子列 → 父表；? 可空，! 非空；同一对表的多个 FK 合并连线，完整列名保留在表框。。顶部跨域参照只作父表定位，不重复展开其出向关系。实线均为真实数据库 FK；JSON/数组引用和应用校验约束单独见图册说明。</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 1 L9 5 L0 9Z" fill="#85929B"/></marker></defs>
+<g font-family="Microsoft YaHei, sans-serif">
+<rect x="0" y="0" width="2700" height="2940" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="80" y="76" font-size="40" fill="#242424" font-weight="700" text-anchor="start" >F14-3　题库、作答、评价与重评：物理外键</text>
+<text x="2620" y="76" font-size="22" fill="#58616A" font-weight="400" text-anchor="end" >2026-11-12 · 本地工作树</text>
+<text x="80" y="125" font-size="25" fill="#58616A" font-weight="400" text-anchor="start" >FK 子列 → 父表；? 可空，! 非空；同一对表的多个 FK 合并连线，完整列名保留在表框。</text>
+<text x="80" y="177" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >教师深色 / AI橙色 / 数据蓝色 / 系统白色　　绿色标记：本地已接通　　灰色虚框：未实现</text>
+<text x="80" y="214" font-size="20" fill="#8A622E" font-weight="400" text-anchor="start" >箭头按本图语义表达；只代表代码路径与结构，不代表独立教师验收、模型正确性或公网部署。</text>
+<g class="edges">
+<g class="edge" data-from="answer_drafts" data-to="questions"><title>C07 answer_drafts → C06 questions：FK</title><path d="M610.0,2003.5 L632.0,2003.5 L632.0,1638 L2068.0,1638 L2068.0,1506.5 L2090.0,1506.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="answer_drafts" data-to="users"><title>C07 answer_drafts → A01 users：FK</title><path d="M345.0,1910 L345.0,1888 L728.0,1888 L728.0,1018 L1015.0,1018 L1015.0,996" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="assignments" data-to="courses"><title>C05 assignments → A03 courses：FK</title><path d="M1685.0,1365 L1685.0,1343 L632.0,1343 L632.0,473 L345.0,473 L345.0,451" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="assignments" data-to="users"><title>C05 assignments → A01 users：FK</title><path d="M1714.0,1365 L1714.0,1029 L1044.0,1029 L1044.0,996" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="bank_question_assets" data-to="material_assets"><title>C03 bank_question_assets → B03 material_assets：FK</title><path d="M345.0,1365 L345.0,1343 L655.0,1343 L655.0,473 L1685.0,473 L1685.0,451" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="bank_question_assets" data-to="bank_question_versions"><title>C03 bank_question_assets → C02 bank_question_versions：FK</title><path d="M610.0,1458.5 L632.0,1458.5 L632.0,1320 L2068.0,1320 L2068.0,929.5 L2090.0,929.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="bank_question_versions" data-to="question_bank"><title>C02 bank_question_versions → C01 question_bank：FK</title><path d="M2090.0,958.5 L1972.0,958.5 L1972.0,913.5 L1950.0,913.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="bank_question_versions" data-to="users"><title>C02 bank_question_versions → A01 users：FK</title><path d="M2090.0,900.5 L2068.0,900.5 L2068.0,798 L1302.0,798 L1302.0,908.0 L1280.0,908.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="bank_question_versions" data-to="knowledge_points"><title>C02 bank_question_versions → A05 knowledge_points：FK</title><path d="M2620.0,929.5 L2642.0,929.5 L2642.0,496 L728.0,496 L728.0,363.0 L750.0,363.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="grading_revisions" data-to="processing_jobs"><title>C09 grading_revisions → B13 processing_jobs：FK</title><path d="M1685.0,1910 L1685.0,1888 L2045.0,1888 L2045.0,473 L2355.0,473 L2355.0,451" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="grading_revisions" data-to="regrade_batches"><title>C09 grading_revisions → C10 regrade_batches：FK</title><path d="M1950.0,2051.5 L1972.0,2051.5 L1972.0,2035.5 L2090.0,2035.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="grading_revisions" data-to="users"><title>C09 grading_revisions → A01 users：FK</title><path d="M1714.0,1910 L1714.0,1888 L1302.0,1888 L1302.0,1018 L986.0,1018 L986.0,996" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="grading_revisions" data-to="rubric_versions"><title>C09 grading_revisions → C04 rubric_versions：FK</title><path d="M1656.0,1910 L1656.0,1661 L1015.0,1661 L1015.0,1616" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="grading_revisions" data-to="submissions"><title>C09 grading_revisions → C08 submissions：FK</title><path d="M1420.0,2051.5 L1398.0,2051.5 L1398.0,2035.5 L1280.0,2035.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="question_bank" data-to="courses"><title>C01 question_bank → A03 courses：FK</title><path d="M1950.0,942.5 L1972.0,942.5 L1972.0,775 L58.0,775 L58.0,363.0 L80.0,363.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="question_bank" data-to="users"><title>C01 question_bank → A01 users：FK</title><path d="M1420.0,913.5 L1398.0,913.5 L1398.0,937.0 L1280.0,937.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="questions" data-to="assignments"><title>C06 questions → C05 assignments：FK</title><path d="M2090.0,1535.5 L1972.0,1535.5 L1972.0,1458.5 L1950.0,1458.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="questions" data-to="bank_question_versions"><title>C06 questions → C02 bank_question_versions：FK</title><path d="M2355.0,1365 L2355.0,1039" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="questions" data-to="rubric_versions"><title>C06 questions → C04 rubric_versions：FK</title><path d="M2090.0,1477.5 L1995.0,1477.5 L1995.0,1564.5 L1325.0,1564.5 L1325.0,1490.5 L1280.0,1490.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="questions" data-to="knowledge_points"><title>C06 questions → A05 knowledge_points：FK</title><path d="M2384.0,1365 L2384.0,1052 L1325.0,1052 L1325.0,798 L1015.0,798 L1015.0,451" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="questions" data-to="resources"><title>C06 questions → A07 resources：FK</title><path d="M2620.0,1506.5 L2642.0,1506.5 L2642.0,1061 L58.0,1061 L58.0,908.0 L80.0,908.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="regrade_batches" data-to="courses"><title>C10 regrade_batches → A03 courses：FK</title><path d="M2355.0,1910 L2355.0,1670 L705.0,1670 L705.0,496 L374.0,496 L374.0,451" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="regrade_batches" data-to="users"><title>C10 regrade_batches → A01 users：FK</title><path d="M2384.0,1910 L2384.0,1693 L1375.0,1693 L1375.0,1041 L1073.0,1041 L1073.0,996" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="regrade_batches" data-to="questions"><title>C10 regrade_batches → C06 questions：FK</title><path d="M2326.0,1910 L2326.0,1670 L2355.0,1670 L2355.0,1648" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="regrade_batches" data-to="rubric_versions"><title>C10 regrade_batches → C04 rubric_versions：FK</title><path d="M2620.0,2035.5 L2642.0,2035.5 L2642.0,1865 L655.0,1865 L655.0,1490.5 L750.0,1490.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="regrade_items" data-to="processing_jobs"><title>C11 regrade_items → B13 processing_jobs：FK</title><path d="M345.0,2455 L345.0,2433 L1398.0,2433 L1398.0,1041 L1995.0,1041 L1995.0,775 L2384.0,775 L2384.0,451" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="regrade_items" data-to="regrade_batches"><title>C11 regrade_items → C10 regrade_batches：FK</title><path d="M610.0,2564.5 L2068.0,2564.5 L2068.0,2064.5 L2090.0,2064.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="regrade_items" data-to="submissions"><title>C11 regrade_items → C08 submissions：FK</title><path d="M374.0,2455 L374.0,2183 L1015.0,2183 L1015.0,2161" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="rubric_versions" data-to="bank_question_versions"><title>C04 rubric_versions → C02 bank_question_versions：FK</title><path d="M1280.0,1519.5 L1325.0,1519.5 L1325.0,1084 L1972.0,1084 L1972.0,987.5 L2090.0,987.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="rubric_versions" data-to="users"><title>C04 rubric_versions → A01 users：FK</title><path d="M1015.0,1365 L1015.0,1029 L957.0,1029 L957.0,996" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="rubric_versions" data-to="questions"><title>C04 rubric_versions → C06 questions：FK</title><path d="M1280.0,1461.5 L1302.0,1461.5 L1302.0,1574 L2068.0,1574 L2068.0,1564.5 L2090.0,1564.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="submissions" data-to="assignments"><title>C08 submissions → C05 assignments：FK</title><path d="M1015.0,1910 L1015.0,1888 L1325.0,1888 L1325.0,1597 L1685.0,1597 L1685.0,1552" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="submissions" data-to="courses"><title>C08 submissions → A03 courses：FK</title><path d="M1044.0,1910 L1044.0,1693 L38.0,1693 L38.0,473 L316.0,473 L316.0,451" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="submissions" data-to="questions"><title>C08 submissions → C06 questions：FK</title><path d="M1280.0,2064.5 L1302.0,2064.5 L1302.0,2206 L1972.0,2206 L1972.0,1506.5 L2068.0,1506.5 L2068.0,1448.5 L2090.0,1448.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="submissions" data-to="users"><title>C08 submissions → A01 users：FK</title><path d="M986.0,1910 L986.0,1661 L632.0,1661 L632.0,1458.5 L655.0,1458.5 L655.0,1084 L1095.0,1084 L1095.0,996" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+</g><g class="nodes">
+<g class="node" data-node="courses" data-role="external">
+<rect x="80.0" y="275" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">A03 courses</text>
+<rect x="507.0" y="261" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="552.0" y="282" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >跨域参照</text>
+<circle cx="107.0" cy="353" r="4" fill="#78818A"/>
+<text x="120.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">跨域父表，完整定义在对应分图</text>
+<circle cx="107.0" cy="385" r="4" fill="#78818A"/>
+<text x="120.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">被引用键保持数据库真实定义</text>
+</g>
+<g class="node" data-node="knowledge_points" data-role="external">
+<rect x="750.0" y="275" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">A05 knowledge_points</text>
+<rect x="1177.0" y="261" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="1222.0" y="282" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >跨域参照</text>
+<circle cx="777.0" cy="353" r="4" fill="#78818A"/>
+<text x="790.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">跨域父表，完整定义在对应分图</text>
+<circle cx="777.0" cy="385" r="4" fill="#78818A"/>
+<text x="790.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">被引用键保持数据库真实定义</text>
+</g>
+<g class="node" data-node="material_assets" data-role="external">
+<rect x="1420.0" y="275" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">B03 material_assets</text>
+<rect x="1847.0" y="261" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="1892.0" y="282" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >跨域参照</text>
+<circle cx="1447.0" cy="353" r="4" fill="#78818A"/>
+<text x="1460.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">跨域父表，完整定义在对应分图</text>
+<circle cx="1447.0" cy="385" r="4" fill="#78818A"/>
+<text x="1460.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">被引用键保持数据库真实定义</text>
+</g>
+<g class="node" data-node="processing_jobs" data-role="external">
+<rect x="2090.0" y="275" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">B13 processing_jobs</text>
+<rect x="2517.0" y="261" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="2562.0" y="282" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >跨域参照</text>
+<circle cx="2117.0" cy="353" r="4" fill="#78818A"/>
+<text x="2130.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">跨域父表，完整定义在对应分图</text>
+<circle cx="2117.0" cy="385" r="4" fill="#78818A"/>
+<text x="2130.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">被引用键保持数据库真实定义</text>
+</g>
+<g class="node" data-node="resources" data-role="external">
+<rect x="80.0" y="820" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="863" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">A07 resources</text>
+<rect x="507.0" y="806" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="552.0" y="827" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >跨域参照</text>
+<circle cx="107.0" cy="898" r="4" fill="#78818A"/>
+<text x="120.0" y="905" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">跨域父表，完整定义在对应分图</text>
+<circle cx="107.0" cy="930" r="4" fill="#78818A"/>
+<text x="120.0" y="937" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">被引用键保持数据库真实定义</text>
+</g>
+<g class="node" data-node="users" data-role="external">
+<rect x="750.0" y="820" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="863" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">A01 users</text>
+<rect x="1177.0" y="806" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="1222.0" y="827" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >跨域参照</text>
+<circle cx="777.0" cy="898" r="4" fill="#78818A"/>
+<text x="790.0" y="905" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">跨域父表，完整定义在对应分图</text>
+<circle cx="777.0" cy="930" r="4" fill="#78818A"/>
+<text x="790.0" y="937" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">被引用键保持数据库真实定义</text>
+</g>
+<g class="node" data-node="question_bank" data-role="data">
+<rect x="1420.0" y="820" width="530.0" height="187" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="863" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">C01 question_bank</text>
+<rect x="1847.0" y="806" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="827" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="1447.0" cy="898" r="4" fill="#187653"/>
+<text x="1460.0" y="905" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (id)</text>
+<circle cx="1447.0" cy="930" r="4" fill="#187653"/>
+<text x="1460.0" y="937" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! course_id → A03.id</text>
+<circle cx="1447.0" cy="962" r="4" fill="#187653"/>
+<text x="1460.0" y="969" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! created_by → A01.id</text>
+</g>
+<g class="node" data-node="bank_question_versions" data-role="data">
+<rect x="2090.0" y="820" width="530.0" height="219" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="863" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">C02 bank_question_versions</text>
+<rect x="2517.0" y="806" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="827" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="2117.0" cy="898" r="4" fill="#187653"/>
+<text x="2130.0" y="905" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (id)</text>
+<circle cx="2117.0" cy="930" r="4" fill="#187653"/>
+<text x="2130.0" y="937" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! bank_id → C01.id</text>
+<circle cx="2117.0" cy="962" r="4" fill="#187653"/>
+<text x="2130.0" y="969" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! created_by → A01.id</text>
+<circle cx="2117.0" cy="994" r="4" fill="#187653"/>
+<text x="2130.0" y="1001" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK? knowledge_point_id → A05.id</text>
+</g>
+<g class="node" data-node="bank_question_assets" data-role="data">
+<rect x="80.0" y="1365" width="530.0" height="187" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="1408" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">C03 bank_question_assets</text>
+<rect x="507.0" y="1351" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="1372" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="107.0" cy="1443" r="4" fill="#187653"/>
+<text x="120.0" y="1450" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (version_id, asset_id)</text>
+<circle cx="107.0" cy="1475" r="4" fill="#187653"/>
+<text x="120.0" y="1482" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! asset_id → B03.id</text>
+<circle cx="107.0" cy="1507" r="4" fill="#187653"/>
+<text x="120.0" y="1514" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! version_id → C02.id</text>
+</g>
+<g class="node" data-node="rubric_versions" data-role="data">
+<rect x="750.0" y="1365" width="530.0" height="251" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="1408" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">C04 rubric_versions</text>
+<rect x="1177.0" y="1351" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="1372" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="777.0" cy="1443" r="4" fill="#187653"/>
+<text x="790.0" y="1450" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (id)</text>
+<circle cx="777.0" cy="1475" r="4" fill="#187653"/>
+<text x="790.0" y="1482" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK? bank_question_version_id → C02.id</text>
+<circle cx="777.0" cy="1507" r="4" fill="#187653"/>
+<text x="790.0" y="1514" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! created_by → A01.id</text>
+<circle cx="777.0" cy="1539" r="4" fill="#187653"/>
+<text x="790.0" y="1546" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK? question_id → C06.id</text>
+<circle cx="777.0" cy="1571" r="4" fill="#187653"/>
+<text x="790.0" y="1578" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">两种归属 FK 恰有其一（XOR）</text>
+</g>
+<g class="node" data-node="assignments" data-role="data">
+<rect x="1420.0" y="1365" width="530.0" height="187" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="1408" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">C05 assignments</text>
+<rect x="1847.0" y="1351" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="1372" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="1447.0" cy="1443" r="4" fill="#187653"/>
+<text x="1460.0" y="1450" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (id)</text>
+<circle cx="1447.0" cy="1475" r="4" fill="#187653"/>
+<text x="1460.0" y="1482" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! course_id → A03.id</text>
+<circle cx="1447.0" cy="1507" r="4" fill="#187653"/>
+<text x="1460.0" y="1514" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! created_by → A01.id</text>
+</g>
+<g class="node" data-node="questions" data-role="data">
+<rect x="2090.0" y="1365" width="530.0" height="283" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="1408" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">C06 questions</text>
+<rect x="2517.0" y="1351" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="1372" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="2117.0" cy="1443" r="4" fill="#187653"/>
+<text x="2130.0" y="1450" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (id)</text>
+<circle cx="2117.0" cy="1475" r="4" fill="#187653"/>
+<text x="2130.0" y="1482" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! assignment_id → C05.id</text>
+<circle cx="2117.0" cy="1507" r="4" fill="#187653"/>
+<text x="2130.0" y="1514" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK? bank_question_version_id → C02.id</text>
+<circle cx="2117.0" cy="1539" r="4" fill="#187653"/>
+<text x="2130.0" y="1546" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK? bound_rubric_id → C04.id</text>
+<circle cx="2117.0" cy="1571" r="4" fill="#187653"/>
+<text x="2130.0" y="1578" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK? knowledge_point_id → A05.id</text>
+<circle cx="2117.0" cy="1603" r="4" fill="#187653"/>
+<text x="2130.0" y="1610" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK? resource_id → A07.id</text>
+</g>
+<g class="node" data-node="answer_drafts" data-role="data">
+<rect x="80.0" y="1910" width="530.0" height="187" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="1953" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">C07 answer_drafts</text>
+<rect x="507.0" y="1896" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="1917" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="107.0" cy="1988" r="4" fill="#187653"/>
+<text x="120.0" y="1995" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (student_id, question_id)</text>
+<circle cx="107.0" cy="2020" r="4" fill="#187653"/>
+<text x="120.0" y="2027" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! question_id → C06.id</text>
+<circle cx="107.0" cy="2052" r="4" fill="#187653"/>
+<text x="120.0" y="2059" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! student_id → A01.id</text>
+</g>
+<g class="node" data-node="submissions" data-role="data">
+<rect x="750.0" y="1910" width="530.0" height="251" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="1953" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">C08 submissions</text>
+<rect x="1177.0" y="1896" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="1917" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="777.0" cy="1988" r="4" fill="#187653"/>
+<text x="790.0" y="1995" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (id)</text>
+<circle cx="777.0" cy="2020" r="4" fill="#187653"/>
+<text x="790.0" y="2027" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! assignment_id → C05.id</text>
+<circle cx="777.0" cy="2052" r="4" fill="#187653"/>
+<text x="790.0" y="2059" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! course_id → A03.id</text>
+<circle cx="777.0" cy="2084" r="4" fill="#187653"/>
+<text x="790.0" y="2091" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! question_id → C06.id</text>
+<circle cx="777.0" cy="2116" r="4" fill="#187653"/>
+<text x="790.0" y="2123" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! student_id → A01.id</text>
+</g>
+<g class="node" data-node="grading_revisions" data-role="data">
+<rect x="1420.0" y="1910" width="530.0" height="283" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="1953" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">C09 grading_revisions</text>
+<rect x="1847.0" y="1896" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="1917" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="1447.0" cy="1988" r="4" fill="#187653"/>
+<text x="1460.0" y="1995" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (id)</text>
+<circle cx="1447.0" cy="2020" r="4" fill="#187653"/>
+<text x="1460.0" y="2027" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK? ai_job_id → B13.id</text>
+<circle cx="1447.0" cy="2052" r="4" fill="#187653"/>
+<text x="1460.0" y="2059" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK? regrade_batch_id → C10.id</text>
+<circle cx="1447.0" cy="2084" r="4" fill="#187653"/>
+<text x="1460.0" y="2091" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! reviewer_id → A01.id</text>
+<circle cx="1447.0" cy="2116" r="4" fill="#187653"/>
+<text x="1460.0" y="2123" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK? rubric_id → C04.id</text>
+<circle cx="1447.0" cy="2148" r="4" fill="#187653"/>
+<text x="1460.0" y="2155" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! submission_id → C08.id</text>
+</g>
+<g class="node" data-node="regrade_batches" data-role="data">
+<rect x="2090.0" y="1910" width="530.0" height="251" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="1953" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">C10 regrade_batches</text>
+<rect x="2517.0" y="1896" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="1917" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="2117.0" cy="1988" r="4" fill="#187653"/>
+<text x="2130.0" y="1995" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (id)</text>
+<circle cx="2117.0" cy="2020" r="4" fill="#187653"/>
+<text x="2130.0" y="2027" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! course_id → A03.id</text>
+<circle cx="2117.0" cy="2052" r="4" fill="#187653"/>
+<text x="2130.0" y="2059" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! created_by → A01.id</text>
+<circle cx="2117.0" cy="2084" r="4" fill="#187653"/>
+<text x="2130.0" y="2091" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! question_id → C06.id</text>
+<circle cx="2117.0" cy="2116" r="4" fill="#187653"/>
+<text x="2130.0" y="2123" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK? rubric_id → C04.id</text>
+</g>
+<g class="node" data-node="regrade_items" data-role="data">
+<rect x="80.0" y="2455" width="530.0" height="219" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="2498" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">C11 regrade_items</text>
+<rect x="507.0" y="2441" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="2462" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="107.0" cy="2533" r="4" fill="#187653"/>
+<text x="120.0" y="2540" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (batch_id, submission_id)</text>
+<circle cx="107.0" cy="2565" r="4" fill="#187653"/>
+<text x="120.0" y="2572" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK? ai_job_id → B13.id</text>
+<circle cx="107.0" cy="2597" r="4" fill="#187653"/>
+<text x="120.0" y="2604" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! batch_id → C10.id</text>
+<circle cx="107.0" cy="2629" r="4" fill="#187653"/>
+<text x="120.0" y="2636" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! submission_id → C08.id</text>
+</g>
+</g><g class="labels">
+<g class="edge-label" data-from="answer_drafts" data-to="questions">
+<rect x="642.0" y="1805.75" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="664.0" y="1827.75" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="answer_drafts" data-to="users">
+<rect x="514.5" y="1853" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="536.5" y="1875" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="assignments" data-to="courses">
+<rect x="1136.5" y="1308" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1158.5" y="1330" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="assignments" data-to="users">
+<rect x="1724.0" y="1182.0" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1746.0" y="1204.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="bank_question_assets" data-to="material_assets">
+<rect x="478.0" y="1308" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="500.0" y="1330" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="bank_question_assets" data-to="bank_question_versions">
+<rect x="642.0" y="1374.25" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="664.0" y="1396.25" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="bank_question_versions" data-to="question_bank">
+<rect x="2009.0" y="923.5" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2031.0" y="945.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="bank_question_versions" data-to="users">
+<rect x="2014.0" y="834.25" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2036.0" y="856.25" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="bank_question_versions" data-to="knowledge_points">
+<rect x="2588.0" y="697.75" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2610.0" y="719.75" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="grading_revisions" data-to="processing_jobs">
+<rect x="1843.0" y="1853" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1865.0" y="1875" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="grading_revisions" data-to="regrade_batches">
+<rect x="2009.0" y="2000.5" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2031.0" y="2022.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="grading_revisions" data-to="users">
+<rect x="1486.0" y="1853" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1508.0" y="1875" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="grading_revisions" data-to="rubric_versions">
+<rect x="1666.0" y="1770.5" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1688.0" y="1792.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="grading_revisions" data-to="submissions">
+<rect x="1317.0" y="2000.5" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1339.0" y="2022.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="question_bank" data-to="courses">
+<rect x="1982.0" y="877.25" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2004.0" y="899.25" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="question_bank" data-to="users">
+<rect x="1317.0" y="902.0" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1339.0" y="924.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="questions" data-to="assignments">
+<rect x="2009.0" y="1500.5" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2031.0" y="1522.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="questions" data-to="bank_question_versions">
+<rect x="2365.0" y="1187.0" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2387.0" y="1209.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="questions" data-to="rubric_versions">
+<rect x="2020.5" y="1442.5" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2042.5" y="1464.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="questions" data-to="knowledge_points">
+<rect x="2394.0" y="1256.1" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2416.0" y="1278.1" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="questions" data-to="resources">
+<rect x="2588.0" y="1268.75" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2610.0" y="1290.75" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="regrade_batches" data-to="courses">
+<rect x="2365.0" y="1775.0" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2387.0" y="1797.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="regrade_batches" data-to="users">
+<rect x="2394.0" y="1829.9" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2416.0" y="1851.9" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="regrade_batches" data-to="questions">
+<rect x="2272.0" y="1775.0" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2294.0" y="1797.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="regrade_batches" data-to="rubric_versions">
+<rect x="1626.5" y="1830" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1648.5" y="1852" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="regrade_items" data-to="processing_jobs">
+<rect x="849.5" y="2398" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="871.5" y="2420" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="regrade_items" data-to="regrade_batches">
+<rect x="1317.0" y="2529.5" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1339.0" y="2551.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="regrade_items" data-to="submissions">
+<rect x="384.0" y="2304.0" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="406.0" y="2326.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="rubric_versions" data-to="bank_question_versions">
+<rect x="1335.0" y="1286.75" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1357.0" y="1308.75" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="rubric_versions" data-to="users">
+<rect x="1025.0" y="1182.0" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1047.0" y="1204.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="rubric_versions" data-to="questions">
+<rect x="1312.0" y="1502.75" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1334.0" y="1524.75" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="submissions" data-to="assignments">
+<rect x="1148.0" y="1853" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1170.0" y="1875" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="submissions" data-to="courses">
+<rect x="1054.0" y="1786.5" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1076.0" y="1808.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="submissions" data-to="questions">
+<rect x="1312.0" y="2120.25" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1334.0" y="2142.25" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="submissions" data-to="users">
+<rect x="996.0" y="1770.5" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1018.0" y="1792.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+</g>
+<rect x="80" y="2734" width="2540" height="56" rx="10" fill="#EAE9E3" stroke="none" />
+<text x="103" y="2766" font-size="23" fill="#58616A" font-weight="400" text-anchor="start" >顶部跨域参照只作父表定位，不重复展开其出向关系。实线均为真实数据库 FK；JSON/数组引用和应用校验约束单独见图册说明。</text>
+<text x="80" y="2836" font-size="19" fill="#58616A" font-weight="400" text-anchor="start" >源码核查：schema.json；对应 00001–00012 迁移（生成时校验 SHA256）</text>
+<text x="80" y="2915" font-size="18" fill="#58616A" font-weight="400" text-anchor="start" >17 个节点 · 35 条关系　｜　细节见同编号分图；SVG 可搜索、放大，PNG 用于展示。</text>
+</g></svg>

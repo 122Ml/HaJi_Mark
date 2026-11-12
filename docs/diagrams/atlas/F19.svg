@@ -1,44 +1,253 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1540" height="1130" viewBox="0 0 1540 1130" role="img" aria-labelledby="title desc">
-<title id="title">F19 UML 包图：实现组织</title><desc id="desc">代码里怎么组织？</desc>
-<rect width="1540" height="1130" fill="#fbfcfb"/><rect width="12" height="1130" fill="#17816b"/>
-<text x="60" y="68" text-anchor="start" font-size="30" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">F19　UML 包图：实现组织</text>
-<text x="60" y="112" text-anchor="start" font-size="21" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">代码里怎么组织？</text>
-<text x="60" y="151" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#17816b">本地代码状态 · 2026-11-12</text>
-<rect x="80" y="220" width="650" height="315" rx="8" fill="#f5f8f7" stroke="#a7b9bf" stroke-width="2"/>
-<text x="104" y="263" text-anchor="start" font-size="23" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">web / React</text>
-<rect x="104" y="285" width="600" height="58" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="404.0" y="321.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">app：角色路由、主题</text>
-<rect x="104" y="361" width="600" height="58" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="404.0" y="397.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">live：业务页面</text>
-<rect x="104" y="437" width="600" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="404.0" y="473.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">shared：会话、API客户端</text>
-<rect x="805" y="220" width="650" height="315" rx="8" fill="#f5f8f7" stroke="#a7b9bf" stroke-width="2"/>
-<text x="829" y="263" text-anchor="start" font-size="23" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">backend / Go</text>
-<rect x="829" y="285" width="600" height="58" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="1129.0" y="321.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">server：路由装配</text>
-<rect x="829" y="361" width="600" height="58" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="1129.0" y="397.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">identity：会话授权</text>
-<rect x="829" y="437" width="600" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1129.0" y="473.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">learning / rag：业务处理</text>
-<rect x="80" y="595" width="650" height="315" rx="8" fill="#f5f8f7" stroke="#a7b9bf" stroke-width="2"/>
-<text x="104" y="638" text-anchor="start" font-size="23" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">backend / 数据</text>
-<rect x="104" y="660" width="600" height="58" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="404.0" y="696.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">db/queries：SQL</text>
-<rect x="104" y="736" width="600" height="58" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="404.0" y="772.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">internal/store：sqlc生成</text>
-<rect x="104" y="812" width="600" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="404.0" y="848.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">db/migrations：结构版本</text>
-<rect x="805" y="595" width="650" height="315" rx="8" fill="#f5f8f7" stroke="#a7b9bf" stroke-width="2"/>
-<text x="829" y="638" text-anchor="start" font-size="23" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">运行入口</text>
-<rect x="829" y="660" width="600" height="58" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="1129.0" y="696.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">cmd/api、cmd/worker</text>
-<rect x="829" y="736" width="600" height="58" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="1129.0" y="772.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">tools/parser：Python解析</text>
-<rect x="829" y="812" width="600" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1129.0" y="848.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">Compose：本地与公网配置</text>
-<line x1="730" y1="375" x2="805" y2="375" stroke="#829ba1" stroke-width="2"/>
-<text x="767.5" y="365.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">HTTP调用</text>
-<path d="M796 369 L805 375 L796 381" fill="none" stroke="#829ba1" stroke-width="2"/>
-<text x="60" y="1035" text-anchor="start" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">证据：web/src/app；web/src/live；web/src/shared；backend/internal；backend/db；backend/cmd</text>
-<text x="60" y="1072" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#9b6330">边界：Go 项目用包与处理器组织；此图不是虚构的面向对象类层次。</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="2700" height="1797" viewBox="0 0 2700 1797" role="img" aria-labelledby="title desc">
+<title id="title">F19 UML 包图：代码组织与依赖</title><desc id="desc">用真实 Go 包、React 模块和生成关系说明实现组织，避免虚构类继承与微服务。。箭头是 imports / uses / generates / runs 等依赖，HTTP 与子进程明确标注。Go 包与文件分工不被误画为面向对象类继承。</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 1 L9 5 L0 9Z" fill="#85929B"/></marker></defs>
+<g font-family="Microsoft YaHei, sans-serif">
+<rect x="0" y="0" width="2700" height="1797" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="80" y="76" font-size="40" fill="#242424" font-weight="700" text-anchor="start" >F19　UML 包图：代码组织与依赖</text>
+<text x="2620" y="76" font-size="22" fill="#58616A" font-weight="400" text-anchor="end" >2026-11-12 · 本地工作树</text>
+<text x="80" y="125" font-size="25" fill="#58616A" font-weight="400" text-anchor="start" >用真实 Go 包、React 模块和生成关系说明实现组织，避免虚构类继承与微服务。</text>
+<text x="80" y="177" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >教师深色 / AI橙色 / 数据蓝色 / 系统白色　　绿色标记：本地已接通　　灰色虚框：未实现</text>
+<text x="80" y="214" font-size="20" fill="#8A622E" font-weight="400" text-anchor="start" >箭头按本图语义表达；只代表代码路径与结构，不代表独立教师验收、模型正确性或公网部署。</text>
+<g class="edges">
+<g class="edge" data-from="app" data-to="live"><title>«package» web/src/app → «package» web/src/live：imports / routes</title><path d="M610.0,363.0 L750.0,363.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="app" data-to="shared"><title>«package» web/src/app → «package» web/src/shared：imports</title><path d="M610.0,392.0 L632.0,392.0 L632.0,473 L1398.0,473 L1398.0,363.0 L1420.0,363.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="live" data-to="shared"><title>«package» web/src/live → «package» web/src/shared：imports</title><path d="M1280.0,363.0 L1302.0,363.0 L1302.0,392.0 L1420.0,392.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="shared" data-to="server"><title>«package» web/src/shared → «package» internal/server：HTTP /api/v1</title><path d="M1950.0,363.0 L1972.0,363.0 L1972.0,613 L728.0,613 L728.0,723.0 L750.0,723.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="api" data-to="server"><title>«executable» backend/cmd/api → «package» internal/server：initializes</title><path d="M610.0,723.0 L632.0,723.0 L632.0,752.0 L750.0,752.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="server" data-to="identity"><title>«package» internal/server → «package» internal/identity：registers</title><path d="M1280.0,723.0 L1420.0,723.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="server" data-to="learning"><title>«package» internal/server → «package» internal/learning：registers</title><path d="M1280.0,752.0 L1302.0,752.0 L1302.0,833 L2068.0,833 L2068.0,723.0 L2090.0,723.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="learning" data-to="identity"><title>«package» internal/learning → «package» internal/identity：auth helpers</title><path d="M2090.0,752.0 L1972.0,752.0 L1972.0,723.0 L1950.0,723.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="learning" data-to="rag"><title>«package» internal/learning → «package» internal/rag：uses Service</title><path d="M2620.0,723.0 L2642.0,723.0 L2642.0,973 L728.0,973 L728.0,1088.5 L750.0,1088.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="worker" data-to="rag"><title>«executable» cmd/worker → «package» internal/rag：Process / Recover</title><path d="M610.0,1083.0 L632.0,1083.0 L632.0,1117.5 L750.0,1117.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="identity" data-to="store"><title>«package» internal/identity → «generated» internal/store：uses Queries</title><path d="M1685.0,811 L1685.0,995" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="learning" data-to="store"><title>«package» internal/learning → «generated» internal/store：uses Queries</title><path d="M2620.0,752.0 L2662.0,752.0 L2662.0,950 L1398.0,950 L1398.0,1083.0 L1420.0,1083.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="rag" data-to="store"><title>«package» internal/rag → «generated» internal/store：uses Queries</title><path d="M1280.0,1088.5 L1302.0,1088.5 L1302.0,1112.0 L1420.0,1112.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="db" data-to="store"><title>«source» db/queries + migrations → «generated» internal/store：sqlc generates</title><path d="M2090.0,1088.5 L2068.0,1088.5 L2068.0,1083.0 L1950.0,1083.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="store" data-to="pg"><title>«generated» internal/store → «external» pgx / PostgreSQL：executes SQL</title><path d="M1685.0,1171 L1685.0,1355" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="rag" data-to="parser"><title>«package» internal/rag → «tool» tools/parser：spawns</title><path d="M1280.0,1117.5 L1302.0,1117.5 L1302.0,1333 L58.0,1333 L58.0,1443.0 L80.0,1443.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="rag" data-to="vendor"><title>«package» internal/rag → «external» 模型 HTTP 服务：HTTP calls</title><path d="M1015.0,1182 L1015.0,1355" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="compose" data-to="api"><title>«deployment» Docker Compose → «executable» backend/cmd/api：runs</title><path d="M2620.0,1443.0 L2642.0,1443.0 L2642.0,1204 L58.0,1204 L58.0,723.0 L80.0,723.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="compose" data-to="worker"><title>«deployment» Docker Compose → «executable» cmd/worker：runs</title><path d="M2620.0,1472.0 L2662.0,1472.0 L2662.0,1216 L38.0,1216 L38.0,1083.0 L80.0,1083.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="compose" data-to="app"><title>«deployment» Docker Compose → «package» web/src/app：builds Web</title><path d="M2620.0,1414.0 L2665.0,1414.0 L2665.0,484 L58.0,484 L58.0,363.0 L80.0,363.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+</g><g class="nodes">
+<g class="node" data-node="app" data-role="system">
+<rect x="80.0" y="275" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">«package» web/src/app</text>
+<rect x="507.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="107.0" cy="353" r="4" fill="#187653"/>
+<text x="120.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">App / Login / navigation / theme</text>
+<circle cx="107.0" cy="385" r="4" fill="#187653"/>
+<text x="120.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">装配会话、角色布局与 live 路由</text>
+</g>
+<g class="node" data-node="live" data-role="system">
+<rect x="750.0" y="275" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">«package» web/src/live</text>
+<rect x="1177.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="777.0" cy="353" r="4" fill="#187653"/>
+<text x="790.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">routes / context 与师生业务页面</text>
+<circle cx="777.0" cy="385" r="4" fill="#187653"/>
+<text x="790.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">materials、knowledge、assessment 等</text>
+</g>
+<g class="node" data-node="shared" data-role="system">
+<rect x="1420.0" y="275" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">«package» web/src/shared</text>
+<rect x="1847.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="1447.0" cy="353" r="4" fill="#187653"/>
+<text x="1460.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">api / session / ui 等共享部件</text>
+<circle cx="1447.0" cy="385" r="4" fill="#187653"/>
+<text x="1460.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">统一网络、登录态和通用控件</text>
+</g>
+<g class="node" data-node="replica" data-role="external">
+<rect x="2090.0" y="275" width="530.0" height="187" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">«historical» web/src/replica</text>
+<rect x="2517.0" y="261" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="2562.0" y="282" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >外部边界</text>
+<circle cx="2117.0" cy="353" r="4" fill="#78818A"/>
+<text x="2130.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">历史复刻源码和目录模板</text>
+<circle cx="2117.0" cy="385" r="4" fill="#78818A"/>
+<text x="2130.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">不作为当前活动业务路由</text>
+<circle cx="2117.0" cy="417" r="4" fill="#78818A"/>
+<text x="2130.0" y="424" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">localStorage 演示不视为数据库事实</text>
+</g>
+<g class="node" data-node="api" data-role="system">
+<rect x="80.0" y="635" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="678" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">«executable» backend/cmd/api</text>
+<rect x="507.0" y="621" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="642" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="107.0" cy="713" r="4" fill="#187653"/>
+<text x="120.0" y="720" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">初始化 DB、server 与 HTTP 监听</text>
+<circle cx="107.0" cy="745" r="4" fill="#187653"/>
+<text x="120.0" y="752" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">运行 Gin API 进程</text>
+</g>
+<g class="node" data-node="server" data-role="system">
+<rect x="750.0" y="635" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="678" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">«package» internal/server</text>
+<rect x="1177.0" y="621" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="642" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="777.0" cy="713" r="4" fill="#187653"/>
+<text x="790.0" y="720" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">装配路由、健康检查和中间件</text>
+<circle cx="777.0" cy="745" r="4" fill="#187653"/>
+<text x="790.0" y="752" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">注册 identity 与 learning</text>
+</g>
+<g class="node" data-node="identity" data-role="system">
+<rect x="1420.0" y="635" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="678" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">«package» internal/identity</text>
+<rect x="1847.0" y="621" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="642" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="1447.0" cy="713" r="4" fill="#187653"/>
+<text x="1460.0" y="720" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">用户、Session、CSRF 与角色授权</text>
+<circle cx="1447.0" cy="745" r="4" fill="#187653"/>
+<text x="1460.0" y="752" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">RequireCourse 查询实际成员与教师归属</text>
+</g>
+<g class="node" data-node="learning" data-role="system">
+<rect x="2090.0" y="635" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="678" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">«package» internal/learning</text>
+<rect x="2517.0" y="621" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="642" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="2117.0" cy="713" r="4" fill="#187653"/>
+<text x="2130.0" y="720" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">Handler 编排课程、内容与作业事务</text>
+<circle cx="2117.0" cy="745" r="4" fill="#187653"/>
+<text x="2130.0" y="752" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">对象归属、版本冻结、评分发布与重评</text>
+</g>
+<g class="node" data-node="worker" data-role="system">
+<rect x="80.0" y="995" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="1038" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">«executable» cmd/worker</text>
+<rect x="507.0" y="981" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="1002" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="107.0" cy="1073" r="4" fill="#187653"/>
+<text x="120.0" y="1080" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">Asynq 服务与 RAG 恢复扫描</text>
+<circle cx="107.0" cy="1105" r="4" fill="#187653"/>
+<text x="120.0" y="1112" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">与 API 复用相同业务库</text>
+</g>
+<g class="node" data-node="rag" data-role="system">
+<rect x="750.0" y="995" width="530.0" height="187" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="1038" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">«package» internal/rag</text>
+<rect x="1177.0" y="981" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="1002" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="777.0" cy="1073" r="4" fill="#187653"/>
+<text x="790.0" y="1080" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">Service / Models、jobs 与 retrieval</text>
+<circle cx="777.0" cy="1105" r="4" fill="#187653"/>
+<text x="790.0" y="1112" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">question_bank / workflows / vision</text>
+<circle cx="777.0" cy="1137" r="4" fill="#187653"/>
+<text x="790.0" y="1144" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">调用本地解析工具与外部模型</text>
+</g>
+<g class="node" data-node="store" data-role="data">
+<rect x="1420.0" y="995" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="1038" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">«generated» internal/store</text>
+<rect x="1847.0" y="981" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="1002" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="1447.0" cy="1073" r="4" fill="#187653"/>
+<text x="1460.0" y="1080" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">sqlc 生成 Queries、参数与结果类型</text>
+<circle cx="1447.0" cy="1105" r="4" fill="#187653"/>
+<text x="1460.0" y="1112" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">被 identity、learning、rag 共同调用</text>
+</g>
+<g class="node" data-node="db" data-role="data">
+<rect x="2090.0" y="995" width="530.0" height="187" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="1038" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">«source» db/queries + migrations</text>
+<rect x="2517.0" y="981" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="1002" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="2117.0" cy="1073" r="4" fill="#187653"/>
+<text x="2130.0" y="1080" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">queries：参数化 SQL 源文件</text>
+<circle cx="2117.0" cy="1105" r="4" fill="#187653"/>
+<text x="2130.0" y="1112" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">migrations：Goose 结构演进</text>
+<circle cx="2117.0" cy="1137" r="4" fill="#187653"/>
+<text x="2130.0" y="1144" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">先改 SQL，再生成 store</text>
+</g>
+<g class="node" data-node="parser" data-role="system">
+<rect x="80.0" y="1355" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="1398" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">«tool» tools/parser</text>
+<rect x="507.0" y="1341" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="1362" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="107.0" cy="1433" r="4" fill="#187653"/>
+<text x="120.0" y="1440" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">Python parse.py，作为 worker 子进程</text>
+<circle cx="107.0" cy="1465" r="4" fill="#187653"/>
+<text x="120.0" y="1472" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">解析与 OCR，不承担独立业务授权</text>
+</g>
+<g class="node" data-node="vendor" data-role="external">
+<rect x="750.0" y="1355" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="1398" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">«external» 模型 HTTP 服务</text>
+<rect x="1177.0" y="1341" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="1222.0" y="1362" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >外部边界</text>
+<circle cx="777.0" cy="1433" r="4" fill="#78818A"/>
+<text x="790.0" y="1440" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">由 rag 模型配置与预算边界封装</text>
+<circle cx="777.0" cy="1465" r="4" fill="#78818A"/>
+<text x="790.0" y="1472" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">前端不直接持有供应商凭据</text>
+</g>
+<g class="node" data-node="pg" data-role="data">
+<rect x="1420.0" y="1355" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="1398" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">«external» pgx / PostgreSQL</text>
+<rect x="1847.0" y="1341" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="1362" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="1447.0" cy="1433" r="4" fill="#187653"/>
+<text x="1460.0" y="1440" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">pgxpool 连接；事务由业务层协调</text>
+<circle cx="1447.0" cy="1465" r="4" fill="#187653"/>
+<text x="1460.0" y="1472" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">数据库约束承接关键一致性检查</text>
+</g>
+<g class="node" data-node="compose" data-role="system">
+<rect x="2090.0" y="1355" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="1398" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">«deployment» Docker Compose</text>
+<rect x="2517.0" y="1341" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="1362" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="2117.0" cy="1433" r="4" fill="#187653"/>
+<text x="2130.0" y="1440" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">构建并运行 Web / API / worker</text>
+<circle cx="2117.0" cy="1465" r="4" fill="#187653"/>
+<text x="2130.0" y="1472" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">默认、RAG overlay、生产配置分开</text>
+</g>
+</g><g class="labels">
+<g class="edge-label" data-from="app" data-to="shared">
+<rect x="642.0" y="417.5" width="94.015625" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="689.0078125" y="439.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >imports</text>
+</g>
+<g class="edge-label" data-from="live" data-to="shared">
+<rect x="1313.9921875" y="357.0" width="94.015625" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1361.0" y="379.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >imports</text>
+</g>
+<g class="edge-label" data-from="shared" data-to="server">
+<rect x="1982.0" y="473.0" width="145.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2054.5" y="495.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >HTTP /api/v1</text>
+</g>
+<g class="edge-label" data-from="server" data-to="identity">
+<rect x="1299.5" y="688.0" width="101.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1350.0" y="710.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >registers</text>
+</g>
+<g class="edge-label" data-from="learning" data-to="rag">
+<rect x="2496.984375" y="833.0" width="135.015625" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2564.4921875" y="855.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >uses Service</text>
+</g>
+<g class="edge-label" data-from="identity" data-to="store">
+<rect x="1695.0" y="888.0" width="139.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1764.5" y="910.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >uses Queries</text>
+</g>
+<g class="edge-label" data-from="learning" data-to="store">
+<rect x="2513.0" y="875.6" width="139.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2582.5" y="897.6" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >uses Queries</text>
+</g>
+<g class="edge-label" data-from="store" data-to="pg">
+<rect x="1695.0" y="1248.0" width="145.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1767.5" y="1270.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >executes SQL</text>
+</g>
+<g class="edge-label" data-from="rag" data-to="parser">
+<rect x="1312.0" y="1210.25" width="90.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1357.0" y="1232.25" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >spawns</text>
+</g>
+<g class="edge-label" data-from="rag" data-to="vendor">
+<rect x="1025.0" y="1253.5" width="115.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1082.5" y="1275.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >HTTP calls</text>
+</g>
+<g class="edge-label" data-from="compose" data-to="api">
+<rect x="2571.0" y="1260.7" width="61.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2601.5" y="1282.7" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >runs</text>
+</g>
+<g class="edge-label" data-from="compose" data-to="app">
+<rect x="2528.0" y="934.0" width="127.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2591.5" y="956.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >builds Web</text>
+</g>
+</g>
+<rect x="80" y="1591" width="2540" height="56" rx="10" fill="#EAE9E3" stroke="none" />
+<text x="103" y="1623" font-size="23" fill="#58616A" font-weight="400" text-anchor="start" >箭头是 imports / uses / generates / runs 等依赖，HTTP 与子进程明确标注。Go 包与文件分工不被误画为面向对象类继承。</text>
+<text x="80" y="1693" font-size="19" fill="#58616A" font-weight="400" text-anchor="start" >源码核查：web/src/{app,live,shared,replica}；backend/{cmd,internal,db,tools/parser}；sqlc.yaml；compose*.yaml</text>
+<text x="80" y="1772" font-size="18" fill="#58616A" font-weight="400" text-anchor="start" >16 个节点 · 20 条关系　｜　细节见同编号分图；SVG 可搜索、放大，PNG 用于展示。</text>
+</g></svg>

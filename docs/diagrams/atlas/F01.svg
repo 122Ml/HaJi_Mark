@@ -1,35 +1,181 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1540" height="910" viewBox="0 0 1540 910" role="img" aria-labelledby="title desc">
-<title id="title">F01 系统上下文图</title><desc id="desc">边界在哪，外面接了谁？ 图内的本地 RAG 能力不代表已部署公网。</desc>
-<rect width="1540" height="910" fill="#fbfcfb"/>
-<rect x="0" y="0" width="12" height="910" fill="#17816b"/>
-<text x="60" y="68" font-size="30" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">F01　系统上下文图</text>
-<text x="60" y="112" font-size="21" font-family="Microsoft YaHei" fill="#52636b">边界在哪，外面接了谁？</text>
-<text x="60" y="151" font-size="17" font-family="Microsoft YaHei" fill="#17816b">本地代码状态 · 2026-11-12</text>
-<text x="60" y="245" font-size="22" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">教学用户</text>
-<line x1="60" y1="301" x2="1480" y2="301" stroke="#e4e9e8"/>
-<rect x="230" y="192" width="285" height="86" rx="5" fill="#f1f1f1" stroke="#747d82" stroke-width="2"/>
-<text x="372.5" y="236.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">教师 / 学生</text>
-<rect x="567" y="192" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="709.5" y="236.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">HaJi Mark 系统</text>
-<path d="M 525 235 H 555 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
-<text x="60" y="387" font-size="22" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">可选外部服务</text>
-<line x1="60" y1="443" x2="1480" y2="443" stroke="#e4e9e8"/>
-<rect x="230" y="334" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="372.5" y="378.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">HaJi Mark 本地 RAG</text>
-<rect x="567" y="334" width="285" height="86" rx="5" fill="#f1f1f1" stroke="#747d82" stroke-width="2"/>
-<text x="709.5" y="378.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">百炼北京模型接口</text>
-<path d="M 525 377 H 555 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
-<text x="60" y="529" font-size="22" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">当前公网边界</text>
-<line x1="60" y1="585" x2="1480" y2="585" stroke="#e4e9e8"/>
-<rect x="230" y="476" width="285" height="86" rx="5" fill="#f1f1f1" stroke="#747d82" stroke-width="2"/>
-<text x="372.5" y="520.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">浏览器 / HTTPS</text>
-<rect x="567" y="476" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="709.5" y="520.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">HaJi Mark 公网旧版</text>
-<path d="M 525 519 H 555 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
-<text x="60" y="671" font-size="22" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">公网配置</text>
-<line x1="60" y1="727" x2="1480" y2="727" stroke="#e4e9e8"/>
-<rect x="230" y="618" width="285" height="86" rx="5" fill="#f1f1f1" stroke="#747d82" stroke-width="2"/>
-<text x="372.5" y="662.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">AI_ENABLED=false</text>
-<text x="60" y="788" font-size="17" font-family="Microsoft YaHei" fill="#52636b">证据：compose.yaml；compose.rag.yaml；deploy/compose.production.yaml；web/src/live/routes.tsx</text>
-<text x="60" y="838" font-size="18" font-family="Microsoft YaHei" fill="#9b6330">边界：图内的本地 RAG 能力不代表已部署公网。</text>
-<text x="60" y="884" font-size="16" font-family="Microsoft YaHei" fill="#738087">实色框：当前代码或人工步骤　　虚线灰框：尚未实现　　箭头：本行的依赖或交接</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="2520" height="1808" viewBox="0 0 2520 1808" role="img" aria-labelledby="title desc">
+<title id="title">F01 系统上下文图</title><desc id="desc">围绕一个教学系统，谁提供输入、谁接收结果、哪些连接是可选的？。本图只画系统边界及外部交互；模型连接是本地可选路径。公网版本取自仓库部署记录，本轮没有执行生产复查或部署。</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 1 L9 5 L0 9Z" fill="#85929B"/></marker></defs>
+<g font-family="Microsoft YaHei, sans-serif">
+<rect x="0" y="0" width="2520" height="1808" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="80" y="76" font-size="40" fill="#242424" font-weight="700" text-anchor="start" >F01　系统上下文图</text>
+<text x="2440" y="76" font-size="22" fill="#58616A" font-weight="400" text-anchor="end" >2026-11-12 · 本地工作树</text>
+<text x="80" y="125" font-size="25" fill="#58616A" font-weight="400" text-anchor="start" >围绕一个教学系统，谁提供输入、谁接收结果、哪些连接是可选的？</text>
+<text x="80" y="177" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >教师深色 / AI橙色 / 数据蓝色 / 系统白色　　绿色标记：本地已接通　　灰色虚框：未实现</text>
+<text x="80" y="214" font-size="20" fill="#8A622E" font-weight="400" text-anchor="start" >箭头按本图语义表达；只代表代码路径与结构，不代表独立教师验收、模型正确性或公网部署。</text>
+<g class="edges">
+<g class="edge" data-from="teacher" data-to="system"><title>教师 → HaJi Mark 教学系统：课程、内容、规则与审核决定</title><path d="M773.3333333333334,368.5 L795.3333333333334,368.5 L795.3333333333334,744.5 L913.3333333333334,744.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="system" data-to="teacher"><title>HaJi Mark 教学系统 → 教师：候选、提交队列、证据与变更影响</title><path d="M1606.6666666666667,744.5 L1628.6666666666667,744.5 L1628.6666666666667,484 L58.0,484 L58.0,368.5 L80.0,368.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="student" data-to="system"><title>学生 → HaJi Mark 教学系统：学习行为、私人草稿与正式作答</title><path d="M2440.0,368.5 L2462.0,368.5 L2462.0,613 L891.3333333333334,613 L891.3333333333334,773.5 L913.3333333333334,773.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="system" data-to="student"><title>HaJi Mark 教学系统 → 学生：可见内容、正式反馈与任务</title><path d="M1606.6666666666667,773.5 L1724.6666666666667,773.5 L1724.6666666666667,368.5 L1746.6666666666667,368.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="file" data-to="system"><title>教师持有的教学文件 → HaJi Mark 教学系统：人工导入原件</title><path d="M773.3333333333334,728.5 L795.3333333333334,728.5 L795.3333333333334,715.5 L913.3333333333334,715.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="url" data-to="system"><title>公开网页 / 文档地址 → HaJi Mark 教学系统：教师发起单页 / 直链快照</title><path d="M773.3333333333334,1088.5 L795.3333333333334,1088.5 L795.3333333333334,802.5 L913.3333333333334,802.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="system" data-to="model"><title>HaJi Mark 教学系统 → 外部模型供应商：授权片段 / 固定规则 / 所选模型</title><path d="M1606.6666666666667,715.5 L1701.6666666666667,715.5 L1701.6666666666667,744.5 L1746.6666666666667,744.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)" stroke-dasharray="10 7"/></g>
+<g class="edge" data-from="model" data-to="system"><title>外部模型供应商 → HaJi Mark 教学系统：候选、引用与调用结果</title><path d="M1746.6666666666667,773.5 L1724.6666666666667,773.5 L1724.6666666666667,802.5 L1606.6666666666667,802.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)" stroke-dasharray="10 7"/></g>
+<g class="edge" data-from="system" data-to="export"><title>HaJi Mark 教学系统 → 教师导出的评价证据：正式结果导出</title><path d="M1260.0,854 L1260.0,995" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="ops" data-to="system"><title>运行与维护环境 → HaJi Mark 教学系统：配置、运行与持久化</title><path d="M2440.0,1088.5 L2462.0,1088.5 L2462.0,867 L868.3333333333334,867 L868.3333333333334,686.5 L913.3333333333334,686.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+</g><g class="nodes">
+<g class="node" data-node="teacher" data-role="teacher">
+<rect x="80.0" y="275" width="693.3333333333334" height="187" rx="10" fill="#303235" stroke="#303235" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="318" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" class="node-title">教师</text>
+<rect x="670.3333333333334" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="715.3333333333334" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >人工关口</text>
+<circle cx="107.0" cy="353" r="4" fill="#187653"/>
+<text x="120.0" y="360" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" class="node-line">维护本人课程、成员与教学内容</text>
+<circle cx="107.0" cy="385" r="4" fill="#187653"/>
+<text x="120.0" y="392" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" class="node-line">审核知识、题目、解答与评分标准</text>
+<circle cx="107.0" cy="417" r="4" fill="#187653"/>
+<text x="120.0" y="424" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" class="node-line">复核发布成绩；下发干预与复查</text>
+</g>
+<g class="node" data-node="student" data-role="external">
+<rect x="1746.6666666666667" y="275" width="693.3333333333334" height="187" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1768.6666666666667" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">学生</text>
+<rect x="2337.0" y="261" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="2382.0" y="282" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >外部边界</text>
+<circle cx="1773.6666666666667" cy="353" r="4" fill="#78818A"/>
+<text x="1786.6666666666667" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">只访问所选课程与本人学习记录</text>
+<circle cx="1773.6666666666667" cy="385" r="4" fill="#78818A"/>
+<text x="1786.6666666666667" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">阅读、记笔记、提交作业与测验</text>
+<circle cx="1773.6666666666667" cy="417" r="4" fill="#78818A"/>
+<text x="1786.6666666666667" y="424" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">查看正式反馈；完成老师任务</text>
+</g>
+<g class="node" data-node="file" data-role="external">
+<rect x="80.0" y="635" width="693.3333333333334" height="187" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="678" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">教师持有的教学文件</text>
+<rect x="670.3333333333334" y="621" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="715.3333333333334" y="642" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >外部边界</text>
+<circle cx="107.0" cy="713" r="4" fill="#78818A"/>
+<text x="120.0" y="720" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">PDF / DOCX / PPTX / 文本 / 表格</text>
+<circle cx="107.0" cy="745" r="4" fill="#78818A"/>
+<text x="120.0" y="752" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">原卷与原图作为出处，不等于标准答案</text>
+<circle cx="107.0" cy="777" r="4" fill="#78818A"/>
+<text x="120.0" y="784" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">原件下载受发布范围与权限限制</text>
+</g>
+<g class="node" data-node="system" data-role="system">
+<rect x="913.3333333333334" y="635" width="693.3333333333334" height="219" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="935.3333333333334" y="678" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">HaJi Mark 教学系统</text>
+<rect x="1503.6666666666667" y="621" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1548.6666666666667" y="642" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="940.3333333333334" cy="713" r="4" fill="#187653"/>
+<text x="953.3333333333334" y="720" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">课程内容 → 学习作答 → 正式评价</text>
+<circle cx="940.3333333333334" cy="745" r="4" fill="#187653"/>
+<text x="953.3333333333334" y="752" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">资料与知识分开审核和版本管理</text>
+<circle cx="940.3333333333334" cy="777" r="4" fill="#187653"/>
+<text x="953.3333333333334" y="784" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">教师保留采纳、确认、发布的决定权</text>
+<circle cx="940.3333333333334" cy="809" r="4" fill="#187653"/>
+<text x="953.3333333333334" y="816" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">本地可选 RAG，默认人工平台</text>
+</g>
+<g class="node" data-node="model" data-role="external">
+<rect x="1746.6666666666667" y="635" width="693.3333333333334" height="219" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1768.6666666666667" y="678" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">外部模型供应商</text>
+<rect x="2337.0" y="621" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="2382.0" y="642" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >外部边界</text>
+<circle cx="1773.6666666666667" cy="713" r="4" fill="#78818A"/>
+<text x="1786.6666666666667" y="720" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">百炼北京：生成与向量配置分开</text>
+<circle cx="1773.6666666666667" cy="745" r="4" fill="#78818A"/>
+<text x="1786.6666666666667" y="752" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">仅本地显式启用后按所选范围出站</text>
+<circle cx="1773.6666666666667" cy="777" r="4" fill="#78818A"/>
+<text x="1786.6666666666667" y="784" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">带出处候选 / 逐点评分草稿</text>
+<circle cx="1773.6666666666667" cy="809" r="4" fill="#78818A"/>
+<text x="1786.6666666666667" y="816" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">调用失败、预算与未知费用保留记录</text>
+</g>
+<g class="node" data-node="url" data-role="external">
+<rect x="80.0" y="995" width="693.3333333333334" height="187" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="1038" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">公开网页 / 文档地址</text>
+<rect x="670.3333333333334" y="981" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="715.3333333333334" y="1002" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >外部边界</text>
+<circle cx="107.0" cy="1073" r="4" fill="#78818A"/>
+<text x="120.0" y="1080" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">单页正文、图片快照或直链文档</text>
+<circle cx="107.0" cy="1105" r="4" fill="#78818A"/>
+<text x="120.0" y="1112" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">记录原网址、内容快照、来源说明</text>
+<circle cx="107.0" cy="1137" r="4" fill="#78818A"/>
+<text x="120.0" y="1144" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">不代表任意站点爬取或登录站点接入</text>
+</g>
+<g class="node" data-node="export" data-role="external">
+<rect x="913.3333333333334" y="995" width="693.3333333333334" height="187" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="935.3333333333334" y="1038" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">教师导出的评价证据</text>
+<rect x="1503.6666666666667" y="981" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="1548.6666666666667" y="1002" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >外部边界</text>
+<circle cx="940.3333333333334" cy="1073" r="4" fill="#78818A"/>
+<text x="953.3333333333334" y="1080" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">CSV 与正式反馈来自已发布评分</text>
+<circle cx="940.3333333333334" cy="1105" r="4" fill="#78818A"/>
+<text x="953.3333333333334" y="1112" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">回查原始作答、确切标准和来源</text>
+<circle cx="940.3333333333334" cy="1137" r="4" fill="#78818A"/>
+<text x="953.3333333333334" y="1144" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">未确认 AI 草稿不作为正式成绩</text>
+</g>
+<g class="node" data-node="ops" data-role="external">
+<rect x="1746.6666666666667" y="995" width="693.3333333333334" height="187" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1768.6666666666667" y="1038" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">运行与维护环境</text>
+<rect x="2337.0" y="981" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="2382.0" y="1002" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >外部边界</text>
+<circle cx="1773.6666666666667" cy="1073" r="4" fill="#78818A"/>
+<text x="1786.6666666666667" y="1080" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">浏览器同源访问，数据库不直连用户</text>
+<circle cx="1773.6666666666667" cy="1105" r="4" fill="#78818A"/>
+<text x="1786.6666666666667" y="1112" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">持久卷保存业务库、队列和原件</text>
+<circle cx="1773.6666666666667" cy="1137" r="4" fill="#78818A"/>
+<text x="1786.6666666666667" y="1144" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">生产与本地配置、版本相互区分</text>
+</g>
+<g class="node" data-node="future" data-role="pending">
+<rect x="80.0" y="1355" width="693.3333333333334" height="187" rx="10" fill="#F1F1EF" stroke="#929B9E" stroke-width="2" stroke-dasharray="10 7"/>
+<text x="102.0" y="1398" font-size="27" fill="#697278" font-weight="650" text-anchor="start" class="node-title">当前没有对外教学系统集成</text>
+<rect x="687.3333333333334" y="1341" width="73.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="723.8333333333334" y="1362" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >未实现</text>
+<circle cx="107.0" cy="1433" r="4" fill="#78818A"/>
+<text x="120.0" y="1440" font-size="22" fill="#697278" font-weight="400" text-anchor="start" class="node-line">未接学校统一身份认证或教务平台</text>
+<circle cx="107.0" cy="1465" r="4" fill="#78818A"/>
+<text x="120.0" y="1472" font-size="22" fill="#697278" font-weight="400" text-anchor="start" class="node-line">不画自动同步学籍、成绩回传链路</text>
+<circle cx="107.0" cy="1497" r="4" fill="#78818A"/>
+<text x="120.0" y="1504" font-size="22" fill="#697278" font-weight="400" text-anchor="start" class="node-line">无代码执行判题或 AI 自动发成绩</text>
+</g>
+<g class="node" data-node="public" data-role="external">
+<rect x="1746.6666666666667" y="1355" width="693.3333333333334" height="187" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1768.6666666666667" y="1398" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">公网范围的仓库记录</text>
+<rect x="2337.0" y="1341" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="2382.0" y="1362" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >外部边界</text>
+<circle cx="1773.6666666666667" cy="1433" r="4" fill="#78818A"/>
+<text x="1786.6666666666667" y="1440" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">11/05 发布记录：应用 f40872a</text>
+<circle cx="1773.6666666666667" cy="1465" r="4" fill="#78818A"/>
+<text x="1786.6666666666667" y="1472" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">生产配置 AI_ENABLED=false</text>
+<circle cx="1773.6666666666667" cy="1497" r="4" fill="#78818A"/>
+<text x="1786.6666666666667" y="1504" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">新本地能力不能据此宣称已上线</text>
+</g>
+</g><g class="labels">
+<g class="edge-label" data-from="teacher" data-to="system">
+<rect x="805.3333333333334" y="541.5" width="280.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="945.3333333333334" y="563.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >课程、内容、规则与审核决定</text>
+</g>
+<g class="edge-label" data-from="system" data-to="teacher">
+<rect x="1638.6666666666667" y="547.15" width="320.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1798.6666666666667" y="569.15" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >候选、提交队列、证据与变更影响</text>
+</g>
+<g class="edge-label" data-from="student" data-to="system">
+<rect x="2152.0" y="475.75" width="300.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2302.0" y="497.75" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >学习行为、私人草稿与正式作答</text>
+</g>
+<g class="edge-label" data-from="system" data-to="student">
+<rect x="1734.6666666666667" y="475.0" width="260.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1864.6666666666667" y="497.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >可见内容、正式反馈与任务</text>
+</g>
+<g class="edge-label" data-from="url" data-to="system">
+<rect x="805.3333333333334" y="930.5" width="241.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="925.8333333333334" y="952.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >教师发起单页 / 直链快照</text>
+</g>
+<g class="edge-label" data-from="system" data-to="export">
+<rect x="1270.0" y="909.5" width="140.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1340.0" y="931.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >正式结果导出</text>
+</g>
+<g class="edge-label" data-from="ops" data-to="system">
+<rect x="2252.0" y="918.45" width="200.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2352.0" y="940.45" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >配置、运行与持久化</text>
+</g>
+</g>
+<rect x="80" y="1602" width="2360" height="56" rx="10" fill="#EAE9E3" stroke="none" />
+<text x="103" y="1634" font-size="23" fill="#58616A" font-weight="400" text-anchor="start" >本图只画系统边界及外部交互；模型连接是本地可选路径。公网版本取自仓库部署记录，本轮没有执行生产复查或部署。</text>
+<text x="80" y="1704" font-size="19" fill="#58616A" font-weight="400" text-anchor="start" >源码核查：learning/http.go；materials.go；rag/models.go；compose*.yaml；deploy/compose.production.yaml；AGENTS.md</text>
+<text x="80" y="1783" font-size="18" fill="#58616A" font-weight="400" text-anchor="start" >10 个节点 · 10 条关系　｜　细节见同编号分图；SVG 可搜索、放大，PNG 用于展示。</text>
+</g></svg>

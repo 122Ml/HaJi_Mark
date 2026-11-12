@@ -1,69 +1,360 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1540" height="1260" viewBox="0 0 1540 1260" role="img" aria-labelledby="title desc">
-<title id="title">F02 概念 ER 图</title><desc id="desc">业务对象之间是什么关系？</desc>
-<rect width="1540" height="1260" fill="#fbfcfb"/><rect width="12" height="1260" fill="#17816b"/>
-<text x="60" y="68" text-anchor="start" font-size="30" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">F02　概念 ER 图</text>
-<text x="60" y="112" text-anchor="start" font-size="21" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">业务对象之间是什么关系？</text>
-<text x="60" y="151" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#17816b">本地代码状态 · 2026-11-12</text>
-<text x="60" y="205" text-anchor="start" font-size="22" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">课程与成员</text>
-<rect x="300" y="227" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="495.0" y="263.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">课程</text>
-<rect x="950" y="227" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1145.0" y="263.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">选课关系</text>
-<line x1="690" y1="256" x2="950" y2="256" stroke="#829ba1" stroke-width="2"/>
-<text x="820.0" y="246.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
-<rect x="300" y="301" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="495.0" y="337.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">课程</text>
-<rect x="950" y="301" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1145.0" y="337.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">知识点</text>
-<line x1="690" y1="330" x2="950" y2="330" stroke="#829ba1" stroke-width="2"/>
-<text x="820.0" y="320.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
-<rect x="300" y="375" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="495.0" y="411.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">课程</text>
-<rect x="950" y="375" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1145.0" y="411.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">作业</text>
-<line x1="690" y1="404" x2="950" y2="404" stroke="#829ba1" stroke-width="2"/>
-<text x="820.0" y="394.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
-<line x1="60" y1="456" x2="1480" y2="456" stroke="#e4e9e8"/>
-<text x="60" y="475" text-anchor="start" font-size="22" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">资料与知识</text>
-<rect x="300" y="497" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="495.0" y="533.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">原件</text>
-<rect x="950" y="497" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1145.0" y="533.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">片段</text>
-<line x1="690" y1="526" x2="950" y2="526" stroke="#829ba1" stroke-width="2"/>
-<text x="820.0" y="516.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
-<rect x="300" y="571" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="495.0" y="607.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">原件</text>
-<rect x="950" y="571" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1145.0" y="607.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">学习资料</text>
-<line x1="690" y1="600" x2="950" y2="600" stroke="#829ba1" stroke-width="2"/>
-<text x="820.0" y="590.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">0:N</text>
-<rect x="300" y="645" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="495.0" y="681.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">课程</text>
-<rect x="950" y="645" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1145.0" y="681.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">知识条目</text>
-<line x1="690" y1="674" x2="950" y2="674" stroke="#829ba1" stroke-width="2"/>
-<text x="820.0" y="664.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
-<line x1="60" y1="726" x2="1480" y2="726" stroke="#e4e9e8"/>
-<text x="60" y="745" text-anchor="start" font-size="22" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">题目与评价</text>
-<rect x="300" y="767" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="495.0" y="803.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">题库条目</text>
-<rect x="950" y="767" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1145.0" y="803.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">题目版本</text>
-<line x1="690" y1="796" x2="950" y2="796" stroke="#829ba1" stroke-width="2"/>
-<text x="820.0" y="786.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
-<rect x="300" y="841" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="495.0" y="877.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">作业</text>
-<rect x="950" y="841" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1145.0" y="877.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">作业题</text>
-<line x1="690" y1="870" x2="950" y2="870" stroke="#829ba1" stroke-width="2"/>
-<text x="820.0" y="860.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
-<rect x="300" y="915" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="495.0" y="951.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">作业题</text>
-<rect x="950" y="915" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1145.0" y="951.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">正式提交</text>
-<line x1="690" y1="944" x2="950" y2="944" stroke="#829ba1" stroke-width="2"/>
-<text x="820.0" y="934.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
-<text x="60" y="1035" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">补充：题库版本可供作业题选用；标准可归属旧作业题或新题库版本。</text>
-<text x="60" y="1165" text-anchor="start" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">证据：backend/db/migrations/00001–00012；backend/db/queries</text>
-<text x="60" y="1202" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#9b6330">边界：这里是概念关系；具体外键和可空归属见 F14。</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="2700" height="2277" viewBox="0 0 2700 2277" role="img" aria-labelledby="title desc">
+<title id="title">F02 概念 ER 图</title><desc id="desc">区分原件、学习资料、知识、题库、作业实例和评价修订，追踪它们的业务关联。。概念关联包含业务证据引用，不把 JSON/数组中的引用冒充数据库外键；F14 分图给出 41 张表、103 条物理外键及非外键说明。</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 1 L9 5 L0 9Z" fill="#85929B"/></marker></defs>
+<g font-family="Microsoft YaHei, sans-serif">
+<rect x="0" y="0" width="2700" height="2277" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="80" y="76" font-size="40" fill="#242424" font-weight="700" text-anchor="start" >F02　概念 ER 图</text>
+<text x="2620" y="76" font-size="22" fill="#58616A" font-weight="400" text-anchor="end" >2026-11-12 · 本地工作树</text>
+<text x="80" y="125" font-size="25" fill="#58616A" font-weight="400" text-anchor="start" >区分原件、学习资料、知识、题库、作业实例和评价修订，追踪它们的业务关联。</text>
+<text x="80" y="177" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >教师深色 / AI橙色 / 数据蓝色 / 系统白色　　绿色标记：本地已接通　　灰色虚框：未实现</text>
+<text x="80" y="214" font-size="20" fill="#8A622E" font-weight="400" text-anchor="start" >箭头按本图语义表达；只代表代码路径与结构，不代表独立教师验收、模型正确性或公网部署。</text>
+<g class="edges">
+<g class="edge" data-from="user" data-to="course"><title>用户 → 课程与选课：教师 1:N；学生 M:N</title><path d="M610.0,363.0 L750.0,363.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="course" data-to="point"><title>课程与选课 → 章节 / 节 / 知识点：1:N</title><path d="M1280.0,363.0 L1420.0,363.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="course" data-to="source"><title>课程与选课 → 来源原件与解析修订：1:N</title><path d="M1280.0,392.0 L1302.0,392.0 L1302.0,643 L58.0,643 L58.0,753.0 L80.0,753.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="course" data-to="assignment"><title>课程与选课 → 作业 / 测验与题目实例：1:N</title><path d="M1015.0,451 L1015.0,473 L728.0,473 L728.0,1033 L1015.0,1033 L1015.0,1055" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="point" data-to="resource"><title>章节 / 节 / 知识点 → 学习资料版本：0:N 关联</title><path d="M1950.0,363.0 L1972.0,363.0 L1972.0,620 L705.0,620 L705.0,753.0 L750.0,753.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="point" data-to="assignment"><title>章节 / 节 / 知识点 → 作业 / 测验与题目实例：题目可选关联</title><path d="M1685.0,451 L1685.0,473 L1325.0,473 L1325.0,1033 L1044.0,1033 L1044.0,1055" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="topic" data-to="bank"><title>专题与标签 → 独立题库与题目版本：M:N</title><path d="M2355.0,451 L2355.0,665" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="topic" data-to="knowledge"><title>专题与标签 → 精炼知识版本：M:N</title><path d="M2620.0,363.0 L2642.0,363.0 L2642.0,643 L1398.0,643 L1398.0,753.0 L1420.0,753.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="topic" data-to="source"><title>专题与标签 → 来源原件与解析修订：M:N</title><path d="M2620.0,392.0 L2662.0,392.0 L2662.0,496 L38.0,496 L38.0,782.0 L80.0,782.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="source" data-to="resource"><title>来源原件与解析修订 → 学习资料版本：1:0..N</title><path d="M610.0,753.0 L632.0,753.0 L632.0,782.0 L750.0,782.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="source" data-to="knowledge"><title>来源原件与解析修订 → 精炼知识版本：M:N 证据</title><path d="M610.0,782.0 L632.0,782.0 L632.0,863 L1398.0,863 L1398.0,782.0 L1420.0,782.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="source" data-to="asset"><title>来源原件与解析修订 → 原图与核对转写：1:N</title><path d="M345.0,841 L345.0,1055" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="asset" data-to="bank"><title>原图与核对转写 → 独立题库与题目版本：M:N 题图</title><path d="M610.0,1143.0 L632.0,1143.0 L632.0,886 L2068.0,886 L2068.0,753.0 L2090.0,753.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="bank" data-to="rubric"><title>独立题库与题目版本 → 评分标准版本：版本 1:0..N</title><path d="M2620.0,753.0 L2642.0,753.0 L2642.0,1033 L1398.0,1033 L1398.0,1143.0 L1420.0,1143.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="bank" data-to="assignment"><title>独立题库与题目版本 → 作业 / 测验与题目实例：一个版本可多次选用</title><path d="M2620.0,782.0 L2662.0,782.0 L2662.0,1010 L728.0,1010 L728.0,1143.0 L750.0,1143.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="rubric" data-to="assignment"><title>评分标准版本 → 作业 / 测验与题目实例：绑定确切标准</title><path d="M1420.0,1172.0 L1398.0,1172.0 L1398.0,1143.0 L1280.0,1143.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="resource" data-to="chunk"><title>学习资料版本 → 检索块与向量空间：1:0..N</title><path d="M1280.0,753.0 L1375.0,753.0 L1375.0,863 L2068.0,863 L2068.0,1143.0 L2090.0,1143.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="knowledge" data-to="chunk"><title>精炼知识版本 → 检索块与向量空间：1:0..N</title><path d="M1950.0,753.0 L1972.0,753.0 L1972.0,1172.0 L2090.0,1172.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="source" data-to="chunk"><title>来源原件与解析修订 → 检索块与向量空间：1:0..N</title><path d="M610.0,724.0 L655.0,724.0 L655.0,1253 L2068.0,1253 L2068.0,1114.0 L2090.0,1114.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="assignment" data-to="submission"><title>作业 / 测验与题目实例 → 正式作答：题目实例 1:N</title><path d="M1015.0,1231 L1015.0,1445" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="user" data-to="submission"><title>用户 → 正式作答：学生 1:N</title><path d="M345.0,451 L345.0,473 L632.0,473 L632.0,753.0 L705.0,753.0 L705.0,1423 L1044.0,1423 L1044.0,1445" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="submission" data-to="grade"><title>正式作答 → 评分修订：1:N</title><path d="M1280.0,1533.0 L1420.0,1533.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="rubric" data-to="grade"><title>评分标准版本 → 评分修订：采用确切标准</title><path d="M1685.0,1231 L1685.0,1445" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="batch" data-to="submission"><title>整组重评批次与逐份项 → 正式作答：批次逐份冻结</title><path d="M2090.0,1533.0 L2068.0,1533.0 L2068.0,1643 L1302.0,1643 L1302.0,1562.0 L1280.0,1562.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="batch" data-to="grade"><title>整组重评批次与逐份项 → 评分修订：发布追加新修订</title><path d="M2090.0,1562.0 L1972.0,1562.0 L1972.0,1533.0 L1950.0,1533.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="resource" data-to="note"><title>学习资料版本 → 笔记与学习事件：1:N</title><path d="M1015.0,841 L1015.0,1033 L632.0,1033 L632.0,1423 L345.0,1423 L345.0,1445" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="user" data-to="note"><title>用户 → 笔记与学习事件：学生 1:N</title><path d="M374.0,451 L374.0,473 L35.0,473 L35.0,1423 L374.0,1423 L374.0,1445" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="point" data-to="path"><title>章节 / 节 / 知识点 → 学习路径与条目：路径条目关联</title><path d="M1714.0,451 L1714.0,473 L1375.0,473 L1375.0,1813 L345.0,1813 L345.0,1835" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="assignment" data-to="intervention"><title>作业 / 测验与题目实例 → 教师干预任务：可选补练</title><path d="M1044.0,1231 L1044.0,1423 L1325.0,1423 L1325.0,1790 L1015.0,1790 L1015.0,1835" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="resource" data-to="intervention"><title>学习资料版本 → 教师干预任务：可选补学</title><path d="M1044.0,841 L1044.0,863 L1302.0,863 L1302.0,1666 L1044.0,1666 L1044.0,1835" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="grade" data-to="path"><title>评分修订 → 学习路径与条目：正式结果作为证据</title><path d="M1950.0,1562.0 L1972.0,1562.0 L1972.0,1666 L58.0,1666 L58.0,1923.0 L80.0,1923.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="job" data-to="grade"><title>处理任务与模型调用 → 评分修订：可选 AI 草稿来源</title><path d="M1685.0,1835 L1685.0,1621" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="decision" data-to="knowledge"><title>内容处理决定 → 精炼知识版本：决定产生或关联版本</title><path d="M2355.0,1835 L2355.0,1813 L1995.0,1813 L1995.0,863 L1685.0,863 L1685.0,841" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+</g><g class="nodes">
+<g class="node" data-node="user" data-role="data">
+<rect x="80.0" y="275" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">用户</text>
+<rect x="507.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="107.0" cy="353" r="4" fill="#187653"/>
+<text x="120.0" y="360" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">教师拥有课程；学生通过选课加入</text>
+<circle cx="107.0" cy="385" r="4" fill="#187653"/>
+<text x="120.0" y="392" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">学生作答、笔记、路径保持个人归属</text>
+</g>
+<g class="node" data-node="course" data-role="data">
+<rect x="750.0" y="275" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">课程与选课</text>
+<rect x="1177.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="777.0" cy="353" r="4" fill="#187653"/>
+<text x="790.0" y="360" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">课程承载教学内容、成员与评价</text>
+<circle cx="777.0" cy="385" r="4" fill="#187653"/>
+<text x="790.0" y="392" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">教师创建；课程下学生由成员关系关联</text>
+</g>
+<g class="node" data-node="point" data-role="data">
+<rect x="1420.0" y="275" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">章节 / 节 / 知识点</text>
+<rect x="1847.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="1447.0" cy="353" r="4" fill="#187653"/>
+<text x="1460.0" y="360" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">目录树形成课程教学组织</text>
+<circle cx="1447.0" cy="385" r="4" fill="#187653"/>
+<text x="1460.0" y="392" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">知识点之间可维护前置依赖</text>
+</g>
+<g class="node" data-node="topic" data-role="data">
+<rect x="2090.0" y="275" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">专题与标签</text>
+<rect x="2517.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="2117.0" cy="353" r="4" fill="#187653"/>
+<text x="2130.0" y="360" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">跨原件、知识、题目组织内容</text>
+<circle cx="2117.0" cy="385" r="4" fill="#187653"/>
+<text x="2130.0" y="392" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">专题不是章节；关联不复制正文</text>
+</g>
+<g class="node" data-node="source" data-role="data">
+<rect x="80.0" y="665" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="708" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">来源原件与解析修订</text>
+<rect x="507.0" y="651" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="672" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="107.0" cy="743" r="4" fill="#187653"/>
+<text x="120.0" y="750" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">原始内容、许可、版本与定位</text>
+<circle cx="107.0" cy="775" r="4" fill="#187653"/>
+<text x="120.0" y="782" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">一份原件含多个可核对片段</text>
+</g>
+<g class="node" data-node="resource" data-role="data">
+<rect x="750.0" y="665" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="708" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">学习资料版本</text>
+<rect x="1177.0" y="651" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="672" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="777.0" cy="743" r="4" fill="#187653"/>
+<text x="790.0" y="750" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">教师选段或全文编排发布</text>
+<circle cx="777.0" cy="775" r="4" fill="#187653"/>
+<text x="790.0" y="782" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">保留来源与确切知识点关联</text>
+</g>
+<g class="node" data-node="knowledge" data-role="data">
+<rect x="1420.0" y="665" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="708" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">精炼知识版本</text>
+<rect x="1847.0" y="651" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="672" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="1447.0" cy="743" r="4" fill="#187653"/>
+<text x="1460.0" y="750" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">带适用条件、证据与独立用途</text>
+<circle cx="1447.0" cy="775" r="4" fill="#187653"/>
+<text x="1460.0" y="782" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">多个原文出处可支撑一个条目</text>
+</g>
+<g class="node" data-node="bank" data-role="data">
+<rect x="2090.0" y="665" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="708" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">独立题库与题目版本</text>
+<rect x="2517.0" y="651" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="672" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="2117.0" cy="743" r="4" fill="#187653"/>
+<text x="2130.0" y="750" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">同一题库条目保留多个题目版本</text>
+<circle cx="2117.0" cy="775" r="4" fill="#187653"/>
+<text x="2130.0" y="782" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">题目与参考解答分别确认</text>
+</g>
+<g class="node" data-node="asset" data-role="data">
+<rect x="80.0" y="1055" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="1098" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">原图与核对转写</text>
+<rect x="507.0" y="1041" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="1062" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="107.0" cy="1133" r="4" fill="#187653"/>
+<text x="120.0" y="1140" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">原图片段可有多次转写修订</text>
+<circle cx="107.0" cy="1165" r="4" fill="#187653"/>
+<text x="120.0" y="1172" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">题目版本可引用多个图像证据</text>
+</g>
+<g class="node" data-node="assignment" data-role="data">
+<rect x="750.0" y="1055" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="1098" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">作业 / 测验与题目实例</text>
+<rect x="1177.0" y="1041" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="1062" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="777.0" cy="1133" r="4" fill="#187653"/>
+<text x="790.0" y="1140" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">一个任务包含多道作业题</text>
+<circle cx="777.0" cy="1165" r="4" fill="#187653"/>
+<text x="790.0" y="1172" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">题库选用固定题目与标准组合</text>
+</g>
+<g class="node" data-node="rubric" data-role="data">
+<rect x="1420.0" y="1055" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="1098" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">评分标准版本</text>
+<rect x="1847.0" y="1041" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="1062" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="1447.0" cy="1133" r="4" fill="#187653"/>
+<text x="1460.0" y="1140" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">属于确切题目版本或旧作业题</text>
+<circle cx="1447.0" cy="1165" r="4" fill="#187653"/>
+<text x="1460.0" y="1172" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">多个评分点与依据形成冻结规则</text>
+</g>
+<g class="node" data-node="chunk" data-role="data">
+<rect x="2090.0" y="1055" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="1098" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">检索块与向量空间</text>
+<rect x="2517.0" y="1041" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="1062" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="2117.0" cy="1133" r="4" fill="#187653"/>
+<text x="2130.0" y="1140" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">源自原件、资料或知识三者之一</text>
+<circle cx="2117.0" cy="1165" r="4" fill="#187653"/>
+<text x="2130.0" y="1172" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">向量空间隔离模型、维度和切块配置</text>
+</g>
+<g class="node" data-node="note" data-role="data">
+<rect x="80.0" y="1445" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="1488" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">笔记与学习事件</text>
+<rect x="507.0" y="1431" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="1452" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="107.0" cy="1523" r="4" fill="#187653"/>
+<text x="120.0" y="1530" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">记录阅读、完成、笔记和收藏</text>
+<circle cx="107.0" cy="1555" r="4" fill="#187653"/>
+<text x="120.0" y="1562" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">事件与正式提交可关联追溯</text>
+</g>
+<g class="node" data-node="submission" data-role="data">
+<rect x="750.0" y="1445" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="1488" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">正式作答</text>
+<rect x="1177.0" y="1431" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="1452" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="777.0" cy="1523" r="4" fill="#187653"/>
+<text x="790.0" y="1530" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">同一学生同题可以多次正式提交</text>
+<circle cx="777.0" cy="1555" r="4" fill="#187653"/>
+<text x="790.0" y="1562" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">每次原文与任务版本保持不可变</text>
+</g>
+<g class="node" data-node="grade" data-role="data">
+<rect x="1420.0" y="1445" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="1488" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">评分修订</text>
+<rect x="1847.0" y="1431" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="1452" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="1447.0" cy="1523" r="4" fill="#187653"/>
+<text x="1460.0" y="1530" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">每次提交可有多次评分修订</text>
+<circle cx="1447.0" cy="1555" r="4" fill="#187653"/>
+<text x="1460.0" y="1562" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">学生只见已发布的正式结果</text>
+</g>
+<g class="node" data-node="batch" data-role="data">
+<rect x="2090.0" y="1445" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="1488" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">整组重评批次与逐份项</text>
+<rect x="2517.0" y="1431" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="1452" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="2117.0" cy="1523" r="4" fill="#187653"/>
+<text x="2130.0" y="1530" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">一个关闭作业中的一道题</text>
+<circle cx="2117.0" cy="1555" r="4" fill="#187653"/>
+<text x="2130.0" y="1562" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">冻结每人最新正式提交及评分基线</text>
+</g>
+<g class="node" data-node="path" data-role="data">
+<rect x="80.0" y="1835" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="1878" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">学习路径与条目</text>
+<rect x="507.0" y="1821" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="1842" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="107.0" cy="1913" r="4" fill="#187653"/>
+<text x="120.0" y="1920" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">学生的规则路径快照</text>
+<circle cx="107.0" cy="1945" r="4" fill="#187653"/>
+<text x="120.0" y="1952" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">路径条目关联知识点及选择理由</text>
+</g>
+<g class="node" data-node="intervention" data-role="data">
+<rect x="750.0" y="1835" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="1878" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">教师干预任务</text>
+<rect x="1177.0" y="1821" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="1842" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="777.0" cy="1913" r="4" fill="#187653"/>
+<text x="790.0" y="1920" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">属于课程、学生与下发教师</text>
+<circle cx="777.0" cy="1945" r="4" fill="#187653"/>
+<text x="790.0" y="1952" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">可关联已发布资料和补练作业</text>
+</g>
+<g class="node" data-node="job" data-role="data">
+<rect x="1420.0" y="1835" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="1878" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">处理任务与模型调用</text>
+<rect x="1847.0" y="1821" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="1842" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="1447.0" cy="1913" r="4" fill="#187653"/>
+<text x="1460.0" y="1920" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">记录任务输入快照、结果与失败</text>
+<circle cx="1447.0" cy="1945" r="4" fill="#187653"/>
+<text x="1460.0" y="1952" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">模型调用与预算独立计费留痕</text>
+</g>
+<g class="node" data-node="decision" data-role="data">
+<rect x="2090.0" y="1835" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="1878" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">内容处理决定</text>
+<rect x="2517.0" y="1821" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="1842" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="2117.0" cy="1913" r="4" fill="#187653"/>
+<text x="2130.0" y="1920" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">保留比较、采纳和变更处理的依据</text>
+<circle cx="2117.0" cy="1945" r="4" fill="#187653"/>
+<text x="2130.0" y="1952" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">记录输入、输出与决定理由</text>
+</g>
+</g><g class="labels">
+<g class="edge-label" data-from="course" data-to="point">
+<rect x="1323.5" y="328.0" width="53.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1350.0" y="350.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >1:N</text>
+</g>
+<g class="edge-label" data-from="course" data-to="source">
+<rect x="1312.0" y="502.5" width="53.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1338.5" y="524.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >1:N</text>
+</g>
+<g class="edge-label" data-from="course" data-to="assignment">
+<rect x="665.0" y="738.0" width="53.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="691.5" y="760.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >1:N</text>
+</g>
+<g class="edge-label" data-from="point" data-to="resource">
+<rect x="1982.0" y="476.5" width="99.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2031.5" y="498.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >0:N 关联</text>
+</g>
+<g class="edge-label" data-from="point" data-to="assignment">
+<rect x="1114.5" y="998" width="140.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1184.5" y="1020" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >题目可选关联</text>
+</g>
+<g class="edge-label" data-from="topic" data-to="bank">
+<rect x="2365.0" y="543.0" width="61.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2395.5" y="565.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >M:N</text>
+</g>
+<g class="edge-label" data-from="topic" data-to="knowledge">
+<rect x="2571.0" y="488.0" width="61.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2601.5" y="510.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >M:N</text>
+</g>
+<g class="edge-label" data-from="topic" data-to="source">
+<rect x="1319.5" y="461" width="61.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1350.0" y="483" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >M:N</text>
+</g>
+<g class="edge-label" data-from="source" data-to="asset">
+<rect x="355.0" y="933.0" width="53.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="381.5" y="955.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >1:N</text>
+</g>
+<g class="edge-label" data-from="asset" data-to="bank">
+<rect x="642.0" y="999.5" width="107.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="695.5" y="1021.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >M:N 题图</text>
+</g>
+<g class="edge-label" data-from="bank" data-to="rubric">
+<rect x="2511.0" y="878.0" width="121.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2571.5" y="900.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >版本 1:0..N</text>
+</g>
+<g class="edge-label" data-from="bank" data-to="assignment">
+<rect x="2452.0" y="926.6" width="200.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2552.0" y="948.6" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >一个版本可多次选用</text>
+</g>
+<g class="edge-label" data-from="resource" data-to="chunk">
+<rect x="1309.0" y="718.0" width="75.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1346.5" y="740.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >1:0..N</text>
+</g>
+<g class="edge-label" data-from="knowledge" data-to="chunk">
+<rect x="1982.0" y="947.5" width="75.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2019.5" y="969.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >1:0..N</text>
+</g>
+<g class="edge-label" data-from="source" data-to="chunk">
+<rect x="665.0" y="867.7" width="75.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="702.5" y="889.7" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >1:0..N</text>
+</g>
+<g class="edge-label" data-from="assignment" data-to="submission">
+<rect x="1025.0" y="1323.0" width="139.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1094.5" y="1345.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >题目实例 1:N</text>
+</g>
+<g class="edge-label" data-from="user" data-to="submission">
+<rect x="642.0" y="598.0" width="99.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="691.5" y="620.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >学生 1:N</text>
+</g>
+<g class="edge-label" data-from="submission" data-to="grade">
+<rect x="1323.5" y="1498.0" width="53.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1350.0" y="1520.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >1:N</text>
+</g>
+<g class="edge-label" data-from="rubric" data-to="grade">
+<rect x="1695.0" y="1323.0" width="140.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1765.0" y="1345.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >采用确切标准</text>
+</g>
+<g class="edge-label" data-from="resource" data-to="note">
+<rect x="1025.0" y="922.0" width="53.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1051.5" y="944.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >1:N</text>
+</g>
+<g class="edge-label" data-from="user" data-to="note">
+<rect x="45.0" y="933.0" width="99.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="94.5" y="955.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >学生 1:N</text>
+</g>
+<g class="edge-label" data-from="point" data-to="path">
+<rect x="1385.0" y="860.0" width="140.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1455.0" y="882.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >路径条目关联</text>
+</g>
+<g class="edge-label" data-from="assignment" data-to="intervention">
+<rect x="1054.0" y="1273.6" width="100.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1104.0" y="1295.6" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >可选补练</text>
+</g>
+<g class="edge-label" data-from="resource" data-to="intervention">
+<rect x="1312.0" y="1249.5" width="100.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1362.0" y="1271.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >可选补学</text>
+</g>
+<g class="edge-label" data-from="grade" data-to="path">
+<rect x="68.0" y="1779.5" width="180.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="158.0" y="1801.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >正式结果作为证据</text>
+</g>
+<g class="edge-label" data-from="job" data-to="grade">
+<rect x="1695.0" y="1713.0" width="172.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1781.0" y="1735.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >可选 AI 草稿来源</text>
+</g>
+<g class="edge-label" data-from="decision" data-to="knowledge">
+<rect x="2075.0" y="1778" width="200.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2175.0" y="1800" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >决定产生或关联版本</text>
+</g>
+</g>
+<rect x="80" y="2071" width="2540" height="56" rx="10" fill="#EAE9E3" stroke="none" />
+<text x="103" y="2103" font-size="23" fill="#58616A" font-weight="400" text-anchor="start" >概念关联包含业务证据引用，不把 JSON/数组中的引用冒充数据库外键；F14 分图给出 41 张表、103 条物理外键及非外键说明。</text>
+<text x="80" y="2173" font-size="19" fill="#58616A" font-weight="400" text-anchor="start" >源码核查：backend/db/migrations/00001–00012；learning/materials.go；question_bank.go；regrade.go；path.go</text>
+<text x="80" y="2252" font-size="18" fill="#58616A" font-weight="400" text-anchor="start" >20 个节点 · 33 条关系　｜　细节见同编号分图；SVG 可搜索、放大，PNG 用于展示。</text>
+</g></svg>

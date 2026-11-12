@@ -1,44 +1,217 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1540" height="910" viewBox="0 0 1540 910" role="img" aria-labelledby="title desc">
-<title id="title">F10 工作流程：诊断与干预</title><desc id="desc">诊断结果怎么变成干预动作？ 现有路径是规则生成；不称为 AI 诊断。</desc>
-<rect width="1540" height="910" fill="#fbfcfb"/>
-<rect x="0" y="0" width="12" height="910" fill="#17816b"/>
-<text x="60" y="68" font-size="30" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">F10　工作流程：诊断与干预</text>
-<text x="60" y="112" font-size="21" font-family="Microsoft YaHei" fill="#52636b">诊断结果怎么变成干预动作？</text>
-<text x="60" y="151" font-size="17" font-family="Microsoft YaHei" fill="#17816b">本地代码状态 · 2026-11-12</text>
-<text x="60" y="245" font-size="22" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">现有证据</text>
-<line x1="60" y1="301" x2="1480" y2="301" stroke="#e4e9e8"/>
-<rect x="230" y="192" width="285" height="86" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="372.5" y="236.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">已发布评分 + 学习记录</text>
-<rect x="567" y="192" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="709.5" y="236.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">班级 / 个人证据视图</text>
-<path d="M 525 235 H 555 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
-<rect x="904" y="192" width="285" height="86" rx="5" fill="#fff0df" stroke="#bd7130" stroke-width="2"/>
-<text x="1046.5" y="236.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">教师选定学生与依据</text>
-<path d="M 862 235 H 892 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
-<text x="60" y="387" font-size="22" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">执行</text>
-<line x1="60" y1="443" x2="1480" y2="443" stroke="#e4e9e8"/>
-<rect x="230" y="334" width="285" height="86" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="372.5" y="378.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">干预 draft</text>
-<rect x="567" y="334" width="285" height="86" rx="5" fill="#fff0df" stroke="#bd7130" stroke-width="2"/>
-<text x="709.5" y="378.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">教师 assigned</text>
-<path d="M 525 377 H 555 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
-<rect x="904" y="334" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="1046.5" y="378.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">学生学习 / 练习并提交</text>
-<path d="M 862 377 H 892 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
-<text x="60" y="529" font-size="22" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">复查</text>
-<line x1="60" y1="585" x2="1480" y2="585" stroke="#e4e9e8"/>
-<rect x="230" y="476" width="285" height="86" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="372.5" y="520.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">下发后新证据</text>
-<rect x="567" y="476" width="285" height="86" rx="5" fill="#fff0df" stroke="#bd7130" stroke-width="2"/>
-<text x="709.5" y="520.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">教师 reviewed</text>
-<path d="M 525 519 H 555 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
-<text x="60" y="671" font-size="22" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">未接通</text>
-<line x1="60" y1="727" x2="1480" y2="727" stroke="#e4e9e8"/>
-<rect x="230" y="618" width="285" height="86" rx="5" fill="#f7f7f7" stroke="#929b9e" stroke-width="2" stroke-dasharray="7 5"/>
-<text x="372.5" y="662.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">AI 共性错因诊断</text>
-<rect x="567" y="618" width="285" height="86" rx="5" fill="#f7f7f7" stroke="#929b9e" stroke-width="2" stroke-dasharray="7 5"/>
-<text x="709.5" y="662.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">自动生成个性补练</text>
-<path d="M 525 661 H 555 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
-<text x="60" y="788" font-size="17" font-family="Microsoft YaHei" fill="#52636b">证据：backend/internal/learning/feedback.go；path.go；workspace.go；docs/architecture.md</text>
-<text x="60" y="838" font-size="18" font-family="Microsoft YaHei" fill="#9b6330">边界：现有路径是规则生成；不称为 AI 诊断。</text>
-<text x="60" y="884" font-size="16" font-family="Microsoft YaHei" fill="#738087">实色框：当前代码或人工步骤　　虚线灰框：尚未实现　　箭头：本行的依赖或交接</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="2700" height="1797" viewBox="0 0 2700 1797" role="img" aria-labelledby="title desc">
+<title id="title">F10 诊断证据与教师干预流程</title><desc id="desc">准确区分证据汇总、规则路径、教师决定和仍未接通的 AI 诊断。。规则路径只描述选择和排序，不是能力概率或 AI 个性化推荐。教师复查是人工判断，不自动证明学习效果改善。</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 1 L9 5 L0 9Z" fill="#85929B"/></marker></defs>
+<g font-family="Microsoft YaHei, sans-serif">
+<rect x="0" y="0" width="2700" height="1797" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="80" y="76" font-size="40" fill="#242424" font-weight="700" text-anchor="start" >F10　诊断证据与教师干预流程</text>
+<text x="2620" y="76" font-size="22" fill="#58616A" font-weight="400" text-anchor="end" >2026-11-12 · 本地工作树</text>
+<text x="80" y="125" font-size="25" fill="#58616A" font-weight="400" text-anchor="start" >准确区分证据汇总、规则路径、教师决定和仍未接通的 AI 诊断。</text>
+<text x="80" y="177" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >教师深色 / AI橙色 / 数据蓝色 / 系统白色　　绿色标记：本地已接通　　灰色虚框：未实现</text>
+<text x="80" y="214" font-size="20" fill="#8A622E" font-weight="400" text-anchor="start" >箭头按本图语义表达；只代表代码路径与结构，不代表独立教师验收、模型正确性或公网部署。</text>
+<g class="edges">
+<g class="edge" data-from="released" data-to="view"><title>已发布评价证据 → 班级 / 个人证据视图：正式结果</title><path d="M610.0,363.0 L632.0,363.0 L632.0,253 L1398.0,253 L1398.0,363.0 L1420.0,363.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="activity" data-to="view"><title>真实学习与作答记录 → 班级 / 个人证据视图：过程证据</title><path d="M1280.0,363.0 L1302.0,363.0 L1302.0,392.0 L1420.0,392.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="view" data-to="teacher"><title>班级 / 个人证据视图 → 教师解释问题并选干预对象：供教师判断</title><path d="M1950.0,363.0 L2090.0,363.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="released" data-to="rule"><title>已发布评价证据 → 学生生成规则学习路径：知识点表现</title><path d="M610.0,392.0 L632.0,392.0 L632.0,728.5 L750.0,728.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="graph" data-to="rule"><title>知识点前置依赖 → 学生生成规则学习路径：前置关系</title><path d="M610.0,723.0 L728.0,723.0 L728.0,757.5 L750.0,757.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="teacher" data-to="draft"><title>教师解释问题并选干预对象 → 教师建立干预草稿：选择资料与既有练习</title><path d="M2620.0,363.0 L2642.0,363.0 L2642.0,613 L1398.0,613 L1398.0,723.0 L1420.0,723.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="draft" data-to="assign"><title>教师建立干预草稿 → 教师下发任务 assigned：教师确认下发</title><path d="M1950.0,723.0 L2090.0,723.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="assign" data-to="learn"><title>教师下发任务 assigned → 学生执行补学与补练：任务与时间基准</title><path d="M2355.0,811 L2355.0,995" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="learn" data-to="gate"><title>学生执行补学与补练 → 校验下发之后的新证据：核对实际记录</title><path d="M2090.0,1083.0 L2068.0,1083.0 L2068.0,1088.5 L1950.0,1088.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="gate" data-to="submit"><title>校验下发之后的新证据 → 学生提交任务完成说明：条件满足</title><path d="M1420.0,1088.5 L1398.0,1088.5 L1398.0,1083.0 L1280.0,1083.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="gate" data-to="learn"><title>校验下发之后的新证据 → 学生执行补学与补练：证据不足继续执行</title><path d="M1950.0,1117.5 L1972.0,1117.5 L1972.0,1112.0 L2090.0,1112.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="submit" data-to="review"><title>学生提交任务完成说明 → 教师复查 reviewed：新证据 + 完成说明</title><path d="M750.0,1083.0 L610.0,1083.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="review" data-to="more"><title>教师复查 reviewed → 需要时新建下一轮干预：仍需跟进</title><path d="M345.0,1171 L345.0,1355" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="more" data-to="draft"><title>需要时新建下一轮干预 → 教师建立干预草稿：另建下一轮</title><path d="M610.0,1443.0 L632.0,1443.0 L632.0,844 L1398.0,844 L1398.0,752.0 L1420.0,752.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+</g><g class="nodes">
+<g class="node" data-node="released" data-role="data">
+<rect x="80.0" y="275" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">已发布评价证据</text>
+<rect x="507.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="107.0" cy="353" r="4" fill="#187653"/>
+<text x="120.0" y="360" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">按题聚合有效正式结果，回查原文</text>
+<circle cx="107.0" cy="385" r="4" fill="#187653"/>
+<text x="120.0" y="392" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">保留得分、满分与知识点关联</text>
+</g>
+<g class="node" data-node="activity" data-role="data">
+<rect x="750.0" y="275" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">真实学习与作答记录</text>
+<rect x="1177.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="777.0" cy="353" r="4" fill="#187653"/>
+<text x="790.0" y="360" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">阅读、完成、笔记、正式提交</text>
+<circle cx="777.0" cy="385" r="4" fill="#187653"/>
+<text x="790.0" y="392" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">未交、部分提交、已交由队列汇总</text>
+</g>
+<g class="node" data-node="view" data-role="system">
+<rect x="1420.0" y="275" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">班级 / 个人证据视图</text>
+<rect x="1847.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="1447.0" cy="353" r="4" fill="#187653"/>
+<text x="1460.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">呈现已有评价和学习事实</text>
+<circle cx="1447.0" cy="385" r="4" fill="#187653"/>
+<text x="1460.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">缺证据单独显示，不冒充 0 分能力</text>
+</g>
+<g class="node" data-node="teacher" data-role="teacher">
+<rect x="2090.0" y="275" width="530.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="318" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" class="node-title">教师解释问题并选干预对象</text>
+<rect x="2517.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >人工关口</text>
+<circle cx="2117.0" cy="353" r="4" fill="#187653"/>
+<text x="2130.0" y="360" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" class="node-line">结合题目、原文和来源决定跟进</text>
+<circle cx="2117.0" cy="385" r="4" fill="#187653"/>
+<text x="2130.0" y="392" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" class="node-line">当前没有自动 AI 共性错因结论</text>
+</g>
+<g class="node" data-node="graph" data-role="data">
+<rect x="80.0" y="635" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="678" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">知识点前置依赖</text>
+<rect x="507.0" y="621" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="642" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="107.0" cy="713" r="4" fill="#187653"/>
+<text x="120.0" y="720" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">教师维护无环依赖边</text>
+<circle cx="107.0" cy="745" r="4" fill="#187653"/>
+<text x="120.0" y="752" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">章节组织与前置关系分别维护</text>
+</g>
+<g class="node" data-node="rule" data-role="system">
+<rect x="750.0" y="635" width="530.0" height="187" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="678" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">学生生成规则学习路径</text>
+<rect x="1177.0" y="621" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="642" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="777.0" cy="713" r="4" fill="#187653"/>
+<text x="790.0" y="720" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">无评价证据或得分率低于 0.6 入选</text>
+<circle cx="777.0" cy="745" r="4" fill="#187653"/>
+<text x="790.0" y="752" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">补齐前置知识，拓扑排序后保存快照</text>
+<circle cx="777.0" cy="777" r="4" fill="#187653"/>
+<text x="790.0" y="784" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">供学生安排学习，不自动生成教师任务</text>
+</g>
+<g class="node" data-node="draft" data-role="teacher">
+<rect x="1420.0" y="635" width="530.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="678" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" class="node-title">教师建立干预草稿</text>
+<rect x="1847.0" y="621" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="642" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >人工关口</text>
+<circle cx="1447.0" cy="713" r="4" fill="#187653"/>
+<text x="1460.0" y="720" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" class="node-line">选学生、已发布资料、已有补练作业</text>
+<circle cx="1447.0" cy="745" r="4" fill="#187653"/>
+<text x="1460.0" y="752" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" class="node-line">填写执行要求与完成说明</text>
+</g>
+<g class="node" data-node="assign" data-role="teacher">
+<rect x="2090.0" y="635" width="530.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="678" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" class="node-title">教师下发任务 assigned</text>
+<rect x="2517.0" y="621" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="642" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >人工关口</text>
+<circle cx="2117.0" cy="713" r="4" fill="#187653"/>
+<text x="2130.0" y="720" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" class="node-line">教师执行 draft → assigned</text>
+<circle cx="2117.0" cy="745" r="4" fill="#187653"/>
+<text x="2130.0" y="752" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" class="node-line">记录 assigned_at 作为新证据起点</text>
+</g>
+<g class="node" data-node="learn" data-role="external">
+<rect x="2090.0" y="995" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="1038" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">学生执行补学与补练</text>
+<rect x="2517.0" y="981" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="2562.0" y="1002" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >外部边界</text>
+<circle cx="2117.0" cy="1073" r="4" fill="#78818A"/>
+<text x="2130.0" y="1080" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">完成关联资料学习，提交关联练习</text>
+<circle cx="2117.0" cy="1105" r="4" fill="#78818A"/>
+<text x="2130.0" y="1112" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">执行动作和任务说明均留痕</text>
+</g>
+<g class="node" data-node="gate" data-role="system">
+<rect x="1420.0" y="995" width="530.0" height="187" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="1038" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">校验下发之后的新证据</text>
+<rect x="1847.0" y="981" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="1002" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="1447.0" cy="1073" r="4" fill="#187653"/>
+<text x="1460.0" y="1080" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">资料须有下发后 completed 记录</text>
+<circle cx="1447.0" cy="1105" r="4" fill="#187653"/>
+<text x="1460.0" y="1112" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">补练须有下发后正式提交</text>
+<circle cx="1447.0" cy="1137" r="4" fill="#187653"/>
+<text x="1460.0" y="1144" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">历史完成记录不能顶替本轮执行</text>
+</g>
+<g class="node" data-node="submit" data-role="external">
+<rect x="750.0" y="995" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="1038" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">学生提交任务完成说明</text>
+<rect x="1177.0" y="981" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="1222.0" y="1002" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >外部边界</text>
+<circle cx="777.0" cy="1073" r="4" fill="#78818A"/>
+<text x="790.0" y="1080" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">证据条件满足才转 submitted</text>
+<circle cx="777.0" cy="1105" r="4" fill="#78818A"/>
+<text x="790.0" y="1112" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">只允许任务本人提交，正文必填</text>
+</g>
+<g class="node" data-node="review" data-role="teacher">
+<rect x="80.0" y="995" width="530.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="1038" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" class="node-title">教师复查 reviewed</text>
+<rect x="507.0" y="981" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="1002" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >人工关口</text>
+<circle cx="107.0" cy="1073" r="4" fill="#187653"/>
+<text x="120.0" y="1080" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" class="node-line">查看执行证据和学生说明</text>
+<circle cx="107.0" cy="1105" r="4" fill="#187653"/>
+<text x="120.0" y="1112" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" class="node-line">填写复查内容后结束本次任务</text>
+</g>
+<g class="node" data-node="more" data-role="teacher">
+<rect x="80.0" y="1355" width="530.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="1398" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" class="node-title">需要时新建下一轮干预</text>
+<rect x="507.0" y="1341" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="1362" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >人工关口</text>
+<circle cx="107.0" cy="1433" r="4" fill="#187653"/>
+<text x="120.0" y="1440" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" class="node-line">按新证据继续调整学习内容</text>
+<circle cx="107.0" cy="1465" r="4" fill="#187653"/>
+<text x="120.0" y="1472" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" class="node-line">不把 reviewed 伪画成自动成绩改善</text>
+</g>
+<g class="node" data-node="ai" data-role="pending">
+<rect x="750.0" y="1355" width="530.0" height="176" rx="10" fill="#F1F1EF" stroke="#929B9E" stroke-width="2" stroke-dasharray="10 7"/>
+<text x="772.0" y="1398" font-size="27" fill="#697278" font-weight="650" text-anchor="start" class="node-title">AI 共性错因诊断</text>
+<rect x="1194.0" y="1341" width="73.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="1230.5" y="1362" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >未实现</text>
+<circle cx="777.0" cy="1433" r="4" fill="#78818A"/>
+<text x="790.0" y="1440" font-size="22" fill="#697278" font-weight="400" text-anchor="start" class="node-line">E4 尚未接通正式自动诊断</text>
+<circle cx="777.0" cy="1465" r="4" fill="#78818A"/>
+<text x="790.0" y="1472" font-size="22" fill="#697278" font-weight="400" text-anchor="start" class="node-line">不将规则聚合改名为 AI 认知诊断</text>
+</g>
+<g class="node" data-node="personal" data-role="pending">
+<rect x="1420.0" y="1355" width="530.0" height="176" rx="10" fill="#F1F1EF" stroke="#929B9E" stroke-width="2" stroke-dasharray="10 7"/>
+<text x="1442.0" y="1398" font-size="27" fill="#697278" font-weight="650" text-anchor="start" class="node-title">AI 个性补练生成 / 推荐</text>
+<rect x="1864.0" y="1341" width="73.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="1900.5" y="1362" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >未实现</text>
+<circle cx="1447.0" cy="1433" r="4" fill="#78818A"/>
+<text x="1460.0" y="1440" font-size="22" fill="#697278" font-weight="400" text-anchor="start" class="node-line">尚无依据精炼知识的自动出题闭环</text>
+<circle cx="1447.0" cy="1465" r="4" fill="#78818A"/>
+<text x="1460.0" y="1472" font-size="22" fill="#697278" font-weight="400" text-anchor="start" class="node-line">现有补练由教师选择已发布作业</text>
+</g>
+<g class="node" data-node="qa" data-role="pending">
+<rect x="2090.0" y="1355" width="530.0" height="176" rx="10" fill="#F1F1EF" stroke="#929B9E" stroke-width="2" stroke-dasharray="10 7"/>
+<text x="2112.0" y="1398" font-size="27" fill="#697278" font-weight="650" text-anchor="start" class="node-title">问答持久历史 / 代表答案入库</text>
+<rect x="2534.0" y="1341" width="73.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="2570.5" y="1362" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >未实现</text>
+<circle cx="2117.0" cy="1433" r="4" fill="#78818A"/>
+<text x="2130.0" y="1440" font-size="22" fill="#697278" font-weight="400" text-anchor="start" class="node-line">当前问答主要为当次检索结果</text>
+<circle cx="2117.0" cy="1465" r="4" fill="#78818A"/>
+<text x="2130.0" y="1472" font-size="22" fill="#697278" font-weight="400" text-anchor="start" class="node-line">匿名化代表答案沉淀未接通</text>
+</g>
+</g><g class="labels">
+<g class="edge-label" data-from="released" data-to="rule">
+<rect x="642.0" y="545.25" width="120.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="702.0" y="567.25" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >知识点表现</text>
+</g>
+<g class="edge-label" data-from="teacher" data-to="draft">
+<rect x="2432.0" y="473.0" width="200.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2532.0" y="495.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >选择资料与既有练习</text>
+</g>
+<g class="edge-label" data-from="assign" data-to="learn">
+<rect x="2365.0" y="888.0" width="160.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2445.0" y="910.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >任务与时间基准</text>
+</g>
+<g class="edge-label" data-from="review" data-to="more">
+<rect x="355.0" y="1248.0" width="100.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="405.0" y="1270.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >仍需跟进</text>
+</g>
+<g class="edge-label" data-from="more" data-to="draft">
+<rect x="642.0" y="1248.3" width="120.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="702.0" y="1270.3" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >另建下一轮</text>
+</g>
+</g>
+<rect x="80" y="1591" width="2540" height="56" rx="10" fill="#EAE9E3" stroke="none" />
+<text x="103" y="1623" font-size="23" fill="#58616A" font-weight="400" text-anchor="start" >规则路径只描述选择和排序，不是能力概率或 AI 个性化推荐。教师复查是人工判断，不自动证明学习效果改善。</text>
+<text x="80" y="1693" font-size="19" fill="#58616A" font-weight="400" text-anchor="start" >源码核查：learning/path.go:planPath；feedback.go:interventionState；workspace.go；db/queries/{workspace,learning}.sql；docs/architecture.md</text>
+<text x="80" y="1772" font-size="18" fill="#58616A" font-weight="400" text-anchor="start" >16 个节点 · 14 条关系　｜　细节见同编号分图；SVG 可搜索、放大，PNG 用于展示。</text>
+</g></svg>

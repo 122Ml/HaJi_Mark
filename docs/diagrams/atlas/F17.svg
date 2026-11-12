@@ -1,51 +1,320 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1540" height="1020" viewBox="0 0 1540 1020" role="img" aria-labelledby="title desc">
-<title id="title">F17 页面信息架构树</title><desc id="desc">有哪些页面，分几层？</desc>
-<rect width="1540" height="1020" fill="#fbfcfb"/><rect width="12" height="1020" fill="#17816b"/>
-<text x="60" y="68" text-anchor="start" font-size="30" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">F17　页面信息架构树</text>
-<text x="60" y="112" text-anchor="start" font-size="21" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">有哪些页面，分几层？</text>
-<text x="60" y="151" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#17816b">本地代码状态 · 2026-11-12</text>
-<rect x="550" y="190" width="440" height="66" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="770.0" y="230.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">登录 → 角色工作台</text>
-<text x="190" y="315" text-anchor="start" font-size="23" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">教师端 /teacher</text>
-<text x="965" y="315" text-anchor="start" font-size="23" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">学生端 /student</text>
-<line x1="660" y1="256" x2="660" y2="284" stroke="#829ba1" stroke-width="2"/>
-<line x1="660" y1="284" x2="80" y2="284" stroke="#829ba1" stroke-width="2"/>
-<line x1="80" y1="284" x2="80" y2="322" stroke="#829ba1" stroke-width="2"/>
-<line x1="880" y1="256" x2="880" y2="284" stroke="#829ba1" stroke-width="2"/>
-<line x1="880" y1="284" x2="800" y2="284" stroke="#829ba1" stroke-width="2"/>
-<line x1="800" y1="284" x2="800" y2="322" stroke="#829ba1" stroke-width="2"/>
-<line x1="80" y1="322" x2="80" y2="830" stroke="#829ba1" stroke-width="2"/>
-<line x1="800" y1="322" x2="800" y2="646" stroke="#829ba1" stroke-width="2"/>
-<rect x="115" y="340" width="590" height="62" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="410.0" y="378.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">顶部课程选择、个人设置</text>
-<line x1="80" y1="371" x2="115" y2="371" stroke="#829ba1" stroke-width="2"/>
-<rect x="115" y="432" width="590" height="62" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="410.0" y="470.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">课程管理 / 目录 / 学习资料</text>
-<line x1="80" y1="463" x2="115" y2="463" stroke="#829ba1" stroke-width="2"/>
-<rect x="115" y="524" width="590" height="62" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="410.0" y="562.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">知识库 / 检索 / 内容变更</text>
-<line x1="80" y1="555" x2="115" y2="555" stroke="#829ba1" stroke-width="2"/>
-<rect x="115" y="616" width="590" height="62" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="410.0" y="654.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">题库 / 作业 / 测验 / 重评</text>
-<line x1="80" y1="647" x2="115" y2="647" stroke="#829ba1" stroke-width="2"/>
-<rect x="115" y="708" width="590" height="62" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="410.0" y="746.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">看板 / 干预 / 互动</text>
-<line x1="80" y1="739" x2="115" y2="739" stroke="#829ba1" stroke-width="2"/>
-<rect x="115" y="800" width="590" height="62" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="410.0" y="838.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">教研 / 行业人工记录</text>
-<line x1="80" y1="831" x2="115" y2="831" stroke="#829ba1" stroke-width="2"/>
-<rect x="835" y="340" width="590" height="62" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="1130.0" y="378.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">顶部课程选择、个人设置</text>
-<line x1="800" y1="371" x2="835" y2="371" stroke="#829ba1" stroke-width="2"/>
-<rect x="835" y="432" width="590" height="62" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="1130.0" y="470.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">课程学习 / 知识库 / 问答</text>
-<line x1="800" y1="463" x2="835" y2="463" stroke="#829ba1" stroke-width="2"/>
-<rect x="835" y="524" width="590" height="62" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="1130.0" y="562.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">作业 / 测验 / 正式反馈</text>
-<line x1="800" y1="555" x2="835" y2="555" stroke="#829ba1" stroke-width="2"/>
-<rect x="835" y="616" width="590" height="62" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="1130.0" y="654.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">学习路径 / 老师任务 / 互动</text>
-<line x1="800" y1="647" x2="835" y2="647" stroke="#829ba1" stroke-width="2"/>
-<text x="60" y="925" text-anchor="start" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">证据：web/src/app/navigation.ts；web/src/live/routes.tsx；web/src/app/App.tsx</text>
-<text x="60" y="962" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#9b6330">边界：这是当前路由层级；历史 replica 页面不计入活动导航。</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="2700" height="2652" viewBox="0 0 2700 2652" role="img" aria-labelledby="title desc">
+<title id="title">F17 页面信息架构树</title><desc id="desc">以当前导航、路由和 URL 参数为准；同一页面内的工作区写在所属入口下。。教师导航 15 个入口，学生导航 9 个入口；profile 为共同账号入口。历史 replica 未纳入当前功能树；页内工作区不冒充新 URL。</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 1 L9 5 L0 9Z" fill="#85929B"/></marker></defs>
+<g font-family="Microsoft YaHei, sans-serif">
+<rect x="0" y="0" width="2700" height="2652" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="80" y="76" font-size="40" fill="#242424" font-weight="700" text-anchor="start" >F17　页面信息架构树</text>
+<text x="2620" y="76" font-size="22" fill="#58616A" font-weight="400" text-anchor="end" >2026-11-12 · 本地工作树</text>
+<text x="80" y="125" font-size="25" fill="#58616A" font-weight="400" text-anchor="start" >以当前导航、路由和 URL 参数为准；同一页面内的工作区写在所属入口下。</text>
+<text x="80" y="177" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >教师深色 / AI橙色 / 数据蓝色 / 系统白色　　绿色标记：本地已接通　　灰色虚框：未实现</text>
+<text x="80" y="214" font-size="20" fill="#8A622E" font-weight="400" text-anchor="start" >箭头按本图语义表达；只代表代码路径与结构，不代表独立教师验收、模型正确性或公网部署。</text>
+<g class="edges">
+<g class="edge" data-from="login" data-to="teacher"><title>登录与角色入口 → 教师工作台 /teacher：teacher 会话</title><path d="M345.0,451 L345.0,740" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="login" data-to="student"><title>登录与角色入口 → 学生工作台 /student：student 会话</title><path d="M610.0,363.0 L632.0,363.0 L632.0,828.0 L1420.0,828.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="course" data-to="teacher"><title>共同：课程上下文 → 教师工作台 /teacher：共享课程选择</title><path d="M1280.0,368.5 L1302.0,368.5 L1302.0,718 L58.0,718 L58.0,828.0 L80.0,828.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="course" data-to="student"><title>共同：课程上下文 → 学生工作台 /student：共享课程选择</title><path d="M1280.0,397.5 L1398.0,397.5 L1398.0,857.0 L1420.0,857.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="teacher" data-to="tover"><title>教师工作台 /teacher → 教学概览：分组</title><path d="M345.0,916 L345.0,1205" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="teacher" data-to="tcontent"><title>教师工作台 /teacher → 课程与资源：分组</title><path d="M610.0,828.0 L632.0,828.0 L632.0,1346.5 L750.0,1346.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="teacher" data-to="tassessment"><title>教师工作台 /teacher → 作业与评价：分组</title><path d="M374.0,916 L374.0,938 L655.0,938 L655.0,1648 L345.0,1648 L345.0,1670" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="teacher" data-to="tother"><title>教师工作台 /teacher → 交流与教研：分组</title><path d="M316.0,916 L316.0,1183 L728.0,1183 L728.0,1648 L1015.0,1648 L1015.0,1670" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="student" data-to="sover"><title>学生工作台 /student → 学习概览：分组</title><path d="M1685.0,916 L1685.0,1205" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="student" data-to="scontent"><title>学生工作台 /student → 课程与资源：分组</title><path d="M1950.0,828.0 L1972.0,828.0 L1972.0,1298.5 L2090.0,1298.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="student" data-to="sassessment"><title>学生工作台 /student → 作业与测验：分组</title><path d="M1714.0,916 L1714.0,938 L1995.0,938 L1995.0,1648 L1685.0,1648 L1685.0,1670" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="student" data-to="sother"><title>学生工作台 /student → 任务与交流：分组</title><path d="M1656.0,916 L1656.0,1183 L2068.0,1183 L2068.0,1648 L2355.0,1648 L2355.0,1670" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="tassessment" data-to="taskdetail"><title>作业与评价 → 教师作业子路由：子路由</title><path d="M345.0,1889 L345.0,2135" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="tassessment" data-to="gradedetail"><title>作业与评价 → 教师批阅子路由：批阅子路由</title><path d="M610.0,1779.5 L632.0,1779.5 L632.0,2228.5 L750.0,2228.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="sassessment" data-to="feedback"><title>作业与测验 → 学生正式反馈子路由：正式反馈</title><path d="M1685.0,1857 L1685.0,2135" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="tcontent" data-to="inside"><title>课程与资源 → 内容与题库的页内工作区：页内对象工作区</title><path d="M1280.0,1346.5 L1302.0,1346.5 L1302.0,2113 L2068.0,2113 L2068.0,2244.5 L2090.0,2244.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="tassessment" data-to="inside"><title>作业与评价 → 内容与题库的页内工作区：题库页内工作区</title><path d="M610.0,1808.5 L728.0,1808.5 L728.0,2090 L2045.0,2090 L2045.0,2273.5 L2090.0,2273.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+</g><g class="nodes">
+<g class="node" data-node="login" data-role="system">
+<rect x="80.0" y="275" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">登录与角色入口</text>
+<rect x="507.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="107.0" cy="353" r="4" fill="#187653"/>
+<text x="120.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">/login → 按角色进入工作台</text>
+<circle cx="107.0" cy="385" r="4" fill="#187653"/>
+<text x="120.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">Require session，页面角色由会话决定</text>
+</g>
+<g class="node" data-node="course" data-role="system">
+<rect x="750.0" y="275" width="530.0" height="187" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">共同：课程上下文</text>
+<rect x="1177.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="777.0" cy="353" r="4" fill="#187653"/>
+<text x="790.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">顶栏选择课程，URL ?course=...</text>
+<circle cx="777.0" cy="385" r="4" fill="#187653"/>
+<text x="790.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">切课保留当前模块，清除旧对象参数</text>
+<circle cx="777.0" cy="417" r="4" fill="#187653"/>
+<text x="790.0" y="424" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">没有课程：教师进 courses，学生显示提示</text>
+</g>
+<g class="node" data-node="profile" data-role="system">
+<rect x="1420.0" y="275" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">共同：账号资料</text>
+<rect x="1847.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="1447.0" cy="353" r="4" fill="#187653"/>
+<text x="1460.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">/teacher/profile、/student/profile</text>
+<circle cx="1447.0" cy="385" r="4" fill="#187653"/>
+<text x="1460.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">姓名与密码维护，不依赖选中课程</text>
+</g>
+<g class="node" data-node="legacy" data-role="system">
+<rect x="2090.0" y="275" width="530.0" height="187" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">旧入口兼容与不存在页面</text>
+<rect x="2517.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="2117.0" cy="353" r="4" fill="#187653"/>
+<text x="2130.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">course-twin 按对象/旧 tab 重定向</text>
+<circle cx="2117.0" cy="385" r="4" fill="#187653"/>
+<text x="2130.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">student-twin / insight → 角色概览</text>
+<circle cx="2117.0" cy="417" r="4" fill="#187653"/>
+<text x="2130.0" y="424" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">未知地址显示页面不存在，不空白</text>
+</g>
+<g class="node" data-node="teacher" data-role="teacher">
+<rect x="80.0" y="740" width="530.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="783" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" class="node-title">教师工作台 /teacher</text>
+<rect x="507.0" y="726" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="747" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >人工关口</text>
+<circle cx="107.0" cy="818" r="4" fill="#187653"/>
+<text x="120.0" y="825" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" class="node-line">教学概览 / 课程与资源</text>
+<circle cx="107.0" cy="850" r="4" fill="#187653"/>
+<text x="120.0" y="857" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" class="node-line">作业与评价 / 交流与教研</text>
+</g>
+<g class="node" data-node="student" data-role="external">
+<rect x="1420.0" y="740" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="783" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">学生工作台 /student</text>
+<rect x="1847.0" y="726" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="1892.0" y="747" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >外部边界</text>
+<circle cx="1447.0" cy="818" r="4" fill="#78818A"/>
+<text x="1460.0" y="825" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">学习概览 / 课程与资源</text>
+<circle cx="1447.0" cy="850" r="4" fill="#78818A"/>
+<text x="1460.0" y="857" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">作业与测验 / 任务与交流</text>
+</g>
+<g class="node" data-node="tover" data-role="system">
+<rect x="80.0" y="1205" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="1248" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">教学概览</text>
+<rect x="507.0" y="1191" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="1212" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="107.0" cy="1283" r="4" fill="#187653"/>
+<text x="120.0" y="1290" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">dashboard：教学看板</text>
+<circle cx="107.0" cy="1315" r="4" fill="#187653"/>
+<text x="120.0" y="1322" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">intervention：干预任务</text>
+</g>
+<g class="node" data-node="tcontent" data-role="system">
+<rect x="750.0" y="1205" width="530.0" height="283" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="1248" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">课程与资源</text>
+<rect x="1177.0" y="1191" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="1212" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="777.0" cy="1283" r="4" fill="#187653"/>
+<text x="790.0" y="1290" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">courses：课程、成员、设置</text>
+<circle cx="777.0" cy="1315" r="4" fill="#187653"/>
+<text x="790.0" y="1322" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">curriculum：目录与前置关系</text>
+<circle cx="777.0" cy="1347" r="4" fill="#187653"/>
+<text x="790.0" y="1354" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">materials：原件与已发布学习内容</text>
+<circle cx="777.0" cy="1379" r="4" fill="#187653"/>
+<text x="790.0" y="1386" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">knowledge：独立知识库</text>
+<circle cx="777.0" cy="1411" r="4" fill="#187653"/>
+<text x="790.0" y="1418" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">retrieval：检索与问答</text>
+<circle cx="777.0" cy="1443" r="4" fill="#187653"/>
+<text x="790.0" y="1450" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">content-impact：内容变更与引用影响</text>
+</g>
+<g class="node" data-node="sover" data-role="system">
+<rect x="1420.0" y="1205" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="1248" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">学习概览</text>
+<rect x="1847.0" y="1191" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="1212" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="1447.0" cy="1283" r="4" fill="#187653"/>
+<text x="1460.0" y="1290" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">home：我的概览</text>
+<circle cx="1447.0" cy="1315" r="4" fill="#187653"/>
+<text x="1460.0" y="1322" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">learning：规则学习路径</text>
+</g>
+<g class="node" data-node="scontent" data-role="system">
+<rect x="2090.0" y="1205" width="530.0" height="187" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="1248" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">课程与资源</text>
+<rect x="2517.0" y="1191" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="1212" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="2117.0" cy="1283" r="4" fill="#187653"/>
+<text x="2130.0" y="1290" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">course-content：课程学习资料</text>
+<circle cx="2117.0" cy="1315" r="4" fill="#187653"/>
+<text x="2130.0" y="1322" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">knowledge：可见精炼知识</text>
+<circle cx="2117.0" cy="1347" r="4" fill="#187653"/>
+<text x="2130.0" y="1354" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">retrieval：资料问答与原文定位</text>
+</g>
+<g class="node" data-node="tassessment" data-role="system">
+<rect x="80.0" y="1670" width="530.0" height="219" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="1713" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">作业与评价</text>
+<rect x="507.0" y="1656" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="1677" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="107.0" cy="1748" r="4" fill="#187653"/>
+<text x="120.0" y="1755" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">question-bank：题库、标准与整卷拆题</text>
+<circle cx="107.0" cy="1780" r="4" fill="#187653"/>
+<text x="120.0" y="1787" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">homework：作业中心</text>
+<circle cx="107.0" cy="1812" r="4" fill="#187653"/>
+<text x="120.0" y="1819" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">quiz：测验</text>
+<circle cx="107.0" cy="1844" r="4" fill="#187653"/>
+<text x="120.0" y="1851" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">regrades：整组重评</text>
+</g>
+<g class="node" data-node="tother" data-role="system">
+<rect x="750.0" y="1670" width="530.0" height="187" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="1713" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">交流与教研</text>
+<rect x="1177.0" y="1656" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="1677" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="777.0" cy="1748" r="4" fill="#187653"/>
+<text x="790.0" y="1755" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">interaction：课程互动</text>
+<circle cx="777.0" cy="1780" r="4" fill="#187653"/>
+<text x="790.0" y="1787" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">research：人工教研记录</text>
+<circle cx="777.0" cy="1812" r="4" fill="#187653"/>
+<text x="790.0" y="1819" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">industry-intelligence：行业能力记录</text>
+</g>
+<g class="node" data-node="sassessment" data-role="system">
+<rect x="1420.0" y="1670" width="530.0" height="187" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="1713" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">作业与测验</text>
+<rect x="1847.0" y="1656" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="1677" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="1447.0" cy="1748" r="4" fill="#187653"/>
+<text x="1460.0" y="1755" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">homework：作业列表与详情</text>
+<circle cx="1447.0" cy="1780" r="4" fill="#187653"/>
+<text x="1460.0" y="1787" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">quiz：测验列表</text>
+<circle cx="1447.0" cy="1812" r="4" fill="#187653"/>
+<text x="1460.0" y="1819" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">homework/:assignmentId：作答与提交</text>
+</g>
+<g class="node" data-node="sother" data-role="system">
+<rect x="2090.0" y="1670" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="1713" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">任务与交流</text>
+<rect x="2517.0" y="1656" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="1677" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="2117.0" cy="1748" r="4" fill="#187653"/>
+<text x="2130.0" y="1755" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">intervention/*：老师任务与执行证据</text>
+<circle cx="2117.0" cy="1780" r="4" fill="#187653"/>
+<text x="2130.0" y="1787" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">interaction：课程互动</text>
+</g>
+<g class="node" data-node="taskdetail" data-role="system">
+<rect x="80.0" y="2135" width="530.0" height="251" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="2178" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">教师作业子路由</text>
+<rect x="507.0" y="2121" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="2142" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="107.0" cy="2213" r="4" fill="#187653"/>
+<text x="120.0" y="2220" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">homework/new、quiz/new：创建</text>
+<circle cx="107.0" cy="2245" r="4" fill="#187653"/>
+<text x="120.0" y="2252" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">homework/:assignmentId/edit：编辑</text>
+<circle cx="107.0" cy="2277" r="4" fill="#187653"/>
+<text x="120.0" y="2284" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">homework/:assignmentId：任务详情</text>
+<circle cx="107.0" cy="2309" r="4" fill="#187653"/>
+<text x="120.0" y="2316" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">homework/:assignmentId/submissions：提交</text>
+<text x="120.0" y="2348" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">队列</text>
+</g>
+<g class="node" data-node="gradedetail" data-role="system">
+<rect x="750.0" y="2135" width="530.0" height="187" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="2178" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">教师批阅子路由</text>
+<rect x="1177.0" y="2121" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="2142" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="777.0" cy="2213" r="4" fill="#187653"/>
+<text x="790.0" y="2220" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">homework/submissions/:submissionId/grade</text>
+<circle cx="777.0" cy="2245" r="4" fill="#187653"/>
+<text x="790.0" y="2252" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">原文、逐点标准、AI 草稿与发布</text>
+<circle cx="777.0" cy="2277" r="4" fill="#187653"/>
+<text x="790.0" y="2284" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">重评批次在 regrades 页面内展开</text>
+</g>
+<g class="node" data-node="feedback" data-role="system">
+<rect x="1420.0" y="2135" width="530.0" height="219" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="2178" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">学生正式反馈子路由</text>
+<rect x="1847.0" y="2121" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="2142" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="1447.0" cy="2213" r="4" fill="#187653"/>
+<text x="1460.0" y="2220" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">homework/submissions/:submissionId/</text>
+<text x="1460.0" y="2252" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">feedback</text>
+<circle cx="1447.0" cy="2277" r="4" fill="#187653"/>
+<text x="1460.0" y="2284" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">只呈现本人正式 released 结果</text>
+<circle cx="1447.0" cy="2309" r="4" fill="#187653"/>
+<text x="1460.0" y="2316" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">答题草稿与个人历史位于任务详情内</text>
+</g>
+<g class="node" data-node="inside" data-role="system">
+<rect x="2090.0" y="2135" width="530.0" height="219" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="2178" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">内容与题库的页内工作区</text>
+<rect x="2517.0" y="2121" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="2142" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="2117.0" cy="2213" r="4" fill="#187653"/>
+<text x="2130.0" y="2220" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">原件详情 / 片段核对 / 图像校正</text>
+<circle cx="2117.0" cy="2245" r="4" fill="#187653"/>
+<text x="2130.0" y="2252" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">知识审定 / 专题关联 / 来源回查</text>
+<circle cx="2117.0" cy="2277" r="4" fill="#187653"/>
+<text x="2130.0" y="2284" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">题目、解答、标准分别编辑确认</text>
+<circle cx="2117.0" cy="2309" r="4" fill="#187653"/>
+<text x="2130.0" y="2316" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">属于现有页面，不虚构独立路由</text>
+</g>
+</g><g class="labels">
+<g class="edge-label" data-from="login" data-to="teacher">
+<rect x="355.0" y="580.5" width="136.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="423.0" y="602.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >teacher 会话</text>
+</g>
+<g class="edge-label" data-from="login" data-to="student">
+<rect x="642.0" y="580.5" width="137.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="710.5" y="602.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >student 会话</text>
+</g>
+<g class="edge-label" data-from="course" data-to="teacher">
+<rect x="1312.0" y="528.25" width="140.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1382.0" y="550.25" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >共享课程选择</text>
+</g>
+<g class="edge-label" data-from="course" data-to="student">
+<rect x="1408.0" y="612.25" width="140.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1478.0" y="634.25" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >共享课程选择</text>
+</g>
+<g class="edge-label" data-from="teacher" data-to="tover">
+<rect x="355.0" y="1045.5" width="60.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="385.0" y="1067.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >分组</text>
+</g>
+<g class="edge-label" data-from="teacher" data-to="tcontent">
+<rect x="642.0" y="1072.25" width="60.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="672.0" y="1094.25" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >分组</text>
+</g>
+<g class="edge-label" data-from="teacher" data-to="tassessment">
+<rect x="665.0" y="1278.0" width="60.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="695.0" y="1300.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >分组</text>
+</g>
+<g class="edge-label" data-from="teacher" data-to="tother">
+<rect x="246.0" y="1034.5" width="60.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="276.0" y="1056.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >分组</text>
+</g>
+<g class="edge-label" data-from="student" data-to="sover">
+<rect x="1695.0" y="1045.5" width="60.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1725.0" y="1067.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >分组</text>
+</g>
+<g class="edge-label" data-from="student" data-to="scontent">
+<rect x="1982.0" y="1048.25" width="60.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2012.0" y="1070.25" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >分组</text>
+</g>
+<g class="edge-label" data-from="student" data-to="sassessment">
+<rect x="2005.0" y="1278.0" width="60.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2035.0" y="1300.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >分组</text>
+</g>
+<g class="edge-label" data-from="student" data-to="sother">
+<rect x="1586.0" y="1034.5" width="60.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1616.0" y="1056.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >分组</text>
+</g>
+<g class="edge-label" data-from="tassessment" data-to="taskdetail">
+<rect x="355.0" y="1997.0" width="80.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="395.0" y="2019.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >子路由</text>
+</g>
+<g class="edge-label" data-from="tassessment" data-to="gradedetail">
+<rect x="642.0" y="1989.0" width="120.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="702.0" y="2011.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >批阅子路由</text>
+</g>
+<g class="edge-label" data-from="sassessment" data-to="feedback">
+<rect x="1695.0" y="1981.0" width="100.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1745.0" y="2003.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >正式反馈</text>
+</g>
+<g class="edge-label" data-from="tcontent" data-to="inside">
+<rect x="1312.0" y="1561.45" width="160.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1392.0" y="1583.45" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >页内对象工作区</text>
+</g>
+<g class="edge-label" data-from="tassessment" data-to="inside">
+<rect x="738.0" y="1934.25" width="160.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="818.0" y="1956.25" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >题库页内工作区</text>
+</g>
+</g>
+<rect x="80" y="2446" width="2540" height="56" rx="10" fill="#EAE9E3" stroke="none" />
+<text x="103" y="2478" font-size="23" fill="#58616A" font-weight="400" text-anchor="start" >教师导航 15 个入口，学生导航 9 个入口；profile 为共同账号入口。历史 replica 未纳入当前功能树；页内工作区不冒充新 URL。</text>
+<text x="80" y="2548" font-size="19" fill="#58616A" font-weight="400" text-anchor="start" >源码核查：web/src/app/{App.tsx,navigation.ts}；web/src/live/{routes.tsx,context.tsx}；shared/session.tsx</text>
+<text x="80" y="2627" font-size="18" fill="#58616A" font-weight="400" text-anchor="start" >18 个节点 · 17 条关系　｜　细节见同编号分图；SVG 可搜索、放大，PNG 用于展示。</text>
+</g></svg>

@@ -1,81 +1,271 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1540" height="1400" viewBox="0 0 1540 1400" role="img" aria-labelledby="title desc">
-<title id="title">F14 数据表关系图</title><desc id="desc">当前数据库怎么建立主要关系？</desc>
-<rect width="1540" height="1400" fill="#fbfcfb"/><rect width="12" height="1400" fill="#17816b"/>
-<text x="60" y="68" text-anchor="start" font-size="30" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">F14　数据表关系图</text>
-<text x="60" y="112" text-anchor="start" font-size="21" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">当前数据库怎么建立主要关系？</text>
-<text x="60" y="151" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#17816b">本地代码状态 · 2026-11-12</text>
-<text x="60" y="205" text-anchor="start" font-size="22" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">课程外键</text>
-<rect x="300" y="227" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="495.0" y="263.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">courses</text>
-<rect x="950" y="227" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1145.0" y="263.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">enrollments</text>
-<line x1="690" y1="256" x2="950" y2="256" stroke="#829ba1" stroke-width="2"/>
-<text x="820.0" y="246.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
-<rect x="300" y="301" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="495.0" y="337.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">courses</text>
-<rect x="950" y="301" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1145.0" y="337.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">assignments</text>
-<line x1="690" y1="330" x2="950" y2="330" stroke="#829ba1" stroke-width="2"/>
-<text x="820.0" y="320.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
-<rect x="300" y="375" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="495.0" y="411.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">courses</text>
-<rect x="950" y="375" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1145.0" y="411.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">material_sources</text>
-<line x1="690" y1="404" x2="950" y2="404" stroke="#829ba1" stroke-width="2"/>
-<text x="820.0" y="394.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
-<line x1="60" y1="456" x2="1480" y2="456" stroke="#e4e9e8"/>
-<text x="60" y="475" text-anchor="start" font-size="22" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">资料外键</text>
-<rect x="300" y="497" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="495.0" y="533.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">material_sources</text>
-<rect x="950" y="497" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1145.0" y="533.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">material_fragments</text>
-<line x1="690" y1="526" x2="950" y2="526" stroke="#829ba1" stroke-width="2"/>
-<text x="820.0" y="516.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
-<rect x="300" y="571" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="495.0" y="607.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">material_sources</text>
-<rect x="950" y="571" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1145.0" y="607.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">resources</text>
-<line x1="690" y1="600" x2="950" y2="600" stroke="#829ba1" stroke-width="2"/>
-<text x="820.0" y="590.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">0:N</text>
-<rect x="300" y="645" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="495.0" y="681.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">retrieval_chunks</text>
-<rect x="950" y="645" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1145.0" y="681.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">chunk_embeddings</text>
-<line x1="690" y1="674" x2="950" y2="674" stroke="#829ba1" stroke-width="2"/>
-<text x="820.0" y="664.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
-<line x1="60" y1="726" x2="1480" y2="726" stroke="#e4e9e8"/>
-<text x="60" y="745" text-anchor="start" font-size="22" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">评价外键</text>
-<rect x="300" y="767" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="495.0" y="803.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">question_bank</text>
-<rect x="950" y="767" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1145.0" y="803.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">bank_question_versions</text>
-<line x1="690" y1="796" x2="950" y2="796" stroke="#829ba1" stroke-width="2"/>
-<text x="820.0" y="786.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
-<rect x="300" y="841" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="495.0" y="877.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">bank_question_versions</text>
-<rect x="950" y="841" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1145.0" y="877.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">rubric_versions</text>
-<line x1="690" y1="870" x2="950" y2="870" stroke="#829ba1" stroke-width="2"/>
-<text x="820.0" y="860.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">0:N</text>
-<rect x="300" y="915" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="495.0" y="951.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">assignments</text>
-<rect x="950" y="915" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1145.0" y="951.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">questions</text>
-<line x1="690" y1="944" x2="950" y2="944" stroke="#829ba1" stroke-width="2"/>
-<text x="820.0" y="934.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
-<rect x="300" y="989" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="495.0" y="1025.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">questions</text>
-<rect x="950" y="989" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1145.0" y="1025.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">submissions</text>
-<line x1="690" y1="1018" x2="950" y2="1018" stroke="#829ba1" stroke-width="2"/>
-<text x="820.0" y="1008.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
-<rect x="300" y="1063" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="495.0" y="1099.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">submissions</text>
-<rect x="950" y="1063" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1145.0" y="1099.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">grading_revisions</text>
-<line x1="690" y1="1092" x2="950" y2="1092" stroke="#829ba1" stroke-width="2"/>
-<text x="820.0" y="1082.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
-<text x="60" y="1180" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">rubric_versions：question_id 与 bank_question_version_id 恰有其一；questions 可选绑定题库版本与标准。</text>
-<text x="60" y="1305" text-anchor="start" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">证据：backend/db/migrations/00001–00012；backend/db/queries</text>
-<text x="60" y="1342" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#9b6330">边界：主干外键视图；完整约束见迁移 00001–00012。</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="2700" height="1575" viewBox="0 0 2700 1575" role="img" aria-labelledby="title desc">
+<title id="title">F14 全库表关系总览：41 表 / 103 外键</title><desc id="desc">箭头从引用表所在域指向被引用域；逐表 PK、FK 和可空性展开在 F14-1～F14-3。。统计不包含 Goose 元数据表。域内外键在分图展开；content_tags.object_id、evidence、fragment_ids 等业务引用没有物理 FK，不画为实线外键。</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 1 L9 5 L0 9Z" fill="#85929B"/></marker></defs>
+<g font-family="Microsoft YaHei, sans-serif">
+<rect x="0" y="0" width="2700" height="1575" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="80" y="76" font-size="40" fill="#242424" font-weight="700" text-anchor="start" >F14　全库表关系总览：41 表 / 103 外键</text>
+<text x="2620" y="76" font-size="22" fill="#58616A" font-weight="400" text-anchor="end" >2026-11-12 · 本地工作树</text>
+<text x="80" y="125" font-size="25" fill="#58616A" font-weight="400" text-anchor="start" >箭头从引用表所在域指向被引用域；逐表 PK、FK 和可空性展开在 F14-1～F14-3。</text>
+<text x="80" y="177" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >教师深色 / AI橙色 / 数据蓝色 / 系统白色　　绿色标记：本地已接通　　灰色虚框：未实现</text>
+<text x="80" y="214" font-size="20" fill="#8A622E" font-weight="400" text-anchor="start" >箭头按本图语义表达；只代表代码路径与结构，不代表独立教师验收、模型正确性或公网部署。</text>
+<g class="edges">
+<g class="edge" data-from="g4" data-to="g0"><title>任务与原始作答 → 身份课程：6 条 FK</title><path d="M345.0,885 L345.0,590" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="g1" data-to="g0"><title>原件与学习资料 → 身份课程：7 条 FK</title><path d="M750.0,416.5 L728.0,416.5 L728.0,432.5 L610.0,432.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="g1" data-to="g7"><title>原件与学习资料 → 检索与模型运行：1 条 FK</title><path d="M1280.0,416.5 L1302.0,416.5 L1302.0,863 L2068.0,863 L2068.0,1042.5 L2090.0,1042.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="g3" data-to="g1"><title>题库与规则 → 原件与学习资料：1 条 FK</title><path d="M2090.0,400.5 L2068.0,400.5 L2068.0,571 L1325.0,571 L1325.0,445.5 L1280.0,445.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="g3" data-to="g0"><title>题库与规则 → 身份课程：5 条 FK</title><path d="M2090.0,429.5 L1972.0,429.5 L1972.0,580 L632.0,580 L632.0,461.5 L610.0,461.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="g2" data-to="g0"><title>知识与组织 → 身份课程：6 条 FK</title><path d="M1420.0,416.5 L1398.0,416.5 L1398.0,253 L632.0,253 L632.0,403.5 L610.0,403.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="g0" data-to="g7"><title>身份课程 → 检索与模型运行：1 条 FK</title><path d="M610.0,490.5 L728.0,490.5 L728.0,840 L2045.0,840 L2045.0,1071.5 L2090.0,1071.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="g5" data-to="g7"><title>评价与重评 → 检索与模型运行：2 条 FK</title><path d="M1280.0,994.5 L1302.0,994.5 L1302.0,1286 L1995.0,1286 L1995.0,1013.5 L2090.0,1013.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="g5" data-to="g0"><title>评价与重评 → 身份课程：3 条 FK</title><path d="M1015.0,885 L1015.0,612 L374.0,612 L374.0,590" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="g5" data-to="g3"><title>评价与重评 → 题库与规则：2 条 FK</title><path d="M1280.0,1023.5 L1398.0,1023.5 L1398.0,603 L2045.0,603 L2045.0,371.5 L2090.0,371.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="g5" data-to="g4"><title>评价与重评 → 任务与原始作答：3 条 FK</title><path d="M750.0,994.5 L728.0,994.5 L728.0,1010.5 L610.0,1010.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="g6" data-to="g0"><title>学习与跟进 → 身份课程：15 条 FK</title><path d="M1950.0,1074.5 L1972.0,1074.5 L1972.0,635 L58.0,635 L58.0,432.5 L80.0,432.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="g6" data-to="g4"><title>学习与跟进 → 任务与原始作答：2 条 FK</title><path d="M1420.0,1074.5 L1398.0,1074.5 L1398.0,1126 L632.0,1126 L632.0,1039.5 L610.0,1039.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="g6" data-to="g1"><title>学习与跟进 → 原件与学习资料：3 条 FK</title><path d="M1685.0,885 L1685.0,612 L1015.0,612 L1015.0,558" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="g7" data-to="g0"><title>检索与模型运行 → 身份课程：5 条 FK</title><path d="M2620.0,1042.5 L2642.0,1042.5 L2642.0,612 L1685.0,612 L1685.0,603 L38.0,603 L38.0,461.5 L80.0,461.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="g4" data-to="g3"><title>任务与原始作答 → 题库与规则：2 条 FK</title><path d="M610.0,981.5 L705.0,981.5 L705.0,230.0 L1995.0,230.0 L1995.0,458.5 L2090.0,458.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="g4" data-to="g1"><title>任务与原始作答 → 原件与学习资料：1 条 FK</title><path d="M374.0,885 L374.0,863 L1044.0,863 L1044.0,558" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="g7" data-to="g2"><title>检索与模型运行 → 知识与组织：1 条 FK</title><path d="M2355.0,885 L2355.0,580 L1685.0,580 L1685.0,558" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="g7" data-to="g1"><title>检索与模型运行 → 原件与学习资料：2 条 FK</title><path d="M2620.0,1071.5 L2642.0,1071.5 L2642.0,1309 L655.0,1309 L655.0,445.5 L750.0,445.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="g3" data-to="g4"><title>题库与规则 → 任务与原始作答：1 条 FK</title><path d="M2620.0,400.5 L2642.0,400.5 L2642.0,253 L1375.0,253 L1375.0,571 L632.0,571 L632.0,840 L58.0,840 L58.0,1010.5 L80.0,1010.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="g2" data-to="g3"><title>知识与组织 → 题库与规则：1 条 FK</title><path d="M1950.0,416.5 L1972.0,416.5 L1972.0,342.5 L2090.0,342.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="g2" data-to="g1"><title>知识与组织 → 原件与学习资料：1 条 FK</title><path d="M1420.0,445.5 L1325.0,445.5 L1325.0,387.5 L1280.0,387.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+</g><g class="nodes">
+<g class="node" data-node="g0" data-role="data">
+<rect x="80.0" y="275" width="530.0" height="315" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">身份课程</text>
+<rect x="507.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="107.0" cy="353" r="4" fill="#187653"/>
+<text x="120.0" y="360" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">users</text>
+<circle cx="107.0" cy="385" r="4" fill="#187653"/>
+<text x="120.0" y="392" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">sessions</text>
+<circle cx="107.0" cy="417" r="4" fill="#187653"/>
+<text x="120.0" y="424" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">courses</text>
+<circle cx="107.0" cy="449" r="4" fill="#187653"/>
+<text x="120.0" y="456" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">enrollments</text>
+<circle cx="107.0" cy="481" r="4" fill="#187653"/>
+<text x="120.0" y="488" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">knowledge_points</text>
+<circle cx="107.0" cy="513" r="4" fill="#187653"/>
+<text x="120.0" y="520" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">course_edges</text>
+<circle cx="107.0" cy="545" r="4" fill="#187653"/>
+<text x="120.0" y="552" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">域外入向外键 47 条</text>
+</g>
+<g class="node" data-node="g1" data-role="data">
+<rect x="750.0" y="275" width="530.0" height="283" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">原件与学习资料</text>
+<rect x="1177.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="777.0" cy="353" r="4" fill="#187653"/>
+<text x="790.0" y="360" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">resources</text>
+<circle cx="777.0" cy="385" r="4" fill="#187653"/>
+<text x="790.0" y="392" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">material_sources</text>
+<circle cx="777.0" cy="417" r="4" fill="#187653"/>
+<text x="790.0" y="424" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">material_fragments</text>
+<circle cx="777.0" cy="449" r="4" fill="#187653"/>
+<text x="790.0" y="456" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">material_assets</text>
+<circle cx="777.0" cy="481" r="4" fill="#187653"/>
+<text x="790.0" y="488" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">asset_revisions</text>
+<circle cx="777.0" cy="513" r="4" fill="#187653"/>
+<text x="790.0" y="520" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">域外入向外键 8 条</text>
+</g>
+<g class="node" data-node="g2" data-role="data">
+<rect x="1420.0" y="275" width="530.0" height="283" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">知识与组织</text>
+<rect x="1847.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="1447.0" cy="353" r="4" fill="#187653"/>
+<text x="1460.0" y="360" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">knowledge_entries</text>
+<circle cx="1447.0" cy="385" r="4" fill="#187653"/>
+<text x="1460.0" y="392" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">knowledge_topics</text>
+<circle cx="1447.0" cy="417" r="4" fill="#187653"/>
+<text x="1460.0" y="424" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">topic_links</text>
+<circle cx="1447.0" cy="449" r="4" fill="#187653"/>
+<text x="1460.0" y="456" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">content_tags</text>
+<circle cx="1447.0" cy="481" r="4" fill="#187653"/>
+<text x="1460.0" y="488" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">content_decisions</text>
+<circle cx="1447.0" cy="513" r="4" fill="#187653"/>
+<text x="1460.0" y="520" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">域外入向外键 1 条</text>
+</g>
+<g class="node" data-node="g3" data-role="data">
+<rect x="2090.0" y="275" width="530.0" height="251" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">题库与规则</text>
+<rect x="2517.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="2117.0" cy="353" r="4" fill="#187653"/>
+<text x="2130.0" y="360" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">question_bank</text>
+<circle cx="2117.0" cy="385" r="4" fill="#187653"/>
+<text x="2130.0" y="392" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">bank_question_versions</text>
+<circle cx="2117.0" cy="417" r="4" fill="#187653"/>
+<text x="2130.0" y="424" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">bank_question_assets</text>
+<circle cx="2117.0" cy="449" r="4" fill="#187653"/>
+<text x="2130.0" y="456" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">rubric_versions</text>
+<circle cx="2117.0" cy="481" r="4" fill="#187653"/>
+<text x="2130.0" y="488" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">域外入向外键 5 条</text>
+</g>
+<g class="node" data-node="g4" data-role="data">
+<rect x="80.0" y="885" width="530.0" height="251" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="928" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">任务与原始作答</text>
+<rect x="507.0" y="871" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="892" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="107.0" cy="963" r="4" fill="#187653"/>
+<text x="120.0" y="970" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">assignments</text>
+<circle cx="107.0" cy="995" r="4" fill="#187653"/>
+<text x="120.0" y="1002" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">questions</text>
+<circle cx="107.0" cy="1027" r="4" fill="#187653"/>
+<text x="120.0" y="1034" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">answer_drafts</text>
+<circle cx="107.0" cy="1059" r="4" fill="#187653"/>
+<text x="120.0" y="1066" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">submissions</text>
+<circle cx="107.0" cy="1091" r="4" fill="#187653"/>
+<text x="120.0" y="1098" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">域外入向外键 6 条</text>
+</g>
+<g class="node" data-node="g5" data-role="data">
+<rect x="750.0" y="885" width="530.0" height="219" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="928" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">评价与重评</text>
+<rect x="1177.0" y="871" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="892" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="777.0" cy="963" r="4" fill="#187653"/>
+<text x="790.0" y="970" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">grading_revisions</text>
+<circle cx="777.0" cy="995" r="4" fill="#187653"/>
+<text x="790.0" y="1002" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">regrade_batches</text>
+<circle cx="777.0" cy="1027" r="4" fill="#187653"/>
+<text x="790.0" y="1034" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">regrade_items</text>
+<circle cx="777.0" cy="1059" r="4" fill="#187653"/>
+<text x="790.0" y="1066" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">域外入向外键 0 条</text>
+</g>
+<g class="node" data-node="g6" data-role="data">
+<rect x="1420.0" y="885" width="530.0" height="379" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="928" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">学习与跟进</text>
+<rect x="1847.0" y="871" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="892" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="1447.0" cy="963" r="4" fill="#187653"/>
+<text x="1460.0" y="970" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">learning_events</text>
+<circle cx="1447.0" cy="995" r="4" fill="#187653"/>
+<text x="1460.0" y="1002" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">learning_notes</text>
+<circle cx="1447.0" cy="1027" r="4" fill="#187653"/>
+<text x="1460.0" y="1034" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">study_paths</text>
+<circle cx="1447.0" cy="1059" r="4" fill="#187653"/>
+<text x="1460.0" y="1066" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">study_path_items</text>
+<circle cx="1447.0" cy="1091" r="4" fill="#187653"/>
+<text x="1460.0" y="1098" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">interventions</text>
+<circle cx="1447.0" cy="1123" r="4" fill="#187653"/>
+<text x="1460.0" y="1130" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">interactions</text>
+<circle cx="1447.0" cy="1155" r="4" fill="#187653"/>
+<text x="1460.0" y="1162" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">research_records</text>
+<circle cx="1447.0" cy="1187" r="4" fill="#187653"/>
+<text x="1460.0" y="1194" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">industry_records</text>
+<circle cx="1447.0" cy="1219" r="4" fill="#187653"/>
+<text x="1460.0" y="1226" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">域外入向外键 0 条</text>
+</g>
+<g class="node" data-node="g7" data-role="data">
+<rect x="2090.0" y="885" width="530.0" height="315" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="928" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">检索与模型运行</text>
+<rect x="2517.0" y="871" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="892" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="2117.0" cy="963" r="4" fill="#187653"/>
+<text x="2130.0" y="970" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">embedding_spaces</text>
+<circle cx="2117.0" cy="995" r="4" fill="#187653"/>
+<text x="2130.0" y="1002" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">retrieval_chunks</text>
+<circle cx="2117.0" cy="1027" r="4" fill="#187653"/>
+<text x="2130.0" y="1034" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">chunk_embeddings</text>
+<circle cx="2117.0" cy="1059" r="4" fill="#187653"/>
+<text x="2130.0" y="1066" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">processing_jobs</text>
+<circle cx="2117.0" cy="1091" r="4" fill="#187653"/>
+<text x="2130.0" y="1098" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">model_calls</text>
+<circle cx="2117.0" cy="1123" r="4" fill="#187653"/>
+<text x="2130.0" y="1130" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">model_budget</text>
+<circle cx="2117.0" cy="1155" r="4" fill="#187653"/>
+<text x="2130.0" y="1162" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">域外入向外键 4 条</text>
+</g>
+</g><g class="labels">
+<g class="edge-label" data-from="g4" data-to="g0">
+<rect x="355.0" y="722.5" width="88.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="399.0" y="744.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >6 条 FK</text>
+</g>
+<g class="edge-label" data-from="g1" data-to="g0">
+<rect x="625.0" y="397.5" width="88.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="669.0" y="419.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >7 条 FK</text>
+</g>
+<g class="edge-label" data-from="g1" data-to="g7">
+<rect x="1312.0" y="624.75" width="88.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1356.0" y="646.75" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >1 条 FK</text>
+</g>
+<g class="edge-label" data-from="g3" data-to="g1">
+<rect x="1970.0" y="470.75" width="88.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2014.0" y="492.75" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >1 条 FK</text>
+</g>
+<g class="edge-label" data-from="g3" data-to="g0">
+<rect x="1987.0" y="394.5" width="88.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2031.0" y="416.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >5 条 FK</text>
+</g>
+<g class="edge-label" data-from="g2" data-to="g0">
+<rect x="1300.0" y="319.75" width="88.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1344.0" y="341.75" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >6 条 FK</text>
+</g>
+<g class="edge-label" data-from="g0" data-to="g7">
+<rect x="625.0" y="455.5" width="88.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="669.0" y="477.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >1 条 FK</text>
+</g>
+<g class="edge-label" data-from="g5" data-to="g7">
+<rect x="1312.0" y="1125.25" width="88.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1356.0" y="1147.25" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >2 条 FK</text>
+</g>
+<g class="edge-label" data-from="g5" data-to="g0">
+<rect x="1025.0" y="733.5" width="88.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1069.0" y="755.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >3 条 FK</text>
+</g>
+<g class="edge-label" data-from="g5" data-to="g3">
+<rect x="1295.0" y="988.5" width="88.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1339.0" y="1010.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >2 条 FK</text>
+</g>
+<g class="edge-label" data-from="g5" data-to="g4">
+<rect x="625.0" y="975.5" width="88.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="669.0" y="997.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >3 条 FK</text>
+</g>
+<g class="edge-label" data-from="g6" data-to="g0">
+<rect x="1982.0" y="751.85" width="100.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2032.0" y="773.85" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >15 条 FK</text>
+</g>
+<g class="edge-label" data-from="g6" data-to="g4">
+<rect x="1300.0" y="1085.25" width="88.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1344.0" y="1107.25" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >2 条 FK</text>
+</g>
+<g class="edge-label" data-from="g6" data-to="g1">
+<rect x="1695.0" y="733.5" width="88.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1739.0" y="755.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >3 条 FK</text>
+</g>
+<g class="edge-label" data-from="g7" data-to="g0">
+<rect x="2544.0" y="812.25" width="88.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2588.0" y="834.25" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >5 条 FK</text>
+</g>
+<g class="edge-label" data-from="g4" data-to="g3">
+<rect x="715.0" y="590.75" width="88.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="759.0" y="612.75" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >2 条 FK</text>
+</g>
+<g class="edge-label" data-from="g4" data-to="g1">
+<rect x="665.0" y="828" width="88.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="709.0" y="850" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >1 条 FK</text>
+</g>
+<g class="edge-label" data-from="g7" data-to="g2">
+<rect x="2365.0" y="717.5" width="88.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2409.0" y="739.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >1 条 FK</text>
+</g>
+<g class="edge-label" data-from="g7" data-to="g1">
+<rect x="2544.0" y="1222.75" width="88.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2588.0" y="1244.75" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >2 条 FK</text>
+</g>
+<g class="edge-label" data-from="g3" data-to="g4">
+<rect x="642.0" y="690.5" width="88.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="686.0" y="712.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >1 条 FK</text>
+</g>
+<g class="edge-label" data-from="g2" data-to="g3">
+<rect x="1982.0" y="349.7" width="88.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2026.0" y="371.7" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >1 条 FK</text>
+</g>
+</g>
+<rect x="80" y="1369" width="2540" height="56" rx="10" fill="#EAE9E3" stroke="none" />
+<text x="103" y="1401" font-size="23" fill="#58616A" font-weight="400" text-anchor="start" >统计不包含 Goose 元数据表。域内外键在分图展开；content_tags.object_id、evidence、fragment_ids 等业务引用没有物理 FK，不画为实线外键。</text>
+<text x="80" y="1471" font-size="19" fill="#58616A" font-weight="400" text-anchor="start" >源码核查：schema.json（本地 PostgreSQL 结构目录只读快照）；backend/db/migrations/00001–00012</text>
+<text x="80" y="1550" font-size="18" fill="#58616A" font-weight="400" text-anchor="start" >8 个节点 · 22 条关系　｜　细节见同编号分图；SVG 可搜索、放大，PNG 用于展示。</text>
+</g></svg>

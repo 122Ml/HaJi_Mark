@@ -1,83 +1,152 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1540" height="1180" viewBox="0 0 1540 1180" role="img" aria-labelledby="title desc">
-<title id="title">F11 六类生命周期</title><desc id="desc">这些对象什么时候算完成？</desc>
-<rect width="1540" height="1180" fill="#fbfcfb"/><rect width="12" height="1180" fill="#17816b"/>
-<text x="60" y="68" text-anchor="start" font-size="30" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">F11　六类生命周期</text>
-<text x="60" y="112" text-anchor="start" font-size="21" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">这些对象什么时候算完成？</text>
-<text x="60" y="151" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#17816b">本地代码状态 · 2026-11-12</text>
-<text x="60" y="257" text-anchor="start" font-size="20" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">课程</text>
-<rect x="250" y="210" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="350.0" y="253.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">draft</text>
-<rect x="580" y="210" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="680.0" y="253.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">published</text>
-<line x1="450" y1="246" x2="580" y2="246" stroke="#829ba1" stroke-width="2"/>
-<text x="515.0" y="236.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">教师发布</text>
-<path d="M571 240 L580 246 L571 252" fill="none" stroke="#829ba1" stroke-width="2"/>
-<line x1="60" y1="318" x2="1480" y2="318" stroke="#e4e9e8"/>
-<text x="60" y="394" text-anchor="start" font-size="20" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">学习资料</text>
-<rect x="250" y="347" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="350.0" y="390.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">draft</text>
-<rect x="580" y="347" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="680.0" y="390.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">published</text>
-<line x1="450" y1="383" x2="580" y2="383" stroke="#829ba1" stroke-width="2"/>
-<text x="515.0" y="373.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">教师审核发布</text>
-<path d="M571 377 L580 383 L571 389" fill="none" stroke="#829ba1" stroke-width="2"/>
-<line x1="60" y1="455" x2="1480" y2="455" stroke="#e4e9e8"/>
-<text x="60" y="531" text-anchor="start" font-size="20" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">作业</text>
-<rect x="250" y="484" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="350.0" y="527.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">draft</text>
-<rect x="580" y="484" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="680.0" y="527.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">published</text>
-<line x1="450" y1="520" x2="580" y2="520" stroke="#829ba1" stroke-width="2"/>
-<text x="515.0" y="510.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">教师发布</text>
-<path d="M571 514 L580 520 L571 526" fill="none" stroke="#829ba1" stroke-width="2"/>
-<rect x="910" y="484" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1010.0" y="527.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">closed</text>
-<line x1="780" y1="520" x2="910" y2="520" stroke="#829ba1" stroke-width="2"/>
-<text x="845.0" y="510.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">教师关闭</text>
-<path d="M901 514 L910 520 L901 526" fill="none" stroke="#829ba1" stroke-width="2"/>
-<line x1="60" y1="592" x2="1480" y2="592" stroke="#e4e9e8"/>
-<text x="60" y="668" text-anchor="start" font-size="20" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">题目 / 解答 / 标准</text>
-<rect x="250" y="621" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="350.0" y="664.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">draft</text>
-<rect x="580" y="621" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="680.0" y="664.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">confirmed</text>
-<line x1="450" y1="657" x2="580" y2="657" stroke="#829ba1" stroke-width="2"/>
-<text x="515.0" y="647.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">分别人工确认</text>
-<path d="M571 651 L580 657 L571 663" fill="none" stroke="#829ba1" stroke-width="2"/>
-<line x1="60" y1="729" x2="1480" y2="729" stroke="#e4e9e8"/>
-<text x="60" y="805" text-anchor="start" font-size="20" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">评分修订</text>
-<rect x="250" y="758" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="350.0" y="801.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">draft</text>
-<rect x="580" y="758" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="680.0" y="801.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">confirmed</text>
-<line x1="450" y1="794" x2="580" y2="794" stroke="#829ba1" stroke-width="2"/>
-<text x="515.0" y="784.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">教师确认</text>
-<path d="M571 788 L580 794 L571 800" fill="none" stroke="#829ba1" stroke-width="2"/>
-<rect x="910" y="758" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1010.0" y="801.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">released</text>
-<line x1="780" y1="794" x2="910" y2="794" stroke="#829ba1" stroke-width="2"/>
-<text x="845.0" y="784.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">教师发布</text>
-<path d="M901 788 L910 794 L901 800" fill="none" stroke="#829ba1" stroke-width="2"/>
-<line x1="60" y1="866" x2="1480" y2="866" stroke="#e4e9e8"/>
-<text x="60" y="942" text-anchor="start" font-size="20" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">干预</text>
-<rect x="250" y="895" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="350.0" y="938.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">draft</text>
-<rect x="580" y="895" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="680.0" y="938.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">assigned</text>
-<line x1="450" y1="931" x2="580" y2="931" stroke="#829ba1" stroke-width="2"/>
-<text x="515.0" y="921.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">教师下发</text>
-<path d="M571 925 L580 931 L571 937" fill="none" stroke="#829ba1" stroke-width="2"/>
-<rect x="910" y="895" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1010.0" y="938.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">submitted</text>
-<line x1="780" y1="931" x2="910" y2="931" stroke="#829ba1" stroke-width="2"/>
-<text x="845.0" y="921.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">学生提交</text>
-<path d="M901 925 L910 931 L901 937" fill="none" stroke="#829ba1" stroke-width="2"/>
-<rect x="1240" y="895" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1340.0" y="938.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">reviewed</text>
-<line x1="1110" y1="931" x2="1240" y2="931" stroke="#829ba1" stroke-width="2"/>
-<text x="1175.0" y="921.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">教师复查</text>
-<path d="M1231 925 L1240 931 L1231 937" fill="none" stroke="#829ba1" stroke-width="2"/>
-<line x1="60" y1="1003" x2="1480" y2="1003" stroke="#e4e9e8"/>
-<text x="60" y="1085" text-anchor="start" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">证据：backend/internal/learning/http.go；backend/db/migrations/00001_course_foundation.sql；00003_learning_business.sql；00009_structured_rubrics.sql</text>
-<text x="60" y="1122" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#9b6330">边界：resources 表允许 archived，但当前无归档操作；不将其画为已接通迁移。</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="2700" height="2810" viewBox="0 0 2700 2810" role="img" aria-labelledby="title desc">
+<title id="title">F11 六类对象生命周期与迁移关口</title><desc id="desc">每个箭头标出触发动作与前置条件；新修订另建对象，拒绝条件不会偷偷推进状态。</desc>
+<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 1L9 5L0 9Z" fill="#85929B"/></marker></defs>
+<g font-family="Microsoft YaHei, sans-serif">
+<rect x="0" y="0" width="2700" height="2810" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="80" y="76" font-size="40" fill="#242424" font-weight="700" text-anchor="start" >F11　六类对象生命周期与迁移关口</text>
+<text x="2620" y="76" font-size="22" fill="#58616A" font-weight="400" text-anchor="end" >2026-11-12 · 本地代码</text>
+<text x="80" y="130" font-size="25" fill="#58616A" font-weight="400" text-anchor="start" >每个箭头标出触发动作与前置条件；新修订另建对象，拒绝条件不会偷偷推进状态。</text>
+<text x="80" y="180" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >绿色：当前可执行迁移　｜　灰色说明：未接通操作　｜　状态冲突时保留原状态、返回拒绝</text>
+<rect x="80" y="250" width="1200" height="745" rx="10" fill="#FFFFFF" stroke="#CCD3D2" stroke-width="2"/>
+<text x="108" y="299" font-size="29" fill="#242424" font-weight="650" text-anchor="start" >01  课程</text>
+<g class="state" data-state="draft">
+<rect x="118.0" y="385" width="537.0" height="100" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="386.5" y="445" font-size="25" fill="#242424" font-weight="650" text-anchor="middle" >draft</text>
+</g>
+<g class="state" data-state="published">
+<rect x="705.0" y="385" width="537.0" height="100" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="973.5" y="445" font-size="25" fill="#242424" font-weight="650" text-anchor="middle" >published</text>
+</g>
+<path d="M655.0,435 H705.0" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="680.0" y="421" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label"></text>
+<text x="118" y="544" font-size="22" fill="#187653" font-weight="400" text-anchor="start" >draft → published：教师发布</text>
+<text x="114" y="655" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >创建课程即 draft；教师拥有者由会话确定。</text>
+<text x="114" y="699" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >发布只允许 draft → published；重复或过期状态不会重复推进。</text>
+<text x="114" y="743" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >课程成员、目录和内容是独立对象，不因课程发布而自动发布。</text>
+<text x="114" y="787" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >当前没有课程 archived 或自动关闭的生命周期操作。</text>
+<rect x="1420" y="250" width="1200" height="745" rx="10" fill="#FFFFFF" stroke="#CCD3D2" stroke-width="2"/>
+<text x="1448" y="299" font-size="29" fill="#242424" font-weight="650" text-anchor="start" >02  学习资料</text>
+<g class="state" data-state="draft">
+<rect x="1458.0" y="385" width="537.0" height="100" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="1726.5" y="445" font-size="25" fill="#242424" font-weight="650" text-anchor="middle" >draft</text>
+</g>
+<g class="state" data-state="published">
+<rect x="2045.0" y="385" width="537.0" height="100" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="2313.5" y="445" font-size="25" fill="#242424" font-weight="650" text-anchor="middle" >published</text>
+</g>
+<path d="M1995.0,435 H2045.0" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="2020.0" y="421" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label"></text>
+<text x="1458" y="544" font-size="22" fill="#187653" font-weight="400" text-anchor="start" >draft → published：教师审核发布</text>
+<text x="1454" y="655" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >手工资料先 draft；从核对片段发布时在同事务内创建并发布。</text>
+<text x="1454" y="699" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >原件须 active、解析 ready；所选片段属于当前修订且质量 ready。</text>
+<text x="1454" y="743" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >发布正文后修订另建版本，supersedes 保留旧文与历史引用。</text>
+<text x="1454" y="787" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >resources 虽允许 archived，但当前没有资料归档接口；不画已实现箭头。</text>
+<rect x="80" y="1065" width="1200" height="745" rx="10" fill="#FFFFFF" stroke="#CCD3D2" stroke-width="2"/>
+<text x="108" y="1114" font-size="29" fill="#242424" font-weight="650" text-anchor="start" >03  作业 / 测验</text>
+<g class="state" data-state="draft">
+<rect x="118.0" y="1200" width="341.3333333333333" height="100" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="288.66666666666663" y="1260" font-size="25" fill="#242424" font-weight="650" text-anchor="middle" >draft</text>
+</g>
+<g class="state" data-state="published">
+<rect x="509.3333333333333" y="1200" width="341.3333333333333" height="100" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="680.0" y="1260" font-size="25" fill="#242424" font-weight="650" text-anchor="middle" >published</text>
+</g>
+<path d="M459.3333333333333,1250 H509.3333333333333" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="484.3333333333333" y="1236" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label"></text>
+<text x="118" y="1359" font-size="22" fill="#187653" font-weight="400" text-anchor="start" >draft → published：教师发布</text>
+<g class="state" data-state="closed">
+<rect x="900.6666666666666" y="1200" width="341.3333333333333" height="100" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="1071.3333333333333" y="1260" font-size="25" fill="#242424" font-weight="650" text-anchor="middle" >closed</text>
+</g>
+<path d="M850.6666666666666,1250 H900.6666666666666" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="875.6666666666666" y="1236" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label"></text>
+<text x="118" y="1394" font-size="22" fill="#187653" font-weight="400" text-anchor="start" >published → closed：教师关闭</text>
+<text x="114" y="1470" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >草稿可编辑；发布前校验题目、满分与可用题库/标准绑定。</text>
+<text x="114" y="1514" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >发布固定任务版本；过截止时拒绝新提交，截止不自动改 closed。</text>
+<text x="114" y="1558" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >发布和关闭是明确命令；closed 任务不再接受新的正式作答。</text>
+<text x="114" y="1602" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >整组重评要求已关闭，不能用批次更改原题干、选项或满分。</text>
+<rect x="1420" y="1065" width="1200" height="745" rx="10" fill="#FFFFFF" stroke="#CCD3D2" stroke-width="2"/>
+<text x="1448" y="1114" font-size="29" fill="#242424" font-weight="650" text-anchor="start" >04  题目 / 参考解答 / 标准</text>
+<text x="1448" y="1201" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >题目 state</text>
+<rect x="1840" y="1165" width="220" height="70" rx="10" fill="#EAF1F5" stroke="#AFC9DA" />
+<rect x="2260" y="1165" width="280" height="70" rx="10" fill="#EAF1F5" stroke="#AFC9DA" />
+<text x="1950" y="1209" font-size="24" fill="#242424" font-weight="400" text-anchor="middle" >draft</text>
+<text x="2400" y="1209" font-size="24" fill="#242424" font-weight="400" text-anchor="middle" >confirmed</text>
+<path d="M2060,1200 H2260" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="2160.0" y="1186" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label">分别人工确认</text>
+<text x="1448" y="1317" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >参考解答 reference_state</text>
+<rect x="1840" y="1281" width="220" height="70" rx="10" fill="#EAF1F5" stroke="#AFC9DA" />
+<rect x="2260" y="1281" width="280" height="70" rx="10" fill="#EAF1F5" stroke="#AFC9DA" />
+<text x="1950" y="1325" font-size="24" fill="#242424" font-weight="400" text-anchor="middle" >draft</text>
+<text x="2400" y="1325" font-size="24" fill="#242424" font-weight="400" text-anchor="middle" >confirmed</text>
+<path d="M2060,1316 H2260" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="2160.0" y="1302" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label">分别人工确认</text>
+<text x="1448" y="1433" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >评分标准 state</text>
+<rect x="1840" y="1397" width="220" height="70" rx="10" fill="#EAF1F5" stroke="#AFC9DA" />
+<rect x="2260" y="1397" width="280" height="70" rx="10" fill="#EAF1F5" stroke="#AFC9DA" />
+<text x="1950" y="1441" font-size="24" fill="#242424" font-weight="400" text-anchor="middle" >draft</text>
+<text x="2400" y="1441" font-size="24" fill="#242424" font-weight="400" text-anchor="middle" >confirmed</text>
+<path d="M2060,1432 H2260" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="2160.0" y="1418" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label">分别人工确认</text>
+<text x="1454" y="1543" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >三条确认链独立；采纳候选不会替代任何一个确认动作。</text>
+<text x="1454" y="1587" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >题目确认核对题意；解答有独立 reference_state，不向学生公开。</text>
+<text x="1454" y="1631" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >标准确认校验逐点满分与真实依据，必须归属确切题目版本。</text>
+<text x="1454" y="1675" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >确认对象不可就地覆盖；后续改动另建版本，不改已发布作业绑定。</text>
+<rect x="80" y="1880" width="1200" height="745" rx="10" fill="#FFFFFF" stroke="#CCD3D2" stroke-width="2"/>
+<text x="108" y="1929" font-size="29" fill="#242424" font-weight="650" text-anchor="start" >05  评分修订</text>
+<g class="state" data-state="draft">
+<rect x="118.0" y="2015" width="341.3333333333333" height="100" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="288.66666666666663" y="2075" font-size="25" fill="#242424" font-weight="650" text-anchor="middle" >draft</text>
+</g>
+<g class="state" data-state="confirmed">
+<rect x="509.3333333333333" y="2015" width="341.3333333333333" height="100" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="680.0" y="2075" font-size="25" fill="#242424" font-weight="650" text-anchor="middle" >confirmed</text>
+</g>
+<path d="M459.3333333333333,2065 H509.3333333333333" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="484.3333333333333" y="2051" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label"></text>
+<text x="118" y="2174" font-size="22" fill="#187653" font-weight="400" text-anchor="start" >draft → confirmed：教师确认最新修订</text>
+<g class="state" data-state="released">
+<rect x="900.6666666666666" y="2015" width="341.3333333333333" height="100" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="1071.3333333333333" y="2075" font-size="25" fill="#242424" font-weight="650" text-anchor="middle" >released</text>
+</g>
+<path d="M850.6666666666666,2065 H900.6666666666666" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="875.6666666666666" y="2051" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label"></text>
+<text x="118" y="2209" font-size="22" fill="#187653" font-weight="400" text-anchor="start" >confirmed → released：教师单独发布</text>
+<text x="114" y="2285" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >主观题先保存 draft；AI task succeeded 不是评分 released。</text>
+<text x="114" y="2329" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >两次迁移均锁定并重查状态、最新修订及整组重评管理边界。</text>
+<text x="114" y="2373" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >更正追加下一评分修订；旧 released 保留，不原地退回 draft。</text>
+<text x="114" y="2417" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >客观 quiz 例外：按教师固定答案在提交事务内直接生成 released 规则结果。</text>
+<rect x="1420" y="1880" width="1200" height="745" rx="10" fill="#FFFFFF" stroke="#CCD3D2" stroke-width="2"/>
+<text x="1448" y="1929" font-size="29" fill="#242424" font-weight="650" text-anchor="start" >06  教师干预任务</text>
+<g class="state" data-state="draft">
+<rect x="1458.0" y="2015" width="243.5" height="100" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="1579.75" y="2075" font-size="25" fill="#242424" font-weight="650" text-anchor="middle" >draft</text>
+</g>
+<g class="state" data-state="assigned">
+<rect x="1751.5" y="2015" width="243.5" height="100" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="1873.25" y="2075" font-size="25" fill="#242424" font-weight="650" text-anchor="middle" >assigned</text>
+</g>
+<path d="M1701.5,2065 H1751.5" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="1726.5" y="2051" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label"></text>
+<text x="1458" y="2174" font-size="22" fill="#187653" font-weight="400" text-anchor="start" >draft → assigned：教师下发</text>
+<g class="state" data-state="submitted">
+<rect x="2045.0" y="2015" width="243.5" height="100" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="2166.75" y="2075" font-size="25" fill="#242424" font-weight="650" text-anchor="middle" >submitted</text>
+</g>
+<path d="M1995.0,2065 H2045.0" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="2020.0" y="2051" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label"></text>
+<text x="1458" y="2209" font-size="22" fill="#187653" font-weight="400" text-anchor="start" >assigned → submitted：学生提交</text>
+<g class="state" data-state="reviewed">
+<rect x="2338.5" y="2015" width="243.5" height="100" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="2460.25" y="2075" font-size="25" fill="#242424" font-weight="650" text-anchor="middle" >reviewed</text>
+</g>
+<path d="M2288.5,2065 H2338.5" stroke="#85929B" stroke-width="2.6" fill="none" marker-end="url(#arr)"/>
+<text x="2313.5" y="2051" font-size="21" fill="#58616A" font-weight="400" text-anchor="middle" class="message-label"></text>
+<text x="1458" y="2244" font-size="22" fill="#187653" font-weight="400" text-anchor="start" >submitted → reviewed：教师复查</text>
+<text x="1454" y="2285" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >创建时验证学生在课程、关联资料与补练已发布。</text>
+<text x="1454" y="2329" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >下发记录 assigned_at；学生本人只能从 assigned 提交完成说明。</text>
+<text x="1454" y="2373" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >关联学习完成与正式补练提交必须发生在下发之后，旧证据不能替代。</text>
+<text x="1454" y="2417" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >教师填写复查内容后 reviewed；继续跟进需另建任务，不自动证明效果。</text>
+<text x="80" y="2748" font-size="20" fill="#58616A" font-weight="400" text-anchor="start" >核查：learning/http.go、assessment.go、question_bank.go、rubrics.go、feedback.go；db/queries/learning.sql；00001–00012 迁移</text>
+<text x="80" y="2786" font-size="21" fill="#8A622E" font-weight="400" text-anchor="start" >原件解析、知识条目、处理任务和重评批次有各自生命周期，分别在 F06、F06-1、F09-1 与 F15 的详细图中展开。</text>
+</g></svg>

@@ -1,47 +1,290 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1540" height="910" viewBox="0 0 1540 910" role="img" aria-labelledby="title desc">
-<title id="title">F16 接口关系图</title><desc id="desc">谁调用谁，契约止于哪个边界？ 学生与教师数据权限由服务端对象归属校验决定。</desc>
-<rect width="1540" height="910" fill="#fbfcfb"/>
-<rect x="0" y="0" width="12" height="910" fill="#17816b"/>
-<text x="60" y="68" font-size="30" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">F16　接口关系图</text>
-<text x="60" y="112" font-size="21" font-family="Microsoft YaHei" fill="#52636b">谁调用谁，契约止于哪个边界？</text>
-<text x="60" y="151" font-size="17" font-family="Microsoft YaHei" fill="#17816b">本地代码状态 · 2026-11-12</text>
-<text x="60" y="245" font-size="22" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">浏览器</text>
-<line x1="60" y1="301" x2="1480" y2="301" stroke="#e4e9e8"/>
-<rect x="230" y="192" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="372.5" y="236.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">React API client</text>
-<rect x="567" y="192" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="709.5" y="236.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">同源 /api/v1</text>
-<path d="M 525 235 H 555 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
-<rect x="904" y="192" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="1046.5" y="236.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">Gin session + CSRF</text>
-<path d="M 862 235 H 892 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
-<text x="60" y="387" font-size="22" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">业务</text>
-<line x1="60" y1="443" x2="1480" y2="443" stroke="#e4e9e8"/>
-<rect x="230" y="334" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="372.5" y="378.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">Gin identity</text>
-<rect x="567" y="334" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="709.5" y="378.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">learning / rag handlers</text>
-<path d="M 525 377 H 555 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
-<rect x="904" y="334" width="285" height="86" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1046.5" y="378.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">sqlc/store → PG</text>
-<path d="M 862 377 H 892 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
-<text x="60" y="529" font-size="22" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">异步</text>
-<line x1="60" y1="585" x2="1480" y2="585" stroke="#e4e9e8"/>
-<rect x="230" y="476" width="285" height="86" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="372.5" y="520.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">API 写 processing_jobs</text>
-<rect x="567" y="476" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="709.5" y="520.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">Redis / Asynq</text>
-<path d="M 525 519 H 555 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
-<rect x="904" y="476" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="1046.5" y="520.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">Go worker</text>
-<path d="M 862 519 H 892 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
-<text x="60" y="671" font-size="22" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">外部</text>
-<line x1="60" y1="727" x2="1480" y2="727" stroke="#e4e9e8"/>
-<rect x="230" y="618" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="372.5" y="662.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">RAG API / worker</text>
-<rect x="567" y="618" width="285" height="86" rx="5" fill="#f1f1f1" stroke="#747d82" stroke-width="2"/>
-<text x="709.5" y="662.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">模型供应商</text>
-<path d="M 525 661 H 555 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
-<text x="60" y="788" font-size="17" font-family="Microsoft YaHei" fill="#52636b">证据：web/src/shared/api.ts；backend/internal/learning/http.go；backend/internal/identity；backend/internal/rag；compose.yaml</text>
-<text x="60" y="838" font-size="18" font-family="Microsoft YaHei" fill="#9b6330">边界：学生与教师数据权限由服务端对象归属校验决定。</text>
-<text x="60" y="884" font-size="16" font-family="Microsoft YaHei" fill="#738087">实色框：当前代码或人工步骤　　虚线灰框：尚未实现　　箭头：本行的依赖或交接</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="2700" height="1808" viewBox="0 0 2700 1808" role="img" aria-labelledby="title desc">
+<title id="title">F16 接口关系与契约边界</title><desc id="desc">以 API 家族、授权链、输入快照和错误约束组织接口；字段细目继续由契约文档承担。。图示 API 家族与契约止点，不把每个处理器虚构成独立网络服务；HTTP 字段、响应结构和完整路由以源码与 contracts.md 为准。</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 1 L9 5 L0 9Z" fill="#85929B"/></marker></defs>
+<g font-family="Microsoft YaHei, sans-serif">
+<rect x="0" y="0" width="2700" height="1808" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="80" y="76" font-size="40" fill="#242424" font-weight="700" text-anchor="start" >F16　接口关系与契约边界</text>
+<text x="2620" y="76" font-size="22" fill="#58616A" font-weight="400" text-anchor="end" >2026-11-12 · 本地工作树</text>
+<text x="80" y="125" font-size="25" fill="#58616A" font-weight="400" text-anchor="start" >以 API 家族、授权链、输入快照和错误约束组织接口；字段细目继续由契约文档承担。</text>
+<text x="80" y="177" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >教师深色 / AI橙色 / 数据蓝色 / 系统白色　　绿色标记：本地已接通　　灰色虚框：未实现</text>
+<text x="80" y="214" font-size="20" fill="#8A622E" font-weight="400" text-anchor="start" >箭头按本图语义表达；只代表代码路径与结构，不代表独立教师验收、模型正确性或公网部署。</text>
+<g class="edges">
+<g class="edge" data-from="client" data-to="session"><title>浏览器统一 API 客户端 → 会话与 CSRF 边界：会话请求</title><path d="M610.0,363.0 L750.0,363.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="session" data-to="scope"><title>会话与 CSRF 边界 → 课程与对象授权边界：身份通过</title><path d="M1280.0,363.0 L1420.0,363.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="scope" data-to="content"><title>课程与对象授权边界 → 内容 API 家族：按课程授权</title><path d="M1950.0,363.0 L1972.0,363.0 L1972.0,613 L58.0,613 L58.0,728.5 L80.0,728.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="scope" data-to="bank"><title>课程与对象授权边界 → 题库 API 家族：教师权限</title><path d="M1950.0,392.0 L1972.0,392.0 L1972.0,473 L728.0,473 L728.0,728.5 L750.0,728.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="scope" data-to="assignment"><title>课程与对象授权边界 → 任务与作答 API 家族：成员 / 本人</title><path d="M1685.0,451 L1685.0,635" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="scope" data-to="grading"><title>课程与对象授权边界 → 评价与跟进 API 家族：教师 / 本人读</title><path d="M1950.0,334.0 L2068.0,334.0 L2068.0,744.5 L2090.0,744.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="content" data-to="pg"><title>内容 API 家族 → sqlc/store ↔ PostgreSQL：受控读写</title><path d="M345.0,822 L345.0,995" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="bank" data-to="pg"><title>题库 API 家族 → sqlc/store ↔ PostgreSQL：版本与快照</title><path d="M1280.0,728.5 L1302.0,728.5 L1302.0,973 L58.0,973 L58.0,1083.0 L80.0,1083.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="assignment" data-to="pg"><title>任务与作答 API 家族 → sqlc/store ↔ PostgreSQL：事务提交</title><path d="M1950.0,728.5 L1972.0,728.5 L1972.0,950 L38.0,950 L38.0,1112.0 L80.0,1112.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="grading" data-to="pg"><title>评价与跟进 API 家族 → sqlc/store ↔ PostgreSQL：确认 / 发布事务</title><path d="M2620.0,744.5 L2642.0,744.5 L2642.0,899 L58.0,899 L58.0,1054.0 L80.0,1054.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="content" data-to="outbox"><title>内容 API 家族 → 异步任务输入契约：parse / extract 等任务</title><path d="M610.0,728.5 L632.0,728.5 L632.0,1088.5 L750.0,1088.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="bank" data-to="outbox"><title>题库 API 家族 → 异步任务输入契约：题目 / 标准候选任务</title><path d="M1015.0,822 L1015.0,995" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="grading" data-to="outbox"><title>评价与跟进 API 家族 → 异步任务输入契约：grade 任务</title><path d="M2620.0,773.5 L2662.0,773.5 L2662.0,876 L728.0,876 L728.0,1117.5 L750.0,1117.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="outbox" data-to="worker"><title>异步任务输入契约 → worker / parser 内部边界：ID → 快照</title><path d="M1280.0,1088.5 L1302.0,1088.5 L1302.0,1083.0 L1420.0,1083.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="worker" data-to="model"><title>worker / parser 内部边界 → 外部模型 HTTP 契约：受控模型调用</title><path d="M1950.0,1083.0 L1972.0,1083.0 L1972.0,1088.5 L2090.0,1088.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="content" data-to="model"><title>内容 API 家族 → 外部模型 HTTP 契约：同步检索与问答</title><path d="M610.0,757.5 L728.0,757.5 L728.0,867 L2068.0,867 L2068.0,1117.5 L2090.0,1117.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="teacher" data-to="scope"><title>教师调用能力范围 → 课程与对象授权边界：角色与课程</title><path d="M345.0,1355 L345.0,1333 L1398.0,1333 L1398.0,484 L1714.0,484 L1714.0,451" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="student" data-to="assignment"><title>学生响应裁剪与本人隔离 → 任务与作答 API 家族：个人作答</title><path d="M1015.0,1355 L1015.0,1204 L1375.0,1204 L1375.0,844 L1685.0,844 L1685.0,822" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="cas" data-to="error"><title>并发与版本合同 → 公共失败语义：过期 / 状态冲突</title><path d="M1685.0,1355 L1685.0,1333 L2045.0,1333 L2045.0,484 L2355.0,484 L2355.0,462" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="idempotent" data-to="error"><title>幂等与重试合同 → 公共失败语义：请求内容冲突</title><path d="M2355.0,1355 L2355.0,1333 L2665.0,1333 L2665.0,484 L2384.0,484 L2384.0,462" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+</g><g class="nodes">
+<g class="node" data-node="client" data-role="external">
+<rect x="80.0" y="275" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">浏览器统一 API 客户端</text>
+<rect x="507.0" y="261" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="552.0" y="282" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >外部边界</text>
+<circle cx="107.0" cy="353" r="4" fill="#78818A"/>
+<text x="120.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">同源 /api/v1，JSON 响应 data/error</text>
+<circle cx="107.0" cy="385" r="4" fill="#78818A"/>
+<text x="120.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">身份来自服务端会话，不信任页面角色</text>
+</g>
+<g class="node" data-node="session" data-role="system">
+<rect x="750.0" y="275" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">会话与 CSRF 边界</text>
+<rect x="1177.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="777.0" cy="353" r="4" fill="#187653"/>
+<text x="790.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">identity 注册登录、退出与当前会话</text>
+<circle cx="777.0" cy="385" r="4" fill="#187653"/>
+<text x="790.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">认证写请求校验 CSRF；Cookie 识别用户</text>
+</g>
+<g class="node" data-node="scope" data-role="system">
+<rect x="1420.0" y="275" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">课程与对象授权边界</text>
+<rect x="1847.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="1447.0" cy="353" r="4" fill="#187653"/>
+<text x="1460.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">RequireSession → Role / Course</text>
+<circle cx="1447.0" cy="385" r="4" fill="#187653"/>
+<text x="1460.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">读取对象再核对课程或学生本人归属</text>
+</g>
+<g class="node" data-node="error" data-role="system">
+<rect x="2090.0" y="275" width="530.0" height="187" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">公共失败语义</text>
+<rect x="2517.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="2117.0" cy="353" r="4" fill="#187653"/>
+<text x="2130.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">400 格式；403 越权；404 无记录</text>
+<circle cx="2117.0" cy="385" r="4" fill="#187653"/>
+<text x="2130.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">409 状态 / 并发 / 幂等冲突</text>
+<circle cx="2117.0" cy="417" r="4" fill="#187653"/>
+<text x="2130.0" y="424" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">422 业务拒绝；503 数据操作失败</text>
+</g>
+<g class="node" data-node="content" data-role="system">
+<rect x="80.0" y="635" width="530.0" height="187" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="678" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">内容 API 家族</text>
+<rect x="507.0" y="621" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="642" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="107.0" cy="713" r="4" fill="#187653"/>
+<text x="120.0" y="720" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">/rag/sources、knowledge、jobs、retrieval</text>
+<circle cx="107.0" cy="745" r="4" fill="#187653"/>
+<text x="120.0" y="752" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">原件发布、校正、许可与知识状态</text>
+<circle cx="107.0" cy="777" r="4" fill="#187653"/>
+<text x="120.0" y="784" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">原图、专题、决定与影响独立子路由</text>
+</g>
+<g class="node" data-node="bank" data-role="system">
+<rect x="750.0" y="635" width="530.0" height="187" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="678" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">题库 API 家族</text>
+<rect x="1177.0" y="621" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="642" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="777.0" cy="713" r="4" fill="#187653"/>
+<text x="790.0" y="720" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">/question-bank 与 /versions</text>
+<circle cx="777.0" cy="745" r="4" fill="#187653"/>
+<text x="790.0" y="752" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">题目/解答确认；标准创建与确认</text>
+<circle cx="777.0" cy="777" r="4" fill="#187653"/>
+<text x="790.0" y="784" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">整卷采纳、出处与证据重读</text>
+</g>
+<g class="node" data-node="assignment" data-role="system">
+<rect x="1420.0" y="635" width="530.0" height="187" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="678" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">任务与作答 API 家族</text>
+<rect x="1847.0" y="621" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="642" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="1447.0" cy="713" r="4" fill="#187653"/>
+<text x="1460.0" y="720" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">/assignments、questions/:id/draft</text>
+<circle cx="1447.0" cy="745" r="4" fill="#187653"/>
+<text x="1460.0" y="752" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">/assignments/:id/submissions</text>
+<circle cx="1447.0" cy="777" r="4" fill="#187653"/>
+<text x="1460.0" y="784" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">草稿按人隔离，正式提交 request_id 幂等</text>
+</g>
+<g class="node" data-node="grading" data-role="system">
+<rect x="2090.0" y="635" width="530.0" height="219" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="678" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">评价与跟进 API 家族</text>
+<rect x="2517.0" y="621" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="642" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="2117.0" cy="713" r="4" fill="#187653"/>
+<text x="2130.0" y="720" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">/submissions/:id/revisions、</text>
+<text x="2130.0" y="752" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">/revisions/:id/state</text>
+<circle cx="2117.0" cy="777" r="4" fill="#187653"/>
+<text x="2130.0" y="784" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">/regrades、/interventions、/evidence</text>
+<circle cx="2117.0" cy="809" r="4" fill="#187653"/>
+<text x="2130.0" y="816" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">确认、发布与逐份重评受事务控制</text>
+</g>
+<g class="node" data-node="pg" data-role="data">
+<rect x="80.0" y="995" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="1038" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">sqlc/store ↔ PostgreSQL</text>
+<rect x="507.0" y="981" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="1002" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="107.0" cy="1073" r="4" fill="#187653"/>
+<text x="120.0" y="1080" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">参数化 SQL + pgx 事务</text>
+<circle cx="107.0" cy="1105" r="4" fill="#187653"/>
+<text x="120.0" y="1112" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">锁、状态、唯一性和版本约束落库</text>
+</g>
+<g class="node" data-node="outbox" data-role="data">
+<rect x="750.0" y="995" width="530.0" height="187" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="1038" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">异步任务输入契约</text>
+<rect x="1177.0" y="981" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="1002" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="777.0" cy="1073" r="4" fill="#187653"/>
+<text x="790.0" y="1080" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">API 持久化 processing_jobs 输入快照</text>
+<circle cx="777.0" cy="1105" r="4" fill="#187653"/>
+<text x="790.0" y="1112" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">Redis 消息仅携带任务 ID</text>
+<circle cx="777.0" cy="1137" r="4" fill="#187653"/>
+<text x="790.0" y="1144" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">worker 数据库领取，同一尝试去重</text>
+</g>
+<g class="node" data-node="worker" data-role="system">
+<rect x="1420.0" y="995" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="1038" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">worker / parser 内部边界</text>
+<rect x="1847.0" y="981" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="1002" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="1447.0" cy="1073" r="4" fill="#187653"/>
+<text x="1460.0" y="1080" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">任务 kind 分派；解析是本地子进程</text>
+<circle cx="1447.0" cy="1105" r="4" fill="#187653"/>
+<text x="1460.0" y="1112" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">结果和错误写任务记录，不直接发布成绩</text>
+</g>
+<g class="node" data-node="model" data-role="external">
+<rect x="2090.0" y="995" width="530.0" height="187" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="1038" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">外部模型 HTTP 契约</text>
+<rect x="2517.0" y="981" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="2562.0" y="1002" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >外部边界</text>
+<circle cx="2117.0" cy="1073" r="4" fill="#78818A"/>
+<text x="2130.0" y="1080" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">chat / embedding / vision 分配置</text>
+<circle cx="2117.0" cy="1105" r="4" fill="#78818A"/>
+<text x="2130.0" y="1112" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">凭据不进前端；预算预留与结算</text>
+<circle cx="2117.0" cy="1137" r="4" fill="#78818A"/>
+<text x="2130.0" y="1144" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">供应商错误不转成固定样例成功</text>
+</g>
+<g class="node" data-node="teacher" data-role="teacher">
+<rect x="80.0" y="1355" width="530.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="1398" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" class="node-title">教师调用能力范围</text>
+<rect x="507.0" y="1341" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="1362" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >人工关口</text>
+<circle cx="107.0" cy="1433" r="4" fill="#187653"/>
+<text x="120.0" y="1440" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" class="node-line">本人课程内内容、题库、评分与重评</text>
+<circle cx="107.0" cy="1465" r="4" fill="#187653"/>
+<text x="120.0" y="1472" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" class="node-line">不得借客户端对象 ID 越过课程范围</text>
+</g>
+<g class="node" data-node="student" data-role="external">
+<rect x="750.0" y="1355" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="1398" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">学生响应裁剪与本人隔离</text>
+<rect x="1177.0" y="1341" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="1222.0" y="1362" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >外部边界</text>
+<circle cx="777.0" cy="1433" r="4" fill="#78818A"/>
+<text x="790.0" y="1440" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">隐藏 correct_answer、rubric 与绑定规则</text>
+<circle cx="777.0" cy="1465" r="4" fill="#78818A"/>
+<text x="790.0" y="1472" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">仅本人提交、笔记、路径和 released 修订</text>
+</g>
+<g class="node" data-node="cas" data-role="system">
+<rect x="1420.0" y="1355" width="530.0" height="187" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="1398" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">并发与版本合同</text>
+<rect x="1847.0" y="1341" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="1362" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="1447.0" cy="1433" r="4" fill="#187653"/>
+<text x="1460.0" y="1440" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">知识 edit_version、原文 parse_revision</text>
+<circle cx="1447.0" cy="1465" r="4" fill="#187653"/>
+<text x="1460.0" y="1472" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">输入过期拒绝旧候选覆盖</text>
+<circle cx="1447.0" cy="1497" r="4" fill="#187653"/>
+<text x="1460.0" y="1504" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">评分仅最新修订可确认、发布</text>
+</g>
+<g class="node" data-node="idempotent" data-role="system">
+<rect x="2090.0" y="1355" width="530.0" height="187" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="1398" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">幂等与重试合同</text>
+<rect x="2517.0" y="1341" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="1362" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="2117.0" cy="1433" r="4" fill="#187653"/>
+<text x="2130.0" y="1440" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">同请求号同内容复用，改内容冲突</text>
+<circle cx="2117.0" cy="1465" r="4" fill="#187653"/>
+<text x="2130.0" y="1472" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">生成未知调用不自动重发</text>
+<circle cx="2117.0" cy="1497" r="4" fill="#187653"/>
+<text x="2130.0" y="1504" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">整组重评冲突整组回滚，不部分发布</text>
+</g>
+</g><g class="labels">
+<g class="edge-label" data-from="client" data-to="session">
+<rect x="630.0" y="328.0" width="100.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="680.0" y="350.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >会话请求</text>
+</g>
+<g class="edge-label" data-from="session" data-to="scope">
+<rect x="1300.0" y="328.0" width="100.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1350.0" y="350.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >身份通过</text>
+</g>
+<g class="edge-label" data-from="scope" data-to="content">
+<rect x="1982.0" y="473.0" width="120.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2042.0" y="495.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >按课程授权</text>
+</g>
+<g class="edge-label" data-from="scope" data-to="bank">
+<rect x="1300.0" y="438" width="100.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1350.0" y="460" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >教师权限</text>
+</g>
+<g class="edge-label" data-from="scope" data-to="assignment">
+<rect x="1695.0" y="528.0" width="121.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1755.5" y="550.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >成员 / 本人</text>
+</g>
+<g class="edge-label" data-from="scope" data-to="grading">
+<rect x="2078.0" y="524.25" width="141.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2148.5" y="546.25" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >教师 / 本人读</text>
+</g>
+<g class="edge-label" data-from="content" data-to="pg">
+<rect x="355.0" y="893.5" width="100.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="405.0" y="915.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >受控读写</text>
+</g>
+<g class="edge-label" data-from="bank" data-to="pg">
+<rect x="1312.0" y="835.75" width="120.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1372.0" y="857.75" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >版本与快照</text>
+</g>
+<g class="edge-label" data-from="assignment" data-to="pg">
+<rect x="1982.0" y="868.55" width="100.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2032.0" y="890.55" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >事务提交</text>
+</g>
+<g class="edge-label" data-from="grading" data-to="pg">
+<rect x="1786.3000000000002" y="864" width="161.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1866.8000000000002" y="886" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >确认 / 发布事务</text>
+</g>
+<g class="edge-label" data-from="content" data-to="outbox">
+<rect x="642.0" y="893.5" width="223.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="753.5" y="915.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >parse / extract 等任务</text>
+</g>
+<g class="edge-label" data-from="bank" data-to="outbox">
+<rect x="1025.0" y="893.5" width="201.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1125.5" y="915.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >题目 / 标准候选任务</text>
+</g>
+<g class="edge-label" data-from="grading" data-to="outbox">
+<rect x="1634.0" y="841" width="122.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1695.0" y="863" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >grade 任务</text>
+</g>
+<g class="edge-label" data-from="content" data-to="model">
+<rect x="2078.0" y="927.15" width="160.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2158.0" y="949.15" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >同步检索与问答</text>
+</g>
+<g class="edge-label" data-from="teacher" data-to="scope">
+<rect x="811.5" y="1298" width="120.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="871.5" y="1320" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >角色与课程</text>
+</g>
+<g class="edge-label" data-from="student" data-to="assignment">
+<rect x="1025.0" y="1264.5" width="100.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1075.0" y="1286.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >个人作答</text>
+</g>
+<g class="edge-label" data-from="cas" data-to="error">
+<rect x="1784.5" y="1298" width="161.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1865.0" y="1320" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >过期 / 状态冲突</text>
+</g>
+<g class="edge-label" data-from="idempotent" data-to="error">
+<rect x="2440.0" y="1298" width="140.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2510.0" y="1320" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >请求内容冲突</text>
+</g>
+</g>
+<rect x="80" y="1602" width="2540" height="56" rx="10" fill="#EAE9E3" stroke="none" />
+<text x="103" y="1634" font-size="23" fill="#58616A" font-weight="400" text-anchor="start" >图示 API 家族与契约止点，不把每个处理器虚构成独立网络服务；HTTP 字段、响应结构和完整路由以源码与 contracts.md 为准。</text>
+<text x="80" y="1704" font-size="19" fill="#58616A" font-weight="400" text-anchor="start" >源码核查：web/src/shared/api.ts；identity/session.go；learning/{http,materials,question_bank,workflow_jobs}.go；rag/jobs.go；docs/contracts.md</text>
+<text x="80" y="1783" font-size="18" fill="#58616A" font-weight="400" text-anchor="start" >16 个节点 · 20 条关系　｜　细节见同编号分图；SVG 可搜索、放大，PNG 用于展示。</text>
+</g></svg>

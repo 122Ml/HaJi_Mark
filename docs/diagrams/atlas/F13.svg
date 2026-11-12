@@ -1,60 +1,271 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1540" height="1000" viewBox="0 0 1540 1000" role="img" aria-labelledby="title desc">
-<title id="title">F13 数据流图 DFD</title><desc id="desc">数据在哪里产生、存放、消费？</desc>
-<rect width="1540" height="1000" fill="#fbfcfb"/><rect width="12" height="1000" fill="#17816b"/>
-<text x="60" y="68" text-anchor="start" font-size="30" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">F13　数据流图 DFD</text>
-<text x="60" y="112" text-anchor="start" font-size="21" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">数据在哪里产生、存放、消费？</text>
-<text x="60" y="151" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#17816b">本地代码状态 · 2026-11-12</text>
-<text x="60" y="215" text-anchor="start" font-size="20" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">输入 / 事件</text>
-<text x="550" y="215" text-anchor="start" font-size="20" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">处理</text>
-<text x="1080" y="215" text-anchor="start" font-size="20" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">数据存储与消费</text>
-<rect x="55" y="255" width="320" height="70" rx="5" fill="#fff0df" stroke="#bd7130" stroke-width="2"/>
-<text x="215.0" y="297.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">教师：文件 / URL</text>
-<rect x="505" y="255" width="390" height="70" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="700.0" y="297.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">导入、解析、确认</text>
-<rect x="1020" y="255" width="455" height="70" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1247.5" y="297.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">PG元数据 + 文件卷</text>
-<line x1="375" y1="290" x2="505" y2="290" stroke="#829ba1" stroke-width="2"/>
-<path d="M496 284 L505 290 L496 296" fill="none" stroke="#829ba1" stroke-width="2"/>
-<line x1="895" y1="290" x2="1020" y2="290" stroke="#829ba1" stroke-width="2"/>
-<path d="M1011 284 L1020 290 L1011 296" fill="none" stroke="#829ba1" stroke-width="2"/>
-<text x="1035" y="363" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">消费 → 发布资料 / 知识 / 检索</text>
-<line x1="55" y1="387" x2="1475" y2="387" stroke="#e4e9e8"/>
-<rect x="55" y="418" width="320" height="70" rx="5" fill="#fff0df" stroke="#bd7130" stroke-width="2"/>
-<text x="215.0" y="460.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">教师：AI任务</text>
-<rect x="505" y="418" width="390" height="70" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="700.0" y="460.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">API排队 → worker</text>
-<rect x="1020" y="418" width="455" height="70" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1247.5" y="460.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">PG任务、预算 + Redis队列</text>
-<line x1="375" y1="453" x2="505" y2="453" stroke="#829ba1" stroke-width="2"/>
-<path d="M496 447 L505 453 L496 459" fill="none" stroke="#829ba1" stroke-width="2"/>
-<line x1="895" y1="453" x2="1020" y2="453" stroke="#829ba1" stroke-width="2"/>
-<path d="M1011 447 L1020 453 L1011 459" fill="none" stroke="#829ba1" stroke-width="2"/>
-<text x="1035" y="526" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">消费 → 候选供教师审核</text>
-<line x1="55" y1="550" x2="1475" y2="550" stroke="#e4e9e8"/>
-<rect x="55" y="581" width="320" height="70" rx="5" fill="#fff0df" stroke="#bd7130" stroke-width="2"/>
-<text x="215.0" y="623.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">学生：学习 / 提交</text>
-<rect x="505" y="581" width="390" height="70" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="700.0" y="623.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">课程归属、截止与幂等</text>
-<rect x="1020" y="581" width="455" height="70" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1247.5" y="623.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">PG学习事件、草稿、attempt</text>
-<line x1="375" y1="616" x2="505" y2="616" stroke="#829ba1" stroke-width="2"/>
-<path d="M496 610 L505 616 L496 622" fill="none" stroke="#829ba1" stroke-width="2"/>
-<line x1="895" y1="616" x2="1020" y2="616" stroke="#829ba1" stroke-width="2"/>
-<path d="M1011 610 L1020 616 L1011 622" fill="none" stroke="#829ba1" stroke-width="2"/>
-<text x="1035" y="689" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">消费 → 评分与个人历史</text>
-<line x1="55" y1="713" x2="1475" y2="713" stroke="#e4e9e8"/>
-<rect x="55" y="744" width="320" height="70" rx="5" fill="#fff0df" stroke="#bd7130" stroke-width="2"/>
-<text x="215.0" y="786.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">教师：确认 / 发布</text>
-<rect x="505" y="744" width="390" height="70" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
-<text x="700.0" y="786.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">标准与评分状态转换</text>
-<rect x="1020" y="744" width="455" height="70" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
-<text x="1247.5" y="786.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">PG评分修订、标准版本</text>
-<line x1="375" y1="779" x2="505" y2="779" stroke="#829ba1" stroke-width="2"/>
-<path d="M496 773 L505 779 L496 785" fill="none" stroke="#829ba1" stroke-width="2"/>
-<line x1="895" y1="779" x2="1020" y2="779" stroke="#829ba1" stroke-width="2"/>
-<path d="M1011 773 L1020 779 L1011 785" fill="none" stroke="#829ba1" stroke-width="2"/>
-<text x="1035" y="852" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">消费 → 反馈 / 学情 / 路径</text>
-<line x1="55" y1="876" x2="1475" y2="876" stroke="#e4e9e8"/>
-<text x="60" y="905" text-anchor="start" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">证据：compose.yaml；compose.rag.yaml；backend/db/migrations/00003_learning_business.sql；00010_materials_knowledge_rag.sql</text>
-<text x="60" y="942" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#9b6330">边界：Redis 承担队列；持久业务事实和任务记录在 PostgreSQL。</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="2700" height="2157" viewBox="0 0 2700 2157" role="img" aria-labelledby="title desc">
+<title id="title">F13 数据流图 DFD（一级）</title><desc id="desc">以数据变换、存储和消费解释系统；箭头是数据包，不是页面跳转或状态迁移。。E 是外部输入输出，P 是处理，D 是存储。外部输入和存储间均经 P 处理，不直接连线；PG 分组实际共用一个库，Redis 只承载异步投递。</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 1 L9 5 L0 9Z" fill="#85929B"/></marker></defs>
+<g font-family="Microsoft YaHei, sans-serif">
+<rect x="0" y="0" width="2700" height="2157" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="80" y="76" font-size="40" fill="#242424" font-weight="700" text-anchor="start" >F13　数据流图 DFD（一级）</text>
+<text x="2620" y="76" font-size="22" fill="#58616A" font-weight="400" text-anchor="end" >2026-11-12 · 本地工作树</text>
+<text x="80" y="125" font-size="25" fill="#58616A" font-weight="400" text-anchor="start" >以数据变换、存储和消费解释系统；箭头是数据包，不是页面跳转或状态迁移。</text>
+<text x="80" y="177" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >教师深色 / AI橙色 / 数据蓝色 / 系统白色　　绿色标记：本地已接通　　灰色虚框：未实现</text>
+<text x="80" y="214" font-size="20" fill="#8A622E" font-weight="400" text-anchor="start" >箭头按本图语义表达；只代表代码路径与结构，不代表独立教师验收、模型正确性或公网部署。</text>
+<g class="edges">
+<g class="edge" data-from="input" data-to="p1"><title>E1 教学内容输入 → P1 导入、解析与人工校正：文件、快照与元数据</title><path d="M610.0,363.0 L750.0,363.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="p1" data-to="d1"><title>P1 导入、解析与人工校正 → D1 内容与文件存储：原件 / 可靠片段 / 修订</title><path d="M1280.0,363.0 L1420.0,363.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="d1" data-to="p2"><title>D1 内容与文件存储 → P2 权限索引与检索：可索引正文与资格</title><path d="M1950.0,363.0 L2090.0,363.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="p2" data-to="d2"><title>P2 权限索引与检索 → D2 任务、检索与预算存储：块、向量与空间</title><path d="M2620.0,363.0 L2642.0,363.0 L2642.0,613 L1398.0,613 L1398.0,728.5 L1420.0,728.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="d2" data-to="p2"><title>D2 任务、检索与预算存储 → P2 权限索引与检索：索引和当前空间</title><path d="M1950.0,728.5 L1972.0,728.5 L1972.0,392.0 L2090.0,392.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="p2" data-to="outlearn"><title>P2 权限索引与检索 → E3 学习内容与问答结果：授权证据与引用</title><path d="M2355.0,451 L2355.0,635" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="d1" data-to="job"><title>D1 内容与文件存储 → P3 持久任务与异步执行：原文或固定输入</title><path d="M1950.0,392.0 L1972.0,392.0 L1972.0,473 L728.0,473 L728.0,723.0 L750.0,723.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="job" data-to="model"><title>P3 持久任务与异步执行 → E2 外部模型服务：许可范围 + profile</title><path d="M750.0,752.0 L728.0,752.0 L728.0,723.0 L610.0,723.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="model" data-to="job"><title>E2 外部模型服务 → P3 持久任务与异步执行：候选 / 向量 / 用量</title><path d="M610.0,752.0 L632.0,752.0 L632.0,694.0 L750.0,694.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="job" data-to="d2"><title>P3 持久任务与异步执行 → D2 任务、检索与预算存储：任务产物与计费记录</title><path d="M1280.0,723.0 L1302.0,723.0 L1302.0,757.5 L1420.0,757.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="d2" data-to="job"><title>D2 任务、检索与预算存储 → P3 持久任务与异步执行：待处理任务 / 预算</title><path d="M1420.0,699.5 L1325.0,699.5 L1325.0,752.0 L1280.0,752.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="qinput" data-to="p4"><title>E4 命题与任务编排输入 → P4 形成题库规则与任务：要求与确认决定</title><path d="M610.0,1083.0 L750.0,1083.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="d1" data-to="p4"><title>D1 内容与文件存储 → P4 形成题库规则与任务：合法资料 / 知识证据</title><path d="M1685.0,451 L1685.0,590 L1375.0,590 L1375.0,973 L1015.0,973 L1015.0,995" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="job" data-to="p4"><title>P3 持久任务与异步执行 → P4 形成题库规则与任务：命题与标准候选</title><path d="M1015.0,811 L1015.0,833 L1044.0,833 L1044.0,995" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="p4" data-to="d3"><title>P4 形成题库规则与任务 → D3 任务与作答存储：确认版本与绑定组合</title><path d="M1280.0,1083.0 L1420.0,1083.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="sinput" data-to="p6"><title>E5 学生作答与学习输入 → P6 作答校验与行为采集：草稿 / 答案 / 行为</title><path d="M2355.0,1171 L2355.0,1355" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="p6" data-to="d3"><title>P6 作答校验与行为采集 → D3 任务与作答存储：校验后的草稿 / 正式原文</title><path d="M2620.0,1443.0 L2642.0,1443.0 L2642.0,1193 L1398.0,1193 L1398.0,1112.0 L1420.0,1112.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="p6" data-to="d4"><title>P6 作答校验与行为采集 → D4 正式结果与跟进证据：实际学习与提交事件</title><path d="M2090.0,1443.0 L1950.0,1443.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="d3" data-to="p5"><title>D3 任务与作答存储 → P5 评价修订与证据汇总：冻结标准 + 作答</title><path d="M1950.0,1083.0 L1972.0,1083.0 L1972.0,1333 L728.0,1333 L728.0,1443.0 L750.0,1443.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="job" data-to="p5"><title>P3 持久任务与异步执行 → P5 评价修订与证据汇总：可选评分草稿</title><path d="M1044.0,811 L1044.0,833 L1302.0,833 L1302.0,1310 L1015.0,1310 L1015.0,1355" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="decision" data-to="p5"><title>E6 评分与干预人工决定 → P5 评价修订与证据汇总：审核、发布与重评决定</title><path d="M610.0,1443.0 L632.0,1443.0 L632.0,1472.0 L750.0,1472.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="p5" data-to="d4"><title>P5 评价修订与证据汇总 → D4 正式结果与跟进证据：追加正式修订与证据</title><path d="M1280.0,1443.0 L1420.0,1443.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="d4" data-to="p7"><title>D4 正式结果与跟进证据 → P7 正式反馈与干预执行：去重正式结果 / 任务证据</title><path d="M1685.0,1531 L1685.0,1715" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="p7" data-to="out"><title>P7 正式反馈与干预执行 → E7 反馈、CSV 与干预输入输出：反馈、导出与本人任务</title><path d="M1950.0,1803.0 L2090.0,1803.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="out" data-to="p7"><title>E7 反馈、CSV 与干预输入输出 → P7 正式反馈与干预执行：执行说明与复查请求</title><path d="M2090.0,1832.0 L1950.0,1832.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="p7" data-to="d4"><title>P7 正式反馈与干预执行 → D4 正式结果与跟进证据：干预执行与复查记录</title><path d="M1714.0,1715 L1714.0,1531" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+</g><g class="nodes">
+<g class="node" data-node="input" data-role="external">
+<rect x="80.0" y="275" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">E1 教学内容输入</text>
+<rect x="507.0" y="261" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="552.0" y="282" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >外部边界</text>
+<circle cx="107.0" cy="353" r="4" fill="#78818A"/>
+<text x="120.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">文件字节 / URL 快照 / 人工内容</text>
+<circle cx="107.0" cy="385" r="4" fill="#78818A"/>
+<text x="120.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">来源说明、许可与组织信息</text>
+</g>
+<g class="node" data-node="p1" data-role="system">
+<rect x="750.0" y="275" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">P1 导入、解析与人工校正</text>
+<rect x="1177.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="777.0" cy="353" r="4" fill="#187653"/>
+<text x="790.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">校验内容 → 解析定位 → 可靠片段</text>
+<circle cx="777.0" cy="385" r="4" fill="#187653"/>
+<text x="790.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">校正追加修订；保留原件和旧修订</text>
+</g>
+<g class="node" data-node="d1" data-role="data">
+<rect x="1420.0" y="275" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">D1 内容与文件存储</text>
+<rect x="1847.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="1447.0" cy="353" r="4" fill="#187653"/>
+<text x="1460.0" y="360" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PG：原件、片段、学习资料、知识</text>
+<circle cx="1447.0" cy="385" r="4" fill="#187653"/>
+<text x="1460.0" y="392" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">文件卷：原件、图像、快照与裁剪</text>
+</g>
+<g class="node" data-node="p2" data-role="system">
+<rect x="2090.0" y="275" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">P2 权限索引与检索</text>
+<rect x="2517.0" y="261" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="282" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="2117.0" cy="353" r="4" fill="#187653"/>
+<text x="2130.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">可靠内容分块，生成关键词和向量</text>
+<circle cx="2117.0" cy="385" r="4" fill="#187653"/>
+<text x="2130.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">查询时再次过滤课程、用途与许可</text>
+</g>
+<g class="node" data-node="model" data-role="external">
+<rect x="80.0" y="635" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="678" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">E2 外部模型服务</text>
+<rect x="507.0" y="621" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="552.0" y="642" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >外部边界</text>
+<circle cx="107.0" cy="713" r="4" fill="#78818A"/>
+<text x="120.0" y="720" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">受控请求输入；候选 / 向量 / usage</text>
+<circle cx="107.0" cy="745" r="4" fill="#78818A"/>
+<text x="120.0" y="752" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">不持有本系统正式成绩的写权</text>
+</g>
+<g class="node" data-node="job" data-role="system">
+<rect x="750.0" y="635" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="678" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">P3 持久任务与异步执行</text>
+<rect x="1177.0" y="621" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="642" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="777.0" cy="713" r="4" fill="#187653"/>
+<text x="790.0" y="720" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">PG outbox → Redis ID → worker</text>
+<circle cx="777.0" cy="745" r="4" fill="#187653"/>
+<text x="790.0" y="752" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">输入快照、失败、重试与费用结算</text>
+</g>
+<g class="node" data-node="d2" data-role="data">
+<rect x="1420.0" y="635" width="530.0" height="187" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="678" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">D2 任务、检索与预算存储</text>
+<rect x="1847.0" y="621" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="642" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="1447.0" cy="713" r="4" fill="#187653"/>
+<text x="1460.0" y="720" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">processing_jobs / model_calls / budget</text>
+<circle cx="1447.0" cy="745" r="4" fill="#187653"/>
+<text x="1460.0" y="752" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">retrieval_chunks / embeddings / spaces</text>
+<circle cx="1447.0" cy="777" r="4" fill="#187653"/>
+<text x="1460.0" y="784" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">Redis 仅队列，不是业务事实库</text>
+</g>
+<g class="node" data-node="outlearn" data-role="external">
+<rect x="2090.0" y="635" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="678" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">E3 学习内容与问答结果</text>
+<rect x="2517.0" y="621" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="2562.0" y="642" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >外部边界</text>
+<circle cx="2117.0" cy="713" r="4" fill="#78818A"/>
+<text x="2130.0" y="720" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">可见正文、引用与定位</text>
+<circle cx="2117.0" cy="745" r="4" fill="#78818A"/>
+<text x="2130.0" y="752" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">返回有权限内容，不扩大原件访问</text>
+</g>
+<g class="node" data-node="qinput" data-role="external">
+<rect x="80.0" y="995" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="1038" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">E4 命题与任务编排输入</text>
+<rect x="507.0" y="981" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="552.0" y="1002" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >外部边界</text>
+<circle cx="107.0" cy="1073" r="4" fill="#78818A"/>
+<text x="120.0" y="1080" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">考查要求 / 选用版本 / 审核决定</text>
+<circle cx="107.0" cy="1105" r="4" fill="#78818A"/>
+<text x="120.0" y="1112" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">原文证据与候选采纳信息</text>
+</g>
+<g class="node" data-node="p4" data-role="system">
+<rect x="750.0" y="995" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="1038" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">P4 形成题库规则与任务</text>
+<rect x="1177.0" y="981" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="1002" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="777.0" cy="1073" r="4" fill="#187653"/>
+<text x="790.0" y="1080" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">确认题目、解答、标准 → 绑定任务</text>
+<circle cx="777.0" cy="1105" r="4" fill="#187653"/>
+<text x="790.0" y="1112" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">规则形成独立于待评学生答案</text>
+</g>
+<g class="node" data-node="d3" data-role="data">
+<rect x="1420.0" y="995" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="1038" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">D3 任务与作答存储</text>
+<rect x="1847.0" y="981" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="1002" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="1447.0" cy="1073" r="4" fill="#187653"/>
+<text x="1460.0" y="1080" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">题库版本 / 标准 / 作业 / 作业题</text>
+<circle cx="1447.0" cy="1105" r="4" fill="#187653"/>
+<text x="1460.0" y="1112" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">私人草稿与不可变 submissions</text>
+</g>
+<g class="node" data-node="sinput" data-role="external">
+<rect x="2090.0" y="995" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="1038" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">E5 学生作答与学习输入</text>
+<rect x="2517.0" y="981" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="2562.0" y="1002" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >外部边界</text>
+<circle cx="2117.0" cy="1073" r="4" fill="#78818A"/>
+<text x="2130.0" y="1080" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">私人草稿、正式答案、学习事件</text>
+<circle cx="2117.0" cy="1105" r="4" fill="#78818A"/>
+<text x="2130.0" y="1112" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">幂等请求号与任务上下文</text>
+</g>
+<g class="node" data-node="decision" data-role="external">
+<rect x="80.0" y="1355" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="1398" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">E6 评分与干预人工决定</text>
+<rect x="507.0" y="1341" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="552.0" y="1362" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >外部边界</text>
+<circle cx="107.0" cy="1433" r="4" fill="#78818A"/>
+<text x="120.0" y="1440" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">逐点核对 / 确认 / 发布 / 下发</text>
+<circle cx="107.0" cy="1465" r="4" fill="#78818A"/>
+<text x="120.0" y="1472" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">重评统一规则与逐份确认</text>
+</g>
+<g class="node" data-node="p5" data-role="system">
+<rect x="750.0" y="1355" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="1398" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">P5 评价修订与证据汇总</text>
+<rect x="1177.0" y="1341" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="1362" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="777.0" cy="1433" r="4" fill="#187653"/>
+<text x="790.0" y="1440" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">固定规则评阅、复核与批次原子发布</text>
+<circle cx="777.0" cy="1465" r="4" fill="#187653"/>
+<text x="790.0" y="1472" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">从正式结果按题去重形成评价证据</text>
+</g>
+<g class="node" data-node="d4" data-role="data">
+<rect x="1420.0" y="1355" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="1398" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">D4 正式结果与跟进证据</text>
+<rect x="1847.0" y="1341" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="1362" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >持久数据</text>
+<circle cx="1447.0" cy="1433" r="4" fill="#187653"/>
+<text x="1460.0" y="1440" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">评分修订 / 重评批次与逐份项</text>
+<circle cx="1447.0" cy="1465" r="4" fill="#187653"/>
+<text x="1460.0" y="1472" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">学习事件 / 路径 / 干预 / 决定审计</text>
+</g>
+<g class="node" data-node="p6" data-role="system">
+<rect x="2090.0" y="1355" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="1398" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">P6 作答校验与行为采集</text>
+<rect x="2517.0" y="1341" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="1362" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="2117.0" cy="1433" r="4" fill="#187653"/>
+<text x="2130.0" y="1440" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">本人、题目归属、窗口与幂等校验</text>
+<circle cx="2117.0" cy="1465" r="4" fill="#187653"/>
+<text x="2130.0" y="1472" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">保存私人草稿 / 不可变原文 / 学习事件</text>
+</g>
+<g class="node" data-node="p7" data-role="system">
+<rect x="1420.0" y="1715" width="530.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="1758" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">P7 正式反馈与干预执行</text>
+<rect x="1847.0" y="1701" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="1722" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >本地接通</text>
+<circle cx="1447.0" cy="1793" r="4" fill="#187653"/>
+<text x="1460.0" y="1800" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">按角色裁剪正式反馈、CSV 与证据</text>
+<circle cx="1447.0" cy="1825" r="4" fill="#187653"/>
+<text x="1460.0" y="1832" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">下发、完成说明与复查写入独立记录</text>
+</g>
+<g class="node" data-node="out" data-role="external">
+<rect x="2090.0" y="1715" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="1758" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">E7 反馈、CSV 与干预输入输出</text>
+<rect x="2517.0" y="1701" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="2562.0" y="1722" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >外部边界</text>
+<circle cx="2117.0" cy="1793" r="4" fill="#78818A"/>
+<text x="2130.0" y="1800" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">学生正式反馈与本人任务</text>
+<circle cx="2117.0" cy="1825" r="4" fill="#78818A"/>
+<text x="2130.0" y="1832" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">教师班级证据、导出与复查决定</text>
+</g>
+</g><g class="labels">
+<g class="edge-label" data-from="p2" data-to="d2">
+<rect x="2472.0" y="473.0" width="160.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2552.0" y="495.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >块、向量与空间</text>
+</g>
+<g class="edge-label" data-from="d2" data-to="p2">
+<rect x="1982.0" y="545.25" width="160.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2062.0" y="567.25" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >索引和当前空间</text>
+</g>
+<g class="edge-label" data-from="p2" data-to="outlearn">
+<rect x="2365.0" y="528.0" width="160.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2445.0" y="550.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >授权证据与引用</text>
+</g>
+<g class="edge-label" data-from="d1" data-to="job">
+<rect x="738.0" y="533.0" width="160.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="818.0" y="555.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >原文或固定输入</text>
+</g>
+<g class="edge-label" data-from="d1" data-to="p4">
+<rect x="1695.0" y="505.5" width="201.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1795.5" y="527.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >合法资料 / 知识证据</text>
+</g>
+<g class="edge-label" data-from="job" data-to="p4">
+<rect x="1054.0" y="899.0" width="160.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1134.0" y="921.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >命题与标准候选</text>
+</g>
+<g class="edge-label" data-from="sinput" data-to="p6">
+<rect x="2365.0" y="1248.0" width="182.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2456.0" y="1270.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >草稿 / 答案 / 行为</text>
+</g>
+<g class="edge-label" data-from="d3" data-to="p5">
+<rect x="1982.0" y="1193.0" width="167.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2065.5" y="1215.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >冻结标准 + 作答</text>
+</g>
+<g class="edge-label" data-from="job" data-to="p5">
+<rect x="1088.5" y="1275" width="140.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1158.5" y="1297" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >可选评分草稿</text>
+</g>
+<g class="edge-label" data-from="d4" data-to="p7">
+<rect x="1695.0" y="1608.0" width="241.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1815.5" y="1630.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >去重正式结果 / 任务证据</text>
+</g>
+<g class="edge-label" data-from="p7" data-to="d4">
+<rect x="1724.0" y="1644.8" width="200.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1824.0" y="1666.8" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >干预执行与复查记录</text>
+</g>
+</g>
+<rect x="80" y="1951" width="2540" height="56" rx="10" fill="#EAE9E3" stroke="none" />
+<text x="103" y="1983" font-size="23" fill="#58616A" font-weight="400" text-anchor="start" >E 是外部输入输出，P 是处理，D 是存储。外部输入和存储间均经 P 处理，不直接连线；PG 分组实际共用一个库，Redis 只承载异步投递。</text>
+<text x="80" y="2053" font-size="19" fill="#58616A" font-weight="400" text-anchor="start" >源码核查：backend/db/migrations/00001–00012；learning/{materials,assessment,feedback,regrade,path}.go；rag/{jobs,retrieval,models}.go</text>
+<text x="80" y="2132" font-size="18" fill="#58616A" font-weight="400" text-anchor="start" >18 个节点 · 26 条关系　｜　细节见同编号分图；SVG 可搜索、放大，PNG 用于展示。</text>
+</g></svg>

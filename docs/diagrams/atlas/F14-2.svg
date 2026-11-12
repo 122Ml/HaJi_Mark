@@ -1,0 +1,404 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2700" height="2908" viewBox="0 0 2700 2908" role="img" aria-labelledby="title desc">
+<title id="title">F14-2 资料、知识、检索与模型任务：物理外键</title><desc id="desc">FK 子列 → 父表；? 可空，! 非空；同一对表的多个 FK 合并连线，完整列名保留在表框。。顶部跨域参照只作父表定位，不重复展开其出向关系。实线均为真实数据库 FK；JSON/数组引用和应用校验约束单独见图册说明。</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 1 L9 5 L0 9Z" fill="#85929B"/></marker></defs>
+<g font-family="Microsoft YaHei, sans-serif">
+<rect x="0" y="0" width="2700" height="2908" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="80" y="76" font-size="40" fill="#242424" font-weight="700" text-anchor="start" >F14-2　资料、知识、检索与模型任务：物理外键</text>
+<text x="2620" y="76" font-size="22" fill="#58616A" font-weight="400" text-anchor="end" >2026-11-12 · 本地工作树</text>
+<text x="80" y="125" font-size="25" fill="#58616A" font-weight="400" text-anchor="start" >FK 子列 → 父表；? 可空，! 非空；同一对表的多个 FK 合并连线，完整列名保留在表框。</text>
+<text x="80" y="177" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >教师深色 / AI橙色 / 数据蓝色 / 系统白色　　绿色标记：本地已接通　　灰色虚框：未实现</text>
+<text x="80" y="214" font-size="20" fill="#8A622E" font-weight="400" text-anchor="start" >箭头按本图语义表达；只代表代码路径与结构，不代表独立教师验收、模型正确性或公网部署。</text>
+<g class="edges">
+<g class="edge" data-from="asset_revisions" data-to="material_assets"><title>B04 asset_revisions → B03 material_assets：FK</title><path d="M2090.0,929.5 L2068.0,929.5 L2068.0,913.5 L1950.0,913.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="asset_revisions" data-to="users"><title>B04 asset_revisions → A01 users：FK</title><path d="M2355.0,820 L2355.0,451" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="asset_revisions" data-to="processing_jobs"><title>B04 asset_revisions → B13 processing_jobs：FK</title><path d="M2355.0,1039 L2355.0,1061 L632.0,1061 L632.0,2433 L345.0,2433 L345.0,2455" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="chunk_embeddings" data-to="retrieval_chunks"><title>B12 chunk_embeddings → B11 retrieval_chunks：FK</title><path d="M2090.0,2019.5 L2068.0,2019.5 L2068.0,2051.5 L1950.0,2051.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="chunk_embeddings" data-to="embedding_spaces"><title>B12 chunk_embeddings → B10 embedding_spaces：FK</title><path d="M2090.0,2048.5 L2068.0,2048.5 L2068.0,1888 L1302.0,1888 L1302.0,1998.0 L1280.0,1998.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="content_decisions" data-to="users"><title>B09 content_decisions → A01 users：FK</title><path d="M345.0,1910 L345.0,1888 L1302.0,1888 L1302.0,473 L2384.0,473 L2384.0,451" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="content_decisions" data-to="courses"><title>B09 content_decisions → A03 courses：FK</title><path d="M374.0,1910 L374.0,1638 L728.0,1638 L728.0,473 L1015.0,473 L1015.0,451" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="content_tags" data-to="courses"><title>B08 content_tags → A03 courses：FK</title><path d="M2355.0,1365 L2355.0,1343 L1325.0,1343 L1325.0,473 L1044.0,473 L1044.0,451" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="knowledge_entries" data-to="courses"><title>B05 knowledge_entries → A03 courses：FK</title><path d="M345.0,1365 L345.0,1343 L705.0,1343 L705.0,496 L986.0,496 L986.0,451" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="knowledge_entries" data-to="users"><title>B05 knowledge_entries → A01 users：FK</title><path d="M610.0,1490.5 L655.0,1490.5 L655.0,775 L2068.0,775 L2068.0,363.0 L2090.0,363.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="knowledge_entries" data-to="knowledge_entries"><title>B05 knowledge_entries → B05 knowledge_entries：FK</title><path d="M374.0,1365 L374.0,1343 L58.0,1343 L58.0,1638 L345.0,1638 L345.0,1616" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="knowledge_topics" data-to="courses"><title>B06 knowledge_topics → A03 courses：FK</title><path d="M1015.0,1365 L1015.0,1018 L1375.0,1018 L1375.0,496 L1073.0,496 L1073.0,451" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="material_assets" data-to="material_fragments"><title>B03 material_assets → B02 material_fragments：FK</title><path d="M1420.0,913.5 L1398.0,913.5 L1398.0,908.0 L1280.0,908.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="material_assets" data-to="material_sources"><title>B03 material_assets → B01 material_sources：FK</title><path d="M1420.0,942.5 L1398.0,942.5 L1398.0,1029 L632.0,1029 L632.0,929.5 L610.0,929.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="material_fragments" data-to="material_sources"><title>B02 material_fragments → B01 material_sources：FK</title><path d="M750.0,908.0 L632.0,908.0 L632.0,958.5 L610.0,958.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="material_sources" data-to="courses"><title>B01 material_sources → A03 courses：FK</title><path d="M345.0,820 L345.0,798 L957.0,798 L957.0,451" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="material_sources" data-to="users"><title>B01 material_sources → A01 users：FK</title><path d="M610.0,900.5 L632.0,900.5 L632.0,253 L2068.0,253 L2068.0,392.0 L2090.0,392.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="material_sources" data-to="material_sources"><title>B01 material_sources → B01 material_sources：FK</title><path d="M374.0,820 L374.0,798 L58.0,798 L58.0,1061 L345.0,1061 L345.0,1039" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="model_calls" data-to="users"><title>B14 model_calls → A01 users：FK</title><path d="M1015.0,2455 L1015.0,2433 L2045.0,2433 L2045.0,496 L2326.0,496 L2326.0,451" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="model_calls" data-to="courses"><title>B14 model_calls → A03 courses：FK</title><path d="M1044.0,2455 L1044.0,2108 L1398.0,2108 L1398.0,798 L1095.0,798 L1095.0,451" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="processing_jobs" data-to="courses"><title>B13 processing_jobs → A03 courses：FK</title><path d="M374.0,2455 L374.0,2433 L38.0,2433 L38.0,473 L935.0,473 L935.0,451" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="processing_jobs" data-to="users"><title>B13 processing_jobs → A01 users：FK</title><path d="M316.0,2455 L316.0,2215 L1995.0,2215 L1995.0,798 L2413.0,798 L2413.0,451" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="retrieval_chunks" data-to="courses"><title>B11 retrieval_chunks → A03 courses：FK</title><path d="M1685.0,1910 L1685.0,1638 L1375.0,1638 L1375.0,798 L1015.0,798 L1015.0,451" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="retrieval_chunks" data-to="knowledge_entries"><title>B11 retrieval_chunks → B05 knowledge_entries：FK</title><path d="M1950.0,2080.5 L1972.0,2080.5 L1972.0,1661 L35.0,1661 L35.0,1490.5 L80.0,1490.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="retrieval_chunks" data-to="resources"><title>B11 retrieval_chunks → A07 resources：FK</title><path d="M1714.0,1910 L1714.0,1638 L1972.0,1638 L1972.0,496 L1685.0,496 L1685.0,451" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="retrieval_chunks" data-to="material_sources"><title>B11 retrieval_chunks → B01 material_sources：FK</title><path d="M1656.0,1910 L1656.0,1865 L705.0,1865 L705.0,1320 L374.0,1320 L374.0,1039" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="topic_links" data-to="bank_question_versions"><title>B07 topic_links → C02 bank_question_versions：FK</title><path d="M1685.0,1365 L1685.0,1041 L655.0,1041 L655.0,496 L345.0,496 L345.0,451" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="topic_links" data-to="knowledge_entries"><title>B07 topic_links → B05 knowledge_entries：FK</title><path d="M1420.0,1490.5 L1325.0,1490.5 L1325.0,1563 L632.0,1563 L632.0,1519.5 L610.0,1519.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="topic_links" data-to="material_sources"><title>B07 topic_links → B01 material_sources：FK</title><path d="M1950.0,1490.5 L2068.0,1490.5 L2068.0,1052 L35.0,1052 L35.0,929.5 L80.0,929.5" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="topic_links" data-to="knowledge_topics"><title>B07 topic_links → B06 knowledge_topics：FK</title><path d="M1420.0,1519.5 L1398.0,1519.5 L1398.0,1453.0 L1280.0,1453.0" stroke="#85929B" stroke-width="2.7" stroke-linejoin="round" fill="none" marker-end="url(#arrow)"/></g>
+</g><g class="nodes">
+<g class="node" data-node="bank_question_versions" data-role="external">
+<rect x="80.0" y="275" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">C02 bank_question_versions</text>
+<rect x="507.0" y="261" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="552.0" y="282" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >跨域参照</text>
+<circle cx="107.0" cy="353" r="4" fill="#78818A"/>
+<text x="120.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">跨域父表，完整定义在对应分图</text>
+<circle cx="107.0" cy="385" r="4" fill="#78818A"/>
+<text x="120.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">被引用键保持数据库真实定义</text>
+</g>
+<g class="node" data-node="courses" data-role="external">
+<rect x="750.0" y="275" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">A03 courses</text>
+<rect x="1177.0" y="261" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="1222.0" y="282" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >跨域参照</text>
+<circle cx="777.0" cy="353" r="4" fill="#78818A"/>
+<text x="790.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">跨域父表，完整定义在对应分图</text>
+<circle cx="777.0" cy="385" r="4" fill="#78818A"/>
+<text x="790.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">被引用键保持数据库真实定义</text>
+</g>
+<g class="node" data-node="resources" data-role="external">
+<rect x="1420.0" y="275" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">A07 resources</text>
+<rect x="1847.0" y="261" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="1892.0" y="282" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >跨域参照</text>
+<circle cx="1447.0" cy="353" r="4" fill="#78818A"/>
+<text x="1460.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">跨域父表，完整定义在对应分图</text>
+<circle cx="1447.0" cy="385" r="4" fill="#78818A"/>
+<text x="1460.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">被引用键保持数据库真实定义</text>
+</g>
+<g class="node" data-node="users" data-role="external">
+<rect x="2090.0" y="275" width="530.0" height="176" rx="10" fill="#F0F0EA" stroke="#BCC3BA" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="318" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">A01 users</text>
+<rect x="2517.0" y="261" width="90.0" height="29" rx="10" fill="#EBEDF0" stroke="none" />
+<text x="2562.0" y="282" font-size="17" fill="#78818A" font-weight="600" text-anchor="middle" >跨域参照</text>
+<circle cx="2117.0" cy="353" r="4" fill="#78818A"/>
+<text x="2130.0" y="360" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">跨域父表，完整定义在对应分图</text>
+<circle cx="2117.0" cy="385" r="4" fill="#78818A"/>
+<text x="2130.0" y="392" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" class="node-line">被引用键保持数据库真实定义</text>
+</g>
+<g class="node" data-node="material_sources" data-role="data">
+<rect x="80.0" y="820" width="530.0" height="219" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="863" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">B01 material_sources</text>
+<rect x="507.0" y="806" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="827" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="107.0" cy="898" r="4" fill="#187653"/>
+<text x="120.0" y="905" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (id)</text>
+<circle cx="107.0" cy="930" r="4" fill="#187653"/>
+<text x="120.0" y="937" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! course_id → A03.id</text>
+<circle cx="107.0" cy="962" r="4" fill="#187653"/>
+<text x="120.0" y="969" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! created_by → A01.id</text>
+<circle cx="107.0" cy="994" r="4" fill="#187653"/>
+<text x="120.0" y="1001" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK? supersedes_id → B01.id</text>
+</g>
+<g class="node" data-node="material_fragments" data-role="data">
+<rect x="750.0" y="820" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="863" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">B02 material_fragments</text>
+<rect x="1177.0" y="806" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="827" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="777.0" cy="898" r="4" fill="#187653"/>
+<text x="790.0" y="905" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (id)</text>
+<circle cx="777.0" cy="930" r="4" fill="#187653"/>
+<text x="790.0" y="937" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! source_id → B01.id</text>
+</g>
+<g class="node" data-node="material_assets" data-role="data">
+<rect x="1420.0" y="820" width="530.0" height="187" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="863" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">B03 material_assets</text>
+<rect x="1847.0" y="806" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="827" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="1447.0" cy="898" r="4" fill="#187653"/>
+<text x="1460.0" y="905" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (id)</text>
+<circle cx="1447.0" cy="930" r="4" fill="#187653"/>
+<text x="1460.0" y="937" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! fragment_id → B02.id</text>
+<circle cx="1447.0" cy="962" r="4" fill="#187653"/>
+<text x="1460.0" y="969" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! source_id → B01.id</text>
+</g>
+<g class="node" data-node="asset_revisions" data-role="data">
+<rect x="2090.0" y="820" width="530.0" height="219" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="863" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">B04 asset_revisions</text>
+<rect x="2517.0" y="806" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="827" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="2117.0" cy="898" r="4" fill="#187653"/>
+<text x="2130.0" y="905" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (id)</text>
+<circle cx="2117.0" cy="930" r="4" fill="#187653"/>
+<text x="2130.0" y="937" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! asset_id → B03.id</text>
+<circle cx="2117.0" cy="962" r="4" fill="#187653"/>
+<text x="2130.0" y="969" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! created_by → A01.id</text>
+<circle cx="2117.0" cy="994" r="4" fill="#187653"/>
+<text x="2130.0" y="1001" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK? model_job_id → B13.id</text>
+</g>
+<g class="node" data-node="knowledge_entries" data-role="data">
+<rect x="80.0" y="1365" width="530.0" height="251" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="1408" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">B05 knowledge_entries</text>
+<rect x="507.0" y="1351" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="1372" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="107.0" cy="1443" r="4" fill="#187653"/>
+<text x="120.0" y="1450" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (id)</text>
+<circle cx="107.0" cy="1475" r="4" fill="#187653"/>
+<text x="120.0" y="1482" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! course_id → A03.id</text>
+<circle cx="107.0" cy="1507" r="4" fill="#187653"/>
+<text x="120.0" y="1514" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! created_by → A01.id</text>
+<circle cx="107.0" cy="1539" r="4" fill="#187653"/>
+<text x="120.0" y="1546" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK? supersedes_id → B05.id</text>
+<circle cx="107.0" cy="1571" r="4" fill="#187653"/>
+<text x="120.0" y="1578" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">evidence / related_ids 等为 JSON 或数组</text>
+</g>
+<g class="node" data-node="knowledge_topics" data-role="data">
+<rect x="750.0" y="1365" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="1408" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">B06 knowledge_topics</text>
+<rect x="1177.0" y="1351" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="1372" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="777.0" cy="1443" r="4" fill="#187653"/>
+<text x="790.0" y="1450" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (id)</text>
+<circle cx="777.0" cy="1475" r="4" fill="#187653"/>
+<text x="790.0" y="1482" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! course_id → A03.id</text>
+</g>
+<g class="node" data-node="topic_links" data-role="data">
+<rect x="1420.0" y="1365" width="530.0" height="251" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="1408" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">B07 topic_links</text>
+<rect x="1847.0" y="1351" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="1372" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="1447.0" cy="1443" r="4" fill="#187653"/>
+<text x="1460.0" y="1450" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">无主键（本表未声明 PK）</text>
+<circle cx="1447.0" cy="1475" r="4" fill="#187653"/>
+<text x="1460.0" y="1482" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK? bank_version_id → C02.id</text>
+<circle cx="1447.0" cy="1507" r="4" fill="#187653"/>
+<text x="1460.0" y="1514" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK? knowledge_id → B05.id</text>
+<circle cx="1447.0" cy="1539" r="4" fill="#187653"/>
+<text x="1460.0" y="1546" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK? source_id → B01.id</text>
+<circle cx="1447.0" cy="1571" r="4" fill="#187653"/>
+<text x="1460.0" y="1578" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! topic_id → B06.id</text>
+</g>
+<g class="node" data-node="content_tags" data-role="data">
+<rect x="2090.0" y="1365" width="530.0" height="187" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="1408" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">B08 content_tags</text>
+<rect x="2517.0" y="1351" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="1372" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="2117.0" cy="1443" r="4" fill="#187653"/>
+<text x="2130.0" y="1450" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (object_kind, object_id)</text>
+<circle cx="2117.0" cy="1475" r="4" fill="#187653"/>
+<text x="2130.0" y="1482" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! course_id → A03.id</text>
+<circle cx="2117.0" cy="1507" r="4" fill="#187653"/>
+<text x="2130.0" y="1514" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">object_id 为多态业务引用，不是 FK</text>
+</g>
+<g class="node" data-node="content_decisions" data-role="data">
+<rect x="80.0" y="1910" width="530.0" height="219" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="1953" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">B09 content_decisions</text>
+<rect x="507.0" y="1896" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="1917" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="107.0" cy="1988" r="4" fill="#187653"/>
+<text x="120.0" y="1995" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (id)</text>
+<circle cx="107.0" cy="2020" r="4" fill="#187653"/>
+<text x="120.0" y="2027" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! actor_id → A01.id</text>
+<circle cx="107.0" cy="2052" r="4" fill="#187653"/>
+<text x="120.0" y="2059" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! course_id → A03.id</text>
+<circle cx="107.0" cy="2084" r="4" fill="#187653"/>
+<text x="120.0" y="2091" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">object_id 为多态业务引用，不是 FK</text>
+</g>
+<g class="node" data-node="embedding_spaces" data-role="data">
+<rect x="750.0" y="1910" width="530.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="1953" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">B10 embedding_spaces</text>
+<rect x="1177.0" y="1896" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="1917" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="777.0" cy="1988" r="4" fill="#187653"/>
+<text x="790.0" y="1995" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (id)</text>
+<circle cx="777.0" cy="2020" r="4" fill="#187653"/>
+<text x="790.0" y="2027" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">UQ (id, dimensions)：复合外键的父键</text>
+</g>
+<g class="node" data-node="retrieval_chunks" data-role="data">
+<rect x="1420.0" y="1910" width="530.0" height="283" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="1953" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">B11 retrieval_chunks</text>
+<rect x="1847.0" y="1896" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="1917" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="1447.0" cy="1988" r="4" fill="#187653"/>
+<text x="1460.0" y="1995" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (id)</text>
+<circle cx="1447.0" cy="2020" r="4" fill="#187653"/>
+<text x="1460.0" y="2027" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! course_id → A03.id</text>
+<circle cx="1447.0" cy="2052" r="4" fill="#187653"/>
+<text x="1460.0" y="2059" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK? knowledge_id → B05.id</text>
+<circle cx="1447.0" cy="2084" r="4" fill="#187653"/>
+<text x="1460.0" y="2091" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK? resource_id → A07.id</text>
+<circle cx="1447.0" cy="2116" r="4" fill="#187653"/>
+<text x="1460.0" y="2123" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK? source_id → B01.id</text>
+<circle cx="1447.0" cy="2148" r="4" fill="#187653"/>
+<text x="1460.0" y="2155" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">source / knowledge / resource 恰有其一</text>
+</g>
+<g class="node" data-node="chunk_embeddings" data-role="data">
+<rect x="2090.0" y="1910" width="530.0" height="219" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="2112.0" y="1953" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">B12 chunk_embeddings</text>
+<rect x="2517.0" y="1896" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="2562.0" y="1917" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="2117.0" cy="1988" r="4" fill="#187653"/>
+<text x="2130.0" y="1995" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (chunk_id, space_id)</text>
+<circle cx="2117.0" cy="2020" r="4" fill="#187653"/>
+<text x="2130.0" y="2027" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! chunk_id → B11.id</text>
+<circle cx="2117.0" cy="2052" r="4" fill="#187653"/>
+<text x="2130.0" y="2059" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! space_id, dimensions → B10.id,</text>
+<text x="2130.0" y="2091" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">dimensions</text>
+</g>
+<g class="node" data-node="processing_jobs" data-role="data">
+<rect x="80.0" y="2455" width="530.0" height="187" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="102.0" y="2498" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">B13 processing_jobs</text>
+<rect x="507.0" y="2441" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="552.0" y="2462" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="107.0" cy="2533" r="4" fill="#187653"/>
+<text x="120.0" y="2540" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (id)</text>
+<circle cx="107.0" cy="2565" r="4" fill="#187653"/>
+<text x="120.0" y="2572" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! course_id → A03.id</text>
+<circle cx="107.0" cy="2597" r="4" fill="#187653"/>
+<text x="120.0" y="2604" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! created_by → A01.id</text>
+</g>
+<g class="node" data-node="model_calls" data-role="data">
+<rect x="750.0" y="2455" width="530.0" height="187" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="772.0" y="2498" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">B14 model_calls</text>
+<rect x="1177.0" y="2441" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1222.0" y="2462" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="777.0" cy="2533" r="4" fill="#187653"/>
+<text x="790.0" y="2540" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (id)</text>
+<circle cx="777.0" cy="2565" r="4" fill="#187653"/>
+<text x="790.0" y="2572" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! actor_id → A01.id</text>
+<circle cx="777.0" cy="2597" r="4" fill="#187653"/>
+<text x="790.0" y="2604" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">FK! course_id → A03.id</text>
+</g>
+<g class="node" data-node="model_budget" data-role="data">
+<rect x="1420.0" y="2455" width="530.0" height="187" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2" stroke-dasharray="none"/>
+<text x="1442.0" y="2498" font-size="27" fill="#242424" font-weight="650" text-anchor="start" class="node-title">B15 model_budget</text>
+<rect x="1847.0" y="2441" width="90.0" height="29" rx="10" fill="#E3F0E9" stroke="none" />
+<text x="1892.0" y="2462" font-size="17" fill="#187653" font-weight="600" text-anchor="middle" >数据库表</text>
+<circle cx="1447.0" cy="2533" r="4" fill="#187653"/>
+<text x="1460.0" y="2540" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">PK (id)</text>
+<circle cx="1447.0" cy="2565" r="4" fill="#187653"/>
+<text x="1460.0" y="2572" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">单例预算，无指向 model_calls 的外键</text>
+<circle cx="1447.0" cy="2597" r="4" fill="#187653"/>
+<text x="1460.0" y="2604" font-size="22" fill="#526575" font-weight="400" text-anchor="start" class="node-line">费用聚合由模型调用代码维护</text>
+</g>
+</g><g class="labels">
+<g class="edge-label" data-from="asset_revisions" data-to="material_assets">
+<rect x="1987.0" y="878.5" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2009.0" y="900.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="asset_revisions" data-to="users">
+<rect x="2365.0" y="620.5" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2387.0" y="642.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="asset_revisions" data-to="processing_jobs">
+<rect x="1471.5" y="1026" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1493.5" y="1048" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="chunk_embeddings" data-to="retrieval_chunks">
+<rect x="1987.0" y="2016.5" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2009.0" y="2038.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="chunk_embeddings" data-to="embedding_spaces">
+<rect x="2014.0" y="1953.25" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2036.0" y="1975.25" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="content_decisions" data-to="users">
+<rect x="801.5" y="1853" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="823.5" y="1875" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="content_decisions" data-to="courses">
+<rect x="384.0" y="1759.0" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="406.0" y="1781.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="content_tags" data-to="courses">
+<rect x="1818.0" y="1308" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1840.0" y="1330" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="knowledge_entries" data-to="courses">
+<rect x="503.0" y="1308" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="525.0" y="1330" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="knowledge_entries" data-to="users">
+<rect x="665.0" y="1117.75" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="687.0" y="1139.75" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="knowledge_entries" data-to="knowledge_entries">
+<rect x="194.0" y="1308" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="216.0" y="1330" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="knowledge_topics" data-to="courses">
+<rect x="1025.0" y="1176.5" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1047.0" y="1198.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="material_assets" data-to="material_fragments">
+<rect x="1317.0" y="873.0" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1339.0" y="895.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="material_assets" data-to="material_sources">
+<rect x="1344.0" y="970.75" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1366.0" y="992.75" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="material_fragments" data-to="material_sources">
+<rect x="669.0" y="873.0" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="691.0" y="895.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="material_sources" data-to="courses">
+<rect x="629.0" y="763" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="651.0" y="785" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="material_sources" data-to="users">
+<rect x="642.0" y="561.75" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="664.0" y="583.75" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="material_sources" data-to="material_sources">
+<rect x="194.0" y="763" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="216.0" y="785" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="model_calls" data-to="users">
+<rect x="1508.0" y="2398" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1530.0" y="2420" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="model_calls" data-to="courses">
+<rect x="1054.0" y="2266.5" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1076.0" y="2288.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="processing_jobs" data-to="courses">
+<rect x="184.0" y="2398" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="206.0" y="2420" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="processing_jobs" data-to="users">
+<rect x="326.0" y="2320.0" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="348.0" y="2342.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="retrieval_chunks" data-to="courses">
+<rect x="1695.0" y="1759.0" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1717.0" y="1781.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="retrieval_chunks" data-to="knowledge_entries">
+<rect x="1982.0" y="1855.75" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2004.0" y="1877.75" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="retrieval_chunks" data-to="resources">
+<rect x="1724.0" y="1813.4" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1746.0" y="1835.4" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="retrieval_chunks" data-to="material_sources">
+<rect x="1158.5" y="1830" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1180.5" y="1852" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="topic_links" data-to="bank_question_versions">
+<rect x="1695.0" y="1188.0" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1717.0" y="1210.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="topic_links" data-to="knowledge_entries">
+<rect x="1350.5" y="1455.5" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1372.5" y="1477.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="topic_links" data-to="material_sources">
+<rect x="1987.0" y="1455.5" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2009.0" y="1477.5" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+<g class="edge-label" data-from="topic_links" data-to="knowledge_topics">
+<rect x="1317.0" y="1418.0" width="44.0" height="30" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1339.0" y="1440.0" font-size="20" fill="#526575" font-weight="400" text-anchor="middle" >FK</text>
+</g>
+</g>
+<rect x="80" y="2702" width="2540" height="56" rx="10" fill="#EAE9E3" stroke="none" />
+<text x="103" y="2734" font-size="23" fill="#58616A" font-weight="400" text-anchor="start" >顶部跨域参照只作父表定位，不重复展开其出向关系。实线均为真实数据库 FK；JSON/数组引用和应用校验约束单独见图册说明。</text>
+<text x="80" y="2804" font-size="19" fill="#58616A" font-weight="400" text-anchor="start" >源码核查：schema.json；对应 00001–00012 迁移（生成时校验 SHA256）</text>
+<text x="80" y="2883" font-size="18" fill="#58616A" font-weight="400" text-anchor="start" >19 个节点 · 30 条关系　｜　细节见同编号分图；SVG 可搜索、放大，PNG 用于展示。</text>
+</g></svg>

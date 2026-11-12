@@ -1,0 +1,4902 @@
+{
+  "tables": [
+    {
+      "name": "answer_drafts",
+      "columns": [
+        {
+          "name": "student_id",
+          "nullable": false
+        },
+        {
+          "name": "question_id",
+          "nullable": false
+        },
+        {
+          "name": "answer_text",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "answer_drafts_answer_text_not_null",
+          "kind": "n",
+          "definition": "NOT NULL answer_text"
+        },
+        {
+          "name": "answer_drafts_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (student_id, question_id)"
+        },
+        {
+          "name": "answer_drafts_question_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "answer_drafts_question_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL question_id"
+        },
+        {
+          "name": "answer_drafts_student_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "answer_drafts_student_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL student_id"
+        },
+        {
+          "name": "answer_drafts_updated_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL updated_at"
+        }
+      ]
+    },
+    {
+      "name": "asset_revisions",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "asset_id",
+          "nullable": false
+        },
+        {
+          "name": "revision",
+          "nullable": false
+        },
+        {
+          "name": "body",
+          "nullable": false
+        },
+        {
+          "name": "structured",
+          "nullable": false
+        },
+        {
+          "name": "state",
+          "nullable": false
+        },
+        {
+          "name": "model_job_id",
+          "nullable": true
+        },
+        {
+          "name": "created_by",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "asset_revisions_asset_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (asset_id) REFERENCES material_assets(id)"
+        },
+        {
+          "name": "asset_revisions_asset_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL asset_id"
+        },
+        {
+          "name": "asset_revisions_asset_id_revision_key",
+          "kind": "u",
+          "definition": "UNIQUE (asset_id, revision)"
+        },
+        {
+          "name": "asset_revisions_body_not_null",
+          "kind": "n",
+          "definition": "NOT NULL body"
+        },
+        {
+          "name": "asset_revisions_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "asset_revisions_created_by_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+        },
+        {
+          "name": "asset_revisions_created_by_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_by"
+        },
+        {
+          "name": "asset_revisions_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "asset_revisions_model_job_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (model_job_id) REFERENCES processing_jobs(id)"
+        },
+        {
+          "name": "asset_revisions_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "asset_revisions_revision_not_null",
+          "kind": "n",
+          "definition": "NOT NULL revision"
+        },
+        {
+          "name": "asset_revisions_state_check",
+          "kind": "c",
+          "definition": "CHECK ((state = ANY (ARRAY['draft'::text, 'confirmed'::text])))"
+        },
+        {
+          "name": "asset_revisions_state_not_null",
+          "kind": "n",
+          "definition": "NOT NULL state"
+        },
+        {
+          "name": "asset_revisions_structured_not_null",
+          "kind": "n",
+          "definition": "NOT NULL structured"
+        }
+      ]
+    },
+    {
+      "name": "assignments",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "course_id",
+          "nullable": false
+        },
+        {
+          "name": "title",
+          "nullable": false
+        },
+        {
+          "name": "description",
+          "nullable": false
+        },
+        {
+          "name": "type",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "nullable": false
+        },
+        {
+          "name": "version",
+          "nullable": false
+        },
+        {
+          "name": "max_score",
+          "nullable": false
+        },
+        {
+          "name": "due_at",
+          "nullable": true
+        },
+        {
+          "name": "created_by",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        },
+        {
+          "name": "published_at",
+          "nullable": true
+        }
+      ],
+      "constraints": [
+        {
+          "name": "assignments_course_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "assignments_course_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL course_id"
+        },
+        {
+          "name": "assignments_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "assignments_created_by_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+        },
+        {
+          "name": "assignments_created_by_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_by"
+        },
+        {
+          "name": "assignments_description_not_null",
+          "kind": "n",
+          "definition": "NOT NULL description"
+        },
+        {
+          "name": "assignments_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "assignments_max_score_check",
+          "kind": "c",
+          "definition": "CHECK ((max_score > 0))"
+        },
+        {
+          "name": "assignments_max_score_not_null",
+          "kind": "n",
+          "definition": "NOT NULL max_score"
+        },
+        {
+          "name": "assignments_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "assignments_status_check",
+          "kind": "c",
+          "definition": "CHECK ((status = ANY (ARRAY['draft'::text, 'published'::text, 'closed'::text])))"
+        },
+        {
+          "name": "assignments_status_not_null",
+          "kind": "n",
+          "definition": "NOT NULL status"
+        },
+        {
+          "name": "assignments_title_not_null",
+          "kind": "n",
+          "definition": "NOT NULL title"
+        },
+        {
+          "name": "assignments_type_not_null",
+          "kind": "n",
+          "definition": "NOT NULL type"
+        },
+        {
+          "name": "assignments_version_check",
+          "kind": "c",
+          "definition": "CHECK ((version > 0))"
+        },
+        {
+          "name": "assignments_version_not_null",
+          "kind": "n",
+          "definition": "NOT NULL version"
+        }
+      ]
+    },
+    {
+      "name": "bank_question_assets",
+      "columns": [
+        {
+          "name": "version_id",
+          "nullable": false
+        },
+        {
+          "name": "asset_id",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "bank_question_assets_asset_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (asset_id) REFERENCES material_assets(id)"
+        },
+        {
+          "name": "bank_question_assets_asset_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL asset_id"
+        },
+        {
+          "name": "bank_question_assets_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (version_id, asset_id)"
+        },
+        {
+          "name": "bank_question_assets_version_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (version_id) REFERENCES bank_question_versions(id)"
+        },
+        {
+          "name": "bank_question_assets_version_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL version_id"
+        }
+      ]
+    },
+    {
+      "name": "bank_question_versions",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "bank_id",
+          "nullable": false
+        },
+        {
+          "name": "version",
+          "nullable": false
+        },
+        {
+          "name": "title",
+          "nullable": false
+        },
+        {
+          "name": "prompt",
+          "nullable": false
+        },
+        {
+          "name": "type",
+          "nullable": false
+        },
+        {
+          "name": "max_score",
+          "nullable": false
+        },
+        {
+          "name": "requirements",
+          "nullable": false
+        },
+        {
+          "name": "reference_answer",
+          "nullable": false
+        },
+        {
+          "name": "reference_state",
+          "nullable": false
+        },
+        {
+          "name": "options",
+          "nullable": false
+        },
+        {
+          "name": "correct_answer",
+          "nullable": false
+        },
+        {
+          "name": "knowledge_point_id",
+          "nullable": true
+        },
+        {
+          "name": "evidence_refs",
+          "nullable": false
+        },
+        {
+          "name": "state",
+          "nullable": false
+        },
+        {
+          "name": "created_by",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "bank_question_versions_bank_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (bank_id) REFERENCES question_bank(id)"
+        },
+        {
+          "name": "bank_question_versions_bank_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL bank_id"
+        },
+        {
+          "name": "bank_question_versions_bank_id_version_key",
+          "kind": "u",
+          "definition": "UNIQUE (bank_id, version)"
+        },
+        {
+          "name": "bank_question_versions_correct_answer_not_null",
+          "kind": "n",
+          "definition": "NOT NULL correct_answer"
+        },
+        {
+          "name": "bank_question_versions_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "bank_question_versions_created_by_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+        },
+        {
+          "name": "bank_question_versions_created_by_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_by"
+        },
+        {
+          "name": "bank_question_versions_evidence_refs_check",
+          "kind": "c",
+          "definition": "CHECK ((jsonb_typeof(evidence_refs) = 'array'::text))"
+        },
+        {
+          "name": "bank_question_versions_evidence_refs_not_null",
+          "kind": "n",
+          "definition": "NOT NULL evidence_refs"
+        },
+        {
+          "name": "bank_question_versions_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "bank_question_versions_knowledge_point_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (knowledge_point_id) REFERENCES knowledge_points(id)"
+        },
+        {
+          "name": "bank_question_versions_max_score_check",
+          "kind": "c",
+          "definition": "CHECK (((max_score >= 1) AND (max_score <= 10000)))"
+        },
+        {
+          "name": "bank_question_versions_max_score_not_null",
+          "kind": "n",
+          "definition": "NOT NULL max_score"
+        },
+        {
+          "name": "bank_question_versions_options_not_null",
+          "kind": "n",
+          "definition": "NOT NULL options"
+        },
+        {
+          "name": "bank_question_versions_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "bank_question_versions_prompt_not_null",
+          "kind": "n",
+          "definition": "NOT NULL prompt"
+        },
+        {
+          "name": "bank_question_versions_reference_answer_not_null",
+          "kind": "n",
+          "definition": "NOT NULL reference_answer"
+        },
+        {
+          "name": "bank_question_versions_reference_state_check",
+          "kind": "c",
+          "definition": "CHECK ((reference_state = ANY (ARRAY['draft'::text, 'confirmed'::text])))"
+        },
+        {
+          "name": "bank_question_versions_reference_state_not_null",
+          "kind": "n",
+          "definition": "NOT NULL reference_state"
+        },
+        {
+          "name": "bank_question_versions_requirements_not_null",
+          "kind": "n",
+          "definition": "NOT NULL requirements"
+        },
+        {
+          "name": "bank_question_versions_state_check",
+          "kind": "c",
+          "definition": "CHECK ((state = ANY (ARRAY['draft'::text, 'confirmed'::text])))"
+        },
+        {
+          "name": "bank_question_versions_state_not_null",
+          "kind": "n",
+          "definition": "NOT NULL state"
+        },
+        {
+          "name": "bank_question_versions_title_not_null",
+          "kind": "n",
+          "definition": "NOT NULL title"
+        },
+        {
+          "name": "bank_question_versions_type_check",
+          "kind": "c",
+          "definition": "CHECK ((type = ANY (ARRAY['subjective'::text, 'code'::text, 'quiz'::text])))"
+        },
+        {
+          "name": "bank_question_versions_type_not_null",
+          "kind": "n",
+          "definition": "NOT NULL type"
+        },
+        {
+          "name": "bank_question_versions_version_check",
+          "kind": "c",
+          "definition": "CHECK ((version > 0))"
+        },
+        {
+          "name": "bank_question_versions_version_not_null",
+          "kind": "n",
+          "definition": "NOT NULL version"
+        }
+      ]
+    },
+    {
+      "name": "chunk_embeddings",
+      "columns": [
+        {
+          "name": "chunk_id",
+          "nullable": false
+        },
+        {
+          "name": "space_id",
+          "nullable": false
+        },
+        {
+          "name": "dimensions",
+          "nullable": false
+        },
+        {
+          "name": "embedding",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "chunk_embeddings_check",
+          "kind": "c",
+          "definition": "CHECK ((vector_dims(embedding) = dimensions))"
+        },
+        {
+          "name": "chunk_embeddings_chunk_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (chunk_id) REFERENCES retrieval_chunks(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "chunk_embeddings_chunk_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL chunk_id"
+        },
+        {
+          "name": "chunk_embeddings_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "chunk_embeddings_dimensions_not_null",
+          "kind": "n",
+          "definition": "NOT NULL dimensions"
+        },
+        {
+          "name": "chunk_embeddings_embedding_not_null",
+          "kind": "n",
+          "definition": "NOT NULL embedding"
+        },
+        {
+          "name": "chunk_embeddings_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (chunk_id, space_id)"
+        },
+        {
+          "name": "chunk_embeddings_space_id_dimensions_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (space_id, dimensions) REFERENCES embedding_spaces(id, dimensions)"
+        },
+        {
+          "name": "chunk_embeddings_space_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL space_id"
+        }
+      ]
+    },
+    {
+      "name": "content_decisions",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "course_id",
+          "nullable": false
+        },
+        {
+          "name": "actor_id",
+          "nullable": false
+        },
+        {
+          "name": "kind",
+          "nullable": false
+        },
+        {
+          "name": "object_id",
+          "nullable": false
+        },
+        {
+          "name": "inputs",
+          "nullable": false
+        },
+        {
+          "name": "output",
+          "nullable": false
+        },
+        {
+          "name": "reason",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "content_decisions_actor_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (actor_id) REFERENCES users(id)"
+        },
+        {
+          "name": "content_decisions_actor_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL actor_id"
+        },
+        {
+          "name": "content_decisions_course_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+        },
+        {
+          "name": "content_decisions_course_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL course_id"
+        },
+        {
+          "name": "content_decisions_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "content_decisions_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "content_decisions_inputs_not_null",
+          "kind": "n",
+          "definition": "NOT NULL inputs"
+        },
+        {
+          "name": "content_decisions_kind_not_null",
+          "kind": "n",
+          "definition": "NOT NULL kind"
+        },
+        {
+          "name": "content_decisions_object_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL object_id"
+        },
+        {
+          "name": "content_decisions_output_not_null",
+          "kind": "n",
+          "definition": "NOT NULL output"
+        },
+        {
+          "name": "content_decisions_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "content_decisions_reason_not_null",
+          "kind": "n",
+          "definition": "NOT NULL reason"
+        }
+      ]
+    },
+    {
+      "name": "content_tags",
+      "columns": [
+        {
+          "name": "course_id",
+          "nullable": false
+        },
+        {
+          "name": "object_kind",
+          "nullable": false
+        },
+        {
+          "name": "object_id",
+          "nullable": false
+        },
+        {
+          "name": "tags",
+          "nullable": false
+        },
+        {
+          "name": "knowledge_point_ids",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "content_tags_course_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+        },
+        {
+          "name": "content_tags_course_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL course_id"
+        },
+        {
+          "name": "content_tags_knowledge_point_ids_not_null",
+          "kind": "n",
+          "definition": "NOT NULL knowledge_point_ids"
+        },
+        {
+          "name": "content_tags_object_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL object_id"
+        },
+        {
+          "name": "content_tags_object_kind_check",
+          "kind": "c",
+          "definition": "CHECK ((object_kind = ANY (ARRAY['source'::text, 'knowledge'::text, 'question'::text])))"
+        },
+        {
+          "name": "content_tags_object_kind_not_null",
+          "kind": "n",
+          "definition": "NOT NULL object_kind"
+        },
+        {
+          "name": "content_tags_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (object_kind, object_id)"
+        },
+        {
+          "name": "content_tags_tags_not_null",
+          "kind": "n",
+          "definition": "NOT NULL tags"
+        }
+      ]
+    },
+    {
+      "name": "course_edges",
+      "columns": [
+        {
+          "name": "course_id",
+          "nullable": false
+        },
+        {
+          "name": "from_id",
+          "nullable": false
+        },
+        {
+          "name": "to_id",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "course_edges_check",
+          "kind": "c",
+          "definition": "CHECK ((from_id <> to_id))"
+        },
+        {
+          "name": "course_edges_course_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "course_edges_course_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL course_id"
+        },
+        {
+          "name": "course_edges_from_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (from_id) REFERENCES knowledge_points(id)"
+        },
+        {
+          "name": "course_edges_from_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL from_id"
+        },
+        {
+          "name": "course_edges_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (course_id, from_id, to_id)"
+        },
+        {
+          "name": "course_edges_to_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (to_id) REFERENCES knowledge_points(id)"
+        },
+        {
+          "name": "course_edges_to_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL to_id"
+        }
+      ]
+    },
+    {
+      "name": "courses",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "title",
+          "nullable": false
+        },
+        {
+          "name": "teacher_id",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "nullable": false
+        },
+        {
+          "name": "version",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        },
+        {
+          "name": "embedding_space_id",
+          "nullable": true
+        }
+      ],
+      "constraints": [
+        {
+          "name": "courses_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "courses_embedding_space_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (embedding_space_id) REFERENCES embedding_spaces(id)"
+        },
+        {
+          "name": "courses_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "courses_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "courses_status_check",
+          "kind": "c",
+          "definition": "CHECK ((status = ANY (ARRAY['draft'::text, 'published'::text])))"
+        },
+        {
+          "name": "courses_status_not_null",
+          "kind": "n",
+          "definition": "NOT NULL status"
+        },
+        {
+          "name": "courses_teacher_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (teacher_id) REFERENCES users(id)"
+        },
+        {
+          "name": "courses_teacher_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL teacher_id"
+        },
+        {
+          "name": "courses_title_not_null",
+          "kind": "n",
+          "definition": "NOT NULL title"
+        },
+        {
+          "name": "courses_version_check",
+          "kind": "c",
+          "definition": "CHECK ((version > 0))"
+        },
+        {
+          "name": "courses_version_not_null",
+          "kind": "n",
+          "definition": "NOT NULL version"
+        }
+      ]
+    },
+    {
+      "name": "embedding_spaces",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "profile_id",
+          "nullable": false
+        },
+        {
+          "name": "fingerprint",
+          "nullable": false
+        },
+        {
+          "name": "model",
+          "nullable": false
+        },
+        {
+          "name": "dimensions",
+          "nullable": false
+        },
+        {
+          "name": "chunker_version",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "embedding_spaces_chunker_version_not_null",
+          "kind": "n",
+          "definition": "NOT NULL chunker_version"
+        },
+        {
+          "name": "embedding_spaces_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "embedding_spaces_dimensions_check",
+          "kind": "c",
+          "definition": "CHECK (((dimensions >= 1) AND (dimensions <= 16000)))"
+        },
+        {
+          "name": "embedding_spaces_dimensions_not_null",
+          "kind": "n",
+          "definition": "NOT NULL dimensions"
+        },
+        {
+          "name": "embedding_spaces_fingerprint_key",
+          "kind": "u",
+          "definition": "UNIQUE (fingerprint)"
+        },
+        {
+          "name": "embedding_spaces_fingerprint_not_null",
+          "kind": "n",
+          "definition": "NOT NULL fingerprint"
+        },
+        {
+          "name": "embedding_spaces_id_dimensions_key",
+          "kind": "u",
+          "definition": "UNIQUE (id, dimensions)"
+        },
+        {
+          "name": "embedding_spaces_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "embedding_spaces_model_not_null",
+          "kind": "n",
+          "definition": "NOT NULL model"
+        },
+        {
+          "name": "embedding_spaces_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "embedding_spaces_profile_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL profile_id"
+        }
+      ]
+    },
+    {
+      "name": "enrollments",
+      "columns": [
+        {
+          "name": "course_id",
+          "nullable": false
+        },
+        {
+          "name": "student_id",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "enrollments_course_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+        },
+        {
+          "name": "enrollments_course_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL course_id"
+        },
+        {
+          "name": "enrollments_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (course_id, student_id)"
+        },
+        {
+          "name": "enrollments_student_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (student_id) REFERENCES users(id)"
+        },
+        {
+          "name": "enrollments_student_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL student_id"
+        }
+      ]
+    },
+    {
+      "name": "grading_revisions",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "submission_id",
+          "nullable": false
+        },
+        {
+          "name": "revision",
+          "nullable": false
+        },
+        {
+          "name": "score",
+          "nullable": false
+        },
+        {
+          "name": "feedback",
+          "nullable": false
+        },
+        {
+          "name": "method",
+          "nullable": false
+        },
+        {
+          "name": "state",
+          "nullable": false
+        },
+        {
+          "name": "reviewer_id",
+          "nullable": false
+        },
+        {
+          "name": "request_id",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        },
+        {
+          "name": "released_at",
+          "nullable": true
+        },
+        {
+          "name": "rubric_id",
+          "nullable": true
+        },
+        {
+          "name": "point_scores",
+          "nullable": false
+        },
+        {
+          "name": "ai_job_id",
+          "nullable": true
+        },
+        {
+          "name": "regrade_batch_id",
+          "nullable": true
+        }
+      ],
+      "constraints": [
+        {
+          "name": "grading_revisions_ai_job_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (ai_job_id) REFERENCES processing_jobs(id)"
+        },
+        {
+          "name": "grading_revisions_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "grading_revisions_feedback_not_null",
+          "kind": "n",
+          "definition": "NOT NULL feedback"
+        },
+        {
+          "name": "grading_revisions_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "grading_revisions_method_check",
+          "kind": "c",
+          "definition": "CHECK ((method = ANY (ARRAY['manual'::text, 'rule'::text])))"
+        },
+        {
+          "name": "grading_revisions_method_not_null",
+          "kind": "n",
+          "definition": "NOT NULL method"
+        },
+        {
+          "name": "grading_revisions_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "grading_revisions_point_scores_check",
+          "kind": "c",
+          "definition": "CHECK ((jsonb_typeof(point_scores) = 'array'::text))"
+        },
+        {
+          "name": "grading_revisions_point_scores_not_null",
+          "kind": "n",
+          "definition": "NOT NULL point_scores"
+        },
+        {
+          "name": "grading_revisions_regrade_batch_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (regrade_batch_id) REFERENCES regrade_batches(id)"
+        },
+        {
+          "name": "grading_revisions_request_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL request_id"
+        },
+        {
+          "name": "grading_revisions_reviewer_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (reviewer_id) REFERENCES users(id)"
+        },
+        {
+          "name": "grading_revisions_reviewer_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL reviewer_id"
+        },
+        {
+          "name": "grading_revisions_reviewer_id_request_id_key",
+          "kind": "u",
+          "definition": "UNIQUE (reviewer_id, request_id)"
+        },
+        {
+          "name": "grading_revisions_revision_check",
+          "kind": "c",
+          "definition": "CHECK ((revision > 0))"
+        },
+        {
+          "name": "grading_revisions_revision_not_null",
+          "kind": "n",
+          "definition": "NOT NULL revision"
+        },
+        {
+          "name": "grading_revisions_rubric_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (rubric_id) REFERENCES rubric_versions(id)"
+        },
+        {
+          "name": "grading_revisions_score_check",
+          "kind": "c",
+          "definition": "CHECK ((score >= 0))"
+        },
+        {
+          "name": "grading_revisions_score_not_null",
+          "kind": "n",
+          "definition": "NOT NULL score"
+        },
+        {
+          "name": "grading_revisions_state_check",
+          "kind": "c",
+          "definition": "CHECK ((state = ANY (ARRAY['draft'::text, 'confirmed'::text, 'released'::text])))"
+        },
+        {
+          "name": "grading_revisions_state_not_null",
+          "kind": "n",
+          "definition": "NOT NULL state"
+        },
+        {
+          "name": "grading_revisions_submission_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "grading_revisions_submission_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL submission_id"
+        },
+        {
+          "name": "grading_revisions_submission_id_revision_key",
+          "kind": "u",
+          "definition": "UNIQUE (submission_id, revision)"
+        }
+      ]
+    },
+    {
+      "name": "industry_records",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "course_id",
+          "nullable": false
+        },
+        {
+          "name": "title",
+          "nullable": false
+        },
+        {
+          "name": "source_url",
+          "nullable": false
+        },
+        {
+          "name": "skills",
+          "nullable": false
+        },
+        {
+          "name": "teacher_id",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "industry_records_course_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "industry_records_course_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL course_id"
+        },
+        {
+          "name": "industry_records_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "industry_records_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "industry_records_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "industry_records_skills_not_null",
+          "kind": "n",
+          "definition": "NOT NULL skills"
+        },
+        {
+          "name": "industry_records_source_url_not_null",
+          "kind": "n",
+          "definition": "NOT NULL source_url"
+        },
+        {
+          "name": "industry_records_teacher_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (teacher_id) REFERENCES users(id)"
+        },
+        {
+          "name": "industry_records_teacher_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL teacher_id"
+        },
+        {
+          "name": "industry_records_title_not_null",
+          "kind": "n",
+          "definition": "NOT NULL title"
+        }
+      ]
+    },
+    {
+      "name": "interactions",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "course_id",
+          "nullable": false
+        },
+        {
+          "name": "actor_id",
+          "nullable": false
+        },
+        {
+          "name": "kind",
+          "nullable": false
+        },
+        {
+          "name": "title",
+          "nullable": false
+        },
+        {
+          "name": "content",
+          "nullable": false
+        },
+        {
+          "name": "parent_id",
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "interactions_actor_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "interactions_actor_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL actor_id"
+        },
+        {
+          "name": "interactions_content_not_null",
+          "kind": "n",
+          "definition": "NOT NULL content"
+        },
+        {
+          "name": "interactions_course_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "interactions_course_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL course_id"
+        },
+        {
+          "name": "interactions_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "interactions_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "interactions_kind_check",
+          "kind": "c",
+          "definition": "CHECK ((kind = ANY (ARRAY['announcement'::text, 'question'::text, 'reply'::text, 'discussion'::text])))"
+        },
+        {
+          "name": "interactions_kind_not_null",
+          "kind": "n",
+          "definition": "NOT NULL kind"
+        },
+        {
+          "name": "interactions_parent_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (parent_id) REFERENCES interactions(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "interactions_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "interactions_title_not_null",
+          "kind": "n",
+          "definition": "NOT NULL title"
+        }
+      ]
+    },
+    {
+      "name": "interventions",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "course_id",
+          "nullable": false
+        },
+        {
+          "name": "student_id",
+          "nullable": false
+        },
+        {
+          "name": "title",
+          "nullable": false
+        },
+        {
+          "name": "description",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "nullable": false
+        },
+        {
+          "name": "teacher_id",
+          "nullable": false
+        },
+        {
+          "name": "answer_text",
+          "nullable": false
+        },
+        {
+          "name": "review_note",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        },
+        {
+          "name": "assigned_at",
+          "nullable": true
+        },
+        {
+          "name": "submitted_at",
+          "nullable": true
+        },
+        {
+          "name": "reviewed_at",
+          "nullable": true
+        },
+        {
+          "name": "resource_id",
+          "nullable": true
+        },
+        {
+          "name": "assignment_id",
+          "nullable": true
+        }
+      ],
+      "constraints": [
+        {
+          "name": "interventions_answer_text_not_null",
+          "kind": "n",
+          "definition": "NOT NULL answer_text"
+        },
+        {
+          "name": "interventions_assignment_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (assignment_id) REFERENCES assignments(id)"
+        },
+        {
+          "name": "interventions_course_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "interventions_course_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL course_id"
+        },
+        {
+          "name": "interventions_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "interventions_description_not_null",
+          "kind": "n",
+          "definition": "NOT NULL description"
+        },
+        {
+          "name": "interventions_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "interventions_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "interventions_resource_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (resource_id) REFERENCES resources(id)"
+        },
+        {
+          "name": "interventions_review_note_not_null",
+          "kind": "n",
+          "definition": "NOT NULL review_note"
+        },
+        {
+          "name": "interventions_status_check",
+          "kind": "c",
+          "definition": "CHECK ((status = ANY (ARRAY['draft'::text, 'assigned'::text, 'submitted'::text, 'reviewed'::text])))"
+        },
+        {
+          "name": "interventions_status_not_null",
+          "kind": "n",
+          "definition": "NOT NULL status"
+        },
+        {
+          "name": "interventions_student_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "interventions_student_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL student_id"
+        },
+        {
+          "name": "interventions_teacher_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (teacher_id) REFERENCES users(id)"
+        },
+        {
+          "name": "interventions_teacher_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL teacher_id"
+        },
+        {
+          "name": "interventions_title_not_null",
+          "kind": "n",
+          "definition": "NOT NULL title"
+        }
+      ]
+    },
+    {
+      "name": "knowledge_entries",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "course_id",
+          "nullable": false
+        },
+        {
+          "name": "created_by",
+          "nullable": false
+        },
+        {
+          "name": "title",
+          "nullable": false
+        },
+        {
+          "name": "body",
+          "nullable": false
+        },
+        {
+          "name": "category",
+          "nullable": false
+        },
+        {
+          "name": "content_kind",
+          "nullable": false
+        },
+        {
+          "name": "conditions",
+          "nullable": false
+        },
+        {
+          "name": "knowledge_point_ids",
+          "nullable": false
+        },
+        {
+          "name": "evidence",
+          "nullable": false
+        },
+        {
+          "name": "related_ids",
+          "nullable": false
+        },
+        {
+          "name": "student_visible",
+          "nullable": false
+        },
+        {
+          "name": "use_for_learning",
+          "nullable": false
+        },
+        {
+          "name": "use_for_grading",
+          "nullable": false
+        },
+        {
+          "name": "state",
+          "nullable": false
+        },
+        {
+          "name": "version",
+          "nullable": false
+        },
+        {
+          "name": "supersedes_id",
+          "nullable": true
+        },
+        {
+          "name": "edit_version",
+          "nullable": false
+        },
+        {
+          "name": "confirmed_at",
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "knowledge_entries_body_not_null",
+          "kind": "n",
+          "definition": "NOT NULL body"
+        },
+        {
+          "name": "knowledge_entries_category_not_null",
+          "kind": "n",
+          "definition": "NOT NULL category"
+        },
+        {
+          "name": "knowledge_entries_conditions_not_null",
+          "kind": "n",
+          "definition": "NOT NULL conditions"
+        },
+        {
+          "name": "knowledge_entries_content_kind_check",
+          "kind": "c",
+          "definition": "CHECK ((content_kind = ANY (ARRAY['concept'::text, 'method'::text, 'rule'::text, 'example'::text, 'misconception'::text])))"
+        },
+        {
+          "name": "knowledge_entries_content_kind_not_null",
+          "kind": "n",
+          "definition": "NOT NULL content_kind"
+        },
+        {
+          "name": "knowledge_entries_course_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+        },
+        {
+          "name": "knowledge_entries_course_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL course_id"
+        },
+        {
+          "name": "knowledge_entries_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "knowledge_entries_created_by_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+        },
+        {
+          "name": "knowledge_entries_created_by_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_by"
+        },
+        {
+          "name": "knowledge_entries_edit_version_not_null",
+          "kind": "n",
+          "definition": "NOT NULL edit_version"
+        },
+        {
+          "name": "knowledge_entries_evidence_not_null",
+          "kind": "n",
+          "definition": "NOT NULL evidence"
+        },
+        {
+          "name": "knowledge_entries_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "knowledge_entries_knowledge_point_ids_not_null",
+          "kind": "n",
+          "definition": "NOT NULL knowledge_point_ids"
+        },
+        {
+          "name": "knowledge_entries_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "knowledge_entries_related_ids_not_null",
+          "kind": "n",
+          "definition": "NOT NULL related_ids"
+        },
+        {
+          "name": "knowledge_entries_state_check",
+          "kind": "c",
+          "definition": "CHECK ((state = ANY (ARRAY['draft'::text, 'confirmed'::text, 'archived'::text])))"
+        },
+        {
+          "name": "knowledge_entries_state_not_null",
+          "kind": "n",
+          "definition": "NOT NULL state"
+        },
+        {
+          "name": "knowledge_entries_student_visible_not_null",
+          "kind": "n",
+          "definition": "NOT NULL student_visible"
+        },
+        {
+          "name": "knowledge_entries_supersedes_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (supersedes_id) REFERENCES knowledge_entries(id)"
+        },
+        {
+          "name": "knowledge_entries_title_not_null",
+          "kind": "n",
+          "definition": "NOT NULL title"
+        },
+        {
+          "name": "knowledge_entries_use_for_grading_not_null",
+          "kind": "n",
+          "definition": "NOT NULL use_for_grading"
+        },
+        {
+          "name": "knowledge_entries_use_for_learning_not_null",
+          "kind": "n",
+          "definition": "NOT NULL use_for_learning"
+        },
+        {
+          "name": "knowledge_entries_version_not_null",
+          "kind": "n",
+          "definition": "NOT NULL version"
+        }
+      ]
+    },
+    {
+      "name": "knowledge_points",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "course_id",
+          "nullable": false
+        },
+        {
+          "name": "title",
+          "nullable": false
+        },
+        {
+          "name": "position",
+          "nullable": false
+        },
+        {
+          "name": "parent_id",
+          "nullable": true
+        },
+        {
+          "name": "kind",
+          "nullable": false
+        },
+        {
+          "name": "description",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "knowledge_points_course_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+        },
+        {
+          "name": "knowledge_points_course_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL course_id"
+        },
+        {
+          "name": "knowledge_points_description_not_null",
+          "kind": "n",
+          "definition": "NOT NULL description"
+        },
+        {
+          "name": "knowledge_points_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "knowledge_points_kind_check",
+          "kind": "c",
+          "definition": "CHECK ((kind = ANY (ARRAY['chapter'::text, 'section'::text, 'point'::text])))"
+        },
+        {
+          "name": "knowledge_points_kind_not_null",
+          "kind": "n",
+          "definition": "NOT NULL kind"
+        },
+        {
+          "name": "knowledge_points_parent_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (parent_id) REFERENCES knowledge_points(id)"
+        },
+        {
+          "name": "knowledge_points_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "knowledge_points_position_check",
+          "kind": "c",
+          "definition": "CHECK ((\"position\" >= 0))"
+        },
+        {
+          "name": "knowledge_points_position_not_null",
+          "kind": "n",
+          "definition": "NOT NULL \"position\""
+        },
+        {
+          "name": "knowledge_points_title_not_null",
+          "kind": "n",
+          "definition": "NOT NULL title"
+        }
+      ]
+    },
+    {
+      "name": "knowledge_topics",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "course_id",
+          "nullable": false
+        },
+        {
+          "name": "title",
+          "nullable": false
+        },
+        {
+          "name": "description",
+          "nullable": false
+        },
+        {
+          "name": "active",
+          "nullable": false
+        },
+        {
+          "name": "edit_version",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "knowledge_topics_active_not_null",
+          "kind": "n",
+          "definition": "NOT NULL active"
+        },
+        {
+          "name": "knowledge_topics_course_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+        },
+        {
+          "name": "knowledge_topics_course_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL course_id"
+        },
+        {
+          "name": "knowledge_topics_course_id_title_key",
+          "kind": "u",
+          "definition": "UNIQUE (course_id, title)"
+        },
+        {
+          "name": "knowledge_topics_description_not_null",
+          "kind": "n",
+          "definition": "NOT NULL description"
+        },
+        {
+          "name": "knowledge_topics_edit_version_not_null",
+          "kind": "n",
+          "definition": "NOT NULL edit_version"
+        },
+        {
+          "name": "knowledge_topics_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "knowledge_topics_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "knowledge_topics_title_not_null",
+          "kind": "n",
+          "definition": "NOT NULL title"
+        }
+      ]
+    },
+    {
+      "name": "learning_events",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "course_id",
+          "nullable": false
+        },
+        {
+          "name": "actor_id",
+          "nullable": false
+        },
+        {
+          "name": "resource_id",
+          "nullable": true
+        },
+        {
+          "name": "verb",
+          "nullable": false
+        },
+        {
+          "name": "request_id",
+          "nullable": false
+        },
+        {
+          "name": "occurred_at",
+          "nullable": false
+        },
+        {
+          "name": "submission_id",
+          "nullable": true
+        },
+        {
+          "name": "object_version",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "learning_events_actor_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "learning_events_actor_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL actor_id"
+        },
+        {
+          "name": "learning_events_actor_id_request_id_key",
+          "kind": "u",
+          "definition": "UNIQUE (actor_id, request_id)"
+        },
+        {
+          "name": "learning_events_course_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "learning_events_course_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL course_id"
+        },
+        {
+          "name": "learning_events_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "learning_events_object_version_check",
+          "kind": "c",
+          "definition": "CHECK ((object_version > 0))"
+        },
+        {
+          "name": "learning_events_object_version_not_null",
+          "kind": "n",
+          "definition": "NOT NULL object_version"
+        },
+        {
+          "name": "learning_events_occurred_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL occurred_at"
+        },
+        {
+          "name": "learning_events_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "learning_events_request_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL request_id"
+        },
+        {
+          "name": "learning_events_resource_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (resource_id) REFERENCES resources(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "learning_events_submission_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "learning_events_target_check",
+          "kind": "c",
+          "definition": "CHECK ((((verb = ANY (ARRAY['opened'::text, 'completed'::text])) AND (resource_id IS NOT NULL) AND (submission_id IS NULL)) OR ((verb = 'submission.submitted'::text) AND (submission_id IS NOT NULL) AND (resource_id IS NULL))))"
+        },
+        {
+          "name": "learning_events_verb_check",
+          "kind": "c",
+          "definition": "CHECK ((verb = ANY (ARRAY['opened'::text, 'completed'::text, 'submission.submitted'::text])))"
+        },
+        {
+          "name": "learning_events_verb_not_null",
+          "kind": "n",
+          "definition": "NOT NULL verb"
+        }
+      ]
+    },
+    {
+      "name": "learning_notes",
+      "columns": [
+        {
+          "name": "actor_id",
+          "nullable": false
+        },
+        {
+          "name": "resource_id",
+          "nullable": false
+        },
+        {
+          "name": "note",
+          "nullable": false
+        },
+        {
+          "name": "favorite",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "learning_notes_actor_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "learning_notes_actor_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL actor_id"
+        },
+        {
+          "name": "learning_notes_favorite_not_null",
+          "kind": "n",
+          "definition": "NOT NULL favorite"
+        },
+        {
+          "name": "learning_notes_note_not_null",
+          "kind": "n",
+          "definition": "NOT NULL note"
+        },
+        {
+          "name": "learning_notes_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (actor_id, resource_id)"
+        },
+        {
+          "name": "learning_notes_resource_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (resource_id) REFERENCES resources(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "learning_notes_resource_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL resource_id"
+        },
+        {
+          "name": "learning_notes_updated_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL updated_at"
+        }
+      ]
+    },
+    {
+      "name": "material_assets",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "source_id",
+          "nullable": false
+        },
+        {
+          "name": "fragment_id",
+          "nullable": false
+        },
+        {
+          "name": "storage_path",
+          "nullable": false
+        },
+        {
+          "name": "media_type",
+          "nullable": false
+        },
+        {
+          "name": "kind",
+          "nullable": false
+        },
+        {
+          "name": "locator",
+          "nullable": false
+        },
+        {
+          "name": "native_data",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "material_assets_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "material_assets_fragment_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (fragment_id) REFERENCES material_fragments(id)"
+        },
+        {
+          "name": "material_assets_fragment_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL fragment_id"
+        },
+        {
+          "name": "material_assets_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "material_assets_kind_check",
+          "kind": "c",
+          "definition": "CHECK ((kind = ANY (ARRAY['image'::text, 'formula'::text, 'chart'::text, 'diagram'::text, 'page'::text])))"
+        },
+        {
+          "name": "material_assets_kind_not_null",
+          "kind": "n",
+          "definition": "NOT NULL kind"
+        },
+        {
+          "name": "material_assets_locator_not_null",
+          "kind": "n",
+          "definition": "NOT NULL locator"
+        },
+        {
+          "name": "material_assets_media_type_not_null",
+          "kind": "n",
+          "definition": "NOT NULL media_type"
+        },
+        {
+          "name": "material_assets_native_data_not_null",
+          "kind": "n",
+          "definition": "NOT NULL native_data"
+        },
+        {
+          "name": "material_assets_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "material_assets_source_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (source_id) REFERENCES material_sources(id)"
+        },
+        {
+          "name": "material_assets_source_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL source_id"
+        },
+        {
+          "name": "material_assets_storage_path_not_null",
+          "kind": "n",
+          "definition": "NOT NULL storage_path"
+        }
+      ]
+    },
+    {
+      "name": "material_fragments",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "source_id",
+          "nullable": false
+        },
+        {
+          "name": "revision",
+          "nullable": false
+        },
+        {
+          "name": "position",
+          "nullable": false
+        },
+        {
+          "name": "heading",
+          "nullable": false
+        },
+        {
+          "name": "body",
+          "nullable": false
+        },
+        {
+          "name": "locator",
+          "nullable": false
+        },
+        {
+          "name": "quality",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "material_fragments_body_not_null",
+          "kind": "n",
+          "definition": "NOT NULL body"
+        },
+        {
+          "name": "material_fragments_heading_not_null",
+          "kind": "n",
+          "definition": "NOT NULL heading"
+        },
+        {
+          "name": "material_fragments_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "material_fragments_locator_not_null",
+          "kind": "n",
+          "definition": "NOT NULL locator"
+        },
+        {
+          "name": "material_fragments_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "material_fragments_position_not_null",
+          "kind": "n",
+          "definition": "NOT NULL \"position\""
+        },
+        {
+          "name": "material_fragments_quality_check",
+          "kind": "c",
+          "definition": "CHECK ((quality = ANY (ARRAY['ready'::text, 'needs_review'::text])))"
+        },
+        {
+          "name": "material_fragments_quality_not_null",
+          "kind": "n",
+          "definition": "NOT NULL quality"
+        },
+        {
+          "name": "material_fragments_revision_not_null",
+          "kind": "n",
+          "definition": "NOT NULL revision"
+        },
+        {
+          "name": "material_fragments_source_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (source_id) REFERENCES material_sources(id)"
+        },
+        {
+          "name": "material_fragments_source_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL source_id"
+        },
+        {
+          "name": "material_fragments_source_id_revision_position_key",
+          "kind": "u",
+          "definition": "UNIQUE (source_id, revision, \"position\")"
+        }
+      ]
+    },
+    {
+      "name": "material_sources",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "course_id",
+          "nullable": false
+        },
+        {
+          "name": "created_by",
+          "nullable": false
+        },
+        {
+          "name": "title",
+          "nullable": false
+        },
+        {
+          "name": "filename",
+          "nullable": false
+        },
+        {
+          "name": "media_type",
+          "nullable": false
+        },
+        {
+          "name": "storage_path",
+          "nullable": false
+        },
+        {
+          "name": "source_note",
+          "nullable": false
+        },
+        {
+          "name": "source_url",
+          "nullable": false
+        },
+        {
+          "name": "sha256",
+          "nullable": false
+        },
+        {
+          "name": "version",
+          "nullable": false
+        },
+        {
+          "name": "supersedes_id",
+          "nullable": true
+        },
+        {
+          "name": "parse_revision",
+          "nullable": false
+        },
+        {
+          "name": "state",
+          "nullable": false
+        },
+        {
+          "name": "parse_state",
+          "nullable": false
+        },
+        {
+          "name": "parse_error",
+          "nullable": false
+        },
+        {
+          "name": "allow_derived",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "material_sources_allow_derived_not_null",
+          "kind": "n",
+          "definition": "NOT NULL allow_derived"
+        },
+        {
+          "name": "material_sources_course_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+        },
+        {
+          "name": "material_sources_course_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL course_id"
+        },
+        {
+          "name": "material_sources_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "material_sources_created_by_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+        },
+        {
+          "name": "material_sources_created_by_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_by"
+        },
+        {
+          "name": "material_sources_filename_not_null",
+          "kind": "n",
+          "definition": "NOT NULL filename"
+        },
+        {
+          "name": "material_sources_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "material_sources_media_type_not_null",
+          "kind": "n",
+          "definition": "NOT NULL media_type"
+        },
+        {
+          "name": "material_sources_parse_error_not_null",
+          "kind": "n",
+          "definition": "NOT NULL parse_error"
+        },
+        {
+          "name": "material_sources_parse_revision_not_null",
+          "kind": "n",
+          "definition": "NOT NULL parse_revision"
+        },
+        {
+          "name": "material_sources_parse_state_check",
+          "kind": "c",
+          "definition": "CHECK ((parse_state = ANY (ARRAY['queued'::text, 'running'::text, 'ready'::text, 'failed'::text])))"
+        },
+        {
+          "name": "material_sources_parse_state_not_null",
+          "kind": "n",
+          "definition": "NOT NULL parse_state"
+        },
+        {
+          "name": "material_sources_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "material_sources_sha256_not_null",
+          "kind": "n",
+          "definition": "NOT NULL sha256"
+        },
+        {
+          "name": "material_sources_source_note_not_null",
+          "kind": "n",
+          "definition": "NOT NULL source_note"
+        },
+        {
+          "name": "material_sources_source_url_not_null",
+          "kind": "n",
+          "definition": "NOT NULL source_url"
+        },
+        {
+          "name": "material_sources_state_check",
+          "kind": "c",
+          "definition": "CHECK ((state = ANY (ARRAY['active'::text, 'archived'::text])))"
+        },
+        {
+          "name": "material_sources_state_not_null",
+          "kind": "n",
+          "definition": "NOT NULL state"
+        },
+        {
+          "name": "material_sources_storage_path_not_null",
+          "kind": "n",
+          "definition": "NOT NULL storage_path"
+        },
+        {
+          "name": "material_sources_supersedes_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (supersedes_id) REFERENCES material_sources(id)"
+        },
+        {
+          "name": "material_sources_title_not_null",
+          "kind": "n",
+          "definition": "NOT NULL title"
+        },
+        {
+          "name": "material_sources_version_check",
+          "kind": "c",
+          "definition": "CHECK ((version > 0))"
+        },
+        {
+          "name": "material_sources_version_not_null",
+          "kind": "n",
+          "definition": "NOT NULL version"
+        }
+      ]
+    },
+    {
+      "name": "model_budget",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "limit_micro_cny",
+          "nullable": false
+        },
+        {
+          "name": "reserved_micro_cny",
+          "nullable": false
+        },
+        {
+          "name": "spent_micro_cny",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "model_budget_check",
+          "kind": "c",
+          "definition": "CHECK (((reserved_micro_cny >= 0) AND (spent_micro_cny >= 0)))"
+        },
+        {
+          "name": "model_budget_id_check",
+          "kind": "c",
+          "definition": "CHECK ((id = 1))"
+        },
+        {
+          "name": "model_budget_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "model_budget_limit_micro_cny_not_null",
+          "kind": "n",
+          "definition": "NOT NULL limit_micro_cny"
+        },
+        {
+          "name": "model_budget_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "model_budget_reserved_micro_cny_not_null",
+          "kind": "n",
+          "definition": "NOT NULL reserved_micro_cny"
+        },
+        {
+          "name": "model_budget_spent_micro_cny_not_null",
+          "kind": "n",
+          "definition": "NOT NULL spent_micro_cny"
+        }
+      ]
+    },
+    {
+      "name": "model_calls",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "course_id",
+          "nullable": false
+        },
+        {
+          "name": "actor_id",
+          "nullable": false
+        },
+        {
+          "name": "profile_id",
+          "nullable": false
+        },
+        {
+          "name": "purpose",
+          "nullable": false
+        },
+        {
+          "name": "state",
+          "nullable": false
+        },
+        {
+          "name": "reserved_micro_cny",
+          "nullable": false
+        },
+        {
+          "name": "charged_micro_cny",
+          "nullable": false
+        },
+        {
+          "name": "input_tokens",
+          "nullable": false
+        },
+        {
+          "name": "output_tokens",
+          "nullable": false
+        },
+        {
+          "name": "duration_ms",
+          "nullable": false
+        },
+        {
+          "name": "error_code",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "model_calls_actor_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (actor_id) REFERENCES users(id)"
+        },
+        {
+          "name": "model_calls_actor_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL actor_id"
+        },
+        {
+          "name": "model_calls_charged_micro_cny_not_null",
+          "kind": "n",
+          "definition": "NOT NULL charged_micro_cny"
+        },
+        {
+          "name": "model_calls_course_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+        },
+        {
+          "name": "model_calls_course_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL course_id"
+        },
+        {
+          "name": "model_calls_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "model_calls_duration_ms_not_null",
+          "kind": "n",
+          "definition": "NOT NULL duration_ms"
+        },
+        {
+          "name": "model_calls_error_code_not_null",
+          "kind": "n",
+          "definition": "NOT NULL error_code"
+        },
+        {
+          "name": "model_calls_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "model_calls_input_tokens_not_null",
+          "kind": "n",
+          "definition": "NOT NULL input_tokens"
+        },
+        {
+          "name": "model_calls_output_tokens_not_null",
+          "kind": "n",
+          "definition": "NOT NULL output_tokens"
+        },
+        {
+          "name": "model_calls_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "model_calls_profile_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL profile_id"
+        },
+        {
+          "name": "model_calls_purpose_not_null",
+          "kind": "n",
+          "definition": "NOT NULL purpose"
+        },
+        {
+          "name": "model_calls_reserved_micro_cny_not_null",
+          "kind": "n",
+          "definition": "NOT NULL reserved_micro_cny"
+        },
+        {
+          "name": "model_calls_state_not_null",
+          "kind": "n",
+          "definition": "NOT NULL state"
+        }
+      ]
+    },
+    {
+      "name": "processing_jobs",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "course_id",
+          "nullable": false
+        },
+        {
+          "name": "created_by",
+          "nullable": false
+        },
+        {
+          "name": "kind",
+          "nullable": false
+        },
+        {
+          "name": "state",
+          "nullable": false
+        },
+        {
+          "name": "input",
+          "nullable": false
+        },
+        {
+          "name": "output",
+          "nullable": false
+        },
+        {
+          "name": "progress",
+          "nullable": false
+        },
+        {
+          "name": "error",
+          "nullable": false
+        },
+        {
+          "name": "attempt",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        },
+        {
+          "name": "started_at",
+          "nullable": true
+        },
+        {
+          "name": "finished_at",
+          "nullable": true
+        }
+      ],
+      "constraints": [
+        {
+          "name": "processing_jobs_attempt_not_null",
+          "kind": "n",
+          "definition": "NOT NULL attempt"
+        },
+        {
+          "name": "processing_jobs_course_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+        },
+        {
+          "name": "processing_jobs_course_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL course_id"
+        },
+        {
+          "name": "processing_jobs_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "processing_jobs_created_by_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+        },
+        {
+          "name": "processing_jobs_created_by_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_by"
+        },
+        {
+          "name": "processing_jobs_error_not_null",
+          "kind": "n",
+          "definition": "NOT NULL error"
+        },
+        {
+          "name": "processing_jobs_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "processing_jobs_input_not_null",
+          "kind": "n",
+          "definition": "NOT NULL input"
+        },
+        {
+          "name": "processing_jobs_kind_check",
+          "kind": "c",
+          "definition": "CHECK ((kind = ANY (ARRAY['parse'::text, 'index'::text, 'extract'::text, 'rubric'::text, 'grade'::text, 'question_generate'::text, 'question_analyze'::text, 'bank_rubric'::text, 'source_suggest'::text, 'knowledge_compare'::text, 'vision'::text, 'paper_split'::text])))"
+        },
+        {
+          "name": "processing_jobs_kind_not_null",
+          "kind": "n",
+          "definition": "NOT NULL kind"
+        },
+        {
+          "name": "processing_jobs_output_not_null",
+          "kind": "n",
+          "definition": "NOT NULL output"
+        },
+        {
+          "name": "processing_jobs_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "processing_jobs_progress_check",
+          "kind": "c",
+          "definition": "CHECK (((progress >= 0) AND (progress <= 100)))"
+        },
+        {
+          "name": "processing_jobs_progress_not_null",
+          "kind": "n",
+          "definition": "NOT NULL progress"
+        },
+        {
+          "name": "processing_jobs_state_check",
+          "kind": "c",
+          "definition": "CHECK ((state = ANY (ARRAY['queued'::text, 'running'::text, 'succeeded'::text, 'failed'::text, 'canceled'::text])))"
+        },
+        {
+          "name": "processing_jobs_state_not_null",
+          "kind": "n",
+          "definition": "NOT NULL state"
+        }
+      ]
+    },
+    {
+      "name": "question_bank",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "course_id",
+          "nullable": false
+        },
+        {
+          "name": "archived",
+          "nullable": false
+        },
+        {
+          "name": "created_by",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "question_bank_archived_not_null",
+          "kind": "n",
+          "definition": "NOT NULL archived"
+        },
+        {
+          "name": "question_bank_course_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+        },
+        {
+          "name": "question_bank_course_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL course_id"
+        },
+        {
+          "name": "question_bank_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "question_bank_created_by_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+        },
+        {
+          "name": "question_bank_created_by_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_by"
+        },
+        {
+          "name": "question_bank_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "question_bank_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        }
+      ]
+    },
+    {
+      "name": "questions",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "assignment_id",
+          "nullable": false
+        },
+        {
+          "name": "prompt",
+          "nullable": false
+        },
+        {
+          "name": "type",
+          "nullable": false
+        },
+        {
+          "name": "max_score",
+          "nullable": false
+        },
+        {
+          "name": "rubric",
+          "nullable": false
+        },
+        {
+          "name": "options",
+          "nullable": false
+        },
+        {
+          "name": "correct_answer",
+          "nullable": false
+        },
+        {
+          "name": "position",
+          "nullable": false
+        },
+        {
+          "name": "knowledge_point_id",
+          "nullable": true
+        },
+        {
+          "name": "resource_id",
+          "nullable": true
+        },
+        {
+          "name": "bank_question_version_id",
+          "nullable": true
+        },
+        {
+          "name": "bound_rubric_id",
+          "nullable": true
+        }
+      ],
+      "constraints": [
+        {
+          "name": "question_bank_binding",
+          "kind": "c",
+          "definition": "CHECK (((bank_question_version_id IS NOT NULL) OR (bound_rubric_id IS NULL)))"
+        },
+        {
+          "name": "questions_assignment_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "questions_assignment_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL assignment_id"
+        },
+        {
+          "name": "questions_bank_question_version_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (bank_question_version_id) REFERENCES bank_question_versions(id)"
+        },
+        {
+          "name": "questions_bound_rubric_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (bound_rubric_id) REFERENCES rubric_versions(id)"
+        },
+        {
+          "name": "questions_correct_answer_not_null",
+          "kind": "n",
+          "definition": "NOT NULL correct_answer"
+        },
+        {
+          "name": "questions_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "questions_knowledge_point_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (knowledge_point_id) REFERENCES knowledge_points(id)"
+        },
+        {
+          "name": "questions_max_score_check",
+          "kind": "c",
+          "definition": "CHECK ((max_score > 0))"
+        },
+        {
+          "name": "questions_max_score_not_null",
+          "kind": "n",
+          "definition": "NOT NULL max_score"
+        },
+        {
+          "name": "questions_options_not_null",
+          "kind": "n",
+          "definition": "NOT NULL options"
+        },
+        {
+          "name": "questions_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "questions_position_check",
+          "kind": "c",
+          "definition": "CHECK ((\"position\" >= 0))"
+        },
+        {
+          "name": "questions_position_not_null",
+          "kind": "n",
+          "definition": "NOT NULL \"position\""
+        },
+        {
+          "name": "questions_prompt_not_null",
+          "kind": "n",
+          "definition": "NOT NULL prompt"
+        },
+        {
+          "name": "questions_resource_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (resource_id) REFERENCES resources(id)"
+        },
+        {
+          "name": "questions_rubric_not_null",
+          "kind": "n",
+          "definition": "NOT NULL rubric"
+        },
+        {
+          "name": "questions_type_not_null",
+          "kind": "n",
+          "definition": "NOT NULL type"
+        }
+      ]
+    },
+    {
+      "name": "regrade_batches",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "course_id",
+          "nullable": false
+        },
+        {
+          "name": "question_id",
+          "nullable": false
+        },
+        {
+          "name": "rubric_id",
+          "nullable": true
+        },
+        {
+          "name": "correct_answer",
+          "nullable": false
+        },
+        {
+          "name": "reason",
+          "nullable": false
+        },
+        {
+          "name": "question_snapshot",
+          "nullable": false
+        },
+        {
+          "name": "state",
+          "nullable": false
+        },
+        {
+          "name": "created_by",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        },
+        {
+          "name": "released_at",
+          "nullable": true
+        }
+      ],
+      "constraints": [
+        {
+          "name": "regrade_batches_correct_answer_not_null",
+          "kind": "n",
+          "definition": "NOT NULL correct_answer"
+        },
+        {
+          "name": "regrade_batches_course_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+        },
+        {
+          "name": "regrade_batches_course_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL course_id"
+        },
+        {
+          "name": "regrade_batches_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "regrade_batches_created_by_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+        },
+        {
+          "name": "regrade_batches_created_by_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_by"
+        },
+        {
+          "name": "regrade_batches_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "regrade_batches_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "regrade_batches_question_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (question_id) REFERENCES questions(id)"
+        },
+        {
+          "name": "regrade_batches_question_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL question_id"
+        },
+        {
+          "name": "regrade_batches_question_snapshot_not_null",
+          "kind": "n",
+          "definition": "NOT NULL question_snapshot"
+        },
+        {
+          "name": "regrade_batches_reason_not_null",
+          "kind": "n",
+          "definition": "NOT NULL reason"
+        },
+        {
+          "name": "regrade_batches_rubric_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (rubric_id) REFERENCES rubric_versions(id)"
+        },
+        {
+          "name": "regrade_batches_state_check",
+          "kind": "c",
+          "definition": "CHECK ((state = ANY (ARRAY['active'::text, 'released'::text, 'canceled'::text])))"
+        },
+        {
+          "name": "regrade_batches_state_not_null",
+          "kind": "n",
+          "definition": "NOT NULL state"
+        }
+      ]
+    },
+    {
+      "name": "regrade_items",
+      "columns": [
+        {
+          "name": "batch_id",
+          "nullable": false
+        },
+        {
+          "name": "submission_id",
+          "nullable": false
+        },
+        {
+          "name": "answer_sha256",
+          "nullable": false
+        },
+        {
+          "name": "baseline_revision",
+          "nullable": false
+        },
+        {
+          "name": "score",
+          "nullable": true
+        },
+        {
+          "name": "feedback",
+          "nullable": false
+        },
+        {
+          "name": "point_scores",
+          "nullable": false
+        },
+        {
+          "name": "ai_job_id",
+          "nullable": true
+        },
+        {
+          "name": "edit_version",
+          "nullable": false
+        },
+        {
+          "name": "confirmed",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "regrade_items_ai_job_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (ai_job_id) REFERENCES processing_jobs(id)"
+        },
+        {
+          "name": "regrade_items_answer_sha256_not_null",
+          "kind": "n",
+          "definition": "NOT NULL answer_sha256"
+        },
+        {
+          "name": "regrade_items_baseline_revision_not_null",
+          "kind": "n",
+          "definition": "NOT NULL baseline_revision"
+        },
+        {
+          "name": "regrade_items_batch_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (batch_id) REFERENCES regrade_batches(id)"
+        },
+        {
+          "name": "regrade_items_batch_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL batch_id"
+        },
+        {
+          "name": "regrade_items_confirmed_not_null",
+          "kind": "n",
+          "definition": "NOT NULL confirmed"
+        },
+        {
+          "name": "regrade_items_edit_version_not_null",
+          "kind": "n",
+          "definition": "NOT NULL edit_version"
+        },
+        {
+          "name": "regrade_items_feedback_not_null",
+          "kind": "n",
+          "definition": "NOT NULL feedback"
+        },
+        {
+          "name": "regrade_items_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (batch_id, submission_id)"
+        },
+        {
+          "name": "regrade_items_point_scores_not_null",
+          "kind": "n",
+          "definition": "NOT NULL point_scores"
+        },
+        {
+          "name": "regrade_items_submission_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (submission_id) REFERENCES submissions(id)"
+        },
+        {
+          "name": "regrade_items_submission_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL submission_id"
+        }
+      ]
+    },
+    {
+      "name": "research_records",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "course_id",
+          "nullable": false
+        },
+        {
+          "name": "teacher_id",
+          "nullable": false
+        },
+        {
+          "name": "title",
+          "nullable": false
+        },
+        {
+          "name": "content",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "research_records_content_not_null",
+          "kind": "n",
+          "definition": "NOT NULL content"
+        },
+        {
+          "name": "research_records_course_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "research_records_course_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL course_id"
+        },
+        {
+          "name": "research_records_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "research_records_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "research_records_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "research_records_teacher_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (teacher_id) REFERENCES users(id)"
+        },
+        {
+          "name": "research_records_teacher_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL teacher_id"
+        },
+        {
+          "name": "research_records_title_not_null",
+          "kind": "n",
+          "definition": "NOT NULL title"
+        }
+      ]
+    },
+    {
+      "name": "resources",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "course_id",
+          "nullable": false
+        },
+        {
+          "name": "knowledge_point_id",
+          "nullable": true
+        },
+        {
+          "name": "title",
+          "nullable": false
+        },
+        {
+          "name": "content",
+          "nullable": false
+        },
+        {
+          "name": "source_url",
+          "nullable": false
+        },
+        {
+          "name": "locator",
+          "nullable": false
+        },
+        {
+          "name": "version",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "nullable": false
+        },
+        {
+          "name": "created_by",
+          "nullable": false
+        },
+        {
+          "name": "reviewed_by",
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        },
+        {
+          "name": "published_at",
+          "nullable": true
+        },
+        {
+          "name": "supersedes_id",
+          "nullable": true
+        },
+        {
+          "name": "source_note",
+          "nullable": false
+        },
+        {
+          "name": "source_id",
+          "nullable": true
+        },
+        {
+          "name": "fragment_ids",
+          "nullable": false
+        },
+        {
+          "name": "full_source",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "resources_content_not_null",
+          "kind": "n",
+          "definition": "NOT NULL content"
+        },
+        {
+          "name": "resources_course_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "resources_course_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL course_id"
+        },
+        {
+          "name": "resources_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "resources_created_by_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+        },
+        {
+          "name": "resources_created_by_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_by"
+        },
+        {
+          "name": "resources_fragment_ids_not_null",
+          "kind": "n",
+          "definition": "NOT NULL fragment_ids"
+        },
+        {
+          "name": "resources_full_source_not_null",
+          "kind": "n",
+          "definition": "NOT NULL full_source"
+        },
+        {
+          "name": "resources_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "resources_knowledge_point_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (knowledge_point_id) REFERENCES knowledge_points(id)"
+        },
+        {
+          "name": "resources_locator_not_null",
+          "kind": "n",
+          "definition": "NOT NULL locator"
+        },
+        {
+          "name": "resources_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "resources_reviewed_by_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (reviewed_by) REFERENCES users(id)"
+        },
+        {
+          "name": "resources_source_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (source_id) REFERENCES material_sources(id)"
+        },
+        {
+          "name": "resources_source_note_not_null",
+          "kind": "n",
+          "definition": "NOT NULL source_note"
+        },
+        {
+          "name": "resources_source_url_not_null",
+          "kind": "n",
+          "definition": "NOT NULL source_url"
+        },
+        {
+          "name": "resources_status_check",
+          "kind": "c",
+          "definition": "CHECK ((status = ANY (ARRAY['draft'::text, 'published'::text, 'archived'::text])))"
+        },
+        {
+          "name": "resources_status_not_null",
+          "kind": "n",
+          "definition": "NOT NULL status"
+        },
+        {
+          "name": "resources_supersedes_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (supersedes_id) REFERENCES resources(id)"
+        },
+        {
+          "name": "resources_title_not_null",
+          "kind": "n",
+          "definition": "NOT NULL title"
+        },
+        {
+          "name": "resources_version_check",
+          "kind": "c",
+          "definition": "CHECK ((version > 0))"
+        },
+        {
+          "name": "resources_version_not_null",
+          "kind": "n",
+          "definition": "NOT NULL version"
+        }
+      ]
+    },
+    {
+      "name": "retrieval_chunks",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "course_id",
+          "nullable": false
+        },
+        {
+          "name": "source_id",
+          "nullable": true
+        },
+        {
+          "name": "knowledge_id",
+          "nullable": true
+        },
+        {
+          "name": "resource_id",
+          "nullable": true
+        },
+        {
+          "name": "fragment_ids",
+          "nullable": false
+        },
+        {
+          "name": "title",
+          "nullable": false
+        },
+        {
+          "name": "heading",
+          "nullable": false
+        },
+        {
+          "name": "body",
+          "nullable": false
+        },
+        {
+          "name": "locator",
+          "nullable": false
+        },
+        {
+          "name": "input_hash",
+          "nullable": false
+        },
+        {
+          "name": "search_tokens",
+          "nullable": false
+        },
+        {
+          "name": "search_document",
+          "nullable": true
+        },
+        {
+          "name": "active",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "retrieval_chunks_active_not_null",
+          "kind": "n",
+          "definition": "NOT NULL active"
+        },
+        {
+          "name": "retrieval_chunks_body_not_null",
+          "kind": "n",
+          "definition": "NOT NULL body"
+        },
+        {
+          "name": "retrieval_chunks_check",
+          "kind": "c",
+          "definition": "CHECK ((num_nonnulls(source_id, knowledge_id, resource_id) = 1))"
+        },
+        {
+          "name": "retrieval_chunks_course_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+        },
+        {
+          "name": "retrieval_chunks_course_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL course_id"
+        },
+        {
+          "name": "retrieval_chunks_fragment_ids_not_null",
+          "kind": "n",
+          "definition": "NOT NULL fragment_ids"
+        },
+        {
+          "name": "retrieval_chunks_heading_not_null",
+          "kind": "n",
+          "definition": "NOT NULL heading"
+        },
+        {
+          "name": "retrieval_chunks_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "retrieval_chunks_input_hash_not_null",
+          "kind": "n",
+          "definition": "NOT NULL input_hash"
+        },
+        {
+          "name": "retrieval_chunks_knowledge_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (knowledge_id) REFERENCES knowledge_entries(id)"
+        },
+        {
+          "name": "retrieval_chunks_locator_not_null",
+          "kind": "n",
+          "definition": "NOT NULL locator"
+        },
+        {
+          "name": "retrieval_chunks_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "retrieval_chunks_resource_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (resource_id) REFERENCES resources(id)"
+        },
+        {
+          "name": "retrieval_chunks_search_tokens_not_null",
+          "kind": "n",
+          "definition": "NOT NULL search_tokens"
+        },
+        {
+          "name": "retrieval_chunks_source_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (source_id) REFERENCES material_sources(id)"
+        },
+        {
+          "name": "retrieval_chunks_title_not_null",
+          "kind": "n",
+          "definition": "NOT NULL title"
+        }
+      ]
+    },
+    {
+      "name": "rubric_versions",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "question_id",
+          "nullable": true
+        },
+        {
+          "name": "version",
+          "nullable": false
+        },
+        {
+          "name": "criteria",
+          "nullable": false
+        },
+        {
+          "name": "state",
+          "nullable": false
+        },
+        {
+          "name": "created_by",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        },
+        {
+          "name": "confirmed_at",
+          "nullable": true
+        },
+        {
+          "name": "evidence_refs",
+          "nullable": false
+        },
+        {
+          "name": "bank_question_version_id",
+          "nullable": true
+        }
+      ],
+      "constraints": [
+        {
+          "name": "rubric_owner",
+          "kind": "c",
+          "definition": "CHECK (((question_id IS NOT NULL) <> (bank_question_version_id IS NOT NULL)))"
+        },
+        {
+          "name": "rubric_versions_bank_question_version_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (bank_question_version_id) REFERENCES bank_question_versions(id)"
+        },
+        {
+          "name": "rubric_versions_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "rubric_versions_created_by_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+        },
+        {
+          "name": "rubric_versions_created_by_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_by"
+        },
+        {
+          "name": "rubric_versions_criteria_check",
+          "kind": "c",
+          "definition": "CHECK ((jsonb_typeof(criteria) = 'array'::text))"
+        },
+        {
+          "name": "rubric_versions_criteria_not_null",
+          "kind": "n",
+          "definition": "NOT NULL criteria"
+        },
+        {
+          "name": "rubric_versions_evidence_refs_not_null",
+          "kind": "n",
+          "definition": "NOT NULL evidence_refs"
+        },
+        {
+          "name": "rubric_versions_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "rubric_versions_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "rubric_versions_question_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "rubric_versions_question_id_version_key",
+          "kind": "u",
+          "definition": "UNIQUE (question_id, version)"
+        },
+        {
+          "name": "rubric_versions_state_check",
+          "kind": "c",
+          "definition": "CHECK ((state = ANY (ARRAY['draft'::text, 'confirmed'::text])))"
+        },
+        {
+          "name": "rubric_versions_state_not_null",
+          "kind": "n",
+          "definition": "NOT NULL state"
+        },
+        {
+          "name": "rubric_versions_version_check",
+          "kind": "c",
+          "definition": "CHECK ((version > 0))"
+        },
+        {
+          "name": "rubric_versions_version_not_null",
+          "kind": "n",
+          "definition": "NOT NULL version"
+        }
+      ]
+    },
+    {
+      "name": "sessions",
+      "columns": [
+        {
+          "name": "token_hash",
+          "nullable": false
+        },
+        {
+          "name": "user_id",
+          "nullable": false
+        },
+        {
+          "name": "expires_at",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "sessions_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "sessions_expires_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL expires_at"
+        },
+        {
+          "name": "sessions_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (token_hash)"
+        },
+        {
+          "name": "sessions_token_hash_check",
+          "kind": "c",
+          "definition": "CHECK ((length(token_hash) = 64))"
+        },
+        {
+          "name": "sessions_token_hash_not_null",
+          "kind": "n",
+          "definition": "NOT NULL token_hash"
+        },
+        {
+          "name": "sessions_user_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "sessions_user_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL user_id"
+        }
+      ]
+    },
+    {
+      "name": "study_path_items",
+      "columns": [
+        {
+          "name": "path_id",
+          "nullable": false
+        },
+        {
+          "name": "knowledge_point_id",
+          "nullable": false
+        },
+        {
+          "name": "position",
+          "nullable": false
+        },
+        {
+          "name": "reason",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "study_path_items_knowledge_point_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (knowledge_point_id) REFERENCES knowledge_points(id)"
+        },
+        {
+          "name": "study_path_items_knowledge_point_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL knowledge_point_id"
+        },
+        {
+          "name": "study_path_items_path_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (path_id) REFERENCES study_paths(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "study_path_items_path_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL path_id"
+        },
+        {
+          "name": "study_path_items_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (path_id, knowledge_point_id)"
+        },
+        {
+          "name": "study_path_items_position_check",
+          "kind": "c",
+          "definition": "CHECK ((\"position\" >= 0))"
+        },
+        {
+          "name": "study_path_items_position_not_null",
+          "kind": "n",
+          "definition": "NOT NULL \"position\""
+        },
+        {
+          "name": "study_path_items_reason_not_null",
+          "kind": "n",
+          "definition": "NOT NULL reason"
+        }
+      ]
+    },
+    {
+      "name": "study_paths",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "course_id",
+          "nullable": false
+        },
+        {
+          "name": "student_id",
+          "nullable": false
+        },
+        {
+          "name": "rule_version",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "study_paths_course_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "study_paths_course_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL course_id"
+        },
+        {
+          "name": "study_paths_created_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL created_at"
+        },
+        {
+          "name": "study_paths_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "study_paths_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "study_paths_rule_version_not_null",
+          "kind": "n",
+          "definition": "NOT NULL rule_version"
+        },
+        {
+          "name": "study_paths_student_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "study_paths_student_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL student_id"
+        }
+      ]
+    },
+    {
+      "name": "submissions",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "assignment_id",
+          "nullable": false
+        },
+        {
+          "name": "question_id",
+          "nullable": false
+        },
+        {
+          "name": "course_id",
+          "nullable": false
+        },
+        {
+          "name": "student_id",
+          "nullable": false
+        },
+        {
+          "name": "attempt",
+          "nullable": false
+        },
+        {
+          "name": "answer_text",
+          "nullable": false
+        },
+        {
+          "name": "answer_sha256",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "nullable": false
+        },
+        {
+          "name": "request_id",
+          "nullable": false
+        },
+        {
+          "name": "submitted_at",
+          "nullable": false
+        },
+        {
+          "name": "assignment_version",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "submissions_answer_sha256_check",
+          "kind": "c",
+          "definition": "CHECK ((length(answer_sha256) = 64))"
+        },
+        {
+          "name": "submissions_answer_sha256_not_null",
+          "kind": "n",
+          "definition": "NOT NULL answer_sha256"
+        },
+        {
+          "name": "submissions_answer_text_not_null",
+          "kind": "n",
+          "definition": "NOT NULL answer_text"
+        },
+        {
+          "name": "submissions_assignment_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE RESTRICT"
+        },
+        {
+          "name": "submissions_assignment_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL assignment_id"
+        },
+        {
+          "name": "submissions_assignment_version_check",
+          "kind": "c",
+          "definition": "CHECK ((assignment_version > 0))"
+        },
+        {
+          "name": "submissions_assignment_version_not_null",
+          "kind": "n",
+          "definition": "NOT NULL assignment_version"
+        },
+        {
+          "name": "submissions_attempt_check",
+          "kind": "c",
+          "definition": "CHECK ((attempt > 0))"
+        },
+        {
+          "name": "submissions_attempt_not_null",
+          "kind": "n",
+          "definition": "NOT NULL attempt"
+        },
+        {
+          "name": "submissions_course_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE RESTRICT"
+        },
+        {
+          "name": "submissions_course_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL course_id"
+        },
+        {
+          "name": "submissions_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "submissions_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "submissions_question_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE RESTRICT"
+        },
+        {
+          "name": "submissions_question_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL question_id"
+        },
+        {
+          "name": "submissions_request_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL request_id"
+        },
+        {
+          "name": "submissions_status_check",
+          "kind": "c",
+          "definition": "CHECK ((status = ANY (ARRAY['submitted'::text, 'graded'::text, 'returned'::text])))"
+        },
+        {
+          "name": "submissions_status_not_null",
+          "kind": "n",
+          "definition": "NOT NULL status"
+        },
+        {
+          "name": "submissions_student_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE RESTRICT"
+        },
+        {
+          "name": "submissions_student_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL student_id"
+        },
+        {
+          "name": "submissions_student_id_question_id_attempt_key",
+          "kind": "u",
+          "definition": "UNIQUE (student_id, question_id, attempt)"
+        },
+        {
+          "name": "submissions_student_id_request_id_key",
+          "kind": "u",
+          "definition": "UNIQUE (student_id, request_id)"
+        },
+        {
+          "name": "submissions_submitted_at_not_null",
+          "kind": "n",
+          "definition": "NOT NULL submitted_at"
+        }
+      ]
+    },
+    {
+      "name": "topic_links",
+      "columns": [
+        {
+          "name": "topic_id",
+          "nullable": false
+        },
+        {
+          "name": "source_id",
+          "nullable": true
+        },
+        {
+          "name": "knowledge_id",
+          "nullable": true
+        },
+        {
+          "name": "bank_version_id",
+          "nullable": true
+        }
+      ],
+      "constraints": [
+        {
+          "name": "topic_links_bank_version_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (bank_version_id) REFERENCES bank_question_versions(id)"
+        },
+        {
+          "name": "topic_links_check",
+          "kind": "c",
+          "definition": "CHECK ((num_nonnulls(source_id, knowledge_id, bank_version_id) = 1))"
+        },
+        {
+          "name": "topic_links_knowledge_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (knowledge_id) REFERENCES knowledge_entries(id)"
+        },
+        {
+          "name": "topic_links_source_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (source_id) REFERENCES material_sources(id)"
+        },
+        {
+          "name": "topic_links_topic_id_fkey",
+          "kind": "f",
+          "definition": "FOREIGN KEY (topic_id) REFERENCES knowledge_topics(id)"
+        },
+        {
+          "name": "topic_links_topic_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL topic_id"
+        }
+      ]
+    },
+    {
+      "name": "users",
+      "columns": [
+        {
+          "name": "id",
+          "nullable": false
+        },
+        {
+          "name": "display_name",
+          "nullable": false
+        },
+        {
+          "name": "role",
+          "nullable": false
+        },
+        {
+          "name": "username",
+          "nullable": true
+        },
+        {
+          "name": "password_hash",
+          "nullable": true
+        }
+      ],
+      "constraints": [
+        {
+          "name": "users_display_name_not_null",
+          "kind": "n",
+          "definition": "NOT NULL display_name"
+        },
+        {
+          "name": "users_id_not_null",
+          "kind": "n",
+          "definition": "NOT NULL id"
+        },
+        {
+          "name": "users_login_pair",
+          "kind": "c",
+          "definition": "CHECK ((((username IS NULL) AND (password_hash IS NULL)) OR ((username IS NOT NULL) AND (password_hash IS NOT NULL) AND ((length(username) >= 1) AND (length(username) <= 64)))))"
+        },
+        {
+          "name": "users_pkey",
+          "kind": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "users_role_check",
+          "kind": "c",
+          "definition": "CHECK ((role = ANY (ARRAY['student'::text, 'teacher'::text])))"
+        },
+        {
+          "name": "users_role_not_null",
+          "kind": "n",
+          "definition": "NOT NULL role"
+        },
+        {
+          "name": "users_username_key",
+          "kind": "u",
+          "definition": "UNIQUE (username)"
+        }
+      ]
+    }
+  ],
+  "foreign_keys": [
+    {
+      "from": "answer_drafts",
+      "to": "questions",
+      "definition": "FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "answer_drafts",
+      "to": "users",
+      "definition": "FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "asset_revisions",
+      "to": "material_assets",
+      "definition": "FOREIGN KEY (asset_id) REFERENCES material_assets(id)"
+    },
+    {
+      "from": "asset_revisions",
+      "to": "users",
+      "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+    },
+    {
+      "from": "asset_revisions",
+      "to": "processing_jobs",
+      "definition": "FOREIGN KEY (model_job_id) REFERENCES processing_jobs(id)"
+    },
+    {
+      "from": "assignments",
+      "to": "courses",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "assignments",
+      "to": "users",
+      "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+    },
+    {
+      "from": "bank_question_assets",
+      "to": "material_assets",
+      "definition": "FOREIGN KEY (asset_id) REFERENCES material_assets(id)"
+    },
+    {
+      "from": "bank_question_assets",
+      "to": "bank_question_versions",
+      "definition": "FOREIGN KEY (version_id) REFERENCES bank_question_versions(id)"
+    },
+    {
+      "from": "bank_question_versions",
+      "to": "question_bank",
+      "definition": "FOREIGN KEY (bank_id) REFERENCES question_bank(id)"
+    },
+    {
+      "from": "bank_question_versions",
+      "to": "users",
+      "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+    },
+    {
+      "from": "bank_question_versions",
+      "to": "knowledge_points",
+      "definition": "FOREIGN KEY (knowledge_point_id) REFERENCES knowledge_points(id)"
+    },
+    {
+      "from": "chunk_embeddings",
+      "to": "retrieval_chunks",
+      "definition": "FOREIGN KEY (chunk_id) REFERENCES retrieval_chunks(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "chunk_embeddings",
+      "to": "embedding_spaces",
+      "definition": "FOREIGN KEY (space_id, dimensions) REFERENCES embedding_spaces(id, dimensions)"
+    },
+    {
+      "from": "content_decisions",
+      "to": "users",
+      "definition": "FOREIGN KEY (actor_id) REFERENCES users(id)"
+    },
+    {
+      "from": "content_decisions",
+      "to": "courses",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+    },
+    {
+      "from": "content_tags",
+      "to": "courses",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+    },
+    {
+      "from": "course_edges",
+      "to": "courses",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "course_edges",
+      "to": "knowledge_points",
+      "definition": "FOREIGN KEY (from_id) REFERENCES knowledge_points(id)"
+    },
+    {
+      "from": "course_edges",
+      "to": "knowledge_points",
+      "definition": "FOREIGN KEY (to_id) REFERENCES knowledge_points(id)"
+    },
+    {
+      "from": "courses",
+      "to": "embedding_spaces",
+      "definition": "FOREIGN KEY (embedding_space_id) REFERENCES embedding_spaces(id)"
+    },
+    {
+      "from": "courses",
+      "to": "users",
+      "definition": "FOREIGN KEY (teacher_id) REFERENCES users(id)"
+    },
+    {
+      "from": "enrollments",
+      "to": "courses",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+    },
+    {
+      "from": "enrollments",
+      "to": "users",
+      "definition": "FOREIGN KEY (student_id) REFERENCES users(id)"
+    },
+    {
+      "from": "grading_revisions",
+      "to": "processing_jobs",
+      "definition": "FOREIGN KEY (ai_job_id) REFERENCES processing_jobs(id)"
+    },
+    {
+      "from": "grading_revisions",
+      "to": "regrade_batches",
+      "definition": "FOREIGN KEY (regrade_batch_id) REFERENCES regrade_batches(id)"
+    },
+    {
+      "from": "grading_revisions",
+      "to": "users",
+      "definition": "FOREIGN KEY (reviewer_id) REFERENCES users(id)"
+    },
+    {
+      "from": "grading_revisions",
+      "to": "rubric_versions",
+      "definition": "FOREIGN KEY (rubric_id) REFERENCES rubric_versions(id)"
+    },
+    {
+      "from": "grading_revisions",
+      "to": "submissions",
+      "definition": "FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "industry_records",
+      "to": "courses",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "industry_records",
+      "to": "users",
+      "definition": "FOREIGN KEY (teacher_id) REFERENCES users(id)"
+    },
+    {
+      "from": "interactions",
+      "to": "users",
+      "definition": "FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "interactions",
+      "to": "courses",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "interactions",
+      "to": "interactions",
+      "definition": "FOREIGN KEY (parent_id) REFERENCES interactions(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "interventions",
+      "to": "assignments",
+      "definition": "FOREIGN KEY (assignment_id) REFERENCES assignments(id)"
+    },
+    {
+      "from": "interventions",
+      "to": "courses",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "interventions",
+      "to": "resources",
+      "definition": "FOREIGN KEY (resource_id) REFERENCES resources(id)"
+    },
+    {
+      "from": "interventions",
+      "to": "users",
+      "definition": "FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "interventions",
+      "to": "users",
+      "definition": "FOREIGN KEY (teacher_id) REFERENCES users(id)"
+    },
+    {
+      "from": "knowledge_entries",
+      "to": "courses",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+    },
+    {
+      "from": "knowledge_entries",
+      "to": "users",
+      "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+    },
+    {
+      "from": "knowledge_entries",
+      "to": "knowledge_entries",
+      "definition": "FOREIGN KEY (supersedes_id) REFERENCES knowledge_entries(id)"
+    },
+    {
+      "from": "knowledge_points",
+      "to": "courses",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+    },
+    {
+      "from": "knowledge_points",
+      "to": "knowledge_points",
+      "definition": "FOREIGN KEY (parent_id) REFERENCES knowledge_points(id)"
+    },
+    {
+      "from": "knowledge_topics",
+      "to": "courses",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+    },
+    {
+      "from": "learning_events",
+      "to": "users",
+      "definition": "FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "learning_events",
+      "to": "courses",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "learning_events",
+      "to": "resources",
+      "definition": "FOREIGN KEY (resource_id) REFERENCES resources(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "learning_events",
+      "to": "submissions",
+      "definition": "FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "learning_notes",
+      "to": "users",
+      "definition": "FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "learning_notes",
+      "to": "resources",
+      "definition": "FOREIGN KEY (resource_id) REFERENCES resources(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "material_assets",
+      "to": "material_fragments",
+      "definition": "FOREIGN KEY (fragment_id) REFERENCES material_fragments(id)"
+    },
+    {
+      "from": "material_assets",
+      "to": "material_sources",
+      "definition": "FOREIGN KEY (source_id) REFERENCES material_sources(id)"
+    },
+    {
+      "from": "material_fragments",
+      "to": "material_sources",
+      "definition": "FOREIGN KEY (source_id) REFERENCES material_sources(id)"
+    },
+    {
+      "from": "material_sources",
+      "to": "courses",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+    },
+    {
+      "from": "material_sources",
+      "to": "users",
+      "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+    },
+    {
+      "from": "material_sources",
+      "to": "material_sources",
+      "definition": "FOREIGN KEY (supersedes_id) REFERENCES material_sources(id)"
+    },
+    {
+      "from": "model_calls",
+      "to": "users",
+      "definition": "FOREIGN KEY (actor_id) REFERENCES users(id)"
+    },
+    {
+      "from": "model_calls",
+      "to": "courses",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+    },
+    {
+      "from": "processing_jobs",
+      "to": "courses",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+    },
+    {
+      "from": "processing_jobs",
+      "to": "users",
+      "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+    },
+    {
+      "from": "question_bank",
+      "to": "courses",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+    },
+    {
+      "from": "question_bank",
+      "to": "users",
+      "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+    },
+    {
+      "from": "questions",
+      "to": "assignments",
+      "definition": "FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "questions",
+      "to": "bank_question_versions",
+      "definition": "FOREIGN KEY (bank_question_version_id) REFERENCES bank_question_versions(id)"
+    },
+    {
+      "from": "questions",
+      "to": "rubric_versions",
+      "definition": "FOREIGN KEY (bound_rubric_id) REFERENCES rubric_versions(id)"
+    },
+    {
+      "from": "questions",
+      "to": "knowledge_points",
+      "definition": "FOREIGN KEY (knowledge_point_id) REFERENCES knowledge_points(id)"
+    },
+    {
+      "from": "questions",
+      "to": "resources",
+      "definition": "FOREIGN KEY (resource_id) REFERENCES resources(id)"
+    },
+    {
+      "from": "regrade_batches",
+      "to": "courses",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+    },
+    {
+      "from": "regrade_batches",
+      "to": "users",
+      "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+    },
+    {
+      "from": "regrade_batches",
+      "to": "questions",
+      "definition": "FOREIGN KEY (question_id) REFERENCES questions(id)"
+    },
+    {
+      "from": "regrade_batches",
+      "to": "rubric_versions",
+      "definition": "FOREIGN KEY (rubric_id) REFERENCES rubric_versions(id)"
+    },
+    {
+      "from": "regrade_items",
+      "to": "processing_jobs",
+      "definition": "FOREIGN KEY (ai_job_id) REFERENCES processing_jobs(id)"
+    },
+    {
+      "from": "regrade_items",
+      "to": "regrade_batches",
+      "definition": "FOREIGN KEY (batch_id) REFERENCES regrade_batches(id)"
+    },
+    {
+      "from": "regrade_items",
+      "to": "submissions",
+      "definition": "FOREIGN KEY (submission_id) REFERENCES submissions(id)"
+    },
+    {
+      "from": "research_records",
+      "to": "courses",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "research_records",
+      "to": "users",
+      "definition": "FOREIGN KEY (teacher_id) REFERENCES users(id)"
+    },
+    {
+      "from": "resources",
+      "to": "courses",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "resources",
+      "to": "users",
+      "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+    },
+    {
+      "from": "resources",
+      "to": "knowledge_points",
+      "definition": "FOREIGN KEY (knowledge_point_id) REFERENCES knowledge_points(id)"
+    },
+    {
+      "from": "resources",
+      "to": "users",
+      "definition": "FOREIGN KEY (reviewed_by) REFERENCES users(id)"
+    },
+    {
+      "from": "resources",
+      "to": "material_sources",
+      "definition": "FOREIGN KEY (source_id) REFERENCES material_sources(id)"
+    },
+    {
+      "from": "resources",
+      "to": "resources",
+      "definition": "FOREIGN KEY (supersedes_id) REFERENCES resources(id)"
+    },
+    {
+      "from": "retrieval_chunks",
+      "to": "courses",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+    },
+    {
+      "from": "retrieval_chunks",
+      "to": "knowledge_entries",
+      "definition": "FOREIGN KEY (knowledge_id) REFERENCES knowledge_entries(id)"
+    },
+    {
+      "from": "retrieval_chunks",
+      "to": "resources",
+      "definition": "FOREIGN KEY (resource_id) REFERENCES resources(id)"
+    },
+    {
+      "from": "retrieval_chunks",
+      "to": "material_sources",
+      "definition": "FOREIGN KEY (source_id) REFERENCES material_sources(id)"
+    },
+    {
+      "from": "rubric_versions",
+      "to": "bank_question_versions",
+      "definition": "FOREIGN KEY (bank_question_version_id) REFERENCES bank_question_versions(id)"
+    },
+    {
+      "from": "rubric_versions",
+      "to": "users",
+      "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+    },
+    {
+      "from": "rubric_versions",
+      "to": "questions",
+      "definition": "FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "sessions",
+      "to": "users",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "study_path_items",
+      "to": "knowledge_points",
+      "definition": "FOREIGN KEY (knowledge_point_id) REFERENCES knowledge_points(id)"
+    },
+    {
+      "from": "study_path_items",
+      "to": "study_paths",
+      "definition": "FOREIGN KEY (path_id) REFERENCES study_paths(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "study_paths",
+      "to": "courses",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "study_paths",
+      "to": "users",
+      "definition": "FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE"
+    },
+    {
+      "from": "submissions",
+      "to": "assignments",
+      "definition": "FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE RESTRICT"
+    },
+    {
+      "from": "submissions",
+      "to": "courses",
+      "definition": "FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE RESTRICT"
+    },
+    {
+      "from": "submissions",
+      "to": "questions",
+      "definition": "FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE RESTRICT"
+    },
+    {
+      "from": "submissions",
+      "to": "users",
+      "definition": "FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE RESTRICT"
+    },
+    {
+      "from": "topic_links",
+      "to": "bank_question_versions",
+      "definition": "FOREIGN KEY (bank_version_id) REFERENCES bank_question_versions(id)"
+    },
+    {
+      "from": "topic_links",
+      "to": "knowledge_entries",
+      "definition": "FOREIGN KEY (knowledge_id) REFERENCES knowledge_entries(id)"
+    },
+    {
+      "from": "topic_links",
+      "to": "material_sources",
+      "definition": "FOREIGN KEY (source_id) REFERENCES material_sources(id)"
+    },
+    {
+      "from": "topic_links",
+      "to": "knowledge_topics",
+      "definition": "FOREIGN KEY (topic_id) REFERENCES knowledge_topics(id)"
+    }
+  ],
+  "migrations": {
+    "00001_course_foundation.sql": "2aaf10d572ed727b6e17c2636f0d4077c933a3d75a0a16f7c19927f320073c6e",
+    "00002_identity.sql": "623e16edcec50ab3c76bea8c44edc0c7ca6c92f812fe9d060bd9ca480c8ad5dd",
+    "00003_learning_business.sql": "4921f5810012572e6236ef5e7fe98c9a10e6fd43fb572968797207e636f66d03",
+    "00004_course_usability.sql": "ca35f9ecab5d07c6964edca2f4bbfc6637279a387177b8239920f7c7231e717c",
+    "00005_curriculum_paths.sql": "ed10deef18a351beadfb49ffb69186fcf7908e3b7389c86a5919588bc0110219",
+    "00006_resource_history.sql": "650051ce0d69841a67ff6283e778ff862a4cf65b45b50623d8a41cd0148c86a9",
+    "00007_intervention_links.sql": "d1d76904f8992371ccc641d727c49d003c89d39d11fb5784a5454eb61fb713b3",
+    "00008_s1_sources_and_activity.sql": "dbd2d62e1f84e191ceb6c071dd6aef9d1cdb8c2d9c6db35b1f83119c89ec35c5",
+    "00009_structured_rubrics.sql": "1db040fea3d1eb6b8c60c820d68923ee2b32d6fda5a08d539693a0b876b677ef",
+    "00010_materials_knowledge_rag.sql": "90ceafccabdd014c9a50be6049e0495904195732fe2202dc3110fc0cfe9587a6",
+    "00011_question_bank.sql": "0ed050c5ea22da6a53fb0b8464ec2017246927d54a68813f5689b91f2f6193a1",
+    "00012_material_workflows.sql": "b6104891701074232cfcefa3bba5f482af19e925c36350baa4bf1c910c72f003"
+  }
+}

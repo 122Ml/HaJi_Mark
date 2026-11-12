@@ -2,153 +2,2324 @@
   {
     "id": "F01",
     "title": "系统上下文图",
-    "question": "边界在哪，外面接了谁？",
-    "evidence": "compose.yaml；compose.rag.yaml；deploy/compose.production.yaml；web/src/live/routes.tsx",
-    "boundary": "图内的本地 RAG 能力不代表已部署公网。",
-    "rows": 4
+    "question": "围绕一个教学系统，谁提供输入、谁接收结果、哪些连接是可选的？",
+    "evidence": "learning/http.go；materials.go；rag/models.go；compose*.yaml；deploy/compose.production.yaml；AGENTS.md",
+    "boundary": "本图只画系统边界及外部交互；模型连接是本地可选路径。公网版本取自仓库部署记录，本轮没有执行生产复查或部署。",
+    "nodes": 10,
+    "edges": 10,
+    "width": 2520,
+    "height": 1808,
+    "relations": [
+      {
+        "from": "teacher",
+        "to": "system",
+        "label": "课程、内容、规则与审核决定"
+      },
+      {
+        "from": "system",
+        "to": "teacher",
+        "label": "候选、提交队列、证据与变更影响"
+      },
+      {
+        "from": "student",
+        "to": "system",
+        "label": "学习行为、私人草稿与正式作答"
+      },
+      {
+        "from": "system",
+        "to": "student",
+        "label": "可见内容、正式反馈与任务"
+      },
+      {
+        "from": "file",
+        "to": "system",
+        "label": "人工导入原件"
+      },
+      {
+        "from": "url",
+        "to": "system",
+        "label": "教师发起单页 / 直链快照"
+      },
+      {
+        "from": "system",
+        "to": "model",
+        "label": "授权片段 / 固定规则 / 所选模型"
+      },
+      {
+        "from": "model",
+        "to": "system",
+        "label": "候选、引用与调用结果"
+      },
+      {
+        "from": "system",
+        "to": "export",
+        "label": "正式结果导出"
+      },
+      {
+        "from": "ops",
+        "to": "system",
+        "label": "配置、运行与持久化"
+      }
+    ]
   },
   {
     "id": "F02",
     "title": "概念 ER 图",
-    "question": "业务对象之间是什么关系？",
-    "evidence": "backend/db/migrations/00001–00012；backend/db/queries",
-    "boundary": "这里是概念关系；具体外键和可空归属见 F14。",
-    "rows": 6
+    "question": "区分原件、学习资料、知识、题库、作业实例和评价修订，追踪它们的业务关联。",
+    "evidence": "backend/db/migrations/00001–00012；learning/materials.go；question_bank.go；regrade.go；path.go",
+    "boundary": "概念关联包含业务证据引用，不把 JSON/数组中的引用冒充数据库外键；F14 分图给出 41 张表、103 条物理外键及非外键说明。",
+    "nodes": 20,
+    "edges": 33,
+    "width": 2700,
+    "height": 2277,
+    "relations": [
+      {
+        "from": "user",
+        "to": "course",
+        "label": "教师 1:N；学生 M:N"
+      },
+      {
+        "from": "course",
+        "to": "point",
+        "label": "1:N"
+      },
+      {
+        "from": "course",
+        "to": "source",
+        "label": "1:N"
+      },
+      {
+        "from": "course",
+        "to": "assignment",
+        "label": "1:N"
+      },
+      {
+        "from": "point",
+        "to": "resource",
+        "label": "0:N 关联"
+      },
+      {
+        "from": "point",
+        "to": "assignment",
+        "label": "题目可选关联"
+      },
+      {
+        "from": "topic",
+        "to": "bank",
+        "label": "M:N"
+      },
+      {
+        "from": "topic",
+        "to": "knowledge",
+        "label": "M:N"
+      },
+      {
+        "from": "topic",
+        "to": "source",
+        "label": "M:N"
+      },
+      {
+        "from": "source",
+        "to": "resource",
+        "label": "1:0..N"
+      },
+      {
+        "from": "source",
+        "to": "knowledge",
+        "label": "M:N 证据"
+      },
+      {
+        "from": "source",
+        "to": "asset",
+        "label": "1:N"
+      },
+      {
+        "from": "asset",
+        "to": "bank",
+        "label": "M:N 题图"
+      },
+      {
+        "from": "bank",
+        "to": "rubric",
+        "label": "版本 1:0..N"
+      },
+      {
+        "from": "bank",
+        "to": "assignment",
+        "label": "一个版本可多次选用"
+      },
+      {
+        "from": "rubric",
+        "to": "assignment",
+        "label": "绑定确切标准"
+      },
+      {
+        "from": "resource",
+        "to": "chunk",
+        "label": "1:0..N"
+      },
+      {
+        "from": "knowledge",
+        "to": "chunk",
+        "label": "1:0..N"
+      },
+      {
+        "from": "source",
+        "to": "chunk",
+        "label": "1:0..N"
+      },
+      {
+        "from": "assignment",
+        "to": "submission",
+        "label": "题目实例 1:N"
+      },
+      {
+        "from": "user",
+        "to": "submission",
+        "label": "学生 1:N"
+      },
+      {
+        "from": "submission",
+        "to": "grade",
+        "label": "1:N"
+      },
+      {
+        "from": "rubric",
+        "to": "grade",
+        "label": "采用确切标准"
+      },
+      {
+        "from": "batch",
+        "to": "submission",
+        "label": "批次逐份冻结"
+      },
+      {
+        "from": "batch",
+        "to": "grade",
+        "label": "发布追加新修订"
+      },
+      {
+        "from": "resource",
+        "to": "note",
+        "label": "1:N"
+      },
+      {
+        "from": "user",
+        "to": "note",
+        "label": "学生 1:N"
+      },
+      {
+        "from": "point",
+        "to": "path",
+        "label": "路径条目关联"
+      },
+      {
+        "from": "assignment",
+        "to": "intervention",
+        "label": "可选补练"
+      },
+      {
+        "from": "resource",
+        "to": "intervention",
+        "label": "可选补学"
+      },
+      {
+        "from": "grade",
+        "to": "path",
+        "label": "正式结果作为证据"
+      },
+      {
+        "from": "job",
+        "to": "grade",
+        "label": "可选 AI 草稿来源"
+      },
+      {
+        "from": "decision",
+        "to": "knowledge",
+        "label": "决定产生或关联版本"
+      }
+    ]
   },
   {
     "id": "F03",
-    "title": "数据主题域图",
-    "question": "数据分几个域，谁拥有写权？",
-    "evidence": "backend/internal/identity；backend/internal/learning；backend/internal/rag；backend/db/queries",
-    "boundary": "写权按当前处理器划分；单个数据库由 sqlc/store 访问。",
-    "rows": 5
+    "title": "数据主题域与写权",
+    "question": "按业务事实划分数据归属；跨域通过服务端命令和受控证据读取衔接。",
+    "evidence": "backend/internal/identity；learning/{http,materials,knowledge_decisions,question_bank,assessment,feedback,path,regrade}.go；rag",
+    "boundary": "“所有者”表示数据语义和合法写入口归属，不宣称一个文件独占所有 SQL；API 与 worker 对同一处理任务承担不同状态转换。",
+    "nodes": 14,
+    "edges": 17,
+    "width": 2700,
+    "height": 1808,
+    "relations": [
+      {
+        "from": "identity",
+        "to": "course",
+        "label": "角色与身份"
+      },
+      {
+        "from": "course",
+        "to": "content",
+        "label": "课程归属"
+      },
+      {
+        "from": "course",
+        "to": "assessment",
+        "label": "课程与名单"
+      },
+      {
+        "from": "course",
+        "to": "evidence",
+        "label": "成员与知识点"
+      },
+      {
+        "from": "content",
+        "to": "knowledge",
+        "label": "合法原文证据"
+      },
+      {
+        "from": "knowledge",
+        "to": "bank",
+        "label": "确认知识与出处"
+      },
+      {
+        "from": "bank",
+        "to": "assessment",
+        "label": "冻结题目与标准"
+      },
+      {
+        "from": "assessment",
+        "to": "grading",
+        "label": "不可变作答"
+      },
+      {
+        "from": "grading",
+        "to": "evidence",
+        "label": "仅正式发布结果"
+      },
+      {
+        "from": "content",
+        "to": "retrieval",
+        "label": "可索引可靠内容"
+      },
+      {
+        "from": "knowledge",
+        "to": "retrieval",
+        "label": "确认 / 用途 / 许可"
+      },
+      {
+        "from": "job",
+        "to": "content",
+        "label": "解析产物"
+      },
+      {
+        "from": "job",
+        "to": "knowledge",
+        "label": "候选结果"
+      },
+      {
+        "from": "job",
+        "to": "grading",
+        "label": "评分草稿"
+      },
+      {
+        "from": "client",
+        "to": "course",
+        "label": "通过受控 API 发业务命令"
+      },
+      {
+        "from": "grading",
+        "to": "audit",
+        "label": "追加修订"
+      },
+      {
+        "from": "knowledge",
+        "to": "audit",
+        "label": "教师决定"
+      }
+    ]
   },
   {
     "id": "F04",
-    "title": "总体结构图",
-    "question": "系统分几块，谁依赖谁？",
-    "evidence": "web/src/app/App.tsx；backend/internal/server；backend/cmd；compose.yaml；compose.rag.yaml",
-    "boundary": "Python 只承担本地解析，不是独立业务服务。",
-    "rows": 4
+    "title": "总体结构与依赖",
+    "question": "从活动前端到业务处理、异步执行与持久化，标清运行进程与代码内模块。",
+    "evidence": "web/src/{app,live,shared}；web/nginx.conf；backend/{cmd,internal/server,internal/identity,internal/learning,internal/rag}；compose*.yaml",
+    "boundary": "一个应用内按 Go 包组织；API 和 worker 是两个运行进程。Python 只是解析工具，不是独立教学业务服务。",
+    "nodes": 16,
+    "edges": 20,
+    "width": 2700,
+    "height": 1819,
+    "relations": [
+      {
+        "from": "browser",
+        "to": "web",
+        "label": "HTTP"
+      },
+      {
+        "from": "web",
+        "to": "client",
+        "label": "页面调用"
+      },
+      {
+        "from": "client",
+        "to": "proxy",
+        "label": "/api/v1"
+      },
+      {
+        "from": "proxy",
+        "to": "api",
+        "label": "同源代理"
+      },
+      {
+        "from": "api",
+        "to": "auth",
+        "label": "路由中间件"
+      },
+      {
+        "from": "auth",
+        "to": "learning",
+        "label": "受控业务请求"
+      },
+      {
+        "from": "learning",
+        "to": "ragapi",
+        "label": "复用能力"
+      },
+      {
+        "from": "learning",
+        "to": "store",
+        "label": "类型化 SQL"
+      },
+      {
+        "from": "ragapi",
+        "to": "jobs",
+        "label": "CreateJob"
+      },
+      {
+        "from": "jobs",
+        "to": "pg",
+        "label": "持久输入快照"
+      },
+      {
+        "from": "jobs",
+        "to": "redis",
+        "label": "投递 ID"
+      },
+      {
+        "from": "redis",
+        "to": "worker",
+        "label": "领取任务"
+      },
+      {
+        "from": "worker",
+        "to": "pg",
+        "label": "领取、产物和预算"
+      },
+      {
+        "from": "store",
+        "to": "pg",
+        "label": "pgxpool"
+      },
+      {
+        "from": "worker",
+        "to": "parser",
+        "label": "本地解析"
+      },
+      {
+        "from": "parser",
+        "to": "files",
+        "label": "读取原件 / 产出图像"
+      },
+      {
+        "from": "learning",
+        "to": "files",
+        "label": "受控上传与下载"
+      },
+      {
+        "from": "ragapi",
+        "to": "model",
+        "label": "同步检索 / 问答"
+      },
+      {
+        "from": "worker",
+        "to": "model",
+        "label": "异步生成 / 索引"
+      },
+      {
+        "from": "worker",
+        "to": "jobs",
+        "label": "Recover 扫描"
+      }
+    ]
   },
   {
     "id": "F05",
-    "title": "总体流程图 v2",
-    "question": "业务阶段怎么串，交接什么？",
-    "evidence": "docs/architecture.md；backend/internal/learning/assessment.go；feedback.go；path.go",
-    "boundary": "学情是已发布结果的证据汇总，不是能力预测。",
-    "rows": 4
+    "title": "总体流程 v2：阶段与交付物",
+    "question": "按教学闭环连接阶段，突出每次交接产生的内容与正式成果。",
+    "evidence": "docs/architecture.md；learning/{assessment,materials,question_bank,feedback,path,regrade}.go",
+    "boundary": "本图只交代阶段和交付物；审核条件、异常分支与状态分别展开在 F06–F11，关键事务与失败兜底见 F15。",
+    "nodes": 12,
+    "edges": 15,
+    "width": 2700,
+    "height": 1437,
+    "relations": [
+      {
+        "from": "setup",
+        "to": "import",
+        "label": "课程与目录"
+      },
+      {
+        "from": "import",
+        "to": "publish",
+        "label": "可靠原文 + 出处"
+      },
+      {
+        "from": "publish",
+        "to": "learn",
+        "label": "可见教学内容"
+      },
+      {
+        "from": "publish",
+        "to": "author",
+        "label": "合法依据与考查要求"
+      },
+      {
+        "from": "author",
+        "to": "task",
+        "label": "确认题目 + 匹配标准"
+      },
+      {
+        "from": "task",
+        "to": "answer",
+        "label": "任务版本与作答要求"
+      },
+      {
+        "from": "learn",
+        "to": "answer",
+        "label": "理解与原始作答"
+      },
+      {
+        "from": "answer",
+        "to": "review",
+        "label": "原文、次数、哈希"
+      },
+      {
+        "from": "review",
+        "to": "feedback",
+        "label": "正式评分修订"
+      },
+      {
+        "from": "feedback",
+        "to": "intervene",
+        "label": "可追溯评价证据"
+      },
+      {
+        "from": "intervene",
+        "to": "check",
+        "label": "下发任务与新证据"
+      },
+      {
+        "from": "check",
+        "to": "change",
+        "label": "复查与修订需求"
+      },
+      {
+        "from": "change",
+        "to": "import",
+        "label": "来源内容更新"
+      },
+      {
+        "from": "change",
+        "to": "author",
+        "label": "未来任务选择新版本"
+      },
+      {
+        "from": "check",
+        "to": "intervene",
+        "label": "继续跟进"
+      }
+    ]
   },
   {
     "id": "F06",
-    "title": "工作流程：资料与知识",
-    "question": "资料从导入到发布按什么顺序走？",
-    "evidence": "backend/internal/learning/materials.go；knowledge_decisions.go；backend/internal/rag/jobs.go",
-    "boundary": "公开URL只支持单页／直链；复杂版式与独立语义评价未完成。",
-    "rows": 4
+    "title": "资料与知识工作流：原文与发布",
+    "question": "原件如何成为可靠原文、发布资料和合法提炼输入？",
+    "evidence": "materials.go；assets.go；asset_crop.go；source_url.go；rag/jobs.go；rag/vision.go",
+    "boundary": "原文发布、直接索引、知识提炼独立分支；完整知识审核与冲突决定继续见 F06-1。",
+    "nodes": 19,
+    "edges": 20,
+    "width": 2400,
+    "height": 1985
+  },
+  {
+    "id": "F06-1",
+    "title": "资料与知识工作流：知识审定与冲突",
+    "question": "精炼知识如何审核、分配用途、比较冲突并保留历史证据？",
+    "evidence": "materials.go；knowledge_decisions.go；topics.go；rag/retrieval.go；rag/workflows.go",
+    "boundary": "普通新版不自动废止旧版；归档和许可撤回限制未来使用，历史评分快照保持。",
+    "nodes": 16,
+    "edges": 17,
+    "width": 2400,
+    "height": 1655
   },
   {
     "id": "F07",
-    "title": "工作流程：命题与标准",
-    "question": "题目与标准怎么生成和冻结？",
-    "evidence": "backend/internal/learning/question_bank.go；rubrics.go；paper.go；backend/db/migrations/00011_question_bank.sql",
-    "boundary": "AI 只生成候选；没有原卷答案时不伪造提取结果。",
-    "rows": 4
+    "title": "命题与标准：分别审定与版本冻结",
+    "question": "从合法依据、整卷拆题或手工录入，怎样形成可用于作业的确切规则组合？",
+    "evidence": "question_bank.go；rubrics.go；paper.go；rag/question_bank.go；db/migrations/00011–00012",
+    "boundary": "候选、主动采纳、分别确认是不同关口。题目、参考解答、标准必须分别审定；没有原卷答案时留空，不冒充提取结果。",
+    "nodes": 15,
+    "edges": 16,
+    "width": 2400,
+    "height": 1835
   },
   {
     "id": "F08",
-    "title": "工作流程：作答与提交",
-    "question": "学生怎么作答，怎么算提交成功？",
-    "evidence": "backend/internal/learning/assessment.go；drafts.go；backend/db/migrations/00003_learning_business.sql",
-    "boundary": "自动保存草稿和正式提交是两个动作。",
-    "rows": 4
+    "title": "作答与提交工作流程",
+    "question": "从可见任务到不可变原始作答，区分草稿、重发、重新作答和正式回执。",
+    "evidence": "learning/assessment.go:submit；drafts.go；db/queries/{learning,workspace}.sql；00003、00008 迁移",
+    "boundary": "幂等重发先识别旧成功请求，再判断新提交窗口；草稿不等于正式作答。原文只追加；教师批量导入学生作答尚未实现，不能把题库 JSON 导入当作答案导入。",
+    "nodes": 16,
+    "edges": 18,
+    "width": 2700,
+    "height": 1797,
+    "relations": [
+      {
+        "from": "task",
+        "to": "load",
+        "label": "打开题目"
+      },
+      {
+        "from": "load",
+        "to": "write",
+        "label": "本人草稿"
+      },
+      {
+        "from": "write",
+        "to": "request",
+        "label": "确认正式提交"
+      },
+      {
+        "from": "request",
+        "to": "auth",
+        "label": "正式提交"
+      },
+      {
+        "from": "auth",
+        "to": "lock",
+        "label": "校验通过"
+      },
+      {
+        "from": "lock",
+        "to": "same",
+        "label": "已存在且完全一致"
+      },
+      {
+        "from": "lock",
+        "to": "conflict",
+        "label": "已存在但不一致"
+      },
+      {
+        "from": "lock",
+        "to": "gate",
+        "label": "尚无该请求"
+      },
+      {
+        "from": "same",
+        "to": "receipt",
+        "label": "复用原回执"
+      },
+      {
+        "from": "gate",
+        "to": "reject",
+        "label": "不可提交"
+      },
+      {
+        "from": "gate",
+        "to": "freeze",
+        "label": "允许新提交"
+      },
+      {
+        "from": "freeze",
+        "to": "type",
+        "label": "按题型分支"
+      },
+      {
+        "from": "type",
+        "to": "rule",
+        "label": "客观题"
+      },
+      {
+        "from": "rule",
+        "to": "commit",
+        "label": "正式规则结果"
+      },
+      {
+        "from": "type",
+        "to": "commit",
+        "label": "主观题待评阅"
+      },
+      {
+        "from": "commit",
+        "to": "receipt",
+        "label": "事务成功后返回"
+      },
+      {
+        "from": "receipt",
+        "to": "again",
+        "label": "需要重新作答"
+      },
+      {
+        "from": "again",
+        "to": "request",
+        "label": "新请求，重新校验"
+      }
+    ]
   },
   {
     "id": "F09",
-    "title": "工作流程：评阅与发布",
-    "question": "AI 评分到教师发布经过谁？",
-    "evidence": "backend/internal/learning/feedback.go；rubrics.go；backend/internal/rag/jobs.go",
-    "boundary": "AI 评分草稿不会自行发布。",
-    "rows": 4
+    "title": "评阅与发布工作流程",
+    "question": "冻结依据、分离草稿与正式结果，并在教师发布前阻断越界规则和过期修订。",
+    "evidence": "learning/feedback.go:{grade,gradeState}；rubrics.go:scorePoints；materials.go:createRAGJob；regrade.go；db/queries/learning.sql",
+    "boundary": "系统机械核对不替代教师语义审核。主观题 AI 草稿永不自动发布；客观测验按固定答案直接产生规则 released 结果。",
+    "nodes": 16,
+    "edges": 19,
+    "width": 2700,
+    "height": 1797,
+    "relations": [
+      {
+        "from": "queue",
+        "to": "binding",
+        "label": "所选提交"
+      },
+      {
+        "from": "binding",
+        "to": "basis",
+        "label": "确认匹配"
+      },
+      {
+        "from": "basis",
+        "to": "ai",
+        "label": "可选异步任务"
+      },
+      {
+        "from": "queue",
+        "to": "manual",
+        "label": "直接人工"
+      },
+      {
+        "from": "ai",
+        "to": "review",
+        "label": "可核对候选"
+      },
+      {
+        "from": "ai",
+        "to": "failed",
+        "label": "任务失败 / 无有效输出"
+      },
+      {
+        "from": "failed",
+        "to": "manual",
+        "label": "人工兜底"
+      },
+      {
+        "from": "manual",
+        "to": "review",
+        "label": "人工给分"
+      },
+      {
+        "from": "review",
+        "to": "machine",
+        "label": "保存前检查"
+      },
+      {
+        "from": "machine",
+        "to": "failed",
+        "label": "范围 / 引用 / 绑定不符"
+      },
+      {
+        "from": "machine",
+        "to": "managed",
+        "label": "内容检查通过"
+      },
+      {
+        "from": "managed",
+        "to": "draft",
+        "label": "未进入批次管理"
+      },
+      {
+        "from": "draft",
+        "to": "confirm",
+        "label": "保存后确认最新修订"
+      },
+      {
+        "from": "managed",
+        "to": "regrade",
+        "label": "已进入批次管理"
+      },
+      {
+        "from": "confirm",
+        "to": "release",
+        "label": "教师再发发布命令"
+      },
+      {
+        "from": "release",
+        "to": "student",
+        "label": "正式反馈"
+      },
+      {
+        "from": "release",
+        "to": "evidence",
+        "label": "去重证据"
+      },
+      {
+        "from": "release",
+        "to": "history",
+        "label": "保留历史"
+      },
+      {
+        "from": "history",
+        "to": "regrade",
+        "label": "需要统一更正"
+      }
+    ]
+  },
+  {
+    "id": "F09-1",
+    "title": "内容变更与整组统一重评",
+    "question": "内容改变如何追踪影响，重评如何冻结范围并保证整组一致发布？",
+    "evidence": "workflow_jobs.go；regrade.go；knowledge_decisions.go；db/queries/material_workflows.sql",
+    "boundary": "批次只针对所选关闭作业的一道题。失败或取消保留旧结果，不能部分发布；不自动跨作业更改成绩。",
+    "nodes": 12,
+    "edges": 11,
+    "width": 2400,
+    "height": 1685
   },
   {
     "id": "F10",
-    "title": "工作流程：诊断与干预",
-    "question": "诊断结果怎么变成干预动作？",
-    "evidence": "backend/internal/learning/feedback.go；path.go；workspace.go；docs/architecture.md",
-    "boundary": "现有路径是规则生成；不称为 AI 诊断。",
-    "rows": 4
+    "title": "诊断证据与教师干预流程",
+    "question": "准确区分证据汇总、规则路径、教师决定和仍未接通的 AI 诊断。",
+    "evidence": "learning/path.go:planPath；feedback.go:interventionState；workspace.go；db/queries/{workspace,learning}.sql；docs/architecture.md",
+    "boundary": "规则路径只描述选择和排序，不是能力概率或 AI 个性化推荐。教师复查是人工判断，不自动证明学习效果改善。",
+    "nodes": 16,
+    "edges": 14,
+    "width": 2700,
+    "height": 1797,
+    "relations": [
+      {
+        "from": "released",
+        "to": "view",
+        "label": "正式结果"
+      },
+      {
+        "from": "activity",
+        "to": "view",
+        "label": "过程证据"
+      },
+      {
+        "from": "view",
+        "to": "teacher",
+        "label": "供教师判断"
+      },
+      {
+        "from": "released",
+        "to": "rule",
+        "label": "知识点表现"
+      },
+      {
+        "from": "graph",
+        "to": "rule",
+        "label": "前置关系"
+      },
+      {
+        "from": "teacher",
+        "to": "draft",
+        "label": "选择资料与既有练习"
+      },
+      {
+        "from": "draft",
+        "to": "assign",
+        "label": "教师确认下发"
+      },
+      {
+        "from": "assign",
+        "to": "learn",
+        "label": "任务与时间基准"
+      },
+      {
+        "from": "learn",
+        "to": "gate",
+        "label": "核对实际记录"
+      },
+      {
+        "from": "gate",
+        "to": "submit",
+        "label": "条件满足"
+      },
+      {
+        "from": "gate",
+        "to": "learn",
+        "label": "证据不足继续执行"
+      },
+      {
+        "from": "submit",
+        "to": "review",
+        "label": "新证据 + 完成说明"
+      },
+      {
+        "from": "review",
+        "to": "more",
+        "label": "仍需跟进"
+      },
+      {
+        "from": "more",
+        "to": "draft",
+        "label": "另建下一轮"
+      }
+    ]
   },
   {
     "id": "F11",
-    "title": "六类生命周期",
-    "question": "这些对象什么时候算完成？",
-    "evidence": "backend/internal/learning/http.go；backend/db/migrations/00001_course_foundation.sql；00003_learning_business.sql；00009_structured_rubrics.sql",
-    "boundary": "resources 表允许 archived，但当前无归档操作；不将其画为已接通迁移。",
-    "rows": 6
+    "title": "六类对象生命周期与迁移关口",
+    "question": "每个箭头标出触发动作与前置条件；新修订另建对象，拒绝条件不会偷偷推进状态。",
+    "evidence": "learning/http.go；assessment.go；question_bank.go；rubrics.go；feedback.go；db/queries/learning.sql",
+    "boundary": "只画当前可执行迁移；截止不自动关闭，学习资料没有已接通的归档操作。",
+    "nodes": 20,
+    "edges": 12,
+    "width": 2700,
+    "height": 2810
   },
   {
     "id": "F12",
     "title": "AI 能力边界与证据链",
-    "question": "哪些交 AI，凭什么结论可信？",
-    "evidence": "backend/internal/rag；backend/internal/learning/rubrics.go；backend/db/migrations/00010_materials_knowledge_rag.sql",
-    "boundary": "引用和模型元数据支持追溯，不证明内容正确。",
-    "rows": 4
+    "question": "把允许输入、候选输出、人工关口、可追溯证据和未完成评测放在同一张边界图。",
+    "evidence": "rag/{models,jobs,retrieval,workflows,question_bank,vision}.go；learning/{knowledge_decisions,rubrics,feedback}.go",
+    "boundary": "AI 已接通指存在本地真实模型路径，不代表已经独立评测通过。所有未完成项保留灰色虚框；本轮不调用模型、不花费联调预算。",
+    "nodes": 16,
+    "edges": 19,
+    "width": 2700,
+    "height": 1808,
+    "relations": [
+      {
+        "from": "source",
+        "to": "vision",
+        "label": "许可片段 / 原图"
+      },
+      {
+        "from": "select",
+        "to": "author",
+        "label": "要求与合法依据"
+      },
+      {
+        "from": "frozen",
+        "to": "grade",
+        "label": "冻结输入"
+      },
+      {
+        "from": "privacy",
+        "to": "qa",
+        "label": "授权检索范围"
+      },
+      {
+        "from": "vision",
+        "to": "contentgate",
+        "label": "待核对候选"
+      },
+      {
+        "from": "author",
+        "to": "authorgate",
+        "label": "三个独立草稿"
+      },
+      {
+        "from": "grade",
+        "to": "gradegate",
+        "label": "逐点草稿"
+      },
+      {
+        "from": "qa",
+        "to": "trace",
+        "label": "引用回链"
+      },
+      {
+        "from": "contentgate",
+        "to": "effective",
+        "label": "确认内容"
+      },
+      {
+        "from": "authorgate",
+        "to": "effective",
+        "label": "确认版本"
+      },
+      {
+        "from": "gradegate",
+        "to": "effective",
+        "label": "发布修订"
+      },
+      {
+        "from": "vision",
+        "to": "trace",
+        "label": "候选与输入快照"
+      },
+      {
+        "from": "author",
+        "to": "trace",
+        "label": "出处与模型任务"
+      },
+      {
+        "from": "grade",
+        "to": "trace",
+        "label": "提交哈希与固定标准"
+      },
+      {
+        "from": "budget",
+        "to": "vision",
+        "label": "预留与调用约束"
+      },
+      {
+        "from": "budget",
+        "to": "author",
+        "label": "预算与任务约束"
+      },
+      {
+        "from": "budget",
+        "to": "grade",
+        "label": "预算与任务约束"
+      },
+      {
+        "from": "contentgate",
+        "to": "fallback",
+        "label": "过期或不采纳"
+      },
+      {
+        "from": "gradegate",
+        "to": "fallback",
+        "label": "错误或不可信"
+      }
+    ]
   },
   {
     "id": "F13",
-    "title": "数据流图 DFD",
-    "question": "数据在哪里产生、存放、消费？",
-    "evidence": "compose.yaml；compose.rag.yaml；backend/db/migrations/00003_learning_business.sql；00010_materials_knowledge_rag.sql",
-    "boundary": "Redis 承担队列；持久业务事实和任务记录在 PostgreSQL。",
-    "rows": 4
+    "title": "数据流图 DFD（一级）",
+    "question": "以数据变换、存储和消费解释系统；箭头是数据包，不是页面跳转或状态迁移。",
+    "evidence": "backend/db/migrations/00001–00012；learning/{materials,assessment,feedback,regrade,path}.go；rag/{jobs,retrieval,models}.go",
+    "boundary": "E 是外部输入输出，P 是处理，D 是存储。外部输入和存储间均经 P 处理，不直接连线；PG 分组实际共用一个库，Redis 只承载异步投递。",
+    "nodes": 18,
+    "edges": 26,
+    "width": 2700,
+    "height": 2157,
+    "relations": [
+      {
+        "from": "input",
+        "to": "p1",
+        "label": "文件、快照与元数据"
+      },
+      {
+        "from": "p1",
+        "to": "d1",
+        "label": "原件 / 可靠片段 / 修订"
+      },
+      {
+        "from": "d1",
+        "to": "p2",
+        "label": "可索引正文与资格"
+      },
+      {
+        "from": "p2",
+        "to": "d2",
+        "label": "块、向量与空间"
+      },
+      {
+        "from": "d2",
+        "to": "p2",
+        "label": "索引和当前空间"
+      },
+      {
+        "from": "p2",
+        "to": "outlearn",
+        "label": "授权证据与引用"
+      },
+      {
+        "from": "d1",
+        "to": "job",
+        "label": "原文或固定输入"
+      },
+      {
+        "from": "job",
+        "to": "model",
+        "label": "许可范围 + profile"
+      },
+      {
+        "from": "model",
+        "to": "job",
+        "label": "候选 / 向量 / 用量"
+      },
+      {
+        "from": "job",
+        "to": "d2",
+        "label": "任务产物与计费记录"
+      },
+      {
+        "from": "d2",
+        "to": "job",
+        "label": "待处理任务 / 预算"
+      },
+      {
+        "from": "qinput",
+        "to": "p4",
+        "label": "要求与确认决定"
+      },
+      {
+        "from": "d1",
+        "to": "p4",
+        "label": "合法资料 / 知识证据"
+      },
+      {
+        "from": "job",
+        "to": "p4",
+        "label": "命题与标准候选"
+      },
+      {
+        "from": "p4",
+        "to": "d3",
+        "label": "确认版本与绑定组合"
+      },
+      {
+        "from": "sinput",
+        "to": "p6",
+        "label": "草稿 / 答案 / 行为"
+      },
+      {
+        "from": "p6",
+        "to": "d3",
+        "label": "校验后的草稿 / 正式原文"
+      },
+      {
+        "from": "p6",
+        "to": "d4",
+        "label": "实际学习与提交事件"
+      },
+      {
+        "from": "d3",
+        "to": "p5",
+        "label": "冻结标准 + 作答"
+      },
+      {
+        "from": "job",
+        "to": "p5",
+        "label": "可选评分草稿"
+      },
+      {
+        "from": "decision",
+        "to": "p5",
+        "label": "审核、发布与重评决定"
+      },
+      {
+        "from": "p5",
+        "to": "d4",
+        "label": "追加正式修订与证据"
+      },
+      {
+        "from": "d4",
+        "to": "p7",
+        "label": "去重正式结果 / 任务证据"
+      },
+      {
+        "from": "p7",
+        "to": "out",
+        "label": "反馈、导出与本人任务"
+      },
+      {
+        "from": "out",
+        "to": "p7",
+        "label": "执行说明与复查请求"
+      },
+      {
+        "from": "p7",
+        "to": "d4",
+        "label": "干预执行与复查记录"
+      }
+    ]
   },
   {
     "id": "F14",
-    "title": "数据表关系图",
-    "question": "当前数据库怎么建立主要关系？",
-    "evidence": "backend/db/migrations/00001–00012；backend/db/queries",
-    "boundary": "仅列主干；rubric_versions 互斥归属旧 questions 或新题库版本，约束见迁移。",
-    "rows": 6
+    "title": "全库表关系总览：41 表 / 103 外键",
+    "question": "箭头从引用表所在域指向被引用域；逐表 PK、FK 和可空性展开在 F14-1～F14-3。",
+    "evidence": "schema.json（本地 PostgreSQL 结构目录只读快照）；backend/db/migrations/00001–00012",
+    "boundary": "统计不包含 Goose 元数据表。域内外键在分图展开；content_tags.object_id、evidence、fragment_ids 等业务引用没有物理 FK，不画为实线外键。",
+    "nodes": 8,
+    "edges": 22,
+    "width": 2700,
+    "height": 1575,
+    "relations": [
+      {
+        "from": "g4",
+        "to": "g0",
+        "label": "6 条 FK"
+      },
+      {
+        "from": "g1",
+        "to": "g0",
+        "label": "7 条 FK"
+      },
+      {
+        "from": "g1",
+        "to": "g7",
+        "label": "1 条 FK"
+      },
+      {
+        "from": "g3",
+        "to": "g1",
+        "label": "1 条 FK"
+      },
+      {
+        "from": "g3",
+        "to": "g0",
+        "label": "5 条 FK"
+      },
+      {
+        "from": "g2",
+        "to": "g0",
+        "label": "6 条 FK"
+      },
+      {
+        "from": "g0",
+        "to": "g7",
+        "label": "1 条 FK"
+      },
+      {
+        "from": "g5",
+        "to": "g7",
+        "label": "2 条 FK"
+      },
+      {
+        "from": "g5",
+        "to": "g0",
+        "label": "3 条 FK"
+      },
+      {
+        "from": "g5",
+        "to": "g3",
+        "label": "2 条 FK"
+      },
+      {
+        "from": "g5",
+        "to": "g4",
+        "label": "3 条 FK"
+      },
+      {
+        "from": "g6",
+        "to": "g0",
+        "label": "15 条 FK"
+      },
+      {
+        "from": "g6",
+        "to": "g4",
+        "label": "2 条 FK"
+      },
+      {
+        "from": "g6",
+        "to": "g1",
+        "label": "3 条 FK"
+      },
+      {
+        "from": "g7",
+        "to": "g0",
+        "label": "5 条 FK"
+      },
+      {
+        "from": "g4",
+        "to": "g3",
+        "label": "2 条 FK"
+      },
+      {
+        "from": "g4",
+        "to": "g1",
+        "label": "1 条 FK"
+      },
+      {
+        "from": "g7",
+        "to": "g2",
+        "label": "1 条 FK"
+      },
+      {
+        "from": "g7",
+        "to": "g1",
+        "label": "2 条 FK"
+      },
+      {
+        "from": "g3",
+        "to": "g4",
+        "label": "1 条 FK"
+      },
+      {
+        "from": "g2",
+        "to": "g3",
+        "label": "1 条 FK"
+      },
+      {
+        "from": "g2",
+        "to": "g1",
+        "label": "1 条 FK"
+      }
+    ]
+  },
+  {
+    "id": "F14-1",
+    "title": "身份、课程与学习跟进：物理外键",
+    "question": "FK 子列 → 父表；? 可空，! 非空；同一对表的多个 FK 合并连线，完整列名保留在表框。",
+    "evidence": "schema.json；对应 00001–00012 迁移（生成时校验 SHA256）",
+    "boundary": "顶部跨域参照只作父表定位，不重复展开其出向关系。实线均为真实数据库 FK；JSON/数组引用和应用校验约束单独见图册说明。",
+    "nodes": 19,
+    "edges": 35,
+    "width": 2700,
+    "height": 2962,
+    "relations": [
+      {
+        "from": "course_edges",
+        "to": "courses",
+        "label": "FK"
+      },
+      {
+        "from": "course_edges",
+        "to": "knowledge_points",
+        "label": "2 条 FK"
+      },
+      {
+        "from": "courses",
+        "to": "embedding_spaces",
+        "label": "FK"
+      },
+      {
+        "from": "courses",
+        "to": "users",
+        "label": "FK"
+      },
+      {
+        "from": "enrollments",
+        "to": "courses",
+        "label": "FK"
+      },
+      {
+        "from": "enrollments",
+        "to": "users",
+        "label": "FK"
+      },
+      {
+        "from": "industry_records",
+        "to": "courses",
+        "label": "FK"
+      },
+      {
+        "from": "industry_records",
+        "to": "users",
+        "label": "FK"
+      },
+      {
+        "from": "interactions",
+        "to": "users",
+        "label": "FK"
+      },
+      {
+        "from": "interactions",
+        "to": "courses",
+        "label": "FK"
+      },
+      {
+        "from": "interactions",
+        "to": "interactions",
+        "label": "FK"
+      },
+      {
+        "from": "interventions",
+        "to": "assignments",
+        "label": "FK"
+      },
+      {
+        "from": "interventions",
+        "to": "courses",
+        "label": "FK"
+      },
+      {
+        "from": "interventions",
+        "to": "resources",
+        "label": "FK"
+      },
+      {
+        "from": "interventions",
+        "to": "users",
+        "label": "2 条 FK"
+      },
+      {
+        "from": "knowledge_points",
+        "to": "courses",
+        "label": "FK"
+      },
+      {
+        "from": "knowledge_points",
+        "to": "knowledge_points",
+        "label": "FK"
+      },
+      {
+        "from": "learning_events",
+        "to": "users",
+        "label": "FK"
+      },
+      {
+        "from": "learning_events",
+        "to": "courses",
+        "label": "FK"
+      },
+      {
+        "from": "learning_events",
+        "to": "resources",
+        "label": "FK"
+      },
+      {
+        "from": "learning_events",
+        "to": "submissions",
+        "label": "FK"
+      },
+      {
+        "from": "learning_notes",
+        "to": "users",
+        "label": "FK"
+      },
+      {
+        "from": "learning_notes",
+        "to": "resources",
+        "label": "FK"
+      },
+      {
+        "from": "research_records",
+        "to": "courses",
+        "label": "FK"
+      },
+      {
+        "from": "research_records",
+        "to": "users",
+        "label": "FK"
+      },
+      {
+        "from": "resources",
+        "to": "courses",
+        "label": "FK"
+      },
+      {
+        "from": "resources",
+        "to": "users",
+        "label": "2 条 FK"
+      },
+      {
+        "from": "resources",
+        "to": "knowledge_points",
+        "label": "FK"
+      },
+      {
+        "from": "resources",
+        "to": "material_sources",
+        "label": "FK"
+      },
+      {
+        "from": "resources",
+        "to": "resources",
+        "label": "FK"
+      },
+      {
+        "from": "sessions",
+        "to": "users",
+        "label": "FK"
+      },
+      {
+        "from": "study_path_items",
+        "to": "knowledge_points",
+        "label": "FK"
+      },
+      {
+        "from": "study_path_items",
+        "to": "study_paths",
+        "label": "FK"
+      },
+      {
+        "from": "study_paths",
+        "to": "courses",
+        "label": "FK"
+      },
+      {
+        "from": "study_paths",
+        "to": "users",
+        "label": "FK"
+      }
+    ],
+    "physical_foreign_keys": 38,
+    "owned_tables": [
+      "users",
+      "sessions",
+      "courses",
+      "enrollments",
+      "knowledge_points",
+      "course_edges",
+      "resources",
+      "learning_events",
+      "learning_notes",
+      "study_paths",
+      "study_path_items",
+      "interventions",
+      "interactions",
+      "research_records",
+      "industry_records"
+    ]
+  },
+  {
+    "id": "F14-2",
+    "title": "资料、知识、检索与模型任务：物理外键",
+    "question": "FK 子列 → 父表；? 可空，! 非空；同一对表的多个 FK 合并连线，完整列名保留在表框。",
+    "evidence": "schema.json；对应 00001–00012 迁移（生成时校验 SHA256）",
+    "boundary": "顶部跨域参照只作父表定位，不重复展开其出向关系。实线均为真实数据库 FK；JSON/数组引用和应用校验约束单独见图册说明。",
+    "nodes": 19,
+    "edges": 30,
+    "width": 2700,
+    "height": 2908,
+    "relations": [
+      {
+        "from": "asset_revisions",
+        "to": "material_assets",
+        "label": "FK"
+      },
+      {
+        "from": "asset_revisions",
+        "to": "users",
+        "label": "FK"
+      },
+      {
+        "from": "asset_revisions",
+        "to": "processing_jobs",
+        "label": "FK"
+      },
+      {
+        "from": "chunk_embeddings",
+        "to": "retrieval_chunks",
+        "label": "FK"
+      },
+      {
+        "from": "chunk_embeddings",
+        "to": "embedding_spaces",
+        "label": "FK"
+      },
+      {
+        "from": "content_decisions",
+        "to": "users",
+        "label": "FK"
+      },
+      {
+        "from": "content_decisions",
+        "to": "courses",
+        "label": "FK"
+      },
+      {
+        "from": "content_tags",
+        "to": "courses",
+        "label": "FK"
+      },
+      {
+        "from": "knowledge_entries",
+        "to": "courses",
+        "label": "FK"
+      },
+      {
+        "from": "knowledge_entries",
+        "to": "users",
+        "label": "FK"
+      },
+      {
+        "from": "knowledge_entries",
+        "to": "knowledge_entries",
+        "label": "FK"
+      },
+      {
+        "from": "knowledge_topics",
+        "to": "courses",
+        "label": "FK"
+      },
+      {
+        "from": "material_assets",
+        "to": "material_fragments",
+        "label": "FK"
+      },
+      {
+        "from": "material_assets",
+        "to": "material_sources",
+        "label": "FK"
+      },
+      {
+        "from": "material_fragments",
+        "to": "material_sources",
+        "label": "FK"
+      },
+      {
+        "from": "material_sources",
+        "to": "courses",
+        "label": "FK"
+      },
+      {
+        "from": "material_sources",
+        "to": "users",
+        "label": "FK"
+      },
+      {
+        "from": "material_sources",
+        "to": "material_sources",
+        "label": "FK"
+      },
+      {
+        "from": "model_calls",
+        "to": "users",
+        "label": "FK"
+      },
+      {
+        "from": "model_calls",
+        "to": "courses",
+        "label": "FK"
+      },
+      {
+        "from": "processing_jobs",
+        "to": "courses",
+        "label": "FK"
+      },
+      {
+        "from": "processing_jobs",
+        "to": "users",
+        "label": "FK"
+      },
+      {
+        "from": "retrieval_chunks",
+        "to": "courses",
+        "label": "FK"
+      },
+      {
+        "from": "retrieval_chunks",
+        "to": "knowledge_entries",
+        "label": "FK"
+      },
+      {
+        "from": "retrieval_chunks",
+        "to": "resources",
+        "label": "FK"
+      },
+      {
+        "from": "retrieval_chunks",
+        "to": "material_sources",
+        "label": "FK"
+      },
+      {
+        "from": "topic_links",
+        "to": "bank_question_versions",
+        "label": "FK"
+      },
+      {
+        "from": "topic_links",
+        "to": "knowledge_entries",
+        "label": "FK"
+      },
+      {
+        "from": "topic_links",
+        "to": "material_sources",
+        "label": "FK"
+      },
+      {
+        "from": "topic_links",
+        "to": "knowledge_topics",
+        "label": "FK"
+      }
+    ],
+    "physical_foreign_keys": 30,
+    "owned_tables": [
+      "material_sources",
+      "material_fragments",
+      "material_assets",
+      "asset_revisions",
+      "knowledge_entries",
+      "knowledge_topics",
+      "topic_links",
+      "content_tags",
+      "content_decisions",
+      "embedding_spaces",
+      "retrieval_chunks",
+      "chunk_embeddings",
+      "processing_jobs",
+      "model_calls",
+      "model_budget"
+    ]
+  },
+  {
+    "id": "F14-3",
+    "title": "题库、作答、评价与重评：物理外键",
+    "question": "FK 子列 → 父表；? 可空，! 非空；同一对表的多个 FK 合并连线，完整列名保留在表框。",
+    "evidence": "schema.json；对应 00001–00012 迁移（生成时校验 SHA256）",
+    "boundary": "顶部跨域参照只作父表定位，不重复展开其出向关系。实线均为真实数据库 FK；JSON/数组引用和应用校验约束单独见图册说明。",
+    "nodes": 17,
+    "edges": 35,
+    "width": 2700,
+    "height": 2940,
+    "relations": [
+      {
+        "from": "answer_drafts",
+        "to": "questions",
+        "label": "FK"
+      },
+      {
+        "from": "answer_drafts",
+        "to": "users",
+        "label": "FK"
+      },
+      {
+        "from": "assignments",
+        "to": "courses",
+        "label": "FK"
+      },
+      {
+        "from": "assignments",
+        "to": "users",
+        "label": "FK"
+      },
+      {
+        "from": "bank_question_assets",
+        "to": "material_assets",
+        "label": "FK"
+      },
+      {
+        "from": "bank_question_assets",
+        "to": "bank_question_versions",
+        "label": "FK"
+      },
+      {
+        "from": "bank_question_versions",
+        "to": "question_bank",
+        "label": "FK"
+      },
+      {
+        "from": "bank_question_versions",
+        "to": "users",
+        "label": "FK"
+      },
+      {
+        "from": "bank_question_versions",
+        "to": "knowledge_points",
+        "label": "FK"
+      },
+      {
+        "from": "grading_revisions",
+        "to": "processing_jobs",
+        "label": "FK"
+      },
+      {
+        "from": "grading_revisions",
+        "to": "regrade_batches",
+        "label": "FK"
+      },
+      {
+        "from": "grading_revisions",
+        "to": "users",
+        "label": "FK"
+      },
+      {
+        "from": "grading_revisions",
+        "to": "rubric_versions",
+        "label": "FK"
+      },
+      {
+        "from": "grading_revisions",
+        "to": "submissions",
+        "label": "FK"
+      },
+      {
+        "from": "question_bank",
+        "to": "courses",
+        "label": "FK"
+      },
+      {
+        "from": "question_bank",
+        "to": "users",
+        "label": "FK"
+      },
+      {
+        "from": "questions",
+        "to": "assignments",
+        "label": "FK"
+      },
+      {
+        "from": "questions",
+        "to": "bank_question_versions",
+        "label": "FK"
+      },
+      {
+        "from": "questions",
+        "to": "rubric_versions",
+        "label": "FK"
+      },
+      {
+        "from": "questions",
+        "to": "knowledge_points",
+        "label": "FK"
+      },
+      {
+        "from": "questions",
+        "to": "resources",
+        "label": "FK"
+      },
+      {
+        "from": "regrade_batches",
+        "to": "courses",
+        "label": "FK"
+      },
+      {
+        "from": "regrade_batches",
+        "to": "users",
+        "label": "FK"
+      },
+      {
+        "from": "regrade_batches",
+        "to": "questions",
+        "label": "FK"
+      },
+      {
+        "from": "regrade_batches",
+        "to": "rubric_versions",
+        "label": "FK"
+      },
+      {
+        "from": "regrade_items",
+        "to": "processing_jobs",
+        "label": "FK"
+      },
+      {
+        "from": "regrade_items",
+        "to": "regrade_batches",
+        "label": "FK"
+      },
+      {
+        "from": "regrade_items",
+        "to": "submissions",
+        "label": "FK"
+      },
+      {
+        "from": "rubric_versions",
+        "to": "bank_question_versions",
+        "label": "FK"
+      },
+      {
+        "from": "rubric_versions",
+        "to": "users",
+        "label": "FK"
+      },
+      {
+        "from": "rubric_versions",
+        "to": "questions",
+        "label": "FK"
+      },
+      {
+        "from": "submissions",
+        "to": "assignments",
+        "label": "FK"
+      },
+      {
+        "from": "submissions",
+        "to": "courses",
+        "label": "FK"
+      },
+      {
+        "from": "submissions",
+        "to": "questions",
+        "label": "FK"
+      },
+      {
+        "from": "submissions",
+        "to": "users",
+        "label": "FK"
+      }
+    ],
+    "physical_foreign_keys": 35,
+    "owned_tables": [
+      "question_bank",
+      "bank_question_versions",
+      "bank_question_assets",
+      "rubric_versions",
+      "assignments",
+      "questions",
+      "answer_drafts",
+      "submissions",
+      "grading_revisions",
+      "regrade_batches",
+      "regrade_items"
+    ]
   },
   {
     "id": "F15",
-    "title": "关键时序图：四条调用",
-    "question": "一次调用经过谁，失败怎么兜？",
-    "evidence": "backend/internal/learning/assessment.go；regrade.go；backend/internal/rag/jobs.go；docs/research/three-module-acceptance-2026-11-12.md",
-    "boundary": "生成任务中断不会自动重发未知模型调用。",
-    "rows": 4
+    "title": "正式提交：幂等、冻结与事务回执",
+    "question": "真实调用时序、事务边界与失败分支",
+    "evidence": "learning/assessment.go:submit；drafts.go；db/queries/learning.sql",
+    "boundary": "私人草稿 PUT 与正式提交 POST 分离；每次正式原文不可覆盖。主观题等待评阅，代码题不执行。",
+    "nodes": 4,
+    "edges": 12,
+    "width": 2700,
+    "height": 2573
+  },
+  {
+    "id": "F15-2",
+    "title": "资料解析：持久任务、质量关口与恢复",
+    "question": "真实调用时序、事务边界与失败分支",
+    "evidence": "learning/materials.go；rag/jobs.go:{CreateJob,Recover,Process,Parse}；tools/parser/parse.py",
+    "boundary": "任务 succeeded 与片段可靠是两回事；原文发布、直接索引和知识提炼分别发生。文件字节保存在共享卷，不放进 Redis。",
+    "nodes": 5,
+    "edges": 15,
+    "width": 2700,
+    "height": 2697
+  },
+  {
+    "id": "F15-3",
+    "title": "AI 评分草稿：预算、快照与教师发布",
+    "question": "真实调用时序、事务边界与失败分支",
+    "evidence": "materials.go:createRAGJob；rag/jobs.go:Draft；rag/models.go；learning/feedback.go:{grade,gradeState}",
+    "boundary": "AI 失败可人工评阅；规则形成不读待评答案，评分不临时检索追加扣分点。调用记录和引用不能替代教师语义审核。",
+    "nodes": 5,
+    "edges": 17,
+    "width": 2700,
+    "height": 2827
+  },
+  {
+    "id": "F15-4",
+    "title": "整组重评：冻结、逐份确认与原子发布",
+    "question": "真实调用时序、事务边界与失败分支",
+    "evidence": "learning/regrade.go:{createRegrade,regradeAI,saveRegradeItem,regradeState,publishRegrade}；db/queries/material_workflows.sql",
+    "boundary": "不改旧题目绑定、不覆盖原始作答、不自动跨作业重评。进入重评管理后普通评分不能绕过批次继续更正；此处没有主动推送。",
+    "nodes": 5,
+    "edges": 24,
+    "width": 2700,
+    "height": 3711
   },
   {
     "id": "F16",
-    "title": "接口关系图",
-    "question": "谁调用谁，契约止于哪个边界？",
-    "evidence": "web/src/shared/api.ts；backend/internal/learning/http.go；backend/internal/identity；backend/internal/rag；compose.yaml",
-    "boundary": "学生与教师数据权限由服务端对象归属校验决定。",
-    "rows": 4
+    "title": "接口关系与契约边界",
+    "question": "以 API 家族、授权链、输入快照和错误约束组织接口；字段细目继续由契约文档承担。",
+    "evidence": "web/src/shared/api.ts；identity/session.go；learning/{http,materials,question_bank,workflow_jobs}.go；rag/jobs.go；docs/contracts.md",
+    "boundary": "图示 API 家族与契约止点，不把每个处理器虚构成独立网络服务；HTTP 字段、响应结构和完整路由以源码与 contracts.md 为准。",
+    "nodes": 16,
+    "edges": 20,
+    "width": 2700,
+    "height": 1808,
+    "relations": [
+      {
+        "from": "client",
+        "to": "session",
+        "label": "会话请求"
+      },
+      {
+        "from": "session",
+        "to": "scope",
+        "label": "身份通过"
+      },
+      {
+        "from": "scope",
+        "to": "content",
+        "label": "按课程授权"
+      },
+      {
+        "from": "scope",
+        "to": "bank",
+        "label": "教师权限"
+      },
+      {
+        "from": "scope",
+        "to": "assignment",
+        "label": "成员 / 本人"
+      },
+      {
+        "from": "scope",
+        "to": "grading",
+        "label": "教师 / 本人读"
+      },
+      {
+        "from": "content",
+        "to": "pg",
+        "label": "受控读写"
+      },
+      {
+        "from": "bank",
+        "to": "pg",
+        "label": "版本与快照"
+      },
+      {
+        "from": "assignment",
+        "to": "pg",
+        "label": "事务提交"
+      },
+      {
+        "from": "grading",
+        "to": "pg",
+        "label": "确认 / 发布事务"
+      },
+      {
+        "from": "content",
+        "to": "outbox",
+        "label": "parse / extract 等任务"
+      },
+      {
+        "from": "bank",
+        "to": "outbox",
+        "label": "题目 / 标准候选任务"
+      },
+      {
+        "from": "grading",
+        "to": "outbox",
+        "label": "grade 任务"
+      },
+      {
+        "from": "outbox",
+        "to": "worker",
+        "label": "ID → 快照"
+      },
+      {
+        "from": "worker",
+        "to": "model",
+        "label": "受控模型调用"
+      },
+      {
+        "from": "content",
+        "to": "model",
+        "label": "同步检索与问答"
+      },
+      {
+        "from": "teacher",
+        "to": "scope",
+        "label": "角色与课程"
+      },
+      {
+        "from": "student",
+        "to": "assignment",
+        "label": "个人作答"
+      },
+      {
+        "from": "cas",
+        "to": "error",
+        "label": "过期 / 状态冲突"
+      },
+      {
+        "from": "idempotent",
+        "to": "error",
+        "label": "请求内容冲突"
+      }
+    ]
   },
   {
     "id": "F17",
     "title": "页面信息架构树",
-    "question": "有哪些页面，分几层？",
-    "evidence": "web/src/app/navigation.ts；web/src/live/routes.tsx；web/src/app/App.tsx",
-    "boundary": "这是当前路由层级；历史 replica 页面不计入活动导航。",
-    "rows": 4
+    "question": "以当前导航、路由和 URL 参数为准；同一页面内的工作区写在所属入口下。",
+    "evidence": "web/src/app/{App.tsx,navigation.ts}；web/src/live/{routes.tsx,context.tsx}；shared/session.tsx",
+    "boundary": "教师导航 15 个入口，学生导航 9 个入口；profile 为共同账号入口。历史 replica 未纳入当前功能树；页内工作区不冒充新 URL。",
+    "nodes": 18,
+    "edges": 17,
+    "width": 2700,
+    "height": 2652,
+    "relations": [
+      {
+        "from": "login",
+        "to": "teacher",
+        "label": "teacher 会话"
+      },
+      {
+        "from": "login",
+        "to": "student",
+        "label": "student 会话"
+      },
+      {
+        "from": "course",
+        "to": "teacher",
+        "label": "共享课程选择"
+      },
+      {
+        "from": "course",
+        "to": "student",
+        "label": "共享课程选择"
+      },
+      {
+        "from": "teacher",
+        "to": "tover",
+        "label": "分组"
+      },
+      {
+        "from": "teacher",
+        "to": "tcontent",
+        "label": "分组"
+      },
+      {
+        "from": "teacher",
+        "to": "tassessment",
+        "label": "分组"
+      },
+      {
+        "from": "teacher",
+        "to": "tother",
+        "label": "分组"
+      },
+      {
+        "from": "student",
+        "to": "sover",
+        "label": "分组"
+      },
+      {
+        "from": "student",
+        "to": "scontent",
+        "label": "分组"
+      },
+      {
+        "from": "student",
+        "to": "sassessment",
+        "label": "分组"
+      },
+      {
+        "from": "student",
+        "to": "sother",
+        "label": "分组"
+      },
+      {
+        "from": "tassessment",
+        "to": "taskdetail",
+        "label": "子路由"
+      },
+      {
+        "from": "tassessment",
+        "to": "gradedetail",
+        "label": "批阅子路由"
+      },
+      {
+        "from": "sassessment",
+        "to": "feedback",
+        "label": "正式反馈"
+      },
+      {
+        "from": "tcontent",
+        "to": "inside",
+        "label": "页内对象工作区"
+      },
+      {
+        "from": "tassessment",
+        "to": "inside",
+        "label": "题库页内工作区"
+      }
+    ]
   },
   {
     "id": "F18",
-    "title": "部署图",
-    "question": "服务跑在哪，哪里跨信任边界？",
-    "evidence": "deploy/compose.production.yaml；deploy/openresty-hajistudy.conf；compose.yaml；compose.rag.yaml",
-    "boundary": "本地图册描述工作树；不把新功能画入现网旧镜像。",
-    "rows": 4
+    "title": "部署与信任边界",
+    "question": "分开本地当前容器拓扑、可选模型出站与仓库记录的公网旧版配置。",
+    "evidence": "compose.yaml；compose.rag.yaml；backend/Dockerfile；web/nginx.conf；deploy/{compose.production.yaml,openresty-hajistudy.conf}；AGENTS.md",
+    "boundary": "本地容器端口已通过 compose ps 核查；公网部分只描述仓库已有部署记录与配置。图中未公开、未读取任何密钥或个人业务数据。",
+    "nodes": 16,
+    "edges": 18,
+    "width": 2700,
+    "height": 1808,
+    "relations": [
+      {
+        "from": "browser",
+        "to": "web",
+        "label": "本机回环 HTTP"
+      },
+      {
+        "from": "web",
+        "to": "api",
+        "label": "容器内 HTTP"
+      },
+      {
+        "from": "api",
+        "to": "pg",
+        "label": "内部 SQL"
+      },
+      {
+        "from": "api",
+        "to": "redis",
+        "label": "异步投递"
+      },
+      {
+        "from": "redis",
+        "to": "worker",
+        "label": "队列 ID"
+      },
+      {
+        "from": "worker",
+        "to": "pg",
+        "label": "领取 / 产物 / 预算"
+      },
+      {
+        "from": "worker",
+        "to": "files",
+        "label": "读写原件与图像"
+      },
+      {
+        "from": "api",
+        "to": "files",
+        "label": "受控上传下载"
+      },
+      {
+        "from": "api",
+        "to": "model",
+        "label": "本地启用后出站"
+      },
+      {
+        "from": "worker",
+        "to": "model",
+        "label": "本地启用后出站"
+      },
+      {
+        "from": "migrate",
+        "to": "pg",
+        "label": "结构版本"
+      },
+      {
+        "from": "secrets",
+        "to": "api",
+        "label": "环境注入"
+      },
+      {
+        "from": "secrets",
+        "to": "worker",
+        "label": "环境注入"
+      },
+      {
+        "from": "recovery",
+        "to": "redis",
+        "label": "补投"
+      },
+      {
+        "from": "recovery",
+        "to": "pg",
+        "label": "任务与计费恢复"
+      },
+      {
+        "from": "default",
+        "to": "worker",
+        "label": "overlay 选择镜像"
+      },
+      {
+        "from": "internet",
+        "to": "tls",
+        "label": "HTTPS"
+      },
+      {
+        "from": "tls",
+        "to": "production",
+        "label": "回环代理到旧版 Web"
+      }
+    ]
   },
   {
     "id": "F19",
-    "title": "UML 包图：实现组织",
-    "question": "代码里怎么组织？",
-    "evidence": "web/src/app；web/src/live；web/src/shared；backend/internal；backend/db；backend/cmd",
-    "boundary": "Go 项目用包与处理器组织；此图不是虚构的面向对象类层次。",
-    "rows": 4
+    "title": "UML 包图：代码组织与依赖",
+    "question": "用真实 Go 包、React 模块和生成关系说明实现组织，避免虚构类继承与微服务。",
+    "evidence": "web/src/{app,live,shared,replica}；backend/{cmd,internal,db,tools/parser}；sqlc.yaml；compose*.yaml",
+    "boundary": "箭头是 imports / uses / generates / runs 等依赖，HTTP 与子进程明确标注。Go 包与文件分工不被误画为面向对象类继承。",
+    "nodes": 16,
+    "edges": 20,
+    "width": 2700,
+    "height": 1797,
+    "relations": [
+      {
+        "from": "app",
+        "to": "live",
+        "label": "imports / routes"
+      },
+      {
+        "from": "app",
+        "to": "shared",
+        "label": "imports"
+      },
+      {
+        "from": "live",
+        "to": "shared",
+        "label": "imports"
+      },
+      {
+        "from": "shared",
+        "to": "server",
+        "label": "HTTP /api/v1"
+      },
+      {
+        "from": "api",
+        "to": "server",
+        "label": "initializes"
+      },
+      {
+        "from": "server",
+        "to": "identity",
+        "label": "registers"
+      },
+      {
+        "from": "server",
+        "to": "learning",
+        "label": "registers"
+      },
+      {
+        "from": "learning",
+        "to": "identity",
+        "label": "auth helpers"
+      },
+      {
+        "from": "learning",
+        "to": "rag",
+        "label": "uses Service"
+      },
+      {
+        "from": "worker",
+        "to": "rag",
+        "label": "Process / Recover"
+      },
+      {
+        "from": "identity",
+        "to": "store",
+        "label": "uses Queries"
+      },
+      {
+        "from": "learning",
+        "to": "store",
+        "label": "uses Queries"
+      },
+      {
+        "from": "rag",
+        "to": "store",
+        "label": "uses Queries"
+      },
+      {
+        "from": "db",
+        "to": "store",
+        "label": "sqlc generates"
+      },
+      {
+        "from": "store",
+        "to": "pg",
+        "label": "executes SQL"
+      },
+      {
+        "from": "rag",
+        "to": "parser",
+        "label": "spawns"
+      },
+      {
+        "from": "rag",
+        "to": "vendor",
+        "label": "HTTP calls"
+      },
+      {
+        "from": "compose",
+        "to": "api",
+        "label": "runs"
+      },
+      {
+        "from": "compose",
+        "to": "worker",
+        "label": "runs"
+      },
+      {
+        "from": "compose",
+        "to": "app",
+        "label": "builds Web"
+      }
+    ]
   }
 ]

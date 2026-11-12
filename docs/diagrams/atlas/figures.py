@@ -4,8 +4,8 @@ from drawing import Diagram
 
 def build(fid,title,question,nodes,edges,*,cols=4,rows=4,evidence,boundary,row_step=360):
     d=Diagram(fid,title,question,cols,rows,evidence,boundary,row_step=row_step)
-    for key,c,r,name,role,body in nodes:
-        d.node(key,c,r,name,body.split('|') if body else [],role)
+    for key,c,r,name,role,body,*layout in nodes:
+        d.node(key,c,r,name,body.split('|') if body else [],role,**(layout[0] if layout else {}))
     for edge in edges:
         d.edge(*edge)
     return d
@@ -34,7 +34,8 @@ def context():
 
 def conceptual():
     return build('F02','概念 ER 图','区分原件、学习资料、知识、题库、作业实例和评价修订，追踪它们的业务关联。',[
-        ('user',0,0,'用户','data','教师拥有课程；学生通过选课加入|学生作答、笔记、路径保持个人归属'),
+        ('teacher',0,0,'教师','data','创建并拥有课程|审定教学内容|人工评阅作答|下发干预任务',{'y':315,'w':240,'status':'概念角色'}),
+        ('student',0,0,'学生','data','通过选课加入课程|保存本人学习记录|完成正式作答|执行教师任务',{'x':370,'y':315,'w':240,'status':'概念角色'}),
         ('course',1,0,'课程与选课','data','课程承载教学内容、成员与评价|教师创建；课程下学生由成员关系关联'),
         ('point',2,0,'章节 / 节 / 知识点','data','目录树形成课程教学组织|知识点之间可维护前置依赖'),
         ('topic',3,0,'专题与标签','data','跨原件、知识、题目组织内容|专题不是章节；关联不复制正文'),
@@ -55,17 +56,18 @@ def conceptual():
         ('job',2,4,'处理任务与模型调用','data','记录任务输入快照、结果与失败|模型调用与预算独立计费留痕'),
         ('decision',3,4,'内容处理决定','data','保留比较、采纳和变更处理的依据|记录输入、输出与决定理由'),
     ],[
-        ('user','course','教师 1:N；学生 M:N'),('course','point','1:N'),('course','source','1:N'),('course','assignment','1:N'),
+        ('teacher','course','授课 1:N'),('student','course','选课 M:N',False,('b','l')),('course','point','1:N'),('course','source','1:N'),('course','assignment','1:N'),
         ('point','resource','0:N 关联'),('point','assignment','题目可选关联'),('topic','bank','M:N'),('topic','knowledge','M:N'),('topic','source','M:N'),
         ('source','resource','1:0..N'),('source','knowledge','M:N 证据'),('source','asset','1:N'),('asset','bank','M:N 题图'),
         ('bank','rubric','版本 1:0..N'),('bank','assignment','一个版本可多次选用'),('rubric','assignment','绑定确切标准'),
         ('resource','chunk','1:0..N'),('knowledge','chunk','1:0..N'),('source','chunk','1:0..N'),
-        ('assignment','submission','题目实例 1:N'),('user','submission','学生 1:N'),('submission','grade','1:N'),
+        ('assignment','submission','题目实例 1:N'),('student','submission','作答 1:N'),('submission','grade','1:N'),('teacher','grade','人工复核 1:N'),
         ('rubric','grade','采用确切标准'),('batch','submission','批次逐份冻结'),('batch','grade','发布追加新修订'),
-        ('resource','note','1:N'),('user','note','学生 1:N'),('point','path','路径条目关联'),
+        ('resource','note','1:N'),('student','note','本人 1:N'),('student','path','本人 1:N'),('point','path','路径条目关联'),
+        ('teacher','intervention','下发 1:N'),('student','intervention','执行 1:N'),
         ('assignment','intervention','可选补练'),('resource','intervention','可选补学'),('grade','path','正式结果作为证据'),
         ('job','grade','可选 AI 草稿来源'),('decision','knowledge','决定产生或关联版本'),
-    ],rows=5,row_step=390,evidence='backend/db/migrations/00001–00012；learning/materials.go；question_bank.go；regrade.go；path.go',boundary='概念关联包含业务证据引用，不把 JSON/数组中的引用冒充数据库外键；F14 分图给出 41 张表、103 条物理外键及非外键说明。')
+    ],rows=5,row_step=390,evidence='backend/db/migrations/00001–00012；learning/materials.go；question_bank.go；regrade.go；path.go',boundary='教师与学生拆为概念角色，不表示拆分实际用户表。业务证据引用不冒充物理 FK；F14 分图给出 41 张表、103 条真实外键及非外键说明。')
 
 
 def domains():

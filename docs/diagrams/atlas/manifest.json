@@ -67,16 +67,21 @@
     "title": "概念 ER 图",
     "question": "区分原件、学习资料、知识、题库、作业实例和评价修订，追踪它们的业务关联。",
     "evidence": "backend/db/migrations/00001–00012；learning/materials.go；question_bank.go；regrade.go；path.go",
-    "boundary": "概念关联包含业务证据引用，不把 JSON/数组中的引用冒充数据库外键；F14 分图给出 41 张表、103 条物理外键及非外键说明。",
-    "nodes": 20,
-    "edges": 33,
+    "boundary": "教师与学生拆为概念角色，不表示拆分实际用户表。业务证据引用不冒充物理 FK；F14 分图给出 41 张表、103 条真实外键及非外键说明。",
+    "nodes": 21,
+    "edges": 38,
     "width": 2700,
-    "height": 2277,
+    "height": 2299,
     "relations": [
       {
-        "from": "user",
+        "from": "teacher",
         "to": "course",
-        "label": "教师 1:N；学生 M:N"
+        "label": "授课 1:N"
+      },
+      {
+        "from": "student",
+        "to": "course",
+        "label": "选课 M:N"
       },
       {
         "from": "course",
@@ -174,14 +179,19 @@
         "label": "题目实例 1:N"
       },
       {
-        "from": "user",
+        "from": "student",
         "to": "submission",
-        "label": "学生 1:N"
+        "label": "作答 1:N"
       },
       {
         "from": "submission",
         "to": "grade",
         "label": "1:N"
+      },
+      {
+        "from": "teacher",
+        "to": "grade",
+        "label": "人工复核 1:N"
       },
       {
         "from": "rubric",
@@ -204,14 +214,29 @@
         "label": "1:N"
       },
       {
-        "from": "user",
+        "from": "student",
         "to": "note",
-        "label": "学生 1:N"
+        "label": "本人 1:N"
+      },
+      {
+        "from": "student",
+        "to": "path",
+        "label": "本人 1:N"
       },
       {
         "from": "point",
         "to": "path",
         "label": "路径条目关联"
+      },
+      {
+        "from": "teacher",
+        "to": "intervention",
+        "label": "下发 1:N"
+      },
+      {
+        "from": "student",
+        "to": "intervention",
+        "label": "执行 1:N"
       },
       {
         "from": "assignment",

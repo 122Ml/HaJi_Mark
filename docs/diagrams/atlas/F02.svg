@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1540" height="1260" viewBox="0 0 1540 1260" role="img" aria-labelledby="title desc">
+<title id="title">F02 概念 ER 图</title><desc id="desc">业务对象之间是什么关系？</desc>
+<rect width="1540" height="1260" fill="#fbfcfb"/><rect width="12" height="1260" fill="#17816b"/>
+<text x="60" y="68" text-anchor="start" font-size="30" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">F02　概念 ER 图</text>
+<text x="60" y="112" text-anchor="start" font-size="21" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">业务对象之间是什么关系？</text>
+<text x="60" y="151" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#17816b">本地代码状态 · 2026-11-12</text>
+<text x="60" y="205" text-anchor="start" font-size="22" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">课程与成员</text>
+<rect x="300" y="227" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="495.0" y="263.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">课程</text>
+<rect x="950" y="227" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="1145.0" y="263.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">选课关系</text>
+<line x1="690" y1="256" x2="950" y2="256" stroke="#829ba1" stroke-width="2"/>
+<text x="820.0" y="246.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
+<rect x="300" y="301" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="495.0" y="337.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">课程</text>
+<rect x="950" y="301" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="1145.0" y="337.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">知识点</text>
+<line x1="690" y1="330" x2="950" y2="330" stroke="#829ba1" stroke-width="2"/>
+<text x="820.0" y="320.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
+<rect x="300" y="375" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="495.0" y="411.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">课程</text>
+<rect x="950" y="375" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="1145.0" y="411.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">作业</text>
+<line x1="690" y1="404" x2="950" y2="404" stroke="#829ba1" stroke-width="2"/>
+<text x="820.0" y="394.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
+<line x1="60" y1="456" x2="1480" y2="456" stroke="#e4e9e8"/>
+<text x="60" y="475" text-anchor="start" font-size="22" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">资料与知识</text>
+<rect x="300" y="497" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="495.0" y="533.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">原件</text>
+<rect x="950" y="497" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="1145.0" y="533.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">片段</text>
+<line x1="690" y1="526" x2="950" y2="526" stroke="#829ba1" stroke-width="2"/>
+<text x="820.0" y="516.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
+<rect x="300" y="571" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="495.0" y="607.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">原件</text>
+<rect x="950" y="571" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="1145.0" y="607.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">学习资料</text>
+<line x1="690" y1="600" x2="950" y2="600" stroke="#829ba1" stroke-width="2"/>
+<text x="820.0" y="590.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">0:N</text>
+<rect x="300" y="645" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="495.0" y="681.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">课程</text>
+<rect x="950" y="645" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="1145.0" y="681.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">知识条目</text>
+<line x1="690" y1="674" x2="950" y2="674" stroke="#829ba1" stroke-width="2"/>
+<text x="820.0" y="664.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
+<line x1="60" y1="726" x2="1480" y2="726" stroke="#e4e9e8"/>
+<text x="60" y="745" text-anchor="start" font-size="22" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">题目与评价</text>
+<rect x="300" y="767" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="495.0" y="803.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">题库条目</text>
+<rect x="950" y="767" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="1145.0" y="803.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">题目版本</text>
+<line x1="690" y1="796" x2="950" y2="796" stroke="#829ba1" stroke-width="2"/>
+<text x="820.0" y="786.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
+<rect x="300" y="841" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="495.0" y="877.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">作业</text>
+<rect x="950" y="841" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="1145.0" y="877.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">作业题</text>
+<line x1="690" y1="870" x2="950" y2="870" stroke="#829ba1" stroke-width="2"/>
+<text x="820.0" y="860.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
+<rect x="300" y="915" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="495.0" y="951.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">作业题</text>
+<rect x="950" y="915" width="390" height="58" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="1145.0" y="951.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">正式提交</text>
+<line x1="690" y1="944" x2="950" y2="944" stroke="#829ba1" stroke-width="2"/>
+<text x="820.0" y="934.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">1:N</text>
+<text x="60" y="1035" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">补充：题库版本可供作业题选用；标准可归属旧作业题或新题库版本。</text>
+<text x="60" y="1165" text-anchor="start" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">证据：backend/db/migrations/00001–00012；backend/db/queries</text>
+<text x="60" y="1202" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#9b6330">边界：这里是概念关系；具体外键和可空归属见 F14。</text>
+</svg>

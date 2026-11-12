@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1540" height="910" viewBox="0 0 1540 910" role="img" aria-labelledby="title desc">
+<title id="title">F01 系统上下文图</title><desc id="desc">边界在哪，外面接了谁？ 图内的本地 RAG 能力不代表已部署公网。</desc>
+<rect width="1540" height="910" fill="#fbfcfb"/>
+<rect x="0" y="0" width="12" height="910" fill="#17816b"/>
+<text x="60" y="68" font-size="30" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">F01　系统上下文图</text>
+<text x="60" y="112" font-size="21" font-family="Microsoft YaHei" fill="#52636b">边界在哪，外面接了谁？</text>
+<text x="60" y="151" font-size="17" font-family="Microsoft YaHei" fill="#17816b">本地代码状态 · 2026-11-12</text>
+<text x="60" y="245" font-size="22" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">教学用户</text>
+<line x1="60" y1="301" x2="1480" y2="301" stroke="#e4e9e8"/>
+<rect x="230" y="192" width="285" height="86" rx="5" fill="#f1f1f1" stroke="#747d82" stroke-width="2"/>
+<text x="372.5" y="236.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">教师 / 学生</text>
+<rect x="567" y="192" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="709.5" y="236.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">HaJi Mark 系统</text>
+<path d="M 525 235 H 555 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
+<text x="60" y="387" font-size="22" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">可选外部服务</text>
+<line x1="60" y1="443" x2="1480" y2="443" stroke="#e4e9e8"/>
+<rect x="230" y="334" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="372.5" y="378.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">HaJi Mark 本地 RAG</text>
+<rect x="567" y="334" width="285" height="86" rx="5" fill="#f1f1f1" stroke="#747d82" stroke-width="2"/>
+<text x="709.5" y="378.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">百炼北京模型接口</text>
+<path d="M 525 377 H 555 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
+<text x="60" y="529" font-size="22" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">当前公网边界</text>
+<line x1="60" y1="585" x2="1480" y2="585" stroke="#e4e9e8"/>
+<rect x="230" y="476" width="285" height="86" rx="5" fill="#f1f1f1" stroke="#747d82" stroke-width="2"/>
+<text x="372.5" y="520.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">浏览器 / HTTPS</text>
+<rect x="567" y="476" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="709.5" y="520.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">HaJi Mark 公网旧版</text>
+<path d="M 525 519 H 555 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
+<text x="60" y="671" font-size="22" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">公网配置</text>
+<line x1="60" y1="727" x2="1480" y2="727" stroke="#e4e9e8"/>
+<rect x="230" y="618" width="285" height="86" rx="5" fill="#f1f1f1" stroke="#747d82" stroke-width="2"/>
+<text x="372.5" y="662.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">AI_ENABLED=false</text>
+<text x="60" y="788" font-size="17" font-family="Microsoft YaHei" fill="#52636b">证据：compose.yaml；compose.rag.yaml；deploy/compose.production.yaml；web/src/live/routes.tsx</text>
+<text x="60" y="838" font-size="18" font-family="Microsoft YaHei" fill="#9b6330">边界：图内的本地 RAG 能力不代表已部署公网。</text>
+<text x="60" y="884" font-size="16" font-family="Microsoft YaHei" fill="#738087">实色框：当前代码或人工步骤　　虚线灰框：尚未实现　　箭头：本行的依赖或交接</text></svg>

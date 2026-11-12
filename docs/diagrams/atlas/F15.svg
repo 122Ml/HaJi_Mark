@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1540" height="1400" viewBox="0 0 1540 1400" role="img" aria-labelledby="title desc">
+<title id="title">F15 关键时序图：四条调用</title><desc id="desc">一次调用经过谁，失败怎么兜？</desc>
+<rect width="1540" height="1400" fill="#fbfcfb"/><rect width="12" height="1400" fill="#17816b"/>
+<text x="60" y="68" text-anchor="start" font-size="30" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">F15　关键时序图：四条调用</text>
+<text x="60" y="112" text-anchor="start" font-size="21" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">一次调用经过谁，失败怎么兜？</text>
+<text x="60" y="151" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#17816b">本地代码状态 · 2026-11-12</text>
+<text x="60" y="232" text-anchor="start" font-size="20" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">正式提交</text>
+<rect x="160" y="210" width="220" height="52" rx="5" fill="#fff0df" stroke="#bd7130" stroke-width="2"/>
+<text x="270.0" y="243.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">学生</text>
+<line x1="270" y1="262" x2="270" y2="428" stroke="#829ba1" stroke-width="2" stroke-dasharray="7 5"/>
+<rect x="510" y="210" width="220" height="52" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="620.0" y="243.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">API</text>
+<line x1="620" y1="262" x2="620" y2="428" stroke="#829ba1" stroke-width="2" stroke-dasharray="7 5"/>
+<rect x="860" y="210" width="220" height="52" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="970.0" y="243.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">PG事务</text>
+<line x1="970" y1="262" x2="970" y2="428" stroke="#829ba1" stroke-width="2" stroke-dasharray="7 5"/>
+<line x1="278" y1="300" x2="612" y2="300" stroke="#829ba1" stroke-width="2"/>
+<text x="445.0" y="290.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">提交原文</text>
+<path d="M603 294 L612 300 L603 306" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="628" y1="343" x2="962" y2="343" stroke="#829ba1" stroke-width="2"/>
+<text x="795.0" y="333.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">鉴权/截止/幂等后写入</text>
+<path d="M953 337 L962 343 L953 349" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="962" y1="394" x2="628" y2="394" stroke="#829ba1" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="795.0" y="384.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">回执或拒绝；保存attempt+哈希</text>
+<path d="M637 388 L628 394 L637 400" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="612" y1="425" x2="278" y2="425" stroke="#829ba1" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="445.0" y="415.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">状态 / 回执</text>
+<path d="M287 419 L278 425 L287 431" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="55" y1="450" x2="1480" y2="450" stroke="#e4e9e8"/>
+<text x="60" y="482" text-anchor="start" font-size="20" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">资料解析</text>
+<rect x="160" y="460" width="220" height="52" rx="5" fill="#fff0df" stroke="#bd7130" stroke-width="2"/>
+<text x="270.0" y="493.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">教师</text>
+<line x1="270" y1="512" x2="270" y2="678" stroke="#829ba1" stroke-width="2" stroke-dasharray="7 5"/>
+<rect x="510" y="460" width="220" height="52" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="620.0" y="493.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">API</text>
+<line x1="620" y1="512" x2="620" y2="678" stroke="#829ba1" stroke-width="2" stroke-dasharray="7 5"/>
+<rect x="860" y="460" width="220" height="52" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="970.0" y="493.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">PG+Redis</text>
+<line x1="970" y1="512" x2="970" y2="678" stroke="#829ba1" stroke-width="2" stroke-dasharray="7 5"/>
+<rect x="1210" y="460" width="220" height="52" rx="5" fill="#fff0df" stroke="#bd7130" stroke-width="2"/>
+<text x="1320.0" y="493.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">worker</text>
+<line x1="1320" y1="512" x2="1320" y2="678" stroke="#829ba1" stroke-width="2" stroke-dasharray="7 5"/>
+<line x1="278" y1="550" x2="612" y2="550" stroke="#829ba1" stroke-width="2"/>
+<text x="445.0" y="540.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">发起导入</text>
+<path d="M603 544 L612 550 L603 556" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="628" y1="593" x2="962" y2="593" stroke="#829ba1" stroke-width="2"/>
+<text x="795.0" y="583.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">保存任务</text>
+<path d="M953 587 L962 593 L953 599" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="978" y1="636" x2="1312" y2="636" stroke="#829ba1" stroke-width="2"/>
+<text x="1145.0" y="626.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">领取并解析</text>
+<path d="M1303 630 L1312 636 L1303 642" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="1312" y1="644" x2="628" y2="644" stroke="#829ba1" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="970.0" y="634.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">片段或失败留痕</text>
+<path d="M637 638 L628 644 L637 650" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="612" y1="675" x2="278" y2="675" stroke="#829ba1" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="445.0" y="665.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">状态 / 回执</text>
+<path d="M287 669 L278 675 L287 681" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="55" y1="700" x2="1480" y2="700" stroke="#e4e9e8"/>
+<text x="60" y="732" text-anchor="start" font-size="20" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">AI评分草稿</text>
+<rect x="160" y="710" width="220" height="52" rx="5" fill="#fff0df" stroke="#bd7130" stroke-width="2"/>
+<text x="270.0" y="743.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">教师</text>
+<line x1="270" y1="762" x2="270" y2="928" stroke="#829ba1" stroke-width="2" stroke-dasharray="7 5"/>
+<rect x="510" y="710" width="220" height="52" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="620.0" y="743.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">API</text>
+<line x1="620" y1="762" x2="620" y2="928" stroke="#829ba1" stroke-width="2" stroke-dasharray="7 5"/>
+<rect x="860" y="710" width="220" height="52" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="970.0" y="743.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">PG+Redis</text>
+<line x1="970" y1="762" x2="970" y2="928" stroke="#829ba1" stroke-width="2" stroke-dasharray="7 5"/>
+<rect x="1210" y="710" width="220" height="52" rx="5" fill="#fff0df" stroke="#bd7130" stroke-width="2"/>
+<text x="1320.0" y="743.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">worker/模型</text>
+<line x1="1320" y1="762" x2="1320" y2="928" stroke="#829ba1" stroke-width="2" stroke-dasharray="7 5"/>
+<line x1="278" y1="800" x2="612" y2="800" stroke="#829ba1" stroke-width="2"/>
+<text x="445.0" y="790.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">选冻结标准</text>
+<path d="M603 794 L612 800 L603 806" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="628" y1="843" x2="962" y2="843" stroke="#829ba1" stroke-width="2"/>
+<text x="795.0" y="833.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">预算+任务</text>
+<path d="M953 837 L962 843 L953 849" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="978" y1="886" x2="1312" y2="886" stroke="#829ba1" stroke-width="2"/>
+<text x="1145.0" y="876.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">执行生成</text>
+<path d="M1303 880 L1312 886 L1303 892" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="1312" y1="894" x2="628" y2="894" stroke="#829ba1" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="970.0" y="884.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">草稿或失败；显式重试</text>
+<path d="M637 888 L628 894 L637 900" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="612" y1="925" x2="278" y2="925" stroke="#829ba1" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="445.0" y="915.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">状态 / 回执</text>
+<path d="M287 919 L278 925 L287 931" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="55" y1="950" x2="1480" y2="950" stroke="#e4e9e8"/>
+<text x="60" y="982" text-anchor="start" font-size="20" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">整组重评</text>
+<rect x="160" y="960" width="220" height="52" rx="5" fill="#fff0df" stroke="#bd7130" stroke-width="2"/>
+<text x="270.0" y="993.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">教师</text>
+<line x1="270" y1="1012" x2="270" y2="1178" stroke="#829ba1" stroke-width="2" stroke-dasharray="7 5"/>
+<rect x="510" y="960" width="220" height="52" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="620.0" y="993.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">API</text>
+<line x1="620" y1="1012" x2="620" y2="1178" stroke="#829ba1" stroke-width="2" stroke-dasharray="7 5"/>
+<rect x="860" y="960" width="220" height="52" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="970.0" y="993.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">PG事务</text>
+<line x1="970" y1="1012" x2="970" y2="1178" stroke="#829ba1" stroke-width="2" stroke-dasharray="7 5"/>
+<line x1="278" y1="1050" x2="612" y2="1050" stroke="#829ba1" stroke-width="2"/>
+<text x="445.0" y="1040.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">确认逐份</text>
+<path d="M603 1044 L612 1050 L603 1056" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="628" y1="1093" x2="962" y2="1093" stroke="#829ba1" stroke-width="2"/>
+<text x="795.0" y="1083.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">校验基线并整组发布</text>
+<path d="M953 1087 L962 1093 L953 1099" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="962" y1="1144" x2="628" y2="1144" stroke="#829ba1" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="795.0" y="1134.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">统一结果或整组回滚</text>
+<path d="M637 1138 L628 1144 L637 1150" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="612" y1="1175" x2="278" y2="1175" stroke="#829ba1" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="445.0" y="1165.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">状态 / 回执</text>
+<path d="M287 1169 L278 1175 L287 1181" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="55" y1="1200" x2="1480" y2="1200" stroke="#e4e9e8"/>
+<text x="60" y="1305" text-anchor="start" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">证据：backend/internal/learning/assessment.go；regrade.go；backend/internal/rag/jobs.go；docs/research/three-module-acceptance-2026-11-12.md</text>
+<text x="60" y="1342" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#9b6330">边界：生成任务中断不会自动重发未知模型调用。</text>
+</svg>

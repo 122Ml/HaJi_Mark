@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1540" height="910" viewBox="0 0 1540 910" role="img" aria-labelledby="title desc">
+<title id="title">F05 总体流程图 v2</title><desc id="desc">业务阶段怎么串，交接什么？ 学情是已发布结果的证据汇总，不是能力预测。</desc>
+<rect width="1540" height="910" fill="#fbfcfb"/>
+<rect x="0" y="0" width="12" height="910" fill="#17816b"/>
+<text x="60" y="68" font-size="30" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">F05　总体流程图 v2</text>
+<text x="60" y="112" font-size="21" font-family="Microsoft YaHei" fill="#52636b">业务阶段怎么串，交接什么？</text>
+<text x="60" y="151" font-size="17" font-family="Microsoft YaHei" fill="#17816b">本地代码状态 · 2026-11-12</text>
+<text x="60" y="245" font-size="22" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">准备</text>
+<line x1="60" y1="301" x2="1480" y2="301" stroke="#e4e9e8"/>
+<rect x="230" y="192" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="372.5" y="236.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">教师建课 / 目录</text>
+<rect x="567" y="192" width="285" height="86" rx="5" fill="#fff0df" stroke="#bd7130" stroke-width="2"/>
+<text x="709.5" y="236.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">发布学习资料</text>
+<path d="M 525 235 H 555 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
+<rect x="904" y="192" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="1046.5" y="236.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">学生选课学习</text>
+<path d="M 862 235 H 892 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
+<text x="60" y="387" font-size="22" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">评价</text>
+<line x1="60" y1="443" x2="1480" y2="443" stroke="#e4e9e8"/>
+<rect x="230" y="334" width="285" height="86" rx="5" fill="#fff0df" stroke="#bd7130" stroke-width="2"/>
+<text x="372.5" y="378.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">题库题目 / 标准确认</text>
+<rect x="567" y="334" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="709.5" y="378.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">发布作业</text>
+<path d="M 525 377 H 555 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
+<rect x="904" y="334" width="285" height="86" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="1046.5" y="378.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">提交原文与 attempt</text>
+<path d="M 862 377 H 892 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
+<text x="60" y="529" font-size="22" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">反馈</text>
+<line x1="60" y1="585" x2="1480" y2="585" stroke="#e4e9e8"/>
+<rect x="230" y="476" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="372.5" y="520.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">规则结果 / 评分草稿</text>
+<rect x="567" y="476" width="285" height="86" rx="5" fill="#fff0df" stroke="#bd7130" stroke-width="2"/>
+<text x="709.5" y="520.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">教师确认并发布</text>
+<path d="M 525 519 H 555 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
+<rect x="904" y="476" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="1046.5" y="520.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">正式反馈 / 学情</text>
+<path d="M 862 519 H 892 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
+<text x="60" y="671" font-size="22" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">跟进</text>
+<line x1="60" y1="727" x2="1480" y2="727" stroke="#e4e9e8"/>
+<rect x="230" y="618" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="372.5" y="662.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">规则学习路径</text>
+<rect x="567" y="618" width="285" height="86" rx="5" fill="#fff0df" stroke="#bd7130" stroke-width="2"/>
+<text x="709.5" y="662.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">教师下发干预</text>
+<path d="M 525 661 H 555 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
+<rect x="904" y="618" width="285" height="86" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="1046.5" y="662.0" text-anchor="middle" font-size="19" font-family="Microsoft YaHei" fill="#202b32">新学习 / 新提交 / 复查</text>
+<path d="M 862 661 H 892 m -8 -7 l 8 7 -8 7" fill="none" stroke="#a7b9bf" stroke-width="2"/>
+<text x="60" y="788" font-size="17" font-family="Microsoft YaHei" fill="#52636b">证据：docs/architecture.md；backend/internal/learning/assessment.go；feedback.go；path.go</text>
+<text x="60" y="838" font-size="18" font-family="Microsoft YaHei" fill="#9b6330">边界：学情是已发布结果的证据汇总，不是能力预测。</text>
+<text x="60" y="884" font-size="16" font-family="Microsoft YaHei" fill="#738087">实色框：当前代码或人工步骤　　虚线灰框：尚未实现　　箭头：本行的依赖或交接</text></svg>

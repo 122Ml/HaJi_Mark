@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1540" height="1000" viewBox="0 0 1540 1000" role="img" aria-labelledby="title desc">
+<title id="title">F13 数据流图 DFD</title><desc id="desc">数据在哪里产生、存放、消费？</desc>
+<rect width="1540" height="1000" fill="#fbfcfb"/><rect width="12" height="1000" fill="#17816b"/>
+<text x="60" y="68" text-anchor="start" font-size="30" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">F13　数据流图 DFD</text>
+<text x="60" y="112" text-anchor="start" font-size="21" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">数据在哪里产生、存放、消费？</text>
+<text x="60" y="151" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#17816b">本地代码状态 · 2026-11-12</text>
+<text x="60" y="215" text-anchor="start" font-size="20" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">输入 / 事件</text>
+<text x="550" y="215" text-anchor="start" font-size="20" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">处理</text>
+<text x="1080" y="215" text-anchor="start" font-size="20" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">数据存储与消费</text>
+<rect x="55" y="255" width="320" height="70" rx="5" fill="#fff0df" stroke="#bd7130" stroke-width="2"/>
+<text x="215.0" y="297.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">教师：文件 / URL</text>
+<rect x="505" y="255" width="390" height="70" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="700.0" y="297.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">导入、解析、确认</text>
+<rect x="1020" y="255" width="455" height="70" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="1247.5" y="297.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">PG元数据 + 文件卷</text>
+<line x1="375" y1="290" x2="505" y2="290" stroke="#829ba1" stroke-width="2"/>
+<path d="M496 284 L505 290 L496 296" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="895" y1="290" x2="1020" y2="290" stroke="#829ba1" stroke-width="2"/>
+<path d="M1011 284 L1020 290 L1011 296" fill="none" stroke="#829ba1" stroke-width="2"/>
+<text x="1035" y="363" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">消费 → 发布资料 / 知识 / 检索</text>
+<line x1="55" y1="387" x2="1475" y2="387" stroke="#e4e9e8"/>
+<rect x="55" y="418" width="320" height="70" rx="5" fill="#fff0df" stroke="#bd7130" stroke-width="2"/>
+<text x="215.0" y="460.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">教师：AI任务</text>
+<rect x="505" y="418" width="390" height="70" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="700.0" y="460.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">API排队 → worker</text>
+<rect x="1020" y="418" width="455" height="70" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="1247.5" y="460.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">PG任务、预算 + Redis队列</text>
+<line x1="375" y1="453" x2="505" y2="453" stroke="#829ba1" stroke-width="2"/>
+<path d="M496 447 L505 453 L496 459" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="895" y1="453" x2="1020" y2="453" stroke="#829ba1" stroke-width="2"/>
+<path d="M1011 447 L1020 453 L1011 459" fill="none" stroke="#829ba1" stroke-width="2"/>
+<text x="1035" y="526" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">消费 → 候选供教师审核</text>
+<line x1="55" y1="550" x2="1475" y2="550" stroke="#e4e9e8"/>
+<rect x="55" y="581" width="320" height="70" rx="5" fill="#fff0df" stroke="#bd7130" stroke-width="2"/>
+<text x="215.0" y="623.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">学生：学习 / 提交</text>
+<rect x="505" y="581" width="390" height="70" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="700.0" y="623.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">课程归属、截止与幂等</text>
+<rect x="1020" y="581" width="455" height="70" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="1247.5" y="623.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">PG学习事件、草稿、attempt</text>
+<line x1="375" y1="616" x2="505" y2="616" stroke="#829ba1" stroke-width="2"/>
+<path d="M496 610 L505 616 L496 622" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="895" y1="616" x2="1020" y2="616" stroke="#829ba1" stroke-width="2"/>
+<path d="M1011 610 L1020 616 L1011 622" fill="none" stroke="#829ba1" stroke-width="2"/>
+<text x="1035" y="689" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">消费 → 评分与个人历史</text>
+<line x1="55" y1="713" x2="1475" y2="713" stroke="#e4e9e8"/>
+<rect x="55" y="744" width="320" height="70" rx="5" fill="#fff0df" stroke="#bd7130" stroke-width="2"/>
+<text x="215.0" y="786.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">教师：确认 / 发布</text>
+<rect x="505" y="744" width="390" height="70" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="700.0" y="786.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">标准与评分状态转换</text>
+<rect x="1020" y="744" width="455" height="70" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="1247.5" y="786.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">PG评分修订、标准版本</text>
+<line x1="375" y1="779" x2="505" y2="779" stroke="#829ba1" stroke-width="2"/>
+<path d="M496 773 L505 779 L496 785" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="895" y1="779" x2="1020" y2="779" stroke="#829ba1" stroke-width="2"/>
+<path d="M1011 773 L1020 779 L1011 785" fill="none" stroke="#829ba1" stroke-width="2"/>
+<text x="1035" y="852" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">消费 → 反馈 / 学情 / 路径</text>
+<line x1="55" y1="876" x2="1475" y2="876" stroke="#e4e9e8"/>
+<text x="60" y="905" text-anchor="start" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">证据：compose.yaml；compose.rag.yaml；backend/db/migrations/00003_learning_business.sql；00010_materials_knowledge_rag.sql</text>
+<text x="60" y="942" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#9b6330">边界：Redis 承担队列；持久业务事实和任务记录在 PostgreSQL。</text>
+</svg>

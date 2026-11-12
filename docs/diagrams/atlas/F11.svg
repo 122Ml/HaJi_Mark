@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1540" height="1180" viewBox="0 0 1540 1180" role="img" aria-labelledby="title desc">
+<title id="title">F11 六类生命周期</title><desc id="desc">这些对象什么时候算完成？</desc>
+<rect width="1540" height="1180" fill="#fbfcfb"/><rect width="12" height="1180" fill="#17816b"/>
+<text x="60" y="68" text-anchor="start" font-size="30" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">F11　六类生命周期</text>
+<text x="60" y="112" text-anchor="start" font-size="21" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">这些对象什么时候算完成？</text>
+<text x="60" y="151" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#17816b">本地代码状态 · 2026-11-12</text>
+<text x="60" y="257" text-anchor="start" font-size="20" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">课程</text>
+<rect x="250" y="210" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="350.0" y="253.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">draft</text>
+<rect x="580" y="210" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="680.0" y="253.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">published</text>
+<line x1="450" y1="246" x2="580" y2="246" stroke="#829ba1" stroke-width="2"/>
+<text x="515.0" y="236.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">教师发布</text>
+<path d="M571 240 L580 246 L571 252" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="60" y1="318" x2="1480" y2="318" stroke="#e4e9e8"/>
+<text x="60" y="394" text-anchor="start" font-size="20" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">学习资料</text>
+<rect x="250" y="347" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="350.0" y="390.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">draft</text>
+<rect x="580" y="347" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="680.0" y="390.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">published</text>
+<line x1="450" y1="383" x2="580" y2="383" stroke="#829ba1" stroke-width="2"/>
+<text x="515.0" y="373.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">教师审核发布</text>
+<path d="M571 377 L580 383 L571 389" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="60" y1="455" x2="1480" y2="455" stroke="#e4e9e8"/>
+<text x="60" y="531" text-anchor="start" font-size="20" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">作业</text>
+<rect x="250" y="484" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="350.0" y="527.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">draft</text>
+<rect x="580" y="484" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="680.0" y="527.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">published</text>
+<line x1="450" y1="520" x2="580" y2="520" stroke="#829ba1" stroke-width="2"/>
+<text x="515.0" y="510.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">教师发布</text>
+<path d="M571 514 L580 520 L571 526" fill="none" stroke="#829ba1" stroke-width="2"/>
+<rect x="910" y="484" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="1010.0" y="527.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">closed</text>
+<line x1="780" y1="520" x2="910" y2="520" stroke="#829ba1" stroke-width="2"/>
+<text x="845.0" y="510.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">教师关闭</text>
+<path d="M901 514 L910 520 L901 526" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="60" y1="592" x2="1480" y2="592" stroke="#e4e9e8"/>
+<text x="60" y="668" text-anchor="start" font-size="20" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">题目 / 解答 / 标准</text>
+<rect x="250" y="621" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="350.0" y="664.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">draft</text>
+<rect x="580" y="621" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="680.0" y="664.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">confirmed</text>
+<line x1="450" y1="657" x2="580" y2="657" stroke="#829ba1" stroke-width="2"/>
+<text x="515.0" y="647.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">分别人工确认</text>
+<path d="M571 651 L580 657 L571 663" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="60" y1="729" x2="1480" y2="729" stroke="#e4e9e8"/>
+<text x="60" y="805" text-anchor="start" font-size="20" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">评分修订</text>
+<rect x="250" y="758" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="350.0" y="801.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">draft</text>
+<rect x="580" y="758" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="680.0" y="801.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">confirmed</text>
+<line x1="450" y1="794" x2="580" y2="794" stroke="#829ba1" stroke-width="2"/>
+<text x="515.0" y="784.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">教师确认</text>
+<path d="M571 788 L580 794 L571 800" fill="none" stroke="#829ba1" stroke-width="2"/>
+<rect x="910" y="758" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="1010.0" y="801.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">released</text>
+<line x1="780" y1="794" x2="910" y2="794" stroke="#829ba1" stroke-width="2"/>
+<text x="845.0" y="784.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">教师发布</text>
+<path d="M901 788 L910 794 L901 800" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="60" y1="866" x2="1480" y2="866" stroke="#e4e9e8"/>
+<text x="60" y="942" text-anchor="start" font-size="20" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">干预</text>
+<rect x="250" y="895" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="350.0" y="938.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">draft</text>
+<rect x="580" y="895" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="680.0" y="938.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">assigned</text>
+<line x1="450" y1="931" x2="580" y2="931" stroke="#829ba1" stroke-width="2"/>
+<text x="515.0" y="921.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">教师下发</text>
+<path d="M571 925 L580 931 L571 937" fill="none" stroke="#829ba1" stroke-width="2"/>
+<rect x="910" y="895" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="1010.0" y="938.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">submitted</text>
+<line x1="780" y1="931" x2="910" y2="931" stroke="#829ba1" stroke-width="2"/>
+<text x="845.0" y="921.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">学生提交</text>
+<path d="M901 925 L910 931 L901 937" fill="none" stroke="#829ba1" stroke-width="2"/>
+<rect x="1240" y="895" width="200" height="72" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="1340.0" y="938.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">reviewed</text>
+<line x1="1110" y1="931" x2="1240" y2="931" stroke="#829ba1" stroke-width="2"/>
+<text x="1175.0" y="921.0" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">教师复查</text>
+<path d="M1231 925 L1240 931 L1231 937" fill="none" stroke="#829ba1" stroke-width="2"/>
+<line x1="60" y1="1003" x2="1480" y2="1003" stroke="#e4e9e8"/>
+<text x="60" y="1085" text-anchor="start" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">证据：backend/internal/learning/http.go；backend/db/migrations/00001_course_foundation.sql；00003_learning_business.sql；00009_structured_rubrics.sql</text>
+<text x="60" y="1122" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#9b6330">边界：resources 表允许 archived，但当前无归档操作；不将其画为已接通迁移。</text>
+</svg>

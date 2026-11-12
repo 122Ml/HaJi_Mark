@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1540" height="1030" viewBox="0 0 1540 1030" role="img" aria-labelledby="title desc">
+<title id="title">F18 部署图</title><desc id="desc">服务跑在哪，哪里跨信任边界？</desc>
+<rect width="1540" height="1030" fill="#fbfcfb"/><rect width="12" height="1030" fill="#17816b"/>
+<text x="60" y="68" text-anchor="start" font-size="30" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">F18　部署图</text>
+<text x="60" y="112" text-anchor="start" font-size="21" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">服务跑在哪，哪里跨信任边界？</text>
+<text x="60" y="151" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#17816b">本地代码状态 · 2026-11-12</text>
+<rect x="400" y="195" width="1080" height="330" rx="8" fill="#f0f3f2" stroke="#c0cfca"/>
+<rect x="750" y="253" width="700" height="176" rx="5" fill="none" stroke="#92a8a3" stroke-dasharray="8 5"/>
+<text x="425" y="235" text-anchor="start" font-size="22" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">公网旧版 / hajistudy.online · 主机边界</text>
+<text x="780" y="277" text-anchor="start" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">Docker 私有网络</text>
+<rect x="400" y="570" width="1080" height="330" rx="8" fill="#edf4f1" stroke="#c0cfca"/>
+<rect x="750" y="628" width="700" height="176" rx="5" fill="none" stroke="#92a8a3" stroke-dasharray="8 5"/>
+<text x="425" y="610" text-anchor="start" font-size="22" font-family="Microsoft YaHei" font-weight="700" fill="#202b32">本地开发 / 127.0.0.1:18080 · 主机边界</text>
+<text x="780" y="652" text-anchor="start" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">Docker 私有网络</text>
+<rect x="100" y="300" width="260" height="78" rx="5" fill="#f1f1f1" stroke="#747d82" stroke-width="2"/>
+<text x="230.0" y="346.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">浏览器 HTTPS</text>
+<rect x="440" y="300" width="260" height="78" rx="5" fill="#f1f1f1" stroke="#747d82" stroke-width="2"/>
+<text x="570.0" y="346.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">OpenResty TLS</text>
+<line x1="360" y1="339" x2="440" y2="339" stroke="#829ba1" stroke-width="2"/>
+<path d="M431 333 L440 339 L431 345" fill="none" stroke="#829ba1" stroke-width="2"/>
+<rect x="780" y="300" width="260" height="78" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="910.0" y="346.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">Web + API</text>
+<line x1="700" y1="339" x2="780" y2="339" stroke="#829ba1" stroke-width="2"/>
+<path d="M771 333 L780 339 L771 345" fill="none" stroke="#829ba1" stroke-width="2"/>
+<rect x="1120" y="300" width="260" height="78" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="1250.0" y="346.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">私网 PG / Redis</text>
+<line x1="1040" y1="339" x2="1120" y2="339" stroke="#829ba1" stroke-width="2"/>
+<path d="M1111 333 L1120 339 L1111 345" fill="none" stroke="#829ba1" stroke-width="2"/>
+<rect x="100" y="675" width="260" height="78" rx="5" fill="#f1f1f1" stroke="#747d82" stroke-width="2"/>
+<text x="230.0" y="721.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">本地浏览器</text>
+<rect x="440" y="675" width="260" height="78" rx="5" fill="#e9f3f0" stroke="#17816b" stroke-width="2"/>
+<text x="570.0" y="721.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">Web + API</text>
+<line x1="360" y1="714" x2="440" y2="714" stroke="#829ba1" stroke-width="2"/>
+<path d="M431 708 L440 714 L431 720" fill="none" stroke="#829ba1" stroke-width="2"/>
+<rect x="780" y="675" width="260" height="78" rx="5" fill="#e9eff8" stroke="#567fa7" stroke-width="2"/>
+<text x="910.0" y="721.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">PG / Redis / worker</text>
+<line x1="700" y1="714" x2="780" y2="714" stroke="#829ba1" stroke-width="2"/>
+<path d="M771 708 L780 714 L771 720" fill="none" stroke="#829ba1" stroke-width="2"/>
+<rect x="1120" y="675" width="260" height="78" rx="5" fill="#f1f1f1" stroke="#747d82" stroke-width="2"/>
+<text x="1250.0" y="721.0" text-anchor="middle" font-size="20" font-family="Microsoft YaHei" font-weight="600" fill="#202b32">可选模型出站</text>
+<line x1="1040" y1="714" x2="1120" y2="714" stroke="#829ba1" stroke-width="2"/>
+<path d="M1111 708 L1120 714 L1111 720" fill="none" stroke="#829ba1" stroke-width="2"/>
+<text x="399" y="286" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">公网跨界</text>
+<text x="750" y="286" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">代理至容器</text>
+<text x="399" y="662" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">本机回环</text>
+<text x="750" y="662" text-anchor="middle" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">容器私网</text>
+<text x="95" y="458" text-anchor="start" font-size="19" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">公网：生产 Compose 私网，AI_ENABLED=false；当前新模块未部署。</text>
+<text x="95" y="833" text-anchor="start" font-size="19" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">本地：compose.rag.yaml 显式启用解析与模型；原件文件卷只供 API / worker。</text>
+<text x="60" y="935" text-anchor="start" font-size="16" font-family="Microsoft YaHei" font-weight="normal" fill="#52636b">证据：deploy/compose.production.yaml；deploy/openresty-hajistudy.conf；compose.yaml；compose.rag.yaml</text>
+<text x="60" y="972" text-anchor="start" font-size="17" font-family="Microsoft YaHei" font-weight="normal" fill="#9b6330">边界：本地图册描述工作树；不把新功能画入现网旧镜像。</text>
+</svg>

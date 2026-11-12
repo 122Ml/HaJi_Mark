@@ -1,14 +1,19 @@
-import { Drawer, Tree, Input } from "antd";
+import { Field } from "../shared/Field";
+import { useConfirm } from "../shared/confirm";
+import {
+  Drawer,
+  Tree,
+  Input,
+  Card,
+  Button,
+  Form,
+  Select,
+  Collapse,
+} from "antd";
 import { Link } from "./context";
 import { useEditorDraft, DraftNotice } from "./editing";
 import { KnowledgeGraph } from "./graph";
-import {
-  PageHeader,
-  EmptyState,
-  ErrorState,
-  LoadingState,
-  StatusTag,
-} from "../shared/ui";
+import { EmptyState, ErrorState, LoadingState, StatusTag } from "../shared/ui";
 import { useSearchParams } from "react-router-dom";
 import { ResourceNotes } from "./notes";
 import { RichContent, PublishedAssets } from "./content-render";
@@ -48,7 +53,8 @@ interface Event {
   resource_id: string;
   occurred_at: string;
 }
-export function CourseWorkspace({ embedded = false }: { embedded?: boolean }) {
+export function CourseWorkspace() {
+  const confirm = useConfirm();
   const { session } = useSession();
   const teacher = session?.user.role === "teacher";
   const { course } = useLearning();
@@ -114,7 +120,6 @@ export function CourseWorkspace({ embedded = false }: { embedded?: boolean }) {
   );
   return (
     <div className="live-page">
-      {!embedded && <PageHeader title="课程学习" />}
       {params.get("task") && (
         <Link
           className="context-banner"
@@ -123,21 +128,28 @@ export function CourseWorkspace({ embedded = false }: { embedded?: boolean }) {
           返回补学补练任务，检查完成条件
         </Link>
       )}
-      <Feedback failed={action.failed} error={ctx.error || resources.error} message={action.message} />
+      <Feedback
+        failed={action.failed}
+        error={ctx.error || resources.error}
+        message={action.message}
+      />
       {course && (
         <>
-            <div className={teacher ? "published-materials" : "live-grid course-content-grid"}>
-              {!teacher && (
-              <aside className="card-panel">
-                <h2>课程目录</h2>
-                <button
-                  className="ghost-btn"
+          <div
+            className={
+              teacher ? "published-materials" : "live-grid course-content-grid"
+            }
+          >
+            {!teacher && (
+              <Card className="card-panel" title={<h2>课程目录</h2>}>
+
+                <Button
                   onClick={() => {
                     setParam("node", "");
                   }}
                 >
                   全部资料
-                </button>
+                </Button>
                 <Tree
                   blockNode
                   selectedKeys={selected ? [selected] : []}
@@ -149,190 +161,178 @@ export function CourseWorkspace({ embedded = false }: { embedded?: boolean }) {
                 {!ctx.data?.points.length && (
                   <p className="live-meta">尚未维护知识点</p>
                 )}
-              </aside>
-              )}
-              <section className="card-panel">
-                <div className="section-head">
-                  <h2>{view ? view.title : "学习资料"}</h2>
-                  {teacher && (
-                    <button
-                      className="primary-link"
-                      onClick={() => setEditorOpen(true)}
-                    >
-                      新增资料
-                    </button>
-                  )}
-                </div>
-                {!view && (
-                  <Input.Search
-                    aria-label="搜索资料"
-                    placeholder="搜索资料标题"
-                    value={resourceSearch}
-                    onChange={(e) => setResourceSearch(e.target.value)}
-                    allowClear
-                  />
+              </Card>
+            )}
+            <Card className="card-panel">
+              <div className="section-head">
+                <h2>{view ? view.title : "学习资料"}</h2>
+                {teacher && (
+                  <Button onClick={() => setEditorOpen(true)} type="primary">
+                    新增资料
+                  </Button>
                 )}
-                {view ? (
-                  <>
-                    <p className="live-meta">
-                      {view.locator} · v{view.version} ·{" "}
-                      {when(view.published_at)}
-                    </p>
-                    <RichContent text={view.content} />
-                    <PublishedAssets kind="resources" id={view.id} />
-                    {!teacher && (
-                      <ResourceNotes key={view.id} resourceId={view.id} />
-                    )}
+              </div>
+              {!view && (
+                <Input.Search
+                  aria-label="搜索资料"
+                  placeholder="搜索资料标题"
+                  value={resourceSearch}
+                  onChange={(e) => setResourceSearch(e.target.value)}
+                  allowClear
+                />
+              )}
+              {view ? (
+                <>
+                  <p className="live-meta">
+                    {view.locator} · v{view.version} · {when(view.published_at)}
+                  </p>
+                  <RichContent text={view.content} />
+                  <PublishedAssets kind="resources" id={view.id} />
+                  {!teacher && (
+                    <ResourceNotes key={view.id} resourceId={view.id} />
+                  )}
+                  <p>
+                    资料来源：
+                    {view.source_note || view.source_url || "尚未登记来源"}
+                  </p>
+                  {view.source_url && (
                     <p>
-                      资料来源：
-                      {view.source_note || view.source_url || "尚未登记来源"}
-                    </p>
-                    {view.source_url && (
-                      <p>
-                        <a
-                          href={view.source_url}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          查看原始来源
-                        </a>
-                      </p>
-                    )}
-                    <div className="live-inline">
-                      <button
-                        className="ghost-btn"
-                        onClick={() => openResource(null)}
+                      <a
+                        href={view.source_url}
+                        target="_blank"
+                        rel="noreferrer"
                       >
-                        返回资料列表
-                      </button>
-                      {!teacher && (
-                        <button
-                          className="primary-link"
-                          disabled={action.busy}
-                          onClick={() =>
-                            action.run(`/resources/${view.id}/events`, {
-                              verb: "completed",
-                              request_id: crypto.randomUUID(),
-                            })
-                          }
-                        >
-                          标记完成
-                        </button>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    {resources.error ? (
-                      <ErrorState
-                        message={resources.error.message}
-                        onRetry={() => void resources.refetch()}
-                      />
-                    ) : resources.isPending ? (
-                      <LoadingState label="正在读取资料…" />
-                    ) : !list.length ? (
-                      <EmptyState title="当前没有可用资料">
-                        {teacher
-                          ? "点击“新增资料”，审核后发布给学生。"
-                          : selected
-                            ? "该目录下暂无资料，可选择“全部资料”查看。"
-                            : "教师发布资料后会显示在这里。"}
-                      </EmptyState>
-                    ) : (
-                      list.map((r) => (
-                        <article className="live-row" key={r.id}>
-                          <div>
-                            <h3>{r.title}</h3>
-                            <p>
-                              <StatusTag
-                                status={r.status}
-                                label={names[r.status]}
-                              />{" "}
-                              {r.locator} · v{r.version}
-                            </p>
-                            {!teacher && (
-                              <small>
-                                {events.data?.some(
-                                  (e) =>
-                                    e.resource_id === r.id &&
-                                    e.verb === "completed",
-                                )
-                                  ? "已完成学习"
-                                  : "待学习"}
-                              </small>
-                            )}
-                          </div>
-                          <div className="live-inline">
-                            <button
-                              className="ghost-btn"
+                        查看原始来源
+                      </a>
+                    </p>
+                  )}
+                  <div className="live-inline">
+                    <Button onClick={() => openResource(null)}>
+                      返回资料列表
+                    </Button>
+                    {!teacher && (
+                      <Button
+                        disabled={action.busy}
+                        onClick={() =>
+                          action.run(`/resources/${view.id}/events`, {
+                            verb: "completed",
+                            request_id: crypto.randomUUID(),
+                          })
+                        }
+                        type="primary"
+                      >
+                        标记完成
+                      </Button>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  {resources.error ? (
+                    <ErrorState
+                      message={resources.error.message}
+                      onRetry={() => void resources.refetch()}
+                    />
+                  ) : resources.isPending ? (
+                    <LoadingState label="正在读取资料…" />
+                  ) : !list.length ? (
+                    <EmptyState title="当前没有可用资料">
+                      {teacher
+                        ? "点击“新增资料”，审核后发布给学生。"
+                        : selected
+                          ? "该目录下暂无资料，可选择“全部资料”查看。"
+                          : "教师发布资料后会显示在这里。"}
+                    </EmptyState>
+                  ) : (
+                    list.map((r) => (
+                      <article className="live-row" key={r.id}>
+                        <div>
+                          <h3>{r.title}</h3>
+                          <p>
+                            <StatusTag
+                              status={r.status}
+                              label={names[r.status]}
+                            />{" "}
+                            {r.locator} · v{r.version}
+                          </p>
+                          {!teacher && (
+                            <small>
+                              {events.data?.some(
+                                (e) =>
+                                  e.resource_id === r.id &&
+                                  e.verb === "completed",
+                              )
+                                ? "已完成学习"
+                                : "待学习"}
+                            </small>
+                          )}
+                        </div>
+                        <div className="live-inline">
+                          <Button
+                            disabled={action.busy}
+                            onClick={async () => {
+                              if (!teacher)
+                                await action.run(`/resources/${r.id}/events`, {
+                                  verb: "opened",
+                                  request_id: crypto.randomUUID(),
+                                });
+                              openResource(r);
+                            }}
+                          >
+                            打开资料
+                          </Button>
+                          {teacher && r.status === "draft" && (
+                            <Button
                               disabled={action.busy}
-                              onClick={async () => {
-                                if (!teacher)
-                                  await action.run(
-                                    `/resources/${r.id}/events`,
-                                    {
-                                      verb: "opened",
-                                      request_id: crypto.randomUUID(),
-                                    },
-                                  );
-                                openResource(r);
+                              onClick={() =>
+                                action.run(`/resources/${r.id}/publish`)
+                              }
+                              type="primary"
+                            >
+                              审核通过并发布
+                            </Button>
+                          )}
+                          {teacher && r.status === "published" && (
+                            <Button
+                              onClick={() => {
+                                setRevisionBase(r.id);
+                                setEditorOpen(true);
+                                setResource({
+                                  revision_id: r.id,
+                                  title: r.title,
+                                  content: r.content,
+                                  source_url: r.source_url,
+                                  source_note: r.source_note,
+                                  locator: r.locator,
+                                  knowledge_point_id:
+                                    r.knowledge_point_id || "",
+                                });
+                                document
+                                  .getElementById("resource-editor")
+                                  ?.scrollIntoView({ behavior: "smooth" });
                               }}
                             >
-                              打开资料
-                            </button>
-                            {teacher && r.status === "draft" && (
-                              <button
-                                className="primary-link"
-                                disabled={action.busy}
-                                onClick={() =>
-                                  action.run(`/resources/${r.id}/publish`)
-                                }
-                              >
-                                审核通过并发布
-                              </button>
-                            )}
-                            {teacher && r.status === "published" && (
-                              <button
-                                className="ghost-btn"
-                                onClick={() => {
-                                  setRevisionBase(r.id);
-                                  setEditorOpen(true);
-                                  setResource({
-                                    revision_id: r.id,
-                                    title: r.title,
-                                    content: r.content,
-                                    source_url: r.source_url,
-                                    source_note: r.source_note,
-                                    locator: r.locator,
-                                    knowledge_point_id:
-                                      r.knowledge_point_id || "",
-                                  });
-                                  document
-                                    .getElementById("resource-editor")
-                                    ?.scrollIntoView({ behavior: "smooth" });
-                                }}
-                              >
-                                另存资料修订
-                              </button>
-                            )}
-                          </div>
-                        </article>
-                      ))
-                    )}
-                  </>
-                )}
-              </section>
-            </div>
+                              另存资料修订
+                            </Button>
+                          )}
+                        </div>
+                      </article>
+                    ))
+                  )}
+                </>
+              )}
+            </Card>
+          </div>
           {teacher && (
             <>
               <Drawer
                 title={revisionBase ? "创建资料新版本" : "添加资料草稿"}
                 open={editorOpen}
                 width={680}
-                onClose={() => {
+                onClose={async () => {
                   if (
                     !resourceDraft.dirty ||
-                    confirm("关闭编辑器？未保存内容会暂存。")
+                    await confirm("关闭编辑器？未保存内容会暂存。")
                   )
                     setEditorOpen(false);
                 }}
@@ -340,10 +340,9 @@ export function CourseWorkspace({ embedded = false }: { embedded?: boolean }) {
                 <section id="resource-editor">
                   <DraftNotice {...resourceDraft} />
                   <h2>{revisionBase ? "创建资料新版本" : "添加资料草稿"}</h2>
-                  <form
+                  <Form
                     className="live-form"
-                    onSubmit={async (e) => {
-                      e.preventDefault();
+                    onFinish={async () => {
                       if (
                         await action.run(
                           revisionBase
@@ -366,40 +365,49 @@ export function CourseWorkspace({ embedded = false }: { embedded?: boolean }) {
                         }
                       }
                     }}
+                    layout="vertical"
                   >
-                    <label>
-                      资料标题
-                      <input
+                    <Field
+                      className="ui-field"
+                      label={<>资料标题</>}
+                      required={true}
+                    >
+                      <Input
+                        aria-label="资料标题"
                         required
                         value={resource.title}
                         onChange={(e) =>
                           setResource({ ...resource, title: e.target.value })
                         }
                       />
-                    </label>
-                    <label>
-                      关联知识点
-                      <select
+                    </Field>
+                    <Field className="ui-field" label={<>关联知识点</>}>
+                      <Select
                         aria-label="关联知识点"
                         value={resource.knowledge_point_id}
                         onChange={(e) =>
                           setResource({
                             ...resource,
-                            knowledge_point_id: e.target.value,
+                            knowledge_point_id: e,
                           })
                         }
+                        showSearch
+                        optionFilterProp="children"
                       >
-                        <option value="">课程通用资料</option>
+                        <Select.Option value="">课程通用资料</Select.Option>
                         {ctx.data?.points.map((p) => (
-                          <option value={p.id} key={p.id}>
+                          <Select.Option value={p.id} key={p.id}>
                             {p.title}
-                          </option>
+                          </Select.Option>
                         ))}
-                      </select>
-                    </label>
-                    <label>
-                      资料原文
-                      <textarea
+                      </Select>
+                    </Field>
+                    <Field
+                      className="ui-field"
+                      label={<>资料原文</>}
+                      required={true}
+                    >
+                      <Input.TextArea
                         aria-label="资料原文"
                         required
                         rows={7}
@@ -408,10 +416,14 @@ export function CourseWorkspace({ embedded = false }: { embedded?: boolean }) {
                           setResource({ ...resource, content: e.target.value })
                         }
                       />
-                    </label>
-                    <label>
-                      来源说明
-                      <input
+                    </Field>
+                    <Field
+                      className="ui-field"
+                      label={<>来源说明</>}
+                      required={!resource.source_url}
+                    >
+                      <Input
+                        aria-label="来源说明"
                         maxLength={200}
                         required={!resource.source_url}
                         placeholder="如：教师自编讲义，2026年10月版"
@@ -423,10 +435,10 @@ export function CourseWorkspace({ embedded = false }: { embedded?: boolean }) {
                           })
                         }
                       />
-                    </label>
-                    <label>
-                      来源链接
-                      <input
+                    </Field>
+                    <Field className="ui-field" label={<>来源链接</>}>
+                      <Input
+                        aria-label="来源链接"
                         type="url"
                         value={resource.source_url}
                         onChange={(e) =>
@@ -436,28 +448,36 @@ export function CourseWorkspace({ embedded = false }: { embedded?: boolean }) {
                           })
                         }
                       />
-                    </label>
-                    <label>
-                      页码或段落定位
-                      <input
+                    </Field>
+                    <Field
+                      className="ui-field"
+                      label={<>页码或段落定位</>}
+                      required={true}
+                    >
+                      <Input
+                        aria-label="页码或段落定位"
                         required
                         value={resource.locator}
                         onChange={(e) =>
                           setResource({ ...resource, locator: e.target.value })
                         }
                       />
-                    </label>
-                    <button className="primary-link" disabled={action.busy}>
+                    </Field>
+                    <Button
+                      disabled={action.busy}
+                      htmlType="submit"
+                      type="primary"
+                    >
                       保存资料草稿
-                    </button>
-                  </form>
+                    </Button>
+                  </Form>
                 </section>
               </Drawer>
             </>
           )}
           {!teacher && (
-            <section className="card-panel">
-              <h2>学习记录</h2>
+            <Card className="card-panel" title={<h2>学习记录</h2>}>
+
               {events.data
                 ?.filter((e) => e.resource_id)
                 .slice(0, 20)
@@ -474,14 +494,33 @@ export function CourseWorkspace({ embedded = false }: { embedded?: boolean }) {
                   打开资料开始学习，记录会显示在这里。
                 </EmptyState>
               )}
-            </section>
+            </Card>
           )}
         </>
       )}
       {course && (
         <>
-          {!teacher && <details className="card-panel"><summary>知识依赖关系</summary><KnowledgeGraph /></details>}
-          {!teacher && <Link className="ghost-btn" to="/student/retrieval">资料问答</Link>}
+          {!teacher && (
+            <Collapse
+              className="card-panel"
+              items={[
+                {
+                  key: "content",
+                  label: <>知识依赖关系</>,
+                  children: (
+                    <>
+                      <KnowledgeGraph />
+                    </>
+                  ),
+                },
+              ]}
+            />
+          )}
+          {!teacher && (
+            <Link className="ghost-btn" to="/student/retrieval">
+              资料问答
+            </Link>
+          )}
         </>
       )}
     </div>

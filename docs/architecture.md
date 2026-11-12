@@ -27,7 +27,7 @@ flowchart LR
   Path --> Web
 ```
 
-`App.tsx` 装配角色路由、顶栏与分组侧栏；`app/navigation.ts` 管理导航分组，`app/Login.tsx` 提供活动登录页，`app/theme.ts` 与 `styles.css` 管理设计变量，`shared/ui.tsx` 提供页头与加载/空/错误状态组件。重复概览/课程地址通过 `live/routes.tsx` 重定向到角色规范入口，具体映射和截图见 [设计指南](../design.md)。
+`App.tsx` 装配角色路由、顶栏与分组侧栏；`app/navigation.ts` 管理导航分组，`app/Login.tsx` 提供活动登录页，`app/theme.ts` 与 `styles.css` 管理设计变量。主页面去掉重复分组与标题，统一使用 Ant Design 菜单、卡片、表单、树、表格、页签、抽屉和确认框；`shared/Field.tsx`、`FileUpload.tsx`、`confirm.ts`复用带标签控件与确认交互，`shared/ui.tsx`提供加载/空/错误状态。正文由`live/content-render.tsx`渲染Markdown/GFM与公式，原文和评分引用不改写。重复概览/课程地址通过 `live/routes.tsx` 重定向到角色规范入口，具体映射和截图见 [设计指南](../design.md)。
 
 `LearningProvider` 在角色工作台外层提供课程上下文，供顶栏唯一选择器和页面共用。教师课程管理在 `live/course-management.tsx`，目录在 `live/curriculum.tsx`，原件在 `live/knowledge.tsx` 的资料页，发布内容复用 `live/course.tsx` 的资料阅读／编辑组件；不再以同一个课程页承担全部入口。题库 `live/question-bank.tsx` 承接整卷拆题，资料只提供带来源的跳转。知识库、检索、内容影响和作业仍用各自页面。新模块边界只改变前端归属，不改变后端权限、对象版本与发布规则。
 

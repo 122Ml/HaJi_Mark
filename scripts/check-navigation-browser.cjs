@@ -1,3 +1,4 @@
+const { choose, selectedText, optionCount } = require('./browser-ui.cjs');
 // Local Docker regression: navigation boundaries, course context and preserved teaching actions.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -25,7 +26,7 @@ const checks = [], errors = [], serverErrors = [];
       await page.getByLabel('密码', { exact: true }).fill(a.password);
       await page.getByRole('button', { name: '登录', exact: true }).click();
       await page.waitForURL(u => u.pathname === `/${role}/${role === 'teacher' ? 'dashboard' : 'home'}`);
-      await page.getByLabel('当前课程', { exact: true }).waitFor();
+      await page.getByRole('combobox', { name: '当前课程', exact: true }).waitFor();
       return page;
     }
     function pass(text) { checks.push(text); console.log('PASS: ' + text); }
@@ -55,7 +56,7 @@ const checks = [], errors = [], serverErrors = [];
     await t.getByRole('button', { name: '发布课程', exact: true }).click();
     await t.getByRole('button', { name: '发布课程', exact: true }).waitFor({ state: 'hidden' });
     await t.goto(`${base}/teacher/curriculum?course=${course}`);
-    await t.getByLabel('目录类型', { exact: true }).selectOption('point');
+    await choose(t.getByRole('combobox', { name: '目录类型', exact: true }), 'point');
     await t.getByLabel('节点名称', { exact: true }).fill('边界值分析');
     await t.getByRole('button', { name: '添加节点', exact: true }).click();
     await t.locator('.ant-tree').getByText('边界值分析', { exact: true }).waitFor();
@@ -67,18 +68,26 @@ const checks = [], errors = [], serverErrors = [];
     assert.equal(await t.locator('.ant-tree').count(), 0);
     await t.getByRole('button', { name: '新增资料', exact: true }).click();
     await t.getByLabel('资料标题', { exact: true }).fill('路由验收资料');
-    await t.getByLabel('资料原文', { exact: true }).fill('测试应覆盖端点及其两侧相邻值。');
+    const materialText = '测试应覆盖端点及其两侧相邻值。\n\n## 核查要点\n\n**边界测试**\n\n| 类型 | 输入 |\n| --- | --- |\n| 端点 | 18 |\n\n$x^2$';
+    await t.getByLabel('资料原文', { exact: true }).fill(materialText);
     await t.getByLabel('来源说明', { exact: true }).fill('自动化验收自编资料');
-    await t.getByLabel('关联知识点', { exact: true }).selectOption({ label: '边界值分析' });
+    await choose(t.getByRole('combobox', { name: '关联知识点', exact: true }), { label: '边界值分析' });
     await t.getByRole('button', { name: '保存资料草稿', exact: true }).click();
-    const row = t.locator('article.live-row').filter({ has: t.getByRole('heading', { name: '路由验收资料', exact: true }) });
+    const row = t.locator('.live-row').filter({ has: t.getByRole('heading', { name: '路由验收资料', exact: true }) });
     await row.getByRole('button', { name: '审核通过并发布', exact: true }).click();
     await row.getByRole('button', { name: '审核通过并发布', exact: true }).waitFor({ state: 'hidden' });
     const resources = (await (await t.request.get(base + '/api/v1' + prefix + '/resources')).json()).data;
     const resource = resources.find(r => r.title === '路由验收资料');
+    assert.equal(resource.content, materialText, 'Rendering must not rewrite the saved source');
     await t.goto(`${base}/teacher/course-twin?course=${course}&resource=${resource.id}`);
     await t.waitForURL(u => u.pathname === '/teacher/materials' && u.searchParams.get('tab') === 'published');
     await t.getByText('测试应覆盖端点及其两侧相邻值。', { exact: true }).waitFor();
+    await t.locator('.rich-content h2').getByText('核查要点', { exact: true }).waitFor();
+    assert.equal(await t.locator('.rich-content strong').getByText('边界测试', { exact: true }).count(), 1);
+    assert.equal(await t.locator('.rich-content table td').getByText('18', { exact: true }).count(), 1);
+    assert.equal(await t.locator('.rich-content .katex').count(), 1);
+    assert(!(await t.locator('.rich-content').innerText()).includes('**边界测试**'));
+    pass('资料正文渲染标题、粗体、表格与公式，服务端原文保持不变');
     await t.goto(`${base}/teacher/course-twin?course=${course}&tab=members`);
     await t.waitForURL(u => u.pathname === '/teacher/courses');
     await t.getByLabel('学生用户名', { exact: true }).waitFor();
@@ -88,36 +97,44 @@ const checks = [], errors = [], serverErrors = [];
 
     for (const route of ['curriculum', 'materials', 'knowledge', 'question-bank', 'homework/foreign-object/submissions']) {
       await t.goto(`${base}/teacher/${route}?course=${course}&source=old&resource=old&task=old&bank=old&page=4`);
-      await t.getByLabel('当前课程', { exact: true }).selectOption(other.id);
+      await t.locator('main .live-page').first().waitFor();
+      await t.waitForLoadState('networkidle');
+      const closeDrawer = t.locator('.ant-drawer:visible .ant-drawer-close');
+      if (await closeDrawer.count()) {
+        await closeDrawer.click();
+        await t.locator('.ant-drawer:visible').waitFor({ state: 'hidden' });
+      }
+      await choose(t.getByRole('combobox', { name: '当前课程', exact: true }), other.title);
       const target = route.startsWith('homework/') ? 'homework' : route;
       await t.waitForURL(u => u.pathname === `/teacher/${target}` && u.searchParams.get('course') === other.id);
       assert.deepEqual([...new URL(t.url()).searchParams.keys()], ['course']);
-      await t.waitForFunction(id => document.querySelector('select[aria-label="当前课程"]')?.value === id, other.id);
-      assert.equal(await t.getByLabel('当前课程', { exact: true }).inputValue(), other.id);
+      await t.locator('.workspace-course-select .ant-select-selection-item').getByText(other.title + '（草稿）', { exact: true }).waitFor();
+      assert.equal(await selectedText(t.getByRole('combobox', { name: '当前课程', exact: true })), other.title + "（草稿）");
     }
     pass('切换课程留在同一模块、清除旧对象与筛选，作业详情返回新课程列表');
     await t.goto(`${base}/teacher/materials?course=${course}&tab=published`);
     await t.getByRole('button', { name: '新增资料', exact: true }).click();
     await t.getByLabel('资料标题', { exact: true }).fill('未保存的资料标题');
     // The drawer covers the topbar: close it (retaining the draft), then switch course.
-    t.once('dialog', d => d.accept());
     await t.locator('.ant-drawer-close').click();
-    await t.getByLabel('当前课程', { exact: true }).selectOption(other.id);
+    await t.getByRole('button', { name: '确认', exact: true }).click();
+    await t.getByRole('dialog').waitFor({ state: 'hidden' });
+    await choose(t.getByRole('combobox', { name: '当前课程', exact: true }), other.title);
     await t.getByRole('button', { name: '继续编辑', exact: true }).click();
     assert.equal(new URL(t.url()).searchParams.get('course'), course);
-    assert.equal(await t.getByLabel('当前课程', { exact: true }).inputValue(), course);
+    assert.equal(await selectedText(t.getByRole('combobox', { name: '当前课程', exact: true })), title);
     await t.getByRole('button', { name: '新增资料', exact: true }).click();
     assert.equal(await t.getByLabel('资料标题', { exact: true }).inputValue(), '未保存的资料标题');
     await t.getByLabel('资料标题', { exact: true }).fill('');
     await t.locator('.ant-drawer-close').click();
     pass('取消课程切换保持课程选择和未保存资料，编辑内容未串课');
     await t.goto(`${base}/teacher/materials?course=00000000-0000-0000-0000-000000000000`);
-    await t.getByRole('heading', { name: '无法访问该课程', exact: true }).waitFor();
-    await t.getByLabel('当前课程', { exact: true }).selectOption(course);
-    await t.getByRole('heading', { name: '学习资料', exact: true, level: 1 }).waitFor();
+    await t.getByText('无法访问该课程', { exact: true }).waitFor();
+    await choose(t.getByRole('combobox', { name: '当前课程', exact: true }), title);
+    await t.getByRole('tab', { name: '原始资料', exact: true }).waitFor();
     assert(!await t.locator('body').innerText().then(s => s.includes('联调记账')));
     await t.goto(`${base}/teacher/profile?course=${course}`);
-    assert.equal(await t.getByLabel('当前课程', { exact: true }).count(), 0);
+    assert.equal(await t.getByRole('combobox', { name: '当前课程', exact: true }).count(), 0);
     pass('无权限课程显式提示且可恢复，个人设置无课程选择，教学页面无联调账目');
 
     const idsFile = path.join(root, '.local/material-workflows-check.json');
@@ -128,30 +145,31 @@ const checks = [], errors = [], serverErrors = [];
       const sourceDrawer = t.getByRole('dialog', { name: '资料核对与发布', exact: true });
       await sourceDrawer.getByRole('link', { name: '到题库拆分试卷', exact: true }).click();
       const paperDrawer = t.getByRole('dialog', { name: '整卷导入', exact: true });
-      await paperDrawer.locator('summary').filter({ hasText: /^整卷拆题$/ }).waitFor();
-      assert.equal(await paperDrawer.getByLabel('试卷原件', { exact: true }).inputValue(), paper.id);
+      await paperDrawer.locator('.ant-collapse-header').filter({ hasText: /^整卷拆题$/ }).waitFor();
+      assert.equal(await selectedText(paperDrawer.getByRole('combobox', { name: '试卷原件', exact: true })), paper.title);
       await t.reload();
-      await paperDrawer.locator('summary').filter({ hasText: /^整卷拆题$/ }).click();
+      await paperDrawer.locator('.ant-collapse-header').filter({ hasText: /^整卷拆题$/ }).click();
       await paperDrawer.getByRole('button', { name: '载入候选', exact: true }).click();
-      const questionList = paperDrawer.getByLabel('题目', { exact: true });
+      const questionList = paperDrawer.getByRole('combobox', { name: '题目', exact: true });
       await questionList.waitFor();
-      assert.equal(await questionList.locator('option').count(), 3);
+      assert.equal(await optionCount(questionList), 3);
       const prompt = paperDrawer.getByLabel('题干', { exact: true });
       await prompt.fill((await prompt.inputValue()) + '\n前端拆题编辑核对');
       await t.reload();
-      await paperDrawer.locator('summary').filter({ hasText: /^整卷拆题$/ }).click();
+      await paperDrawer.locator('.ant-collapse-header').filter({ hasText: /^整卷拆题$/ }).click();
       await t.waitForFunction(() => document.querySelector('[aria-label="题干"]')?.value.includes('前端拆题编辑核对'));
       pass('资料到题库保留试卷来源，真实三题型候选可载入、编辑并在刷新后恢复');
     }
     for (const [route, heading] of [['courses', '课程管理'], ['curriculum', '课程目录'], ['materials', '学习资料'], ['question-bank', '题库']]) {
       await t.goto(`${base}/teacher/${route}?course=${course}`);
-      await t.getByRole('heading', { name: heading, exact: true, level: 1 }).waitFor();
+      await t.locator('main .live-page').waitFor();
+      assert.equal(await t.locator('main > .live-page > h1, main .live-heading h1').count(), 0);
       for (const width of [1440, 390]) {
         await t.setViewportSize({ width, height: 1000 });
         await t.waitForLoadState('networkidle');
         await t.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
         assert.equal(await t.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `${route}/${width} overflow`);
-        assert.equal(await t.getByLabel('当前课程', { exact: true }).count(), 1);
+        assert.equal(await t.getByRole('combobox', { name: '当前课程', exact: true }).count(), 1);
         await t.screenshot({ path: path.join(out, `${route}-${width}.png`), fullPage: true });
       }
     }

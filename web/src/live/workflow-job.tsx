@@ -1,3 +1,4 @@
+import { Button, Alert } from "antd";
 import { useState } from "react";
 import { Feedback, useAction, useLiveQuery } from "./context";
 import { ModelSelect, useJob, type Job } from "./knowledge";
@@ -42,8 +43,7 @@ export function WorkflowJob({
           value={model}
           onChange={setModel}
         />
-        <button
-          className="ghost-btn"
+        <Button
           disabled={busy}
           onClick={async () => {
             const j = await action.run<Job>("/jobs", {
@@ -55,21 +55,21 @@ export function WorkflowJob({
           }}
         >
           {busy ? "处理中…" : labels[kind]}
-        </button>
+        </Button>
       </div>
       <Feedback
         error={q.error || jobs.error}
         message={action.message}
         failed={action.failed}
       />
-      {q.data?.state === "failed" && <p role="alert">{q.data.error}</p>}
+      {q.data?.state === "failed" && <Alert type="error" showIcon role="alert" message={<>{q.data.error}</>} />}
       {q.data?.state === "succeeded" && (
-        <button
-          className="primary-link"
+        <Button
           onClick={() => onAdopt(q.data!.output, q.data!.id)}
+          type="primary"
         >
           载入候选
-        </button>
+        </Button>
       )}
       {q.data?.state === "canceled" && <p>任务已取消</p>}
     </div>

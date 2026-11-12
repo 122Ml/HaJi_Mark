@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { useBlocker } from "react-router-dom";
-import { Modal } from "antd";
+import { Modal, Alert } from "antd";
 import { useSession } from "../shared/session";
 
 const EditContext = createContext<(id: string, dirty: boolean) => void>(
@@ -157,12 +157,12 @@ export function DraftNotice({
   storageError: boolean;
 }) {
   return storageError ? (
-    <p role="alert" className="live-error">
+    <Alert type="error" showIcon role="alert" message={<>
       浏览器暂存不可用，请及时保存到平台。
-    </p>
+    </>} />
   ) : restored ? (
-    <p role="status" className="live-message">
+    <Alert type="success" showIcon role="status" message={<>
       已恢复上次未保存的编辑。
-    </p>
+    </>} />
   ) : null;
 }

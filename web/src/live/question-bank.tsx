@@ -1,13 +1,10 @@
-import { useState, type FormEvent } from "react";
+import { Field } from "../shared/Field";
+import { useConfirm } from "../shared/confirm";
+import { FileUpload } from "../shared/FileUpload";
+import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Drawer, Pagination, Tabs } from "antd";
-import {
-  PageHeader,
-  LoadingState,
-  EmptyState,
-  ErrorState,
-  StatusTag,
-} from "../shared/ui";
+import { Drawer, Pagination, Tabs, Collapse, Button, Form, Input, Select, Card, Checkbox, InputNumber, Alert } from "antd";
+import { LoadingState, EmptyState, ErrorState, StatusTag } from "../shared/ui";
 import {
   Link,
   Feedback,
@@ -137,32 +134,46 @@ const typeNames: Record<string, string> = {
 
 function BankProvenance({ id }: { id: string }) {
   const q = useLiveQuery<{
-    decisions: { id: string; kind: string; reason: string; created_at: string }[];
+    decisions: {
+      id: string;
+      kind: string;
+      reason: string;
+      created_at: string;
+    }[];
     assets: { id: string }[];
   }>(`/question-bank/versions/${id}/provenance`);
   const { course } = useLearning();
   return (
-    <details>
-      <summary>题图与原始来源</summary>
-      <Feedback error={q.error} />
-      {q.data?.assets.map((a) => (
-        <img
-          className="asset-preview"
-          key={a.id}
-          alt="确认后的题图"
-          src={`/api/v1/learning/courses/${course!.id}/assets/${a.id}/file`}
-        />
-      ))}
-      {q.data?.decisions.map((d) => (
-        <article key={d.id}>
-          <strong>
-            {d.kind === "paper_adopt" ? "原卷拆题采纳" : "AI草稿采纳"}
-          </strong>
-          <p>{d.reason}</p>
-          <small>{new Date(d.created_at).toLocaleString()}</small>
-        </article>
-      ))}
-    </details>
+    <Collapse
+      items={[
+        {
+          key: "content",
+          label: <>题图与原始来源</>,
+          children: (
+            <>
+              <Feedback error={q.error} />
+              {q.data?.assets.map((a) => (
+                <img
+                  className="asset-preview"
+                  key={a.id}
+                  alt="确认后的题图"
+                  src={`/api/v1/learning/courses/${course!.id}/assets/${a.id}/file`}
+                />
+              ))}
+              {q.data?.decisions.map((d) => (
+                <article key={d.id}>
+                  <strong>
+                    {d.kind === "paper_adopt" ? "原卷拆题采纳" : "AI草稿采纳"}
+                  </strong>
+                  <p>{d.reason}</p>
+                  <small>{new Date(d.created_at).toLocaleString()}</small>
+                </article>
+              ))}
+            </>
+          ),
+        },
+      ]}
+    />
   );
 }
 
@@ -198,36 +209,51 @@ export function QuestionBankPage() {
   }
   return (
     <div className="live-page">
-      <PageHeader
-        title="题库"
-        actions={
-          <>
-          <button className="ghost-btn" onClick={() => { const next = new URLSearchParams(params); next.set("paper", "1"); setParams(next); }}>整卷导入</button>
-          <button
-            className="primary-link"
+      <div className="page-actions">
+        <>
+          <Button
+            onClick={() => {
+              const next = new URLSearchParams(params);
+              next.set("paper", "1");
+              setParams(next);
+            }}
+          >
+            整卷导入
+          </Button>
+          <Button
             onClick={() => {
               setCreating(true);
               const next = new URLSearchParams(params);
               next.delete("bank");
               setParams(next);
             }}
+            type="primary"
           >
             新建题目
-          </button>
-          </>
-        }
-      />
-      <Drawer title="整卷导入" aria-label="整卷导入" open={paperOpen} width={900} destroyOnHidden onClose={() => {
-        const next = new URLSearchParams(params);
-        next.delete("paper_source");
-        next.delete("paper");
-        setParams(next);
-      }}>
-        <PaperSource selected={paperSource} onSelect={(id) => {
+          </Button>
+        </>
+      </div>
+      <Drawer
+        title="整卷导入"
+        aria-label="整卷导入"
+        open={paperOpen}
+        width={900}
+        destroyOnHidden
+        onClose={() => {
           const next = new URLSearchParams(params);
-          next.set("paper_source", id);
+          next.delete("paper_source");
+          next.delete("paper");
           setParams(next);
-        }} />
+        }}
+      >
+        <PaperSource
+          selected={paperSource}
+          onSelect={(id) => {
+            const next = new URLSearchParams(params);
+            next.set("paper_source", id);
+            setParams(next);
+          }}
+        />
       </Drawer>
       {query.error ? (
         <ErrorState
@@ -239,9 +265,8 @@ export function QuestionBankPage() {
       ) : (
         <>
           <div className="live-inline">
-            <label>
-              搜索题目
-              <input
+            <Field className="ui-field" label={<>搜索题目</>}>
+              <Input
                 aria-label="搜索题目"
                 value={search}
                 onChange={(e) => {
@@ -249,93 +274,98 @@ export function QuestionBankPage() {
                   setPage(1);
                 }}
               />
-            </label>
-            <label>
-              题目状态
-              <select
+            </Field>
+            <Field className="ui-field" label={<>题目状态</>}>
+              <Select
+                aria-label="题目状态"
                 value={state}
                 onChange={(e) => {
-                  setState(e.target.value);
+                  setState(e);
                   setPage(1);
                 }}
+                showSearch
+                optionFilterProp="children"
               >
-                <option value="">全部</option>
-                <option value="draft">待确认</option>
-                <option value="confirmed">已确认</option>
-                <option value="archived">已停用</option>
-              </select>
-            </label>
-            <label>
-              题型
-              <select
+                <Select.Option value="">全部</Select.Option>
+                <Select.Option value="draft">待确认</Select.Option>
+                <Select.Option value="confirmed">已确认</Select.Option>
+                <Select.Option value="archived">已停用</Select.Option>
+              </Select>
+            </Field>
+            <Field className="ui-field" label={<>题型</>}>
+              <Select
                 aria-label="筛选题型"
                 value={type}
                 onChange={(e) => {
-                  setType(e.target.value);
+                  setType(e);
                   setPage(1);
                 }}
+                showSearch
+                optionFilterProp="children"
               >
-                <option value="">全部</option>
+                <Select.Option value="">全部</Select.Option>
                 {Object.entries(typeNames).map(([id, name]) => (
-                  <option key={id} value={id}>
+                  <Select.Option key={id} value={id}>
                     {name}
-                  </option>
+                  </Select.Option>
                 ))}
-              </select>
-            </label>
-            <label>
-              知识点
-              <select
+              </Select>
+            </Field>
+            <Field className="ui-field" label={<>知识点</>}>
+              <Select
                 aria-label="筛选知识点"
                 value={pointID}
                 onChange={(e) => {
-                  setPoint(e.target.value);
+                  setPoint(e);
                   setPage(1);
                 }}
+                showSearch
+                optionFilterProp="children"
               >
-                <option value="">全部</option>
+                <Select.Option value="">全部</Select.Option>
                 {points.data?.points
                   .filter((p) => p.kind === "point")
                   .map((p) => (
-                    <option key={p.id} value={p.id}>
+                    <Select.Option key={p.id} value={p.id}>
                       {p.title}
-                    </option>
+                    </Select.Option>
                   ))}
-              </select>
-            </label>
-            <label>
-              专题
-              <select
+              </Select>
+            </Field>
+            <Field className="ui-field" label={<>专题</>}>
+              <Select
                 aria-label="筛选专题"
                 value={topicID}
                 onChange={(e) => {
-                  setTopic(e.target.value);
+                  setTopic(e);
                   setPage(1);
                 }}
+                showSearch
+                optionFilterProp="children"
               >
-                <option value="">全部</option>
+                <Select.Option value="">全部</Select.Option>
                 {topics.data?.topics.map((t) => (
-                  <option key={t.id} value={t.id}>
+                  <Select.Option key={t.id} value={t.id}>
                     {t.title}
-                  </option>
+                  </Select.Option>
                 ))}
-              </select>
-            </label>
-            <span className="live-meta">{query.data?.total || 0} 道题目</span>
+              </Select>
+            </Field>
+            <span className="live-meta">{query.data?.total || 0}道题目</span>
           </div>
           {creating && (
-            <section className="card-panel">
+            <Card className="card-panel">
               <BankEditor
                 onSaved={select}
                 onCancel={() => setCreating(false)}
               />
-            </section>
+            </Card>
           )}
           <Feedback error={linked.error} />
           {!creating && activeBank && (
             <BankDetailView key={activeBank} bankID={activeBank} />
           )}
-          <section className="card-panel">
+          <Card className="card-panel">
             {!list.length ? (
               <EmptyState title="暂无匹配题目">
                 新建题目，或选择资料与知识后由 AI 起草。
@@ -353,12 +383,7 @@ export function QuestionBankPage() {
                       />
                     </p>
                   </div>
-                  <button
-                    className="ghost-btn"
-                    onClick={() => select(q.bank_id)}
-                  >
-                    管理题目
-                  </button>
+                  <Button onClick={() => select(q.bank_id)}>管理题目</Button>
                 </article>
               ))
             )}
@@ -371,29 +396,73 @@ export function QuestionBankPage() {
               showSizeChanger={false}
               onChange={setPage}
             />
-          </section>
+          </Card>
         </>
       )}
     </div>
   );
 }
 
-function PaperSource({ selected, onSelect }: { selected: string; onSelect: (id: string) => void }) {
-  const sources = useLiveQuery<{ id: string; title: string; state: string; fragment_count: number }[]>("/sources");
-  const source = useLiveQuery<{ source: { state: string }; fragments: { id: string; body: string }[] }>(`/sources/${selected}`, !!selected);
-  return <div className="live-form">
-    <Feedback error={sources.error || source.error} />
-    <label>试卷原件<select aria-label="试卷原件" value={selected} onChange={(e) => onSelect(e.target.value)}>
-      <option value="">选择已解析的原件</option>
-      {sources.data?.filter((s) => s.state === "active" && s.fragment_count > 0).map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
-    </select></label>
-    <Link to={selected ? `/teacher/materials?source=${selected}` : "/teacher/materials"}>导入或核对原件</Link>
-    {selected && source.isPending && <LoadingState />}
-    {source.data?.source.state === "active" && source.data.fragments.length > 0 && <PaperImport key={selected} id={selected} fragments={source.data.fragments} />}
-  </div>;
+function PaperSource({
+  selected,
+  onSelect,
+}: {
+  selected: string;
+  onSelect: (id: string) => void;
+}) {
+  const sources =
+    useLiveQuery<
+      { id: string; title: string; state: string; fragment_count: number }[]
+    >("/sources");
+  const source = useLiveQuery<{
+    source: { state: string };
+    fragments: { id: string; body: string }[];
+  }>(`/sources/${selected}`, !!selected);
+  return (
+    <div className="live-form">
+      <Feedback error={sources.error || source.error} />
+      <Field className="ui-field" label={<>试卷原件</>}>
+        <Select
+          aria-label="试卷原件"
+          value={selected}
+          onChange={(e) => onSelect(e)}
+          showSearch
+          optionFilterProp="children"
+        >
+          <Select.Option value="">选择已解析的原件</Select.Option>
+          {sources.data
+            ?.filter((s) => s.state === "active" && s.fragment_count > 0)
+            .map((s) => (
+              <Select.Option key={s.id} value={s.id}>
+                {s.title}
+              </Select.Option>
+            ))}
+        </Select>
+      </Field>
+      <Link
+        to={
+          selected
+            ? `/teacher/materials?source=${selected}`
+            : "/teacher/materials"
+        }
+      >
+        导入或核对原件
+      </Link>
+      {selected && source.isPending && <LoadingState />}
+      {source.data?.source.state === "active" &&
+        source.data.fragments.length > 0 && (
+          <PaperImport
+            key={selected}
+            id={selected}
+            fragments={source.data.fragments}
+          />
+        )}
+    </div>
+  );
 }
 
 function BankDetailView({ bankID }: { bankID: string }) {
+  const confirm = useConfirm();
   const query = useLiveQuery<BankDetail>(`/question-bank/${bankID}`);
   const [params, setParams] = useSearchParams();
   const [editing, setEditing] = useState(false);
@@ -414,32 +483,33 @@ function BankDetailView({ bankID }: { bankID: string }) {
     ) || versions[0];
   if (!v) return null;
   return (
-    <section className="card-panel">
+    <Card className="card-panel">
       <div className="section-head">
         <h2>{v.title}</h2>
         <div className="live-inline">
-          <label>
-            题目版本
-            <select
+          <Field className="ui-field" label={<>题目版本</>}>
+            <Select
+              aria-label="题目版本"
               value={v.id}
-              onChange={(e) => {
-                if (editing && !confirm("切换版本？未保存编辑可在返回时恢复。"))
+              onChange={async (e) => {
+                if (editing && !await confirm("切换版本？未保存编辑可在返回时恢复。"))
                   return;
                 const next = new URLSearchParams(params);
-                next.set("version", e.target.value);
+                next.set("version", e);
                 setParams(next);
                 setEditing(false);
               }}
+              showSearch
+              optionFilterProp="children"
             >
               {versions.map((v) => (
-                <option key={v.id} value={v.id}>
+                <Select.Option key={v.id} value={v.id}>
                   v{v.version} · {names[v.state]}
-                </option>
+                </Select.Option>
               ))}
-            </select>
-          </label>
-          <button
-            className="ghost-btn"
+            </Select>
+          </Field>
+          <Button
             disabled={action.busy || entry.archived}
             onClick={() => {
               setEditRefs(null);
@@ -447,13 +517,12 @@ function BankDetailView({ bankID }: { bankID: string }) {
             }}
           >
             {editing ? "收起编辑" : "另建题目版本"}
-          </button>
-          <button
-            className="ghost-btn"
+          </Button>
+          <Button
             disabled={action.busy}
-            onClick={() => {
+            onClick={async () => {
               if (
-                confirm(
+                await confirm(
                   entry.archived
                     ? "恢复此题目？"
                     : "停用后不能加入新作业，历史作业保留。继续？",
@@ -465,7 +534,7 @@ function BankDetailView({ bankID }: { bankID: string }) {
             }}
           >
             {entry.archived ? "恢复题目" : "停用题目"}
-          </button>
+          </Button>
         </div>
       </div>
       <Feedback message={action.message} failed={action.failed} />
@@ -510,31 +579,30 @@ function BankDetailView({ bankID }: { bankID: string }) {
                       label={`题目${names[v.state]}`}
                     />
                     {v.state === "draft" && (
-                      <button
-                        className="primary-link"
+                      <Button
                         disabled={action.busy || entry.archived}
                         onClick={() =>
                           void action.run(
                             `/question-bank/versions/${v.id}/confirm`,
                           )
                         }
+                        type="primary"
                       >
                         确认题目
-                      </button>
+                      </Button>
                     )}
                   </div>
                   {v.reference_answer && (
                     <>
                       <h3>参考解答</h3>
-                      <p className="live-prose">{v.reference_answer}</p>
+                      <RichContent text={v.reference_answer} />
                       <div className="live-inline">
                         <StatusTag
                           status={v.reference_state}
                           label={`解答${names[v.reference_state]}`}
                         />
                         {v.reference_state === "draft" && (
-                          <button
-                            className="ghost-btn"
+                          <Button
                             disabled={action.busy || entry.archived}
                             onClick={() =>
                               void action.run(
@@ -543,7 +611,7 @@ function BankDetailView({ bankID }: { bankID: string }) {
                             }
                           >
                             确认参考解答
-                          </button>
+                          </Button>
                         )}
                       </div>
                     </>
@@ -608,7 +676,7 @@ function BankDetailView({ bankID }: { bankID: string }) {
           ]}
         />
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -636,8 +704,7 @@ export function EvidencePicker({
   const [search, setSearch] = useState("");
   const [hits, setHits] = useState<Hit[]>([]);
   const action = useAction();
-  async function find(e: FormEvent) {
-    e.preventDefault();
+  async function find() {
     const data = await action.run<{ hits: Hit[] }>("/question-bank/evidence", {
       query: search,
       source_id: scope.startsWith("s:") ? scope.slice(2) : "",
@@ -647,95 +714,104 @@ export function EvidencePicker({
   }
   return (
     <div className="bank-evidence">
-      <form className="live-form" onSubmit={find}>
+      <Form className="live-form" onFinish={find} layout="vertical">
         <div className="live-inline">
-          <label>
-            依据范围
-            <select
+          <Field className="ui-field" label={<>依据范围</>}>
+            <Select
+              aria-label="依据范围"
               value={scope}
               onChange={(e) => {
-                setScope(e.target.value);
+                setScope(e);
                 setHits([]);
               }}
+              showSearch
+              optionFilterProp="children"
             >
-              <option value="">课程内检索</option>
+              <Select.Option value="">课程内检索</Select.Option>
               {sources.data
                 ?.filter((s) => s.state === "active")
                 .map((s) => (
-                  <option key={s.id} value={`s:${s.id}`}>
+                  <Select.Option key={s.id} value={`s:${s.id}`}>
                     资料：{s.title}
-                  </option>
+                  </Select.Option>
                 ))}
               {knowledge.data
                 ?.filter((k) => k.state === "confirmed" && k.use_for_grading)
                 .map((k) => (
-                  <option key={k.id} value={`k:${k.id}`}>
+                  <Select.Option key={k.id} value={`k:${k.id}`}>
                     知识：{k.title}
-                  </option>
+                  </Select.Option>
                 ))}
-            </select>
-          </label>
-          <label>
-            检索词
-            <input
+            </Select>
+          </Field>
+          <Field className="ui-field" label={<>检索词</>} required={!scope}>
+            <Input
               aria-label="依据检索词"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               required={!scope}
             />
-          </label>
-          <button className="ghost-btn" disabled={action.busy}>
+          </Field>
+          <Button disabled={action.busy} htmlType="submit">
             查找依据
-          </button>
+          </Button>
         </div>
-      </form>
+      </Form>
       <Feedback
         error={sources.error || knowledge.error}
         message={action.message}
         failed={action.failed}
       />
       {hits.length > 0 && (
-        <details open>
-          <summary>候选依据（{hits.length}）</summary>
-          {hits.map((h) => (
-            <article className="rag-hit" key={h.id}>
-              <label className="rag-check">
-                <input
-                  type="checkbox"
-                  checked={value.some((v) => v.id === h.id)}
-                  disabled={
-                    !value.some((v) => v.id === h.id) && value.length >= 8
-                  }
-                  onChange={(e) =>
-                    onChange(
-                      e.target.checked
-                        ? [...value, h]
-                        : value.filter((v) => v.id !== h.id),
-                    )
-                  }
-                />
-                {h.title} · {h.heading}
-              </label>
-              <p className="live-prose">{h.body}</p>
-            </article>
-          ))}
-        </details>
+        <Collapse
+          defaultActiveKey={true ? ["content"] : []}
+          items={[
+            {
+              key: "content",
+              label: <>候选依据（{hits.length}）</>,
+              children: (
+                <>
+                  {hits.map((h) => (
+                    <article className="rag-hit" key={h.id}>
+                      <Checkbox
+                        className="rag-check"
+                        checked={value.some((v) => v.id === h.id)}
+                        disabled={
+                          !value.some((v) => v.id === h.id) && value.length >= 8
+                        }
+                        onChange={(e) =>
+                          onChange(
+                            e.target.checked
+                              ? [...value, h]
+                              : value.filter((v) => v.id !== h.id),
+                          )
+                        }
+                      >
+                        {h.title} · {h.heading}
+                      </Checkbox>
+                      <p className="live-prose">{h.body}</p>
+                    </article>
+                  ))}
+                </>
+              ),
+            },
+          ]}
+        />
       )}
       {value.length > 0 && (
         <>
-          <p className="live-meta">已选 {value.length} 条</p>
+          <p className="live-meta">已选 {value.length}条</p>
           {value.map((h) => (
             <div className="live-inline" key={h.id}>
               <span>
                 {h.title} · {h.heading}
               </span>
-              <button
-                type="button"
-                className="ghost-btn"
+              <Button
                 onClick={() => onChange(value.filter((v) => v.id !== h.id))}
+                htmlType="button"
               >
                 移除此依据
-              </button>
+              </Button>
             </div>
           ))}
           <FrozenEvidence sources={value} />
@@ -762,103 +838,121 @@ function CriteriaEditor({
   return (
     <div className="live-form">
       {value.map((p, i) => (
-        <fieldset key={i}>
-          <legend>评分点 {i + 1}</legend>
+        <Card size="small" key={i} title={<>评分点 {i + 1}</>}>
           <div className="rag-two-fields">
-            <label>
-              编号
-              <input
+            <Field className="ui-field" label={<>编号</>} required={true}>
+              <Input
+                aria-label="编号"
                 required
                 value={p.id}
                 maxLength={100}
                 onChange={(e) => update(i, { id: e.target.value })}
               />
-            </label>
-            <label>
-              评分点满分
-              <input
+            </Field>
+            <Field
+              className="ui-field"
+              label={<>评分点满分</>}
+              required={true}
+            >
+              <InputNumber
+                aria-label="评分点满分"
                 required
-                type="number"
                 min={1}
                 max={maxScore}
                 value={p.max_score}
                 onChange={(e) =>
-                  update(i, { max_score: Number(e.target.value) })
+                  update(i, { max_score: Number(String(e ?? "")) })
                 }
               />
-            </label>
+            </Field>
           </div>
-          <label>
-            评分点名称
-            <input
+          <Field
+            className="ui-field"
+            label={<>评分点名称</>}
+            required={true}
+          >
+            <Input
+              aria-label="评分点名称"
               required
               value={p.title}
               onChange={(e) => update(i, { title: e.target.value })}
             />
-          </label>
-          <label>
-            给分规则
-            <textarea
+          </Field>
+          <Field className="ui-field" label={<>给分规则</>} required={true}>
+            <Input.TextArea
+              aria-label="给分规则"
               required
               value={p.rule}
               onChange={(e) => update(i, { rule: e.target.value })}
             />
-          </label>
-          <details>
-            <summary>部分分、替代表达与依据</summary>
-            {(
-              [
-                ["requirement", "对应考查要求"],
-                ["partial_credit", "部分分条件"],
-                ["acceptable_answers", "可接受表达或替代解法"],
-                ["error_conditions", "错误或矛盾条件"],
-              ] as const
-            ).map(([key, label]) => (
-              <label key={key}>
-                {label}
-                <textarea
-                  value={p[key] || ""}
-                  onChange={(e) => update(i, { [key]: e.target.value })}
-                />
-              </label>
-            ))}
-            {refs.map((h) => (
-              <label className="rag-check" key={h.id}>
-                <input
-                  type="checkbox"
-                  checked={p.evidence_ids?.includes(h.id) || false}
-                  onChange={(e) =>
-                    update(i, {
-                      evidence_ids: e.target.checked
-                        ? [...(p.evidence_ids || []), h.id]
-                        : (p.evidence_ids || []).filter((id) => id !== h.id),
-                    })
-                  }
-                />
-                {h.title} · {h.heading}
-              </label>
-            ))}
-          </details>
-          <button
-            type="button"
-            className="ghost-btn"
+          </Field>
+          <Collapse
+            items={[
+              {
+                key: "content",
+                label: <>部分分、替代表达与依据</>,
+                children: (
+                  <>
+                    {(
+                      [
+                        ["requirement", "对应考查要求"],
+                        ["partial_credit", "部分分条件"],
+                        ["acceptable_answers", "可接受表达或替代解法"],
+                        ["error_conditions", "错误或矛盾条件"],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <Field
+                        className="ui-field"
+                        key={key}
+                        label={<>{label}</>}
+                      >
+                        <Input.TextArea
+                          value={p[key] || ""}
+                          onChange={(e) => update(i, { [key]: e.target.value })}
+                        />
+                      </Field>
+                    ))}
+                    {refs.map((h) => (
+                      <Checkbox
+                        className="rag-check"
+                        key={h.id}
+                        checked={p.evidence_ids?.includes(h.id) || false}
+                        onChange={(e) =>
+                          update(i, {
+                            evidence_ids: e.target.checked
+                              ? [...(p.evidence_ids || []), h.id]
+                              : (p.evidence_ids || []).filter(
+                                  (id) => id !== h.id,
+                                ),
+                          })
+                        }
+                      >
+                        {h.title} · {h.heading}
+                      </Checkbox>
+                    ))}
+                  </>
+                ),
+              },
+            ]}
+          />
+          <Button
             onClick={() => onChange(value.filter((_, n) => n !== i))}
+            htmlType="button"
           >
             删除评分点
-          </button>
-        </fieldset>
+          </Button>
+        </Card>
       ))}
       <div className="live-inline">
-        <button
-          type="button"
-          className="ghost-btn"
+        <Button
           disabled={value.length >= 30}
           onClick={() => onChange([...value, blankPoint(value.length + 1)])}
+          htmlType="button"
         >
           添加评分点
-        </button>
+        </Button>
         <span>
-          分值合计 {value.reduce((s, p) => s + p.max_score, 0)} / {maxScore}
+          分值合计 {value.reduce((s, p) => s + p.max_score, 0)}/ {maxScore}
         </span>
       </div>
     </div>
@@ -874,6 +968,7 @@ function BankEditor({
   onSaved: (bankID: string, versionID: string) => void;
   onCancel: () => void;
 }) {
+  const confirm = useConfirm();
   const { course } = useLearning();
   const action = useAction();
   const points = useLiveQuery<{ points: Point[] }>("");
@@ -910,16 +1005,15 @@ function BankEditor({
       ...(q.max_score ? { max_score: q.max_score } : {}),
     });
   }
-  function adopt(output: Record<string, unknown>, id: string) {
-    if (draft.dirty && !confirm("载入AI候选并替换当前编辑？")) return;
+  async function adopt(output: Record<string, unknown>, id: string) {
+    if (draft.dirty && !await confirm("载入AI候选并替换当前编辑？")) return;
     const qs = output.questions as Candidate[];
     setCandidates(qs);
     setCandidate(0);
     load(qs[0]);
     change({ refs: output.evidence_refs as Hit[], ai_job_id: id });
   }
-  async function save(e: FormEvent) {
-    e.preventDefault();
+  async function save() {
     const snapshot = draft.value;
     const saved = await action.run<BankVersion>(
       initial ? `/question-bank/${initial.bank_id}/versions` : "/question-bank",
@@ -931,200 +1025,234 @@ function BankEditor({
     }
   }
   return (
-    <fieldset className="bank-editor" disabled={action.busy}>
-      <h2>{initial ? "另建题目版本" : "新建题目"}</h2>
+    <Card size="small" className="bank-editor" title={<h2>{initial ? "另建题目版本" : "新建题目"}</h2>}>
+
       <DraftNotice {...draft} />
-      <details
-        open={
+      <Collapse
+        defaultActiveKey={
           params.has("source_id") || params.has("knowledge_id") || undefined
+            ? ["content"]
+            : []
         }
-      >
-        <summary>AI 辅助出题与依据选择</summary>
-        <label>
-          出题要求
-          <textarea
-            aria-label="AI出题要求"
-            value={v.requirements}
-            onChange={(e) => change({ requirements: e.target.value })}
-          />
-        </label>
-        <label>
-          候选数量
-          <input
-            type="number"
-            min={1}
-            max={3}
-            value={count}
-            onChange={(e) => setCount(Number(e.target.value))}
-          />
-        </label>
-        <EvidencePicker value={v.refs} onChange={(refs) => change({ refs })} />
-        <AIDraft
-          kind="question_generate"
-          target={{
-            requirements: v.requirements,
-            max_score: v.max_score,
-            count,
-            evidence_ids: v.refs.map((h) => h.id),
-          }}
-          onAdopt={adopt}
-        />
-        {candidates.length > 1 && (
-          <label>
-            选择候选
-            <select
-              value={candidate}
-              onChange={(e) => {
-                if (!confirm("切换候选并替换题目编辑内容？")) return;
-                const i = Number(e.target.value);
-                setCandidate(i);
-                load(candidates[i]);
-              }}
-            >
-              {candidates.map((q, i) => (
-                <option value={i} key={i}>
-                  {q.title}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-      </details>
-      <label>
-        导入题目 JSON
-        <input
-          type="file"
+        items={[
+          {
+            key: "content",
+            label: <>AI 辅助出题与依据选择</>,
+            children: (
+              <>
+                <Field className="ui-field" label={<>出题要求</>}>
+                  <Input.TextArea
+                    aria-label="AI出题要求"
+                    value={v.requirements}
+                    onChange={(e) => change({ requirements: e.target.value })}
+                    disabled={action.busy}
+                  />
+                </Field>
+                <Field className="ui-field" label={<>候选数量</>}>
+                  <InputNumber
+                    aria-label="候选数量"
+                    min={1}
+                    max={3}
+                    value={count}
+                    onChange={(e) => setCount(Number(String(e ?? "")))}
+                    disabled={action.busy}
+                  />
+                </Field>
+                <EvidencePicker
+                  value={v.refs}
+                  onChange={(refs) => change({ refs })}
+                />
+                <AIDraft
+                  kind="question_generate"
+                  target={{
+                    requirements: v.requirements,
+                    max_score: v.max_score,
+                    count,
+                    evidence_ids: v.refs.map((h) => h.id),
+                  }}
+                  onAdopt={adopt}
+                />
+                {candidates.length > 1 && (
+                  <Field className="ui-field" label={<>选择候选</>}>
+                    <Select
+                      aria-label="选择候选"
+                      value={candidate}
+                      onChange={async (e) => {
+                        if (!await confirm("切换候选并替换题目编辑内容？")) return;
+                        const i = Number(e);
+                        setCandidate(i);
+                        load(candidates[i]);
+                      }}
+                      showSearch
+                      optionFilterProp="children"
+                      disabled={action.busy}
+                    >
+                      {candidates.map((q, i) => (
+                        <Select.Option value={i} key={i}>
+                          {q.title}
+                        </Select.Option>
+                      ))}
+                    </Select>
+                  </Field>
+                )}
+              </>
+            ),
+          },
+        ]}
+      />
+      <Field className="ui-field" label={<>导入题目 JSON</>}>
+        <FileUpload
+          aria-label="导入题目 JSON"
           accept=".json,application/json"
           onChange={async (e) => {
-            const input = e.currentTarget;
-            const f = input.files?.[0];
+            const f = e[0];
             if (!f) return;
             setError("");
             try {
               if (f.size > 1024 * 1024) throw Error("文件不能超过1MB");
               const items = importedCandidates(JSON.parse(await f.text()));
-              if (draft.dirty && !confirm("载入导入内容并替换当前编辑？"))
+              if (draft.dirty && !await confirm("载入导入内容并替换当前编辑？"))
                 return;
               setCandidates(items);
               setCandidate(0);
               load(items[0]);
             } catch (err) {
               setError(err instanceof Error ? err.message : "导入失败");
-            } finally {
-              input.value = "";
             }
           }}
+          disabled={action.busy}
         />
-      </label>
+      </Field>
       {error && (
-        <p role="alert" className="live-error">
+        <Alert type="error" showIcon role="alert" message={<>
           {error}
-        </p>
+        </>} />
       )}
-      <form className="live-form" onSubmit={save}>
-        <label>
-          题目名称
-          <input
+      <Form className="live-form" onFinish={save} layout="vertical">
+        <Field className="ui-field" label={<>题目名称</>} required={true}>
+          <Input
+            aria-label="题目名称"
             required
             value={v.title}
             onChange={(e) => change({ title: e.target.value })}
+            disabled={action.busy}
           />
-        </label>
+        </Field>
         <div className="rag-two-fields">
-          <label>
-            题型
-            <select
+          <Field className="ui-field" label={<>题型</>}>
+            <Select
+              aria-label="题型"
               value={v.type}
-              onChange={(e) => change({ type: e.target.value, criteria: [] })}
+              onChange={(e) => change({ type: e, criteria: [] })}
+              showSearch
+              optionFilterProp="children"
+              disabled={action.busy}
             >
               {Object.entries(typeNames).map(([id, name]) => (
-                <option value={id} key={id}>
+                <Select.Option value={id} key={id}>
                   {name}
-                </option>
+                </Select.Option>
               ))}
-            </select>
-          </label>
-          <label>
-            满分
-            <input
+            </Select>
+          </Field>
+          <Field className="ui-field" label={<>满分</>} required={true}>
+            <InputNumber
+              aria-label="满分"
               required
-              type="number"
               min={1}
               max={10000}
               value={v.max_score}
-              onChange={(e) => change({ max_score: Number(e.target.value) })}
+              onChange={(e) => change({ max_score: Number(String(e ?? "")) })}
+              disabled={action.busy}
             />
-          </label>
+          </Field>
         </div>
-        <label>
-          题干与条件
-          <textarea
+        <Field className="ui-field" label={<>题干与条件</>} required={true}>
+          <Input.TextArea
             required
             aria-label="题干与条件"
             rows={5}
             value={v.prompt}
             onChange={(e) => change({ prompt: e.target.value })}
+            disabled={action.busy}
           />
-        </label>
-        <label>
-          考查要求
-          <textarea
+        </Field>
+        <Field className="ui-field" label={<>考查要求</>}>
+          <Input.TextArea
+            aria-label="考查要求"
             value={v.requirements}
             onChange={(e) => change({ requirements: e.target.value })}
+            disabled={action.busy}
           />
-        </label>
-        <label>
-          参考解答
-          <textarea
+        </Field>
+        <Field className="ui-field" label={<>参考解答</>}>
+          <Input.TextArea
             aria-label="参考解答"
             rows={4}
             value={v.reference_answer}
             onChange={(e) => change({ reference_answer: e.target.value })}
+            disabled={action.busy}
           />
-        </label>
+        </Field>
         {v.type === "quiz" && (
           <>
-            <label>
-              选项（每行一个）
-              <textarea
+            <Field
+              className="ui-field"
+              label={<>选项（每行一个）</>}
+              required={true}
+            >
+              <Input.TextArea
+                aria-label="选项（每行一个）"
                 required
                 value={v.options.join("\n")}
                 onChange={(e) =>
                   change({ options: e.target.value.split("\n") })
                 }
+                disabled={action.busy}
               />
-            </label>
-            <label>
-              正确答案
-              <select
-                required
+            </Field>
+            <Field
+              className="ui-field"
+              label={<>正确答案</>}
+              name="correct_answer" getValueProps={() => ({ value: v.correct_answer })}
+              rules={[{ validator: async () => { if (!v.correct_answer) throw Error("请选择正确答案"); } }]}
+              required={true}
+            >
+              <Select
+                aria-label="正确答案"
                 value={v.correct_answer}
-                onChange={(e) => change({ correct_answer: e.target.value })}
+                onChange={(e) => change({ correct_answer: e })}
+                showSearch
+                optionFilterProp="children"
+                disabled={action.busy}
               >
-                <option value="">选择正确答案</option>
+                <Select.Option value="">选择正确答案</Select.Option>
                 {v.options.filter(Boolean).map((o, i) => (
-                  <option key={i}>{o}</option>
+                  <Select.Option key={i} value={o}>{o}</Select.Option>
                 ))}
-              </select>
-            </label>
+              </Select>
+            </Field>
           </>
         )}
-        <label>
-          关联知识点
-          <select
+        <Field className="ui-field" label={<>关联知识点</>}>
+          <Select
+            aria-label="关联知识点"
             value={v.knowledge_point_id}
-            onChange={(e) => change({ knowledge_point_id: e.target.value })}
+            onChange={(e) => change({ knowledge_point_id: e })}
+            showSearch
+            optionFilterProp="children"
+            disabled={action.busy}
           >
-            <option value="">暂不关联</option>
+            <Select.Option value="">暂不关联</Select.Option>
             {points.data?.points
               .filter((p) => p.kind === "point")
               .map((p) => (
-                <option key={p.id} value={p.id}>
+                <Select.Option key={p.id} value={p.id}>
                   {p.title}
-                </option>
+                </Select.Option>
               ))}
-          </select>
-        </label>
+          </Select>
+        </Field>
         <FrozenEvidence sources={v.refs} />
         {v.criteria.length > 0 && (
           <>
@@ -1139,22 +1267,26 @@ function BankEditor({
         )}
         <Feedback message={action.message} failed={action.failed} />
         <div className="live-inline">
-          <button className="primary-link" disabled={action.busy}>
+          <Button
+            htmlType="submit"
+            type="primary"
+            disabled={action.busy || action.busy}
+          >
             保存题目草稿
-          </button>
-          <button
-            type="button"
-            className="ghost-btn"
-            onClick={() => {
-              if (!draft.dirty || confirm("收起未保存编辑？返回时可恢复。"))
+          </Button>
+          <Button
+            onClick={async () => {
+              if (!draft.dirty || await confirm("收起未保存编辑？返回时可恢复。"))
                 onCancel();
             }}
+            htmlType="button"
+            disabled={action.busy}
           >
             取消
-          </button>
+          </Button>
         </div>
-      </form>
-    </fieldset>
+      </Form>
+    </Card>
   );
 }
 
@@ -1196,13 +1328,9 @@ function BankAnalysis({
           </p>
         </>
       )}
-      <button
-        className="ghost-btn"
-        disabled={archived}
-        onClick={() => onRevise(refs)}
-      >
+      <Button disabled={archived} onClick={() => onRevise(refs)}>
         以所选依据另建题目版本
-      </button>
+      </Button>
       <FrozenEvidence sources={v.evidence_refs} />
     </div>
   );
@@ -1215,6 +1343,7 @@ function BankStandards({
   version: BankVersion;
   archived: boolean;
 }) {
+  const confirm = useConfirm();
   const query = useLiveQuery<RubricVersion[]>(
     `/question-bank/versions/${v.id}/rubrics`,
   );
@@ -1234,13 +1363,9 @@ function BankStandards({
         message={action.message}
         failed={action.failed}
       />
-      <button
-        className="ghost-btn"
-        disabled={archived}
-        onClick={() => setEditing(!editing)}
-      >
+      <Button disabled={archived} onClick={() => setEditing(!editing)}>
         {editing ? "收起标准编辑" : "新建标准版本"}
-      </button>
+      </Button>
       {editing && (
         <>
           <DraftNotice {...draft} />
@@ -1251,8 +1376,8 @@ function BankStandards({
           <AIDraft
             kind="bank_rubric"
             target={{ question_id: v.id, evidence_ids: refs.map((h) => h.id) }}
-            onAdopt={(output, id) => {
-              if (draft.dirty && !confirm("载入AI标准并替换当前编辑？")) return;
+            onAdopt={async (output, id) => {
+              if (draft.dirty && !await confirm("载入AI标准并替换当前编辑？")) return;
               draft.change({
                 criteria: output.criteria as Criterion[],
                 refs: output.evidence_refs as Hit[],
@@ -1260,10 +1385,9 @@ function BankStandards({
               });
             }}
           />
-          <form
+          <Form
             className="live-form"
-            onSubmit={async (e) => {
-              e.preventDefault();
+            onFinish={async () => {
               const snapshot = draft.value;
               const saved = await action.run(
                 `/question-bank/versions/${v.id}/rubrics`,
@@ -1275,6 +1399,7 @@ function BankStandards({
               );
               if (saved && draft.saved(snapshot)) setEditing(false);
             }}
+            layout="vertical"
           >
             <CriteriaEditor
               value={criteria}
@@ -1282,18 +1407,19 @@ function BankStandards({
               maxScore={v.max_score}
               refs={refs}
             />
-            <button
-              className="primary-link"
+            <Button
               disabled={
                 action.busy ||
                 archived ||
                 !criteria.length ||
                 total !== v.max_score
               }
+              htmlType="submit"
+              type="primary"
             >
               保存标准草稿
-            </button>
-          </form>
+            </Button>
+          </Form>
         </>
       )}
       {query.isPending && <LoadingState />}
@@ -1305,7 +1431,8 @@ function BankStandards({
           {r.criteria.map((p) => (
             <div className="rag-hit" key={p.id}>
               <strong>
-                {p.id} {p.title} · {p.max_score}分
+                {p.id}
+                {p.title} · {p.max_score}分
               </strong>
               <p>{p.rule}</p>
               {p.requirement && <p>考查要求：{p.requirement}</p>}
@@ -1326,19 +1453,18 @@ function BankStandards({
           <FrozenEvidence sources={r.evidence_refs} />
           <div className="live-inline">
             {r.state === "draft" && (
-              <button
-                className="primary-link"
+              <Button
                 disabled={action.busy || archived}
                 onClick={() => void action.run(`/rubrics/${r.id}/confirm`)}
+                type="primary"
               >
                 确认标准 v{r.version}
-              </button>
+              </Button>
             )}
-            <button
-              className="ghost-btn"
+            <Button
               disabled={archived}
-              onClick={() => {
-                if (draft.dirty && !confirm("复制此标准替换当前编辑？")) return;
+              onClick={async () => {
+                if (draft.dirty && !await confirm("复制此标准替换当前编辑？")) return;
                 draft.change({
                   criteria: r.criteria,
                   refs: r.evidence_refs || [],
@@ -1348,7 +1474,7 @@ function BankStandards({
               }}
             >
               复制到新标准版本
-            </button>
+            </Button>
           </div>
         </article>
       ))}
@@ -1399,72 +1525,74 @@ export function BankQuestionPicker({
     >
       <Feedback error={list.error || detail.error || rubrics.error} />
       <div className="live-form">
-        <label>
-          题目
-          <select
+        <Field className="ui-field" label={<>题目</>}>
+          <Select
             aria-label="题目"
             value={bank}
             onChange={(e) => {
-              setBank(e.target.value);
+              setBank(e);
               setVersion("");
               setRubric("");
             }}
+            showSearch
+            optionFilterProp="children"
           >
-            <option value="">选择题目</option>
+            <Select.Option value="">选择题目</Select.Option>
             {list.data
               ?.filter((v) => !v.archived)
               .map((v) => (
-                <option key={v.bank_id} value={v.bank_id}>
+                <Select.Option key={v.bank_id} value={v.bank_id}>
                   {v.title}
-                </option>
+                </Select.Option>
               ))}
-          </select>
-        </label>
+          </Select>
+        </Field>
         {bank && (
-          <label>
-            确认版本
-            <select
+          <Field className="ui-field" label={<>确认版本</>}>
+            <Select
               aria-label="确认版本"
               value={current?.id || ""}
               onChange={(e) => {
-                setVersion(e.target.value);
+                setVersion(e);
                 setRubric("");
               }}
+              showSearch
+              optionFilterProp="children"
             >
-              <option value="">请选择</option>
+              <Select.Option value="">请选择</Select.Option>
               {versions.map((v) => (
-                <option key={v.id} value={v.id}>
+                <Select.Option key={v.id} value={v.id}>
                   v{v.version} · {v.max_score}分
-                </option>
+                </Select.Option>
               ))}
-            </select>
-          </label>
+            </Select>
+          </Field>
         )}
         {current && (
           <>
             <p className="live-prose">{current.prompt}</p>
             {type !== "quiz" && (
-              <label>
-                确认标准
-                <select
+              <Field className="ui-field" label={<>确认标准</>}>
+                <Select
                   aria-label="确认标准"
                   value={selected?.id || ""}
-                  onChange={(e) => setRubric(e.target.value)}
+                  onChange={(e) => setRubric(e)}
+                  showSearch
+                  optionFilterProp="children"
                 >
-                  <option value="">请选择</option>
+                  <Select.Option value="">请选择</Select.Option>
                   {confirmed.map((r) => (
-                    <option key={r.id} value={r.id}>
+                    <Select.Option key={r.id} value={r.id}>
                       标准 v{r.version}
-                    </option>
+                    </Select.Option>
                   ))}
-                </select>
-              </label>
+                </Select>
+              </Field>
             )}
             <FrozenEvidence
               sources={selected?.evidence_refs || current.evidence_refs}
             />
-            <button
-              className="primary-link"
+            <Button
               disabled={
                 (type !== "quiz" && !selected) ||
                 !!detail.error ||
@@ -1474,9 +1602,10 @@ export function BankQuestionPicker({
                 onSelect(current, selected);
                 onClose();
               }}
+              type="primary"
             >
               加入作业
-            </button>
+            </Button>
           </>
         )}
         {bank && !detail.isPending && !versions.length && (

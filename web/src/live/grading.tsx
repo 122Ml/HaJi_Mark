@@ -1,6 +1,18 @@
+import { Field } from "../shared/Field";
+import { useConfirm } from "../shared/confirm";
 import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { Drawer, Pagination, Select, Input } from "antd";
+import {
+  Drawer,
+  Pagination,
+  Select,
+  Input,
+  Button,
+  Card,
+  Form,
+  Collapse,
+  InputNumber,
+} from "antd";
 import { requestJSON } from "../shared/api";
 import { useSession } from "../shared/session";
 import {
@@ -37,6 +49,7 @@ export const reviewNames: Record<string, string> = {
   released: "已发布",
 };
 export function GradePage() {
+  const confirm = useConfirm();
   const { submissionId } = useParams();
   const { session } = useSession();
   const teacher = session?.user.role === "teacher";
@@ -175,7 +188,6 @@ export function GradePage() {
           >
             ‹ {teacher ? "返回提交队列" : "返回本次作业"}
           </Link>
-          <h1>{teacher ? "作答复核与评分" : "正式反馈"}</h1>
           <p>
             {data.submission.student_name ||
               queue.data?.rows.find((r) => r.id === submissionId)
@@ -190,16 +202,16 @@ export function GradePage() {
             status={latest?.state || "pending"}
             label={latest ? names[latest.state] : "待批阅"}
           />
-          <button className="ghost-btn" onClick={() => setHistory(true)}>
+          <Button onClick={() => setHistory(true)}>
             历史记录（{data.revisions.length}）
-          </button>
+          </Button>
         </div>
       </div>
       <Feedback error={action.failed ? new Error(action.message) : undefined} />
       <div className={`grading-columns ${teacher ? "" : "student-feedback"}`}>
         {teacher && (
-          <aside className="grading-queue card-panel">
-            <h2>提交队列</h2>
+          <Card className="grading-queue card-panel" title={<h2>提交队列</h2>}>
+
             <Input.Search
               aria-label="搜索学生"
               placeholder="搜索学生"
@@ -228,20 +240,20 @@ export function GradePage() {
               />
             ) : (
               <>
-                <p className="live-meta">共 {queue.data?.total || 0} 份</p>
+                <p className="live-meta">共 {queue.data?.total || 0}份</p>
                 {queue.data?.rows.map((r) => (
-                  <button
+                  <Button
                     key={r.id}
-                    className={`queue-item ${r.id === submissionId ? "active" : ""}`}
                     onClick={() => openSubmission(r.id)}
                     aria-current={r.id === submissionId ? "true" : undefined}
+                    className={`queue-item ${r.id === submissionId ? "active" : ""}`}
                   >
                     <strong>{r.student_name}</strong>
                     <span>
                       {reviewNames[r.review_state]} · 第{r.attempt}次
                     </span>
                     <small>{r.prompt}</small>
-                  </button>
+                  </Button>
                 ))}
                 {!queue.data?.rows.length && <p>当前筛选没有提交。</p>}
                 <Pagination
@@ -253,10 +265,10 @@ export function GradePage() {
                 />
               </>
             )}
-          </aside>
+          </Card>
         )}
-        <section className="card-panel grading-original">
-          <h2>题目与原始作答</h2>
+        <Card className="card-panel grading-original" title={<h2>题目与原始作答</h2>}>
+
           <p>{data.question.prompt}</p>
           <p className="live-meta">满分 {data.question.max_score}</p>
           <article
@@ -276,21 +288,22 @@ export function GradePage() {
           </article>
           {showEditor && rubric && (
             <div className="quote-toolbar">
-              <label>
-                引用到评分点
-                <select
+              <Field className="ui-field" label={<>引用到评分点</>}>
+                <Select
+                  aria-label="引用到评分点"
                   value={criterion || rubric.criteria[0]?.id}
-                  onChange={(e) => setCriterion(e.target.value)}
+                  onChange={(e) => setCriterion(e)}
+                  showSearch
+                  optionFilterProp="children"
                 >
                   {rubric.criteria.map((p) => (
-                    <option key={p.id} value={p.id}>
+                    <Select.Option key={p.id} value={p.id}>
                       {p.title}
-                    </option>
+                    </Select.Option>
                   ))}
-                </select>
-              </label>
-              <button
-                className="ghost-btn"
+                </Select>
+              </Field>
+              <Button
                 disabled={
                   !selection || !data.submission.answer_text.includes(selection)
                 }
@@ -303,33 +316,63 @@ export function GradePage() {
                 }
               >
                 引用选中文本
-              </button>
+              </Button>
             </div>
           )}
           {teacher && (
-            <details>
-              <summary>题目评分说明</summary>
-              <p className="live-prose">{data.question.rubric}</p>
-            </details>
+            <Collapse
+              items={[
+                {
+                  key: "content",
+                  label: <>题目评分说明</>,
+                  children: (
+                    <>
+                      <p className="live-prose">{data.question.rubric}</p>
+                    </>
+                  ),
+                },
+              ]}
+            />
           )}
           {source && (
-            <details>
-              <summary>
-                评分依据：{source.title} · {source.locator} · v{source.version}
-              </summary>
-              <p className="live-prose">{source.content}</p>
-              <p>{source.source_note || source.source_url}</p>
-            </details>
+            <Collapse
+              items={[
+                {
+                  key: "content",
+                  label: (
+                    <>
+                      评分依据：{source.title} · {source.locator} · v
+                      {source.version}
+                    </>
+                  ),
+                  children: (
+                    <>
+                      <p className="live-prose">{source.content}</p>
+                      <p>{source.source_note || source.source_url}</p>
+                    </>
+                  ),
+                },
+              ]}
+            />
           )}
-          <details>
-            <summary>原文校验信息</summary>
-            <p className="live-id">{data.submission.answer_sha256}</p>
-          </details>
-        </section>
-        <section className="card-panel grading-editor">
-          <h2>
+          <Collapse
+            items={[
+              {
+                key: "content",
+                label: <>原文校验信息</>,
+                children: (
+                  <>
+                    <p className="live-id">{data.submission.answer_sha256}</p>
+                  </>
+                ),
+              },
+            ]}
+          />
+        </Card>
+        <Card className="card-panel grading-editor" title={<h2>
             {teacher ? (showEditor ? "填写评分" : "当前评分") : "已发布反馈"}
-          </h2>
+          </h2>}>
+
           {showEditor ? (
             <>
               {rubrics.isPending ? (
@@ -341,28 +384,29 @@ export function GradePage() {
                 />
               ) : rubric ? (
                 <>
-                  <label>
-                    使用标准版本
-                    <select
+                  <Field className="ui-field" label={<>使用标准版本</>}>
+                    <Select
                       aria-label="使用标准版本"
                       value={rubric.id}
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         if (
                           !editing ||
-                          confirm(
+                          await confirm(
                             "切换标准后使用该版本的独立草稿？当前编辑已暂存。",
                           )
                         )
-                          setRubricID(e.target.value);
+                          setRubricID(e);
                       }}
+                      showSearch
+                      optionFilterProp="children"
                     >
                       {confirmed.map((r) => (
-                        <option key={r.id} value={r.id}>
+                        <Select.Option key={r.id} value={r.id}>
                           v{r.version} · 已确认
-                        </option>
+                        </Select.Option>
                       ))}
-                    </select>
-                  </label>
+                    </Select>
+                  </Field>
                   <PointGradeForm
                     key={`${submissionId}/${rubric.id}/${latest?.id || "new"}`}
                     rubric={rubric}
@@ -398,19 +442,18 @@ export function GradePage() {
             <>
               <div className="score-hero">
                 {latest.score}
-                <small> / {data.question.max_score}</small>
+                <small>/ {data.question.max_score}</small>
               </div>
               <p className="live-prose">{latest.feedback}</p>
               <RevisionPoints points={latest.point_scores} onLocate={locate} />
               {teacher && data.question.type !== "quiz" && (
-                <button className="ghost-btn" onClick={() => setEditing(true)}>
+                <Button onClick={() => setEditing(true)}>
                   基于当前评分修改
-                </button>
+                </Button>
               )}
               {teacher && latest.state !== "released" && (
                 <div className="grading-actions">
-                  <button
-                    className="primary-link"
+                  <Button
                     disabled={action.busy}
                     onClick={() =>
                       action.run(`/revisions/${latest.id}/state`, {
@@ -418,13 +461,14 @@ export function GradePage() {
                           latest.state === "draft" ? "confirmed" : "released",
                       })
                     }
+                    type="primary"
                   >
                     {action.busy
                       ? "处理中…"
                       : latest.state === "draft"
                         ? "确认评分"
                         : "发布正式反馈"}
-                  </button>
+                  </Button>
                 </div>
               )}
             </>
@@ -448,15 +492,13 @@ export function GradePage() {
             <>
               <Feedback error={queueError ? new Error(queueError) : null} />
               <div className="queue-navigation">
-                <button
-                  className="ghost-btn"
+                <Button
                   disabled={moving || index < 0 || (index === 0 && page === 1)}
                   onClick={() => void move(-1)}
                 >
                   上一份
-                </button>
-                <button
-                  className="ghost-btn"
+                </Button>
+                <Button
                   disabled={
                     moving ||
                     index < 0 ||
@@ -465,11 +507,11 @@ export function GradePage() {
                   onClick={() => void move(1)}
                 >
                   下一份
-                </button>
+                </Button>
               </div>
             </>
           )}
-        </section>
+        </Card>
       </div>
       <Drawer
         title="评分历史"
@@ -480,7 +522,7 @@ export function GradePage() {
         {data.revisions.map((r) => (
           <article className="live-revision" key={r.id}>
             <h3>
-              修订 {r.revision} · {names[r.state]} · {r.score} /{" "}
+              修订 {r.revision} · {names[r.state]} · {r.score}/{" "}
               {data.question.max_score}
             </h3>
             <p>{r.feedback}</p>
@@ -516,10 +558,9 @@ function WholeGrade({
   const action = useAction();
   const [request, setRequest] = useState(crypto.randomUUID());
   return (
-    <form
+    <Form
       className="live-form"
-      onSubmit={async (e) => {
-        e.preventDefault();
+      onFinish={async () => {
         const v = draft.value;
         if (
           await action.run(`/submissions/${submissionID}/revisions`, {
@@ -531,27 +572,27 @@ function WholeGrade({
           onSaved();
         }
       }}
+      layout="vertical"
     >
       <DraftNotice {...draft} />
       <Feedback message={action.message} failed={action.failed} />
-      <label>
-        得分
-        <input
+      <Field className="ui-field" label={<>得分</>} required={true}>
+        <InputNumber
+          aria-label="得分"
           disabled={action.busy}
-          type="number"
           min={0}
           max={max}
           required
           value={draft.value.score}
           onChange={(e) => {
-            draft.change({ ...draft.value, score: Number(e.target.value) });
+            draft.change({ ...draft.value, score: Number(String(e ?? "")) });
             setRequest(crypto.randomUUID());
           }}
         />
-      </label>
-      <label>
-        终审评语
-        <textarea
+      </Field>
+      <Field className="ui-field" label={<>终审评语</>} required={true}>
+        <Input.TextArea
+          aria-label="终审评语"
           disabled={action.busy}
           required
           value={draft.value.feedback}
@@ -560,10 +601,10 @@ function WholeGrade({
             setRequest(crypto.randomUUID());
           }}
         />
-      </label>
-      <button className="primary-link" disabled={action.busy}>
+      </Field>
+      <Button disabled={action.busy} htmlType="submit" type="primary">
         保存评分草稿
-      </button>
-    </form>
+      </Button>
+    </Form>
   );
 }

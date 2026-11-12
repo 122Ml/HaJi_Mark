@@ -1,3 +1,4 @@
+const { choose, selectedText } = require('./browser-ui.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright');
@@ -19,13 +20,14 @@ const assert = (v, m) => { if (!v) throw Error(m); };
       await page.getByLabel('密码', { exact: true }).fill(accounts.find(a => a.username === name).password);
       await page.getByRole('button', { name: '登录', exact: true }).click();
       await page.waitForURL(u=>u.pathname===`/${role}/${role === 'teacher' ? 'dashboard' : 'home'}`);
-      await page.getByLabel('当前课程', { exact: true }).selectOption(ids.course_id);
+      const courses = (await (await page.request.get(base + '/api/v1/me/courses')).json()).data;
+      await choose(page.getByRole('combobox', { name: '当前课程', exact: true }), courses.find(c => c.id === ids.course_id).title);
       return page;
     }
     const t = await login('s1-teacher', 'teacher');
     const a = await login('s1-student-a', 'student');
     await t.goto(`${base}/teacher/homework/${ids.assignment_id}`);
-    await t.locator('summary').filter({ hasText: '逐点评分标准' }).click();
+    await t.locator('.ant-collapse-header').filter({ hasText: '逐点评分标准' }).click();
     await t.getByRole('button',{name:'新建标准版本',exact:true}).click();
     await t.getByLabel('评分点名称', { exact: true }).fill('新版本草稿验收');
     await t.getByLabel('给分与部分得分规则', { exact: true }).fill('教学验收构造规则，保留草稿不用于本次评分。');
@@ -39,8 +41,10 @@ const assert = (v, m) => { if (!v) throw Error(m); };
     console.log('PASS: browser independently saved a new rubric draft; confirmed versions unchanged');
     await t.goto(`${base}/teacher/homework/submissions/${ids.submission_id}/grade`);
     await t.getByRole('button',{name:'基于当前评分修改',exact:true}).click();
-    t.once('dialog', dialog => dialog.accept());
-    await t.getByLabel('使用标准版本', { exact: true }).selectOption(ids.rubric_id);
+    const rubrics = (await (await t.request.get(`${base}/api/v1/learning/courses/${ids.course_id}/questions/${ids.question_id}/rubrics`)).json()).data;
+    await choose(t.getByRole('combobox', { name: '使用标准版本', exact: true }), `v${rubrics.find(r => r.id === ids.rubric_id).version} · 已确认`);
+    const confirmation = t.getByRole('dialog').filter({ hasText: '切换标准后使用该版本的独立草稿' });
+    if (await confirmation.count()) await confirmation.getByRole('button', { name: '确认', exact: true }).click();
     for (const [id, score, comment, quote] of [
       ['D1', 5, '六个测试值均出现，本次人工修订保留为5分。', '测试17、18、19、59、60、61'],
       ['D2', 1, '范围内分类正确，17和61分类错误。', '这六个年龄都合法'],
@@ -62,9 +66,8 @@ const assert = (v, m) => { if (!v) throw Error(m); };
       await t.getByRole('button', { name, exact: true }).waitFor({ state: 'hidden' });
     }
     await a.goto(`${base}/student/homework/submissions/${ids.submission_id}/feedback`);
-    await a.getByRole('heading', { name: '正式反馈', exact: true }).waitFor();
     await a.locator('.grading-editor').getByText('浏览器验收修订，逐点评分与原文依据保留。', { exact: true }).waitFor();
-    assert(await a.getByText('测试值覆盖：5 / 6', { exact: true }).count() > 0, 'Released point scores missing');
+    assert(await a.getByText(/^测试值覆盖：\s*5\s*\/\s*6$/).count() > 0, 'Released point scores missing');
     assert(await a.locator('form').count() === 0, 'Student got a grading form');
     await a.screenshot({ path: path.join(root, '.local/rubric-student-full.png'), fullPage: true });
     await a.addStyleTag({ content: '.topbar{visibility:hidden!important}' });

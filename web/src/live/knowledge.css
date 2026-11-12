@@ -53,12 +53,7 @@
   gap: 8px;
   font-weight: 400 !important;
 }
-.rag-check input {
-  width: 18px !important;
-  height: 18px;
-  margin: 0;
-  flex: none;
-}
+
 .rag-checks {
   display: flex;
   gap: 16px;
@@ -253,3 +248,16 @@
 .bank-evidence .rag-hit {
   overflow-wrap: anywhere;
 }
+
+.rag-source.ant-btn { height: auto; min-height: 150px; white-space: normal; padding: 20px; align-items: flex-start; }
+.rich-content { white-space: normal; }
+.rich-content > :first-child { margin-top: 0; }
+.rich-content > :last-child { margin-bottom: 0; }
+.rich-content h1, .rich-content h2, .rich-content h3 { margin: 1em 0 .5em; }
+.rich-content h1 { font-size: 24px; }
+.rich-content h2 { font-size: 20px; }
+.rich-content pre { padding: 16px; border-radius: 8px; background: var(--surface); overflow-x: auto; white-space: pre; }
+.rich-content table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
+.rich-content th, .rich-content td { padding: 8px 12px; border: 1px solid var(--line); }
+.rich-content .katex-display { overflow-x: auto; overflow-y: hidden; }
+.bank-editor.ant-card > .ant-card-body { display: grid; gap: 18px; }

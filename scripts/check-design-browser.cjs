@@ -1,3 +1,4 @@
+const { choose, selectedText } = require('./browser-ui.cjs');
 // Local Docker UI acceptance. Uses real test accounts; never prints credentials.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -38,11 +39,12 @@ const fixtures = JSON.parse(fs.readFileSync(path.join(root, '.local/s1-accounts.
       await page.getByRole('button', {name: '登录', exact: true}).click();
       const home = role === 'teacher' ? 'dashboard' : 'home';
       await page.waitForURL(u=>u.pathname===`/${role}/${home}`);
-      const courseSelect = page.getByLabel('当前课程', {exact: true});
+      const courseSelect = page.getByRole('combobox', { name: '当前课程', exact: true });
       await courseSelect.waitFor();
-      const courseID = await courseSelect.locator('option').evaluateAll(options => options.filter(o => /^浏览器验收 \d+$/.test(o.textContent)).sort((a, b) => b.textContent.localeCompare(a.textContent))[0]?.value);
-      assert.ok(courseID, 'Run check-platform-browser.cjs first to create a labeled example course');
-      await courseSelect.selectOption(courseID);
+      const courses = (await (await page.request.get(base + '/api/v1/me/courses')).json()).data;
+      const course = courses.filter(c => /^浏览器验收 \d+$/.test(c.title)).sort((a,b)=>b.title.localeCompare(a.title))[0];
+      assert.ok(course, 'Run check-platform-browser.cjs first to create a labeled example course');
+      await choose(courseSelect, course.title);
       assert.equal(await page.locator('.live-shortcut p').count(), 0, 'Shortcut cards must not repeat feature instructions');
       assert.equal(await page.getByText(/维护知识目录|准备并审核学习资料|基于实际学习、提交|PREPARE|SUPPORT/).count(), 0, 'README-style interface copy returned');
       await capture(role + '-overview', true);
@@ -59,13 +61,13 @@ const fixtures = JSON.parse(fs.readFileSync(path.join(root, '.local/s1-accounts.
       }
       await page.goto(`${base}/${role}/grading`);
       await page.waitForURL(u=>u.pathname===`/${role}/homework`);
-      const course = role === 'teacher' ? 'curriculum' : 'course-content';
+      const courseRoute = role === 'teacher' ? 'curriculum' : 'course-content';
       await page.goto(`${base}/${role}/${role === 'teacher' ? 'course-content' : 'course-twin'}?node=design-check`);
-      await page.waitForURL(u=>u.pathname===`/${role}/${course}` && u.searchParams.get("node")==="design-check");
+      await page.waitForURL(u=>u.pathname===`/${role}/${courseRoute}` && u.searchParams.get("node")==="design-check");
       await page.goto(`${base}/${role}/${role === 'teacher' ? 'curriculum' : 'course-content'}`);
       await capture(role + '-course', true);
       await page.goto(`${base}/${role}/${home}`);
-      await page.getByRole('heading', {level: 1}).waitFor();
+      await page.locator('main .live-page').waitFor();
       for (const width of [390, 768, 1024]) {
         await page.setViewportSize({width, height: 900});
         await capture(`${role}-${width}`);

@@ -1,3 +1,5 @@
+import { Field } from "../shared/Field";
+import { Card, Button, Select, Input } from "antd";
 import { useState } from "react";
 import { Feedback, Link, useAction, useLiveQuery } from "./context";
 import { DecisionHistory } from "./content-topics";
@@ -58,13 +60,13 @@ export function ContentImpactPage() {
   return (
     <div className="live-page">
       <header className="workspace-heading">
-        <h1>内容变更</h1>
+
         <Link className="ghost-btn" to="/teacher/regrades">
           整组重评
         </Link>
       </header>
       <Feedback error={q.error} />
-      <section className="card-panel">
+      <Card className="card-panel">
         {q.data?.changes.length ? (
           q.data.changes.map((c) => (
             <div key={c.id} className="live-row">
@@ -75,24 +77,23 @@ export function ContentImpactPage() {
                   {c.state === "archived" ? "已归档" : "版本／许可变更"}
                 </p>
               </div>
-              <button
-                className="ghost-btn"
+              <Button
                 onClick={() => {
                   setSelected(c);
                   setReason("");
                 }}
               >
                 查看影响
-              </button>
+              </Button>
             </div>
           ))
         ) : (
           <p>暂无内容变更</p>
         )}
-      </section>
+      </Card>
       {selected && (
-        <section className="card-panel live-form">
-          <h2>{selected.title} · 引用影响</h2>
+        <Card className="card-panel live-form" title={<h2>{selected.title} · 引用影响</h2>}>
+
           {q.data?.items.map((i) => (
             <div className="live-row" key={`${i.kind}:${i.id}`}>
               <div>
@@ -107,29 +108,30 @@ export function ContentImpactPage() {
             </div>
           ))}
           {!q.data?.items.length && <p>未查到关联内容</p>}
-          <label>
-            处理决定
-            <select
+          <Field className="ui-field" label={<>处理决定</>}>
+            <Select
               aria-label="处理决定"
               value={decision}
-              onChange={(e) => setDecision(e.target.value)}
+              onChange={(e) => setDecision(e)}
+              showSearch
+              optionFilterProp="children"
             >
-              <option value="no_action">无需处理历史内容</option>
-              <option value="future_version">后续任务选用新版</option>
-              <option value="regrade">安排整组重评</option>
-            </select>
-          </label>
-          <label>
-            处理原因
-            <textarea
+              <Select.Option value="no_action">无需处理历史内容</Select.Option>
+              <Select.Option value="future_version">
+                后续任务选用新版
+              </Select.Option>
+              <Select.Option value="regrade">安排整组重评</Select.Option>
+            </Select>
+          </Field>
+          <Field className="ui-field" label={<>处理原因</>}>
+            <Input.TextArea
               aria-label="处理原因"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
             />
-          </label>
+          </Field>
           <Feedback message={action.message} failed={action.failed} />
-          <button
-            className="primary-link"
+          <Button
             disabled={action.busy || !reason.trim()}
             onClick={() =>
               action.run("/impact/decisions", {
@@ -139,14 +141,15 @@ export function ContentImpactPage() {
                 reason,
               })
             }
+            type="primary"
           >
             保存处理决定
-          </button>
+          </Button>
           {decision === "regrade" && (
             <Link to="/teacher/regrades">选择关闭作业并建立批次</Link>
           )}
           <DecisionHistory id={selected.id} />
-        </section>
+        </Card>
       )}
     </div>
   );

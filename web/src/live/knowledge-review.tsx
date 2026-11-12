@@ -1,5 +1,7 @@
+import { Field } from "../shared/Field";
+import { useConfirm } from "../shared/confirm";
 import { useState } from "react";
-import { Select } from "antd";
+import { Select, Card, Collapse, Input, Button } from "antd";
 import { Feedback, useAction, useLiveQuery } from "./context";
 import { WorkflowJob } from "./workflow-job";
 import { type Knowledge } from "./knowledge";
@@ -28,6 +30,7 @@ export function KnowledgeReview({
   candidate: Knowledge;
   onDone: () => void;
 }) {
+  const confirm = useConfirm();
   const q = useLiveQuery<Knowledge[]>("/knowledge"),
     action = useAction();
   const known =
@@ -53,8 +56,7 @@ export function KnowledgeReview({
       <RichContent text={candidate.body} />
       <p>{candidate.conditions}</p>
       <DraftNotice {...draft} />
-      <label>
-        比较范围
+      <Field className="ui-field" label={<>比较范围</>}>
         <Select
           mode="multiple"
           aria-label="比较已有知识"
@@ -64,7 +66,7 @@ export function KnowledgeReview({
           }
           options={known.map((k) => ({ value: k.id, label: k.title }))}
         />
-      </label>
+      </Field>
       <WorkflowJob
         kind="knowledge_compare"
         target={{ knowledge_id: candidate.id, related_ids: v.related_ids }}
@@ -79,7 +81,7 @@ export function KnowledgeReview({
         }}
       />
       {comparisons.map((c) => (
-        <article className="card-panel" key={c.knowledge_id}>
+        <Card className="card-panel" key={c.knowledge_id}>
           <h3>
             {known.find((k) => k.id === c.knowledge_id)?.title} ·{" "}
             {relations[c.relation]}
@@ -88,82 +90,93 @@ export function KnowledgeReview({
           <blockquote>{c.existing_quote}</blockquote>
           <p>{c.reason}</p>
           <p>{c.suggestion}</p>
-        </article>
+        </Card>
       ))}
       {!!v.related_ids.length && (
-        <details>
-          <summary>已有知识原文</summary>
-          {v.related_ids.map((id) => {
-            const k = known.find((k) => k.id === id);
-            return (
-              k && (
-                <article className="rag-hit" key={id}>
-                  <h3>{k.title}</h3>
-                  <RichContent text={k.body} />
-                  <p>条件：{k.conditions || "未单列"}</p>
-                </article>
-              )
-            );
-          })}
-        </details>
+        <Collapse
+          items={[
+            {
+              key: "content",
+              label: <>已有知识原文</>,
+              children: (
+                <>
+                  {v.related_ids.map((id) => {
+                    const k = known.find((k) => k.id === id);
+                    return (
+                      k && (
+                        <article className="rag-hit" key={id}>
+                          <h3>{k.title}</h3>
+                          <RichContent text={k.body} />
+                          <p>条件：{k.conditions || "未单列"}</p>
+                        </article>
+                      )
+                    );
+                  })}
+                </>
+              ),
+            },
+          ]}
+        />
       )}
-      <label>
-        处理决定
-        <select
+      <Field className="ui-field" label={<>处理决定</>}>
+        <Select
           aria-label="处理决定"
           value={v.action}
-          onChange={(e) => draft.change({ ...v, action: e.target.value })}
+          onChange={(e) => draft.change({ ...v, action: e })}
+          showSearch
+          optionFilterProp="children"
         >
-          <option value="defer">暂不处理</option>
-          <option value="discard">不采纳此候选</option>
-          <option value="merge">合成新条目</option>
-          <option value="coexist">按条件并存</option>
-          <option value="replace">确认候选并停用所选旧条目</option>
-        </select>
-      </label>
+          <Select.Option value="defer">暂不处理</Select.Option>
+          <Select.Option value="discard">不采纳此候选</Select.Option>
+          <Select.Option value="merge">合成新条目</Select.Option>
+          <Select.Option value="coexist">按条件并存</Select.Option>
+          <Select.Option value="replace">
+            确认候选并停用所选旧条目
+          </Select.Option>
+        </Select>
+      </Field>
       {v.action === "merge" && (
         <>
-          <label>
-            合并标题
-            <input
+          <Field className="ui-field" label={<>合并标题</>}>
+            <Input
+              aria-label="合并标题"
               value={v.title}
               onChange={(e) => draft.change({ ...v, title: e.target.value })}
             />
-          </label>
-          <label>
-            合并正文
-            <textarea
+          </Field>
+          <Field className="ui-field" label={<>合并正文</>}>
+            <Input.TextArea
+              aria-label="合并正文"
               rows={8}
               value={v.body}
               onChange={(e) => draft.change({ ...v, body: e.target.value })}
             />
-          </label>
-          <label>
-            适用条件
-            <textarea
+          </Field>
+          <Field className="ui-field" label={<>适用条件</>}>
+            <Input.TextArea
+              aria-label="适用条件"
               value={v.conditions}
               onChange={(e) =>
                 draft.change({ ...v, conditions: e.target.value })
               }
             />
-          </label>
+          </Field>
         </>
       )}
-      <label>
-        处理理由
-        <textarea
+      <Field className="ui-field" label={<>处理理由</>} required={true}>
+        <Input.TextArea
+          aria-label="处理理由"
           required
           value={v.reason}
           onChange={(e) => draft.change({ ...v, reason: e.target.value })}
         />
-      </label>
+      </Field>
       <Feedback
         message={action.message}
         failed={action.failed}
         error={q.error}
       />
-      <button
-        className="primary-link"
+      <Button
         disabled={
           action.busy ||
           !v.reason.trim() ||
@@ -173,7 +186,7 @@ export function KnowledgeReview({
         onClick={async () => {
           if (
             v.action === "replace" &&
-            !confirm("停用所选旧知识的未来用途？历史引用会保留。")
+            !await confirm("停用所选旧知识的未来用途？历史引用会保留。")
           )
             return;
           const snapshot = v;
@@ -186,9 +199,10 @@ export function KnowledgeReview({
             onDone();
           }
         }}
+        type="primary"
       >
         保存决定
-      </button>
+      </Button>
     </div>
   );
 }

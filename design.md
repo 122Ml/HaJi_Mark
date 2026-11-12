@@ -9,10 +9,10 @@
 | 维度 | 参考图观察 | 本平台采用 |
 | --- | --- | --- |
 | 色彩 | 深青主色，薄荷/青绿渐变只出现在主视觉和插图区，画布以白色为主 | 主色 `#006764`；渐变只用于登录主视觉、流程卡和概览快捷卡插图区 |
-| 字体层级 | 大标题细字重（约 500），正文小而清晰，分类用小号大写胶囊标签 | h1 500 字重；页面标题上方放胶囊分类标签；正文 15px |
+| 字体层级 | 大标题细字重（约 500），正文小而清晰 | 主页面直接展示操作区；保留业务对象标题和卡片标题，正文 15px |
 | 卡片 | 白底、16px 圆角、细边框、轻阴影；标题在上，彩色插图区在下 | `.card-panel` 与 `.live-shortcut` / `.flow-card` |
 | 按钮 | 纯色深青、小圆角、轻阴影 | 主按钮纯色，8px 圆角，hover/active 加深 |
-| 导航 | 白色顶栏，主菜单分组，右上角账户和主操作 | 顶栏放品牌、角色标签和账户；业务导航为左侧分组栏（工作台需要常驻导航） |
+| 导航 | 白色顶栏，主菜单分组，右上角账户和主操作 | 顶栏放品牌、唯一课程选择器和账户；业务导航使用 Ant Design Menu |
 | 留白 | 宽松，内容最大宽度约 1200px | 内容区最大 1200px，组件间距 24px |
 | 页脚 | 多列链接 | 工作台页脚只保留一行说明；侧栏已提供全部链接，不再重复 |
 
@@ -25,7 +25,9 @@
 | `web/src/app/theme.ts` | Ant Design token（颜色、圆角、控件高度、字体），与 CSS 变量同名同值 |
 | `web/src/styles.css` | `:root` 设计变量、应用壳（顶栏/侧栏/页脚）、按钮、表格、状态组件、登录页、断点 |
 | `web/src/live/styles.css` | 业务页模板：页头、课程切换条、表单、行列表、指标卡、知识点、快捷卡 |
-| `web/src/shared/ui.tsx` | `PageHeader`、`EmptyState`、`ErrorState`、`LoadingState`、`StatusTag` |
+| `web/src/shared/ui.tsx` | `EmptyState`、`ErrorState`、`LoadingState`、`StatusTag` |
+| `web/src/shared/Field.tsx`、`FileUpload.tsx`、`confirm.ts` | 复用 Ant Design 表单项、文件选择和确认弹窗 |
+| `web/src/live/content-render.tsx` | Markdown/GFM 与 KaTeX 正文渲染；原文保持不变，不执行 HTML |
 | `web/src/app/navigation.ts` | 教师/学生导航分组与链接名称（验收脚本依赖链接名） |
 | `web/src/app/App.tsx` | 应用壳：顶栏、侧栏、移动端抽屉、焦点与标题 |
 | `web/src/app/Login.tsx` | 登录页 |
@@ -83,10 +85,9 @@ CSS 变量在 `styles.css :root`，颜色同步到 `theme.ts palette`。修改�
 
 ```tsx
 <div className="live-page">
-  <PageHeader eyebrow="作业中心" title="作业列表" actions={<Link className="primary-link" to="…">新建作业</Link>} />
+  <div className="live-inline"><Link className="primary-link" to="…">新建作业</Link></div>
   <Feedback error={query.error} message={action.message} failed={action.failed} />
-  <section className="card-panel">
-    <div className="section-head"><h2>全部作业</h2><span className="live-meta">共 2 项</span></div>
+  <Card className="card-panel" title="全部作业">
     {query.isPending ? <LoadingState /> : !list.length ? <EmptyState title="当前没有作业">…</EmptyState> :
       list.map((a) => (
         <article className="live-row" key={a.id}>
@@ -94,21 +95,22 @@ CSS 变量在 `styles.css :root`，颜色同步到 `theme.ts palette`。修改�
           <div className="live-inline">{/* ghost-btn / primary-link */}</div>
         </article>
       ))}
-  </section>
+  </Card>
 </div>
 ```
 
-- 页头：胶囊分类 + h1，操作放右侧；详情页把“‹ 返回列表”放在分类位置。
-- 卡片：一张 `.card-panel` 承载一组任务；列表用 `.live-row`，不再每行一张卡片。
+- 主页面：不再重复侧栏中的分组名、页面名和账户身份说明；详情保留作业、资料等对象名称和返回操作。
+- 卡片：使用 Ant Design `Card` 承载一组任务；列表内容保留 `.live-row` 排列。
 - 两栏：`.live-grid`（窄侧栏 + 内容），`.live-grid.is-even`（等宽两栏）；1023px 以下单列。
-- 表单：原生控件 + `<label>` 包裹，`.live-form` 纵向，`.live-inline` 横排；保留原生 select/fieldset 的可访问语义。
-- 状态：加载 `LoadingState`，空 `EmptyState`（整页无内容时 `heading` 输出 h1），加载失败 `ErrorState`，操作结果 `Feedback`。`useAction` 失败时 `failed=true`，`Feedback` 用红色 `role="alert"` 显示，成功为绿色 `role="status"`。
+- 表单：使用 `Form`、共享 `Field`（`Form.Item`）、`Input`、`Select`、`InputNumber`、`Radio`、`Checkbox`、`Upload`；可见标签与实际控件关联。`.live-form` 纵向，`.live-inline` 横排。
+- 状态：加载 `LoadingState`（`Spin`），空 `EmptyState`（`Empty`），加载失败 `ErrorState`（`Alert`），操作结果 `Feedback`。失败为 `role="alert"`，成功为 `role="status"`。
 - 文案：只写标题、实际数据和操作名；不在页面重复功能说明。概览只用真实证据，无评分时显示“证据不足”。
-- Ant Design 用于主题、登录输入框、按钮、头像、提醒；两字按钮设 `autoInsertSpace={false}` 保持可访问名称。
+- Ant Design 统一菜单、按钮、表单、目录树、表格、分页、页签、折叠、抽屉和确认框。业务链接使用 `Button` 并保留 React Router 导航；正文中的表格和代码保持内容语义。两字按钮设 `autoInsertSpace={false}`。
+- 资料、题干、参考解答、知识与问答正文用 `RichContent` 渲染 Markdown 和公式；编辑框与评分引用仍保留原文。减少动画通过主题 `motion` 控制，不全局覆盖下拉层动画或定位。
 
 ## 页面示例
 
-截图由本地 Docker 与验收账号生成，数据来自带“浏览器验收”标签的测试课程；不含密码。完整集合在 `docs/screenshots/`（登录 390/768/1440，师生概览/作业/课程，390/768/1024 与 390 菜单展开）。
+以下图片保留原设计阶段的样例，不代表本轮组件迁移后的界面。本轮截图由本地 Docker 与验收账号生成，保存在忽略目录 `.local/design/`；数据来自带“浏览器验收”标签的测试课程，不含密码。
 
 ### 登录页
 
@@ -153,7 +155,7 @@ git diff --check
 
 设计检查依赖前一个脚本生成的“浏览器验收”课程。人工核对后，把 `.local/design/*.png` 复制到 `docs/screenshots/`，并把上面六张示例复制到 `docs/design-examples/`。不要 `down -v`，不要删卷。
 
-未覆盖：像素相似度、完整无障碍认证、暗色模式、大规模负载。Vite 主 JS 包约 645kB，超过 500kB 建议值，后续按真实性能测量再拆包。
+未覆盖：像素相似度、完整无障碍认证、暗色模式、大规模负载。2026-11-12组件统一后Vite主JS包约1.91MB（gzip约586KB），仍有大chunk提示，未完成首屏性能优化。
 
 
 ## 2026-11-05 操作工作台

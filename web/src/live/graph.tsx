@@ -1,3 +1,5 @@
+import { Field } from "../shared/Field";
+import { Card, Form, Select, Button } from "antd";
 import { useState } from "react";
 import { useSession } from "../shared/session";
 import { useLiveQuery, useAction, Feedback } from "./context";
@@ -14,9 +16,13 @@ export function KnowledgeGraph() {
   const [to, setTo] = useState("");
   const nodes = query.data?.nodes.filter((p) => p.kind === "point") || [];
   return (
-    <section className="card-panel">
-      <h2>知识图谱与前置依赖</h2>
-      <Feedback error={query.error} message={action.message} failed={action.failed} />
+    <Card className="card-panel" title={<h2>知识图谱与前置依赖</h2>}>
+
+      <Feedback
+        error={query.error}
+        message={action.message}
+        failed={action.failed}
+      />
       <div className="live-graph">
         {nodes.map((p) => (
           <article className="live-graph-node" key={p.id}>
@@ -34,51 +40,63 @@ export function KnowledgeGraph() {
       </div>
       {!nodes.length && <p>尚未维护知识点。</p>}
       {teacher && (
-        <form
+        <Form
           className="live-inline"
-          onSubmit={(e) => {
-            e.preventDefault();
+          onFinish={() => {
             void action.run("/edges", { from_id: from, to_id: to });
           }}
+          layout="vertical"
         >
-          <label>
-            前置知识点
-            <select
+          <Field
+            className="ui-field"
+            label={<>前置知识点</>}
+            name="from" getValueProps={() => ({ value: from })}
+            rules={[{ validator: async () => { if (!from) throw Error("请选择前置知识点"); } }]}
+            required={true}
+          >
+            <Select
               aria-label="前置知识点"
-              required
               value={from}
-              onChange={(e) => setFrom(e.target.value)}
+              onChange={(e) => setFrom(e)}
+              showSearch
+              optionFilterProp="children"
             >
-              <option value="">请选择</option>
+              <Select.Option value="">请选择</Select.Option>
               {nodes.map((p) => (
-                <option value={p.id} key={p.id}>
+                <Select.Option value={p.id} key={p.id}>
                   {p.title}
-                </option>
+                </Select.Option>
               ))}
-            </select>
-          </label>
+            </Select>
+          </Field>
           <span>→</span>
-          <label>
-            后续知识点
-            <select
+          <Field
+            className="ui-field"
+            label={<>后续知识点</>}
+            name="to" getValueProps={() => ({ value: to })}
+            rules={[{ validator: async () => { if (!to) throw Error("请选择后续知识点"); } }]}
+            required={true}
+          >
+            <Select
               aria-label="后续知识点"
-              required
               value={to}
-              onChange={(e) => setTo(e.target.value)}
+              onChange={(e) => setTo(e)}
+              showSearch
+              optionFilterProp="children"
             >
-              <option value="">请选择</option>
+              <Select.Option value="">请选择</Select.Option>
               {nodes.map((p) => (
-                <option value={p.id} key={p.id}>
+                <Select.Option value={p.id} key={p.id}>
                   {p.title}
-                </option>
+                </Select.Option>
               ))}
-            </select>
-          </label>
-          <button className="ghost-btn" disabled={action.busy}>
+            </Select>
+          </Field>
+          <Button disabled={action.busy} htmlType="submit">
             保存依赖
-          </button>
-        </form>
+          </Button>
+        </Form>
       )}
-    </section>
+    </Card>
   );
 }

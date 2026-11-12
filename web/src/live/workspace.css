@@ -73,7 +73,7 @@
 .grading-columns > .card-panel {
   min-width: 0;
   margin: 0;
-  padding: 20px;
+  padding: 0;
   max-height: calc(100dvh - 275px);
   min-height: 440px;
   overflow: auto;
@@ -289,3 +289,6 @@
     font-size: 24px;
   }
 }
+
+.grading-columns > .ant-card > .ant-card-body { padding: 20px; }
+.queue-item.ant-btn { justify-content: flex-start; white-space: normal; height: auto; }

@@ -2,14 +2,10 @@
 .live-page { display: grid; gap: var(--space-5); min-width: 0; }
 .live-page > * { min-width: 0; }
 
-/* Page header: eyebrow pill + h1, actions on the right */
-.live-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; padding: var(--space-3) 0 var(--space-2); }
-.live-heading h1 { font-size: var(--text-h1); font-weight: 500; margin: 10px 0 0; text-wrap: balance; }
-.live-heading > p:first-child, .live-eyebrow { display: inline-block; color: var(--teal); font-size: var(--text-xs); font-weight: 600; letter-spacing: .6px; padding: 1px 12px; margin: 0; border: 1px solid var(--mint-line); border-radius: var(--radius-pill); background: white; }
-.live-heading > h1, .live-heading > p:not(:first-child) { flex: 1 1 100%; }
-.live-heading > p:not(:first-child) { margin: 0; color: var(--muted); font-size: 14px; }
-.live-heading > h1:first-child { margin-top: 0; }
-.live-heading-actions { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+/* Main routes are named by navigation and document.title; keep only actions here. */
+.page-actions { display: flex; justify-content: flex-end; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.live-heading { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.live-heading h1 { margin: 0; font-size: var(--text-lg); }
 
 /* Section headings inside cards */
 .live-page h2 { font-size: var(--text-lg); margin: 0 0 var(--space-4); }
@@ -22,24 +18,30 @@
 .live-grid.is-even { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .live-grid aside.card-panel { background: var(--surface); box-shadow: none; }
 
-/* Forms (native controls share the token look) */
+/* Ant Design owns control styling; page CSS only arranges components. */
 .live-form { display: grid; gap: var(--space-4); max-width: 880px; }
-.live-form label, .live-page > section > label, .live-grid label { display: grid; gap: 6px; font-size: var(--text-sm); font-weight: 600; color: var(--ink-soft); }
-.live-page input:not([type="radio"]):not([type="checkbox"]):not(.ant-input):not(.ant-select-selection-search-input), .live-page textarea, .live-page select { width: 100%; min-height: 40px; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 12px; background: #fff; color: var(--ink); font: inherit; font-weight: 400; transition: border-color var(--ease), box-shadow var(--ease); }
-.live-page input:not([type="radio"]):not([type="checkbox"]):not(.ant-input):not(.ant-select-selection-search-input):hover, .live-page textarea:hover, .live-page select:hover { border-color: var(--mint-line); }
-.live-page input:not(.ant-input):not(.ant-select-selection-search-input):focus, .live-page textarea:focus, .live-page select:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px var(--mint); }
-.live-page input:not(.ant-input):not(.ant-select-selection-search-input):disabled, .live-page textarea:disabled, .live-page select:disabled { background: var(--surface); color: var(--muted); cursor: not-allowed; }
-.live-page textarea { resize: vertical; line-height: 1.7; }
-.live-page input[type="checkbox"], .live-page input[type="radio"] { accent-color: var(--teal); width: 18px; height: 18px; flex-shrink: 0; }
-.live-page fieldset { display: grid; gap: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-4) var(--space-5); margin: 0; min-width: 0; background: var(--surface); }
-.live-page legend { color: var(--teal); font-weight: 600; padding: 0 8px; }
-.live-option { display: flex !important; align-items: center; gap: var(--space-3); padding: 10px 12px; border-radius: var(--radius-sm); font-weight: 400 !important; }
-.live-option:hover { background: var(--mint-soft); }
+.ui-field.ant-form-item { margin: 0; min-width: 0; }
+.ui-field .ant-form-item-label { white-space: normal; }
+.ui-field .ant-form-item-label > label { height: auto; font-weight: 500; }
+.ui-field .ant-select, .ui-field .ant-input-number { width: 100%; }
+.live-form > .ant-btn { justify-self: start; }
 .live-inline { display: flex; gap: var(--space-3); align-items: flex-end; flex-wrap: wrap; }
-.live-inline > label { flex: 1 1 200px; min-width: 0; }
+.live-inline > .ui-field { flex: 1 1 200px; min-width: 0; }
 .live-page > .live-inline { padding: var(--space-4) var(--space-5); border: 1px solid var(--line); border-radius: var(--radius-lg); background: white; }
-.live-page > .live-inline > label { flex: 0 1 360px; }
-.live-grid > aside form { display: grid; gap: var(--space-3); margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--line); }
+.live-page > .live-inline > .ui-field { flex: 0 1 360px; }
+.live-option.ant-radio-wrapper { display: flex; padding: 10px 12px; border-radius: var(--radius-sm); }
+.live-option:hover { background: var(--mint-soft); }
+.live-grid .ant-card-body > .live-form { margin-top: var(--space-3); }
+.ant-card.card-panel, .ant-collapse.card-panel { padding: 0; }
+.ant-card.card-panel > .ant-card-body { min-width: 0; }
+.live-page .ant-card-head-title h2 { margin: 0; font-size: var(--text-lg); }
+.ant-card .ant-card-head-title { white-space: normal; }
+.live-page .ant-btn { white-space: normal; height: auto; min-height: 40px; }
+.live-page .ant-btn > span { overflow-wrap: anywhere; }
+.live-page .ant-select { min-width: 0; }
+.live-page .ant-collapse-content-box > * + * { margin-top: var(--space-3); }
+.live-page .ant-card-body > .ant-form + .ant-input-search { margin-top: var(--space-4); }
+.live-page .ant-radio-wrapper, .live-page .ant-checkbox-wrapper { align-items: flex-start; }
 
 /* Rows: list items with actions on the right */
 .live-row { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); padding: var(--space-4) 0; border-bottom: 1px solid var(--line); }
@@ -68,7 +70,6 @@ article.live-prose { padding: var(--space-4) var(--space-5); background: var(--s
 .live-revision { padding: var(--space-4) 0; border-bottom: 1px solid var(--line); }
 .live-revision:last-child { border-bottom: 0; }
 .live-page blockquote { border-left: 3px solid var(--mint-line); margin: var(--space-4) 0 0; padding: 4px 0 4px var(--space-4); color: var(--ink-soft); }
-.live-page button:disabled { cursor: not-allowed; opacity: .55; }
 
 /* Overview: stat tiles */
 .live-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); }
@@ -105,16 +106,13 @@ article.live-prose { padding: var(--space-4) var(--space-5); background: var(--s
 }
 @media (max-width: 640px) {
   .live-page { gap: var(--space-4); }
-  .live-heading { padding-top: 0; }
   .live-metrics { gap: var(--space-3); }
   .live-metrics .card-panel { padding: var(--space-4); }
   .live-metrics strong { font-size: 26px; }
   .live-row { flex-direction: column; align-items: stretch; }
   .live-row > .live-inline { margin-top: var(--space-2); }
-  .live-inline > label, .live-page > .live-inline > label { flex-basis: 100%; }
+  .live-inline > .ui-field, .live-page > .live-inline > .ui-field { flex-basis: 100%; }
   .live-page > .live-inline { padding: var(--space-4); }
-  .live-page input:not([type="radio"]):not([type="checkbox"]):not(.ant-input):not(.ant-select-selection-search-input), .live-page textarea, .live-page select { font-size: 16px; }
-  .live-page fieldset { padding: var(--space-3) var(--space-4); }
   .live-shortcuts { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
   .live-shortcut { flex-direction: row; align-items: center; justify-content: space-between; }
   .shortcut-art { min-height: 72px; width: 104px; flex-shrink: 0; }
@@ -124,3 +122,7 @@ article.live-prose { padding: var(--space-4) var(--space-5); background: var(--s
 .member-list li { display: flex; justify-content: space-between; gap: var(--space-3); padding: 8px 12px; border-radius: var(--radius-sm); background: var(--surface); font-size: 14px; }
 .card-panel > .live-inline + p, .card-panel > .live-inline + p ~ p { margin: var(--space-3) 0 0; font-size: 14px; color: var(--ink-soft); }
 .card-panel > .live-inline + p { margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--line); }
+
+.ant-card.live-form > .ant-card-body { display: grid; gap: var(--space-4); }
+
+.live-metrics .ant-card.card-panel { padding: 0; }

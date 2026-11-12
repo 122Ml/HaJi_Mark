@@ -1,3 +1,4 @@
+const { choose, selectedText, optionCount } = require('./browser-ui.cjs');
 // Real local UI acceptance. Model calls are reused, never mocked as AI success.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -52,7 +53,7 @@ const pass = why => { report.checks.push(why); save(); console.log('PASS', why);
           await leave(route, args);
           if (route === 'materials') {
             const panel = t.getByRole('dialog', { name: '资料核对与发布', exact: true });
-            await panel.locator('summary').filter({ hasText: /^公式与图像/ }).waitFor();
+            await panel.locator('.ant-collapse-header').filter({ hasText: /^公式与图像/ }).waitFor();
             assert(await panel.evaluate(e => e.scrollWidth <= e.clientWidth + 1), `drawer overflows at ${width}`);
           } else if (route === 'knowledge') {
             await t.locator('[id^="knowledge-"]').first().waitFor();
@@ -76,8 +77,8 @@ const pass = why => { report.checks.push(why); save(); console.log('PASS', why);
 
     await leave('knowledge');
     const topic = (await tc('GET', '/topics')).topics[0];
-    const topics = t.locator('details').filter({ has: t.locator('summary').filter({ hasText: /^专题管理$/ }) }).first();
-    await topics.locator('summary').first().click();
+    const topics = t.locator('.ant-collapse-item').filter({ has: t.locator('.ant-collapse-header').filter({ hasText: /^专题管理$/ }) }).first();
+    await topics.locator('.ant-collapse-header').first().click();
     await topics.getByRole('button', { name: topic.title + (topic.active ? '' : ' · 已停用'), exact: true }).click();
     for (const name of topic.active ? ['停用', '恢复'] : ['恢复', '停用']) {
       const [changed] = await Promise.all([response('PUT', '/topics/' + topic.id), topics.getByRole('button', { name, exact: true }).click()]);
@@ -89,8 +90,8 @@ const pass = why => { report.checks.push(why); save(); console.log('PASS', why);
 
     await leave('materials', { source: ids.visual_source_id });
     const drawer = t.getByRole('dialog', { name: '资料核对与发布', exact: true });
-    const visuals = drawer.locator('details').filter({ has: t.locator('summary').filter({ hasText: /^公式与图像/ }) }).first();
-    await visuals.locator('summary').first().click();
+    const visuals = drawer.locator('.ant-collapse-item').filter({ has: t.locator('.ant-collapse-header').filter({ hasText: /^公式与图像/ }) }).first();
+    await visuals.locator('.ant-collapse-header').first().click();
     const formula = ids.visual_cases.find(v => v.fixture === 'formula');
     const assetData = await tc('GET', '/sources/' + ids.visual_source_id + '/assets');
     const assetIndex = assetData.assets.findIndex(a => a.id === formula.asset_id);
@@ -114,7 +115,7 @@ const pass = why => { report.checks.push(why); save(); console.log('PASS', why);
     await visuals.getByRole('button', { name: '确认转写并更新原文', exact: true }).click();
     await visuals.getByText('验收注入：保存暂时失败', { exact: true }).waitFor();
     await t.reload();
-    await visuals.locator('summary').first().click();
+    await visuals.locator('.ant-collapse-header').first().click();
     await visuals.locator('.ant-select-selector').first().click();
     await t.locator('.ant-select-item-option').filter({ hasText: new RegExp('^' + (assetIndex + 1) + ' ·') }).click();
     assert((await text.inputValue()).endsWith('浏览器核对：保持原公式及单位。'), 'failed edit was lost after refresh');
@@ -128,8 +129,8 @@ const pass = why => { report.checks.push(why); save(); console.log('PASS', why);
     pass('real visual candidate loads, KaTeX renders, failed save survives refresh, confirmation creates a source revision');
 
     await leave('materials', { source: ids.sources['retrieval.txt'].source.id });
-    const suggest = drawer.locator('details').filter({ has: t.locator('summary').filter({ hasText: /^目录与归类建议/ }) }).first();
-    await suggest.locator('summary').first().click();
+    const suggest = drawer.locator('.ant-collapse-item').filter({ has: t.locator('.ant-collapse-header').filter({ hasText: /^目录与归类建议/ }) }).first();
+    await suggest.locator('.ant-collapse-header').first().click();
     await suggest.getByRole('button', { name: '载入候选', exact: true }).click();
     await suggest.getByRole('button', { name: '采纳所选建议', exact: true }).click();
     await suggest.getByText('已保存', { exact: true }).waitFor();
@@ -149,11 +150,11 @@ const pass = why => { report.checks.push(why); save(); console.log('PASS', why);
     pass('comparison shows both exact quotations and rejects an obsolete candidate without closing the editor');
 
     await leave('question-bank', { paper_source: ids.sources['paper.pdf'].source.id });
-    const paper = t.getByRole('dialog', { name: '整卷导入', exact: true }).locator('details').filter({ has: t.locator('summary').filter({ hasText: /^整卷拆题$/ }) }).first();
-    await paper.locator('summary').first().click();
+    const paper = t.getByRole('dialog', { name: '整卷导入', exact: true }).locator('.ant-collapse-item').filter({ has: t.locator('.ant-collapse-header').filter({ hasText: /^整卷拆题$/ }) }).first();
+    await paper.locator('.ant-collapse-header').first().click();
     await paper.getByRole('button', { name: '载入候选', exact: true }).click();
-    await paper.getByLabel('题目', { exact: true }).waitFor();
-    const count = await paper.getByLabel('题目', { exact: true }).locator('option').count();
+    await paper.getByRole('combobox', { name: '题目', exact: true }).waitFor();
+    const count = await optionCount(paper.getByRole('combobox', { name: '题目', exact: true }));
     assert(count === 3, 'paper list lost question types');
     const prompt = paper.getByLabel('题干', { exact: true });
     const originalPrompt = await prompt.inputValue();
@@ -161,13 +162,13 @@ const pass = why => { report.checks.push(why); save(); console.log('PASS', why);
     await prompt.press('Control+Home');
     for (let i = 0; i < Math.floor(originalPrompt.length / 2); i++) await prompt.press('ArrowRight');
     await paper.getByRole('button', { name: '在光标位置拆题', exact: true }).click();
-    assert(await paper.getByLabel('题目', { exact: true }).locator('option').count() === 4, 'split did not add question');
+    assert(await optionCount(paper.getByRole('combobox', { name: '题目', exact: true })) === 4, 'split did not add question');
     await paper.getByRole('button', { name: '与下一题合并', exact: true }).click();
     assert((await prompt.inputValue()).replace(/\s/g, '') === originalPrompt.replace(/\s/g, ''), 'split/merge changed prompt');
     await paper.getByRole('button', { name: '下移', exact: true }).click();
     await paper.getByRole('button', { name: '上移', exact: true }).click();
     await t.reload();
-    await paper.locator('summary').first().click();
+    await paper.locator('.ant-collapse-header').first().click();
     await paper.getByText('已恢复上次未保存的编辑。', { exact: true }).waitFor();
     await shot('paper-review');
     pass('real cross-page paper candidate supports split, merge, reorder and recovery without losing fragment coverage');
@@ -175,7 +176,7 @@ const pass = why => { report.checks.push(why); save(); console.log('PASS', why);
     await leave('question-bank');
     await t.getByLabel('搜索题目', { exact: true }).fill('分页构造');
     await t.getByText('1000 道题目', { exact: true }).waitFor();
-    await t.getByLabel('筛选题型', { exact: true }).selectOption('code');
+    await choose(t.getByRole('combobox', { name: '筛选题型', exact: true }), 'code');
     await t.getByText('500 道题目', { exact: true }).waitFor();
     const first = await t.locator('.live-row h2').first().textContent();
     await t.locator('.ant-pagination-next button').click();
@@ -203,7 +204,7 @@ const pass = why => { report.checks.push(why); save(); console.log('PASS', why);
     if (batch.batch.state === 'active') {
       assert(await t.getByRole('button', { name: '整组发布', exact: true }).isDisabled(), 'partial group was publishable');
       for (const [i, item] of batch.items.entries()) {
-        await t.getByLabel('冻结名单', { exact: true }).selectOption(item.submission_id);
+        await choose(t.getByRole('combobox', { name: '冻结名单', exact: true }), item.submission_id);
         await t.getByLabel('得分', { exact: true }).fill('7');
         await t.getByLabel('学生原文引用', { exact: true }).fill('拒绝超范围输入');
         await t.getByLabel('逐点反馈', { exact: true }).fill('按本批统一标准复核');

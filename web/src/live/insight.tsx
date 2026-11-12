@@ -1,10 +1,11 @@
-import { Tabs, Input, Pagination } from "antd";
+import { Field } from "../shared/Field";
+import { Table, Progress, Tabs, Input, Pagination, Button, Card, Select } from "antd";
 import { LoadingState, ErrorState } from "../shared/ui";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Link } from "./context";
 import { ActivityTimeline } from "./activity";
-import { PageHeader, EmptyState } from "../shared/ui";
+import { EmptyState } from "../shared/ui";
 import { useSession } from "../shared/session";
 import { useLiveQuery, Feedback, when } from "./context";
 import type { Resource } from "./course";
@@ -35,7 +36,7 @@ interface Overview {
   submitted_assignments: number;
   pending_interventions: number;
 }
-export function OverviewPage({ path = false }: { path?: boolean }) {
+export function OverviewPage() {
   const { session } = useSession();
   const teacher = session?.user.role === "teacher";
   const evidence = useLiveQuery<Evidence[]>("/evidence");
@@ -101,10 +102,6 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
     <div
       className={`live-page overview-page ${teacher ? `teacher-overview-${view}` : "student-overview"}`}
     >
-      <PageHeader
-        eyebrow={teacher ? "教学决策" : "学习进度"}
-        title={teacher ? "教学概览" : path ? "个性化学习路径" : "我的学习概览"}
-      />
       {teacher && (
         <Tabs
           activeKey={view}
@@ -132,9 +129,7 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
           >
             安排补学补练
           </Link>
-          <button className="ghost-btn" onClick={() => setStudentFilter("")}>
-            返回全班
-          </button>
+          <Button onClick={() => setStudentFilter("")}>返回全班</Button>
         </div>
       )}
       <nav className="live-shortcuts" aria-label="工作台快捷入口">
@@ -195,8 +190,8 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
       </nav>
       <Feedback error={evidence.error || overview.error} />
       {!teacher && resources.data && events.data && (
-        <section className="card-panel">
-          <h2>资料学习进度</h2>
+        <Card className="card-panel" title={<h2>资料学习进度</h2>}>
+
           <p>
             已完成{" "}
             {
@@ -206,30 +201,30 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
                 ),
               ).length
             }{" "}
-            / {resources.data.length} 份资料
+            / {resources.data.length}份资料
           </p>
           <Link to="/student/course-content">继续学习课程资料</Link>
-        </section>
+        </Card>
       )}
       {teacher && (
         <div className="live-inline">
-          <label>
-            学生范围
-            <select
+          <Field className="ui-field" label={<>学生范围</>}>
+            <Select
               aria-label="学生范围"
               value={studentFilter}
-              onChange={(e) => setStudentFilter(e.target.value)}
+              onChange={(e) => setStudentFilter(e)}
+              showSearch
+              optionFilterProp="children"
             >
-              <option value="">全班</option>
+              <Select.Option value="">全班</Select.Option>
               {overview.data?.map((s) => (
-                <option value={s.id} key={s.id}>
+                <Select.Option value={s.id} key={s.id}>
                   {s.display_name}
-                </option>
+                </Select.Option>
               ))}
-            </select>
-          </label>
-          <button
-            className="ghost-btn"
+            </Select>
+          </Field>
+          <Button
             disabled={!evidence.data || evidence.isFetching || !!evidence.error}
             onClick={() => {
               const cells = [
@@ -282,38 +277,38 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
             }}
           >
             导出当前正式结果
-          </button>
+          </Button>
         </div>
       )}
       <div className="live-metrics">
-        <section className="card-panel">
+        <Card className="card-panel">
           <span>{teacher && !studentFilter ? "课程学生" : "有效评分记录"}</span>
           <strong>
             {teacher && !studentFilter
               ? overview.data?.length || 0
               : rows.length}
           </strong>
-        </section>
-        <section className="card-panel">
+        </Card>
+        <Card className="card-panel">
           <span>已发布作业</span>
           <strong>
             {assignments.data?.filter((a) => a.status === "published").length ||
               0}
           </strong>
-        </section>
-        <section className="card-panel">
+        </Card>
+        <Card className="card-panel">
           <span>正式结果表现</span>
           <strong>
             {max ? `${Math.round((score / max) * 100)}%` : "证据不足"}
           </strong>
-        </section>
-        <section className="card-panel">
+        </Card>
+        <Card className="card-panel">
           <span>需复习记录</span>
           <strong>{low.length}</strong>
-        </section>
+        </Card>
       </div>
-      <section className="card-panel knowledge-section">
-        <h2>知识点表现</h2>
+      <Card className="card-panel knowledge-section" title={<h2>知识点表现</h2>}>
+
         <div className="live-performance">
           {points.data?.points
             .filter((p) => p.kind === "point")
@@ -332,20 +327,16 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
                       : "证据不足"}
                   </span>
                   {maximum > 0 && (
-                    <progress
-                      aria-label={`${p.title}表现`}
-                      value={sum}
-                      max={maximum}
-                    />
+                    <Progress aria-label={`${p.title}表现`} percent={Math.round(sum / maximum * 100)} showInfo={false} size="small" />
                   )}
                 </article>
               );
             })}
         </div>
-      </section>
+      </Card>
       {teacher ? (
-        <section className="card-panel student-section">
-          <h2>{studentFilter ? "该学生完成情况" : "班级完成与风险"}</h2>
+        <Card className="card-panel student-section" title={<h2>{studentFilter ? "该学生完成情况" : "班级完成与风险"}</h2>}>
+
           {!studentFilter && (
             <Input.Search
               aria-label="搜索学生姓名"
@@ -358,44 +349,16 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
             />
           )}
           <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>学生</th>
-                  <th>完成学习事件</th>
-                  <th>已提交作业</th>
-                  <th>待执行任务</th>
-                  <th>正式结果</th>
-                </tr>
-              </thead>
-              <tbody>
-                {students
-                  .slice((studentPage - 1) * 10, studentPage * 10)
-                  .map((s) => (
-                    <tr key={s.id}>
-                      <td>
-                        <button
-                          className="ghost-btn"
-                          onClick={() => setStudentFilter(s.id)}
-                        >
-                          {s.display_name}
-                        </button>
-                      </td>
-                      <td>{s.completed_events}</td>
-                      <td>{s.submitted_assignments}</td>
-                      <td>{s.pending_interventions}</td>
-                      <td>
-                        {rows.filter((r) => r.student_id === s.id).length} 条{" "}
-                        <Link
-                          to={`/teacher/intervention?new=1&student=${s.id}`}
-                        >
-                          安排任务
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+            <Table rowKey="id" pagination={false} scroll={{ x: 650 }}
+              dataSource={students.slice((studentPage - 1) * 10, studentPage * 10)}
+              columns={[
+                { title: "学生", key: "student", render: (_, s) => <Button type="link" onClick={() => setStudentFilter(s.id)}>{s.display_name}</Button> },
+                { title: "完成学习事件", dataIndex: "completed_events" },
+                { title: "已提交作业", dataIndex: "submitted_assignments" },
+                { title: "待执行任务", dataIndex: "pending_interventions" },
+                { title: "正式结果", key: "results", render: (_, s) => <>{rows.filter((r) => r.student_id === s.id).length}条 <Link to={`/teacher/intervention?new=1&student=${s.id}`}>安排任务</Link></> },
+              ]}
+            />
           </div>
           <Pagination
             current={studentPage}
@@ -404,10 +367,10 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
             onChange={setStudentPage}
             showSizeChanger={false}
           />
-        </section>
+        </Card>
       ) : (
-        <section className="card-panel">
-          <h2>继续学习</h2>
+        <Card className="card-panel" title={<h2>继续学习</h2>}>
+
           <div className="live-inline">
             <Link className="primary-link" to="/student/course-content">
               进入学习中心
@@ -427,15 +390,15 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
                 {r.title} · {r.locator} · v{r.version}
               </p>
             ))}
-        </section>
+        </Card>
       )}
       <ActivityTimeline
         key={studentFilter}
         teacher={teacher}
         studentID={teacher ? studentFilter : ""}
       />
-      <section className="card-panel evidence-section">
-        <h2>正式评分证据</h2>
+      <Card className="card-panel evidence-section" title={<h2>正式评分证据</h2>}>
+
         {!rows.length ? (
           <EmptyState title="暂无已发布评分">
             教师确认并发布评分后，正式结果会显示在这里。
@@ -446,7 +409,7 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
               <div>
                 <h3>{r.prompt}</h3>
                 <p>
-                  {r.score} / {r.max_score} · 第{r.attempt}次作答 ·{" "}
+                  {r.score}/ {r.max_score} · 第{r.attempt}次作答 ·{" "}
                   {when(r.released_at)}
                 </p>
                 <p>{r.feedback}</p>
@@ -475,15 +438,15 @@ export function OverviewPage({ path = false }: { path?: boolean }) {
           onChange={setEvidencePage}
           showSizeChanger={false}
         />
-      </section>
+      </Card>
       {teacher && (
-        <section className="card-panel">
-          <h2>共性难点</h2>
+        <Card className="card-panel" title={<h2>共性难点</h2>}>
+
           <p>
-            低于本题满分60%的有效作答 {low.length} / {rows.length}，涉及{" "}
-            {new Set(low.map((r) => r.student_id)).size} 名学生。
+            低于本题满分60%的有效作答 {low.length}/ {rows.length}，涉及{" "}
+            {new Set(low.map((r) => r.student_id)).size}名学生。
           </p>
-        </section>
+        </Card>
       )}
     </div>
   );

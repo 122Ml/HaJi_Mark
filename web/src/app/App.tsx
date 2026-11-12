@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, Avatar, Button, Modal } from "antd";
+import { Alert, Avatar, Button, Modal, Menu } from "antd";
 import { studentNavigation, teacherNavigation, findGroup } from "./navigation";
-import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import {
+  Link,
+  Navigate,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import { Login } from "./Login";
 import { SessionProvider, RequireSession, useSession } from "../shared/session";
 import { EditingProvider, useUnsavedChanges } from "../live/editing";
@@ -18,7 +26,8 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
   const navigate = useNavigate();
   const { pathname, search } = useLocation();
   const courseID = new URLSearchParams(search).get("course");
-  const withCourse = (path: string) => courseID ? `${path}?course=${encodeURIComponent(courseID)}` : path;
+  const withCourse = (path: string) =>
+    courseID ? `${path}?course=${encodeURIComponent(courseID)}` : path;
   const main = useRef<HTMLElement>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -33,19 +42,35 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
     setNavOpen(false);
     main.current?.focus({ preventScroll: true });
     window.scrollTo(0, 0);
-    const label = pathname.endsWith("/profile") ? "个人设置" : current?.links.find(([path]) => pathname === `${root}/${path}` || pathname.startsWith(`${root}/${path}/`))?.[1] || "工作台";
+    const label = pathname.endsWith("/profile")
+      ? "个人设置"
+      : current?.links.find(
+          ([path]) =>
+            pathname === `${root}/${path}` ||
+            pathname.startsWith(`${root}/${path}/`),
+        )?.[1] || "工作台";
     document.title = `${label} · HaJi Mark`;
   }, [pathname, current]);
 
   useEffect(() => {
     if (!navOpen) return;
-    const onKey = (event: KeyboardEvent) => event.key === "Escape" && setNavOpen(false);
+    const onKey = (event: KeyboardEvent) =>
+      event.key === "Escape" && setNavOpen(false);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [navOpen]);
 
   async function handleLogout() {
-    if (dirty && !await modal.confirm({title:"还有未保存的内容，确认退出？",content:"未保存编辑仅暂存在当前浏览器会话。",okText:"退出登录",cancelText:"继续编辑"})) return;
+    if (
+      dirty &&
+      !(await modal.confirm({
+        title: "还有未保存的内容，确认退出？",
+        content: "未保存编辑仅暂存在当前浏览器会话。",
+        okText: "退出登录",
+        cancelText: "继续编辑",
+      }))
+    )
+      return;
     setBusy(true);
     setError("");
     try {
@@ -58,52 +83,108 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
     }
   }
 
-  const linkClass = ({ isActive }: { isActive: boolean }) => (isActive ? "active" : "");
+
   return (
     <div className={`layout-shell${navOpen ? " nav-open" : ""}`}>
       {modalContext}
-      <a className="skip-link" href="#main-content">跳到主要内容</a>
+      <a className="skip-link" href="#main-content">
+        跳到主要内容
+      </a>
       <header className="topbar">
         <div className="topbar-inner">
-          <button type="button" className="menu-toggle" onClick={() => setNavOpen(!navOpen)} aria-expanded={navOpen} aria-controls="workspace-nav" aria-label={navOpen ? "关闭导航" : "打开导航"}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
-              <path d={navOpen ? "M6 6l12 12 M18 6L6 18" : "M4 7h16 M4 12h16 M4 17h16"} />
+          <Button
+            onClick={() => setNavOpen(!navOpen)}
+            aria-expanded={navOpen}
+            aria-controls="workspace-nav"
+            aria-label={navOpen ? "关闭导航" : "打开导航"}
+            htmlType="button"
+            className={"menu-toggle"}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <path
+                d={
+                  navOpen
+                    ? "M6 6l12 12 M18 6L6 18"
+                    : "M4 7h16 M4 12h16 M4 17h16"
+                }
+              />
             </svg>
-          </button>
-          <Link className="brand" to={withCourse(home)}><span className="brand-mark" aria-hidden="true">H</span>HaJi Mark</Link>
+          </Button>
+          <Link className="brand" to={withCourse(home)}>
+            <span className="brand-mark" aria-hidden="true">
+              H
+            </span>
+            HaJi Mark
+          </Link>
           <span className="topbar-role">{roleLabel}</span>
           <CourseSelector />
           <span className="topbar-spacer" />
           <div className="nav-user">
-            <NavLink className="account-link" to={withCourse(`${root}/profile`)} aria-label="个人设置">
-              <Avatar size={30} style={{ background: "var(--mint)", color: "var(--teal)" }}>{session?.user.display_name.slice(0, 1)}</Avatar>
-              <span className="nav-user-name">{session?.user.display_name}</span>
+            <NavLink
+              className="account-link"
+              to={withCourse(`${root}/profile`)}
+              aria-label="个人设置"
+            >
+              <Avatar
+                size={30}
+                style={{ background: "var(--mint)", color: "var(--teal)" }}
+              >
+                {session?.user.display_name.slice(0, 1)}
+              </Avatar>
+              <span className="nav-user-name">
+                {session?.user.display_name}
+              </span>
             </NavLink>
-            <Button loading={busy} onClick={handleLogout}>退出登录</Button>
+            <Button loading={busy} onClick={handleLogout}>
+              退出登录
+            </Button>
           </div>
         </div>
       </header>
       <div className="shell-body">
-        <nav id="workspace-nav" className="sidebar" aria-label={teacher ? "教师导航" : "学生导航"}>
-          {groups.map((group) => (
-            <div key={group.label} className="sidebar-group" role="group" aria-label={group.label}>
-              <p className="sidebar-title">{group.label}</p>
-              <ul>
-                {group.links.map(([path, label]) => (
-                  <li key={path}><NavLink to={withCourse(`${root}/${path}`)} className={linkClass}>{label}</NavLink></li>
-                ))}
-              </ul>
-            </div>
-          ))}
-          <div className="sidebar-group" role="group" aria-label="账户">
-            <p className="sidebar-title">账户</p>
-            <ul><li><NavLink to={withCourse(`${root}/profile`)} className={linkClass}>个人设置</NavLink></li></ul>
-          </div>
+        <nav
+          id="workspace-nav"
+          className="sidebar"
+          aria-label={teacher ? "教师导航" : "学生导航"}
+        >
+          <Menu mode="inline" selectedKeys={[pathname.endsWith("/profile") ? `${root}/profile` : groups.flatMap(g => g.links).map(([path]) => `${root}/${path}`).find(path => pathname === path || pathname.startsWith(path + "/")) || ""]}
+            items={[
+              ...groups.map(group => ({ key: group.label, type: "group" as const, label: group.label, children: group.links.map(([path, label]) => ({ key: `${root}/${path}`, label: <Link to={withCourse(`${root}/${path}`)}>{label}</Link> })) })),
+              { key: "account", type: "group", label: "账户", children: [{ key: `${root}/profile`, label: <Link to={withCourse(`${root}/profile`)}>个人设置</Link> }] },
+            ]}
+          />
         </nav>
-        <button type="button" className="sidebar-backdrop" tabIndex={-1} aria-hidden="true" onClick={() => setNavOpen(false)} />
+        <Button
+          tabIndex={-1}
+          aria-hidden="true"
+          onClick={() => setNavOpen(false)}
+          htmlType="button"
+          className={"sidebar-backdrop"}
+        />
         <div className="shell-content">
-          <main ref={main} tabIndex={-1} id="main-content" className="page-container">
-            {error && <Alert type="error" message={error} role="alert" showIcon closable onClose={() => setError("")} />}
+          <main
+            ref={main}
+            tabIndex={-1}
+            id="main-content"
+            className="page-container"
+          >
+            {error && (
+              <Alert
+                type="error"
+                message={error}
+                role="alert"
+                showIcon
+                closable
+                onClose={() => setError("")}
+              />
+            )}
             <LiveRoutes teacher={teacher} />
           </main>
           <footer className="workspace-footer">
@@ -118,7 +199,13 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
 
 function Workspace({ teacher = false }: { teacher?: boolean }) {
   const { session } = useSession();
-  return <EditingProvider key={session?.user.id}><LearningProvider><Shell teacher={teacher} /></LearningProvider></EditingProvider>;
+  return (
+    <EditingProvider key={session?.user.id}>
+      <LearningProvider>
+        <Shell teacher={teacher} />
+      </LearningProvider>
+    </EditingProvider>
+  );
 }
 
 export function App() {
@@ -128,10 +215,30 @@ export function App() {
         <Routes>
           <Route path="/" element={<Navigate replace to="/login" />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/student" element={<Navigate replace to="/student/home" />} />
-          <Route path="/teacher" element={<Navigate replace to="/teacher/dashboard" />} />
-          <Route path="/student/*" element={<RequireSession role="student"><Workspace /></RequireSession>} />
-          <Route path="/teacher/*" element={<RequireSession role="teacher"><Workspace teacher /></RequireSession>} />
+          <Route
+            path="/student"
+            element={<Navigate replace to="/student/home" />}
+          />
+          <Route
+            path="/teacher"
+            element={<Navigate replace to="/teacher/dashboard" />}
+          />
+          <Route
+            path="/student/*"
+            element={
+              <RequireSession role="student">
+                <Workspace />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/teacher/*"
+            element={
+              <RequireSession role="teacher">
+                <Workspace teacher />
+              </RequireSession>
+            }
+          />
           <Route path="*" element={<Navigate replace to="/login" />} />
         </Routes>
       </SessionProvider>

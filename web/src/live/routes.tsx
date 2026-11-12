@@ -1,5 +1,5 @@
 import { StudyPath } from "./path";
-import { Link, Route, Routes, useLocation, Navigate } from "react-router-dom";
+import { Route, Routes, useLocation, Navigate } from "react-router-dom";
 import { CourseWorkspace } from "./course";
 import {
   AssignmentList,
@@ -10,7 +10,7 @@ import {
 } from "./assessment";
 import { OverviewPage, InterventionPage } from "./insight";
 import { InteractionPage } from "./communication";
-import { useLearning } from "./context";
+import { Link, useLearning } from "./context";
 import { ProfilePage, RecordsPage } from "./account";
 import { EmptyState } from "../shared/ui";
 import { MaterialsPage, KnowledgePage, RetrievalPage } from "./knowledge";
@@ -23,20 +23,62 @@ export function LiveRoutes({ teacher }: { teacher: boolean }) {
   const { course } = useLearning();
   const location = useLocation();
   const root = teacher ? "/teacher" : "/student";
-  const overviewRedirect = <Navigate replace to={`${root}/${teacher ? "dashboard" : "home"}${location.search}`} />;
+  const overviewRedirect = (
+    <Navigate
+      replace
+      to={`${root}/${teacher ? "dashboard" : "home"}${location.search}`}
+    />
+  );
   const params = new URLSearchParams(location.search);
   const legacyTab = params.get("tab");
-  const legacyTarget = params.has("resource") ? "materials" : legacyTab === "members" || legacyTab === "settings" ? "courses" : legacyTab === "work" ? "homework" : "curriculum";
+  const legacyTarget = params.has("resource")
+    ? "materials"
+    : legacyTab === "members" || legacyTab === "settings"
+      ? "courses"
+      : legacyTab === "work"
+        ? "homework"
+        : "curriculum";
   if (params.has("resource")) params.set("tab", "published");
-  const courseRedirect = <Navigate replace to={`${root}/${teacher ? legacyTarget : "course-content"}?${params}`} />;
-  if (params.has("course") && !course && !location.pathname.endsWith("/profile"))
-    return <section className="card-panel"><EmptyState heading title="无法访问该课程" action={teacher ? <Link className="ghost-btn" to="/teacher/courses">课程管理</Link> : undefined}>请从顶部选择有权限的课程。</EmptyState></section>;
-  if (!course && !location.pathname.endsWith("/profile") && !location.pathname.endsWith("/courses"))
+  const courseRedirect = (
+    <Navigate
+      replace
+      to={`${root}/${teacher ? legacyTarget : "course-content"}?${params}`}
+    />
+  );
+  if (
+    params.has("course") &&
+    !course &&
+    !location.pathname.endsWith("/profile")
+  )
+    return (
+      <section className="card-panel">
+        <EmptyState
+          heading
+          title="无法访问该课程"
+          action={
+            teacher ? (
+              <Link className="ghost-btn" to="/teacher/courses">
+                课程管理
+              </Link>
+            ) : undefined
+          }
+        >
+          请从顶部选择有权限的课程。
+        </EmptyState>
+      </section>
+    );
+  if (
+    !course &&
+    !location.pathname.endsWith("/profile") &&
+    !location.pathname.endsWith("/courses")
+  )
     return teacher ? (
       <Navigate replace to="/teacher/courses" />
     ) : (
       <section className="card-panel">
-        <EmptyState heading title="尚未加入课程">请联系课程教师将你的账号加入课程，然后刷新页面。</EmptyState>
+        <EmptyState heading title="尚未加入课程">
+          请联系课程教师将你的账号加入课程，然后刷新页面。
+        </EmptyState>
       </section>
     );
   return (
@@ -45,17 +87,33 @@ export function LiveRoutes({ teacher }: { teacher: boolean }) {
       {teacher && <Route path="courses" element={<CourseManagement />} />}
       {teacher && <Route path="curriculum" element={<CurriculumPage />} />}
       {teacher && <Route path="research" element={<RecordsPage />} />}
-      {teacher && <Route path="industry-intelligence" element={<RecordsPage industry />} />}
+      {teacher && (
+        <Route
+          path="industry-intelligence"
+          element={<RecordsPage industry />}
+        />
+      )}
       <Route path="teacher-twin/drilldown" element={overviewRedirect} />
-      <Route path="home" element={teacher ? overviewRedirect : <OverviewPage />} />
-      <Route path="dashboard" element={teacher ? <OverviewPage /> : overviewRedirect} />
-      <Route path="course-content" element={teacher ? courseRedirect : <CourseWorkspace />} />
+      <Route
+        path="home"
+        element={teacher ? overviewRedirect : <OverviewPage />}
+      />
+      <Route
+        path="dashboard"
+        element={teacher ? <OverviewPage /> : overviewRedirect}
+      />
+      <Route
+        path="course-content"
+        element={teacher ? courseRedirect : <CourseWorkspace />}
+      />
       <Route path="course-twin" element={courseRedirect} />
       <Route path="homework" element={<AssignmentList />} />
       {teacher && <Route path="materials" element={<MaterialsPage />} />}
       {teacher && <Route path="question-bank" element={<QuestionBankPage />} />}
       {teacher && <Route path="regrades" element={<RegradesPage />} />}
-      {teacher && <Route path="content-impact" element={<ContentImpactPage />} />}
+      {teacher && (
+        <Route path="content-impact" element={<ContentImpactPage />} />
+      )}
       <Route path="knowledge" element={<KnowledgePage />} />
       <Route path="retrieval" element={<RetrievalPage />} />
       <Route path="quiz" element={<AssignmentList quiz />} />
@@ -89,20 +147,34 @@ export function LiveRoutes({ teacher }: { teacher: boolean }) {
       {!teacher && <Route path="courses" element={courseRedirect} />}
       <Route
         path="assignments"
+        element={<Navigate replace to={`${root}/homework${location.search}`} />}
+      />
+      <Route path="insight" element={overviewRedirect} />
+      <Route
+        path="grading"
         element={
           <Navigate
             replace
-            to={`${root}/homework${location.search}`}
+            to={`/${teacher ? "teacher" : "student"}/homework${location.search}`}
           />
         }
       />
-      <Route path="insight" element={overviewRedirect} />
-      <Route path="grading" element={<Navigate replace to={`/${teacher ? "teacher" : "student"}/homework${location.search}`} />} />
       <Route
         path="*"
         element={
           <section className="card-panel">
-            <EmptyState heading title="页面不存在" action={<Link className="ghost-btn" to={`${root}/${teacher ? "dashboard" : "home"}`}>返回概览</Link>}>
+            <EmptyState
+              heading
+              title="页面不存在"
+              action={
+                <Link
+                  className="ghost-btn"
+                  to={`${root}/${teacher ? "dashboard" : "home"}`}
+                >
+                  返回概览
+                </Link>
+              }
+            >
               该地址没有对应的功能，请从左侧导航选择。
             </EmptyState>
           </section>

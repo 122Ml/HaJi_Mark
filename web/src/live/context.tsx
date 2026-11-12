@@ -1,3 +1,4 @@
+import { Select, Button, Alert } from "antd";
 import {
   createContext,
   useContext,
@@ -9,6 +10,8 @@ import {
   Link as RouterLink,
   useLocation,
   useNavigate,
+  useLinkClickHandler,
+  useHref,
   type LinkProps,
   type NavigateOptions,
 } from "react-router-dom";
@@ -43,7 +46,11 @@ export function LearningProvider({ children }: { children: ReactNode }) {
     queryFn: async () =>
       (await requestJSON<{ data: Course[] }>("/me/courses")).data,
   });
-  const globalPage = ["/teacher/courses", "/teacher/profile", "/student/profile"].includes(location.pathname);
+  const globalPage = [
+    "/teacher/courses",
+    "/teacher/profile",
+    "/student/profile",
+  ].includes(location.pathname);
   useEffect(() => {
     if (query.error instanceof APIError && query.error.status === 401)
       refresh();
@@ -65,7 +72,14 @@ export function LearningProvider({ children }: { children: ReactNode }) {
       setSelected(course.id);
       sessionStorage.setItem(`haji-course:${session?.user.id}`, course.id);
     }
-  }, [course, requested, globalPage, location.pathname, location.search, navigate]);
+  }, [
+    course,
+    requested,
+    globalPage,
+    location.pathname,
+    location.search,
+    navigate,
+  ]);
   const reload = async () => {
     // A first read may still contain a pre-write snapshot. Cancel it before refetching.
     await queryClient.cancelQueries({ queryKey: ["live", course?.id] });
@@ -76,10 +90,18 @@ export function LearningProvider({ children }: { children: ReactNode }) {
   };
   function select(id: string) {
     const root = session?.user.role === "teacher" ? "/teacher" : "/student";
-    const links = (session?.user.role === "teacher" ? teacherNavigation : studentNavigation).flatMap((g) => g.links);
-    const current = links.find(([path]) => location.pathname === `${root}/${path}` || location.pathname.startsWith(`${root}/${path}/`));
+    const links = (
+      session?.user.role === "teacher" ? teacherNavigation : studentNavigation
+    ).flatMap((g) => g.links);
+    const current = links.find(
+      ([path]) =>
+        location.pathname === `${root}/${path}` ||
+        location.pathname.startsWith(`${root}/${path}/`),
+    );
     navigate({
-      pathname: current ? `${root}/${current[0]}` : `${root}/${session?.user.role === "teacher" ? "dashboard" : "home"}`,
+      pathname: current
+        ? `${root}/${current[0]}`
+        : `${root}/${session?.user.role === "teacher" ? "dashboard" : "home"}`,
       search: `?course=${encodeURIComponent(id)}`,
     });
   }
@@ -92,7 +114,11 @@ export function LearningProvider({ children }: { children: ReactNode }) {
     );
   return (
     <Context.Provider value={{ course, courses, select, reload }}>
-      {query.error && <p role="alert" className="live-error">{query.error.message}</p>}
+      {query.error && (
+        <Alert type="error" showIcon role="alert" message={<>
+          {query.error.message}
+        </>} />
+      )}
       {children}
     </Context.Provider>
   );
@@ -101,14 +127,24 @@ export function CourseSelector() {
   const { course, courses, select, reload } = useLearning();
   const { pathname } = useLocation();
   if (pathname.endsWith("/profile")) return null;
-  return <div className="workspace-course-select">
-    <label htmlFor="current-course">当前课程</label>
-    <select id="current-course" aria-label="当前课程" value={course?.id || ""} onChange={(e) => select(e.target.value)}>
-      <option value="" disabled>选择课程</option>
-      {courses.map((c) => <option key={c.id} value={c.id}>{c.title}{c.status === "draft" ? "（草稿）" : ""}</option>)}
-    </select>
-    <button type="button" className="ghost-btn" onClick={() => void reload()}>刷新</button>
-  </div>;
+  return (
+    <div className="workspace-course-select">
+      <label htmlFor="current-course">当前课程</label>
+      <Select
+        id="current-course"
+        aria-label="当前课程"
+        value={course?.id || undefined}
+        placeholder="选择课程"
+        onChange={select}
+        showSearch
+        optionFilterProp="label"
+        options={courses.map((c) => ({ value: c.id, label: `${c.title}${c.status === "draft" ? "（草稿）" : ""}` }))}
+      />
+      <Button onClick={() => void reload()} htmlType="button">
+        刷新
+      </Button>
+    </div>
+  );
 }
 export function useLearning() {
   const c = useContext(Context);
@@ -253,16 +289,12 @@ export function Feedback({
 }) {
   if (error || (failed && message)) {
     return (
-      <p role="alert" className="live-error">
-        {error?.message || message}
-      </p>
+      <Alert type="error" showIcon role="alert" message={error?.message || message} />
     );
   }
   if (message) {
     return (
-      <p role="status" className="live-message">
-        {message}
-      </p>
+      <Alert type="success" showIcon role="status" message={message} />
     );
   }
   return null;
@@ -295,7 +327,19 @@ export function useCourseURL() {
 }
 export function Link({ to, ...props }: LinkProps) {
   const url = useCourseURL();
-  return <RouterLink {...props} to={typeof to === "string" ? url(to) : to} />;
+  const resolved = typeof to === "string" ? url(to) : to;
+  if (typeof props.className === "string" && /primary-link|ghost-btn/.test(props.className)) return <ActionLink {...props} to={resolved} />;
+  return <RouterLink {...props} to={resolved} />;
+}
+
+function ActionLink({ to, className, replace, state, target, preventScrollReset, relative, reloadDocument, viewTransition, onClick, color: _color, type: _type, ...props }: LinkProps) {
+  const href = useHref(to, { relative });
+  const navigate = useLinkClickHandler(to, { replace, state, target, preventScrollReset, relative, viewTransition });
+  return <Button {...props} href={href} target={target} type={String(className).includes("primary-link") ? "primary" : "default"} onClick={(event) => {
+    const click = event as React.MouseEvent<HTMLAnchorElement>;
+    onClick?.(click);
+    if (!click.defaultPrevented && !reloadDocument) navigate(click);
+  }} />;
 }
 export function useCourseNavigate() {
   const navigate = useNavigate();

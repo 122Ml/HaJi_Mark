@@ -1,3 +1,4 @@
+const { choose, selectedText, selectFile } = require('./browser-ui.cjs');
 // Local browser acceptance; genuine model calls use the shared database budget.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -68,7 +69,7 @@ const pass = message => { if (!report.checks.includes(message)) report.checks.pu
     if (!(await tc('GET', api + '/sources')).length) {
     await t.getByRole('button', { name: '导入资料', exact: true }).click();
     const upload = t.getByRole('dialog');
-    await upload.getByLabel('课程文件', { exact: true }).setInputFiles(path.join(root, '.local/rag-fixtures/boundary.txt'));
+    await selectFile(upload.getByRole('button', { name: '课程文件', exact: true }), path.join(root, '.local/rag-fixtures/boundary.txt'));
     await upload.getByLabel('资料来源', { exact: true }).fill('本地浏览器验收构造资料');
     await upload.getByLabel('允许从本资料提炼知识候选', { exact: true }).check();
     await upload.getByRole('button', { name: '上传并解析', exact: true }).click();
@@ -96,7 +97,7 @@ const pass = message => { if (!report.checks.includes(message)) report.checks.pu
       await waitJobs('extract');
     }
     await sourceDrawer.getByRole('link', { name: '审核知识候选', exact: true }).click();
-    await t.getByRole('heading', { name: '知识库', exact: true }).waitFor();
+    await t.getByRole('button', { name: '新建知识', exact: true }).waitFor();
     const knowledge = await tc('GET', api + '/knowledge');
     const item = knowledge.find(k => k.id === report.knowledge_id) || knowledge.find(k => k.student_visible && k.use_for_grading) || knowledge[0];
     report.knowledge_id = item.id; save();
@@ -143,14 +144,14 @@ const pass = message => { if (!report.checks.includes(message)) report.checks.pu
 
     if (!report.rubric_checked) {
       await t.goto(`${base}/teacher/homework/${httpReport.assignment_id}?course=${httpReport.course_id}`);
-      await t.locator('summary').filter({ hasText: '逐点评分标准' }).click();
+      await t.locator('.ant-collapse-header').filter({ hasText: '逐点评分标准' }).click();
       const requestedRubric = t.waitForResponse(r => r.url().endsWith('/jobs') && r.request().method() === 'POST');
       await t.getByRole('button', { name: 'AI起草标准', exact: true }).click();
       const rubricJob = (await (await requestedRubric).json()).data;
       await t.getByRole('button', { name: '载入编辑区', exact: true }).waitFor({ timeout: 100000 });
       await t.getByRole('button', { name: '载入编辑区', exact: true }).click();
       await t.reload();
-      await t.locator('summary').filter({ hasText: '逐点评分标准' }).click();
+      await t.locator('.ant-collapse-header').filter({ hasText: '逐点评分标准' }).click();
       await t.getByRole('button', { name: '新建标准版本', exact: true }).click();
       await t.getByText('已恢复上次未保存的编辑。', { exact: true }).waitFor();
       const savedRubric = t.waitForResponse(r => /\/questions\/[^/]+\/rubrics$/.test(r.url()) && r.request().method() === 'POST');
@@ -197,14 +198,14 @@ const pass = message => { if (!report.checks.includes(message)) report.checks.pu
     t.on('request', countDraftCalls);
     await t.setViewportSize({ width: 1440, height: 1000 });
     await t.goto(`${base}/teacher/homework/${httpReport.assignment_id}?course=${httpReport.course_id}`);
-    await t.locator('summary').filter({ hasText: '逐点评分标准' }).click();
+    await t.locator('.ant-collapse-header').filter({ hasText: '逐点评分标准' }).click();
     await t.getByRole('button', { name: '载入编辑区', exact: true }).waitFor();
     await t.reload();
-    await t.locator('summary').filter({ hasText: '逐点评分标准' }).click();
+    await t.locator('.ant-collapse-header').filter({ hasText: '逐点评分标准' }).click();
     await t.getByRole('button', { name: '载入编辑区', exact: true }).waitFor();
     await t.getByText('查看AI草稿', { exact: true }).click();
     const frozen = t.locator('.rag-draft-preview');
-    await frozen.locator('summary').filter({ hasText: '引用依据' }).click();
+    await frozen.locator('.ant-collapse-header').filter({ hasText: '引用依据' }).click();
     await frozen.locator('.rag-hit').first().waitFor();
     await screenshot('rag-frozen-rubric-evidence');
     await frozen.getByRole('link', { name: '查看引用原文', exact: true }).first().click();
@@ -244,7 +245,7 @@ const pass = message => { if (!report.checks.includes(message)) report.checks.pu
     for (const [page, role, route] of [[t, 'teacher', 'materials'], [t, 'teacher', 'knowledge'], [t, 'teacher', 'retrieval'], [s, 'student', 'knowledge'], [s, 'student', 'retrieval']]) {
       await page.setViewportSize({ width: 375, height: 900 });
       await page.goto(url(role, route));
-      await page.getByRole('heading', { level: 1 }).waitFor();
+      await page.locator('main .live-page').waitFor();
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${role}/${route} overflows 375px`);
       await screenshot(`rag-${role}-${route}-mobile`, page);
     }

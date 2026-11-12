@@ -1,3 +1,4 @@
+import { Button, Card, Collapse } from "antd";
 import { LoadingState, ErrorState } from "../shared/ui";
 import { Link } from "./context";
 import { useLiveQuery, useAction, Feedback, when } from "./context";
@@ -33,16 +34,14 @@ export function StudyPath() {
     );
   return (
     <div className="live-page">
-      <header className="live-heading">
-        <p>学习规划</p>
-        <h1>个性化学习路径</h1>
-        <button
-          className="primary-link"
+      <header className="page-actions">
+        <Button
           disabled={action.busy}
           onClick={() => action.run("/path")}
+          type="primary"
         >
           {query.data ? "重新规划" : "生成学习路径"}
-        </button>
+        </Button>
       </header>
       <Feedback
         error={query.error}
@@ -51,19 +50,30 @@ export function StudyPath() {
       />
       {query.data ? (
         <>
-          <section className="card-panel">
-            <h2>当前路径</h2>
+          <Card className="card-panel" title={<h2>当前路径</h2>}>
+
             <p>规划于 {when(query.data.path.created_at)}</p>
-            <details>
-              <summary>查看规划依据</summary>
-              <p>优先学习尚无评分或表现低于60%的知识点，并补齐前置知识。</p>
-              <p>{query.data.path.rule_version}</p>
-            </details>
-          </section>
+            <Collapse
+              items={[
+                {
+                  key: "content",
+                  label: <>查看规划依据</>,
+                  children: (
+                    <>
+                      <p>
+                        优先学习尚无评分或表现低于60%的知识点，并补齐前置知识。
+                      </p>
+                      <p>{query.data.path.rule_version}</p>
+                    </>
+                  ),
+                },
+              ]}
+            />
+          </Card>
           {!query.data.items.length && (
-            <section className="card-panel">
+            <Card className="card-panel">
               <p>已完成当前学习路径。</p>
-            </section>
+            </Card>
           )}
           {query.data.items.map((p, i) => {
             const linked =
@@ -71,10 +81,10 @@ export function StudyPath() {
                 (r) => r.knowledge_point_id === p.knowledge_point_id,
               ) || [];
             return (
-              <section className="card-panel" key={p.knowledge_point_id}>
-                <h2>
+              <Card className="card-panel" key={p.knowledge_point_id} title={<h2>
                   {i + 1}. {p.title}
-                </h2>
+                </h2>}>
+
                 <p>{p.reason}</p>
                 <p>{p.description}</p>
                 {linked.length ? (
@@ -99,14 +109,14 @@ export function StudyPath() {
                 <Link to={`/student/homework?point=${p.knowledge_point_id}`}>
                   查看相关作业与反馈
                 </Link>
-              </section>
+              </Card>
             );
           })}
         </>
       ) : (
-        <section className="card-panel">
+        <Card className="card-panel">
           <p>尚未生成学习路径。</p>
-        </section>
+        </Card>
       )}
     </div>
   );

@@ -1,5 +1,7 @@
+import { Field } from "../shared/Field";
+import { useConfirm } from "../shared/confirm";
 import { useState, type PointerEvent } from "react";
-import { Select } from "antd";
+import { Select, Collapse, InputNumber, Button, Input } from "antd";
 import { Feedback, useAction, useLearning, useLiveQuery } from "./context";
 import { WorkflowJob } from "./workflow-job";
 import { RichContent, type Asset } from "./content-render";
@@ -29,39 +31,49 @@ export function MaterialAssets({
   const [id, setID] = useState("");
   const asset = q.data?.assets.find((a) => a.id === id) || q.data?.assets[0];
   return (
-    <details className="card-panel">
-      <summary>公式与图像 · {q.data?.assets.length || 0}</summary>
-      <Feedback error={q.error} />
-      {!!q.data?.assets.length && (
-        <>
-          <Select
-            aria-label="原图选择"
-            value={asset?.id}
-            style={{ width: "100%" }}
-            onChange={setID}
-            options={q.data.assets.map((a, i) => ({
-              value: a.id,
-              label: `${i + 1} · ${a.kind === "page" ? "原页预览" : a.kind} ${a.locator.page ? `第${a.locator.page}页` : a.locator.slide ? `幻灯片${a.locator.slide}` : ""}`,
-            }))}
-          />
-          {asset && (
-            <AssetEditor
-              key={asset.id}
-              asset={asset}
-              revisions={q.data.revisions.filter(
-                (r) => r.asset_id === asset.id,
+    <Collapse
+      className="card-panel"
+      items={[
+        {
+          key: "content",
+          label: <>公式与图像 · {q.data?.assets.length || 0}</>,
+          children: (
+            <>
+              <Feedback error={q.error} />
+              {!!q.data?.assets.length && (
+                <>
+                  <Select
+                    aria-label="原图选择"
+                    value={asset?.id}
+                    style={{ width: "100%" }}
+                    onChange={setID}
+                    options={q.data.assets.map((a, i) => ({
+                      value: a.id,
+                      label: `${i + 1} · ${a.kind === "page" ? "原页预览" : a.kind} ${a.locator.page ? `第${a.locator.page}页` : a.locator.slide ? `幻灯片${a.locator.slide}` : ""}`,
+                    }))}
+                  />
+                  {asset && (
+                    <AssetEditor
+                      key={asset.id}
+                      asset={asset}
+                      revisions={q.data.revisions.filter(
+                        (r) => r.asset_id === asset.id,
+                      )}
+                      sourceRevision={revision}
+                      editable={editable}
+                      onCreated={setID}
+                      onRefresh={async () => {
+                        await q.refetch();
+                      }}
+                    />
+                  )}
+                </>
               )}
-              sourceRevision={revision}
-              editable={editable}
-              onCreated={setID}
-              onRefresh={async () => {
-                await q.refetch();
-              }}
-            />
-          )}
-        </>
-      )}
-    </details>
+            </>
+          ),
+        },
+      ]}
+    />
   );
 }
 function AssetEditor({
@@ -79,6 +91,7 @@ function AssetEditor({
   onCreated: (id: string) => void;
   onRefresh: () => Promise<void>;
 }) {
+  const confirm = useConfirm();
   const { course } = useLearning(),
     action = useAction(),
     latest = revisions[0];
@@ -136,53 +149,84 @@ function AssetEditor({
         )}
       </div>
       {editable && (
-        <details>
-          <summary>裁剪题图／公式区域</summary>
-          <div className="live-inline">
-            {(["x", "y", "width", "height"] as const).map((k) => (
-              <label key={k}>
-                {{ x: "左", y: "上", width: "宽", height: "高" }[k]} %
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={Math.round(crop[k] * 100)}
-                  onChange={(e) =>
-                    setCrop({ ...crop, [k]: Number(e.target.value) / 100 })
-                  }
-                />
-              </label>
-            ))}
-            <label>
-              内容类型
-              <select value={kind} onChange={(e) => setKind(e.target.value)}>
-                <option value="image">图片</option>
-                <option value="formula">公式</option>
-                <option value="chart">数据图表</option>
-                <option value="diagram">结构／流程图</option>
-              </select>
-            </label>
-            <button
-              className="ghost-btn"
-              disabled={action.busy || crop.width <= 0 || crop.height <= 0}
-              onClick={async () => {
-                if (
-                  draft.dirty &&
-                  !confirm("切换到裁剪图像？当前转写编辑将保留为草稿。")
-                )
-                  return;
-                const a = await action.run<Asset>(`/assets/${asset.id}/crop`, {
-                  ...crop,
-                  kind,
-                  parse_revision: sourceRevision,
-                });
-                if (a) onCreated(a.id);
-              }}
-            >
-              保存裁剪
-            </button>
-          </div>
-        </details>
+        <Collapse
+          items={[
+            {
+              key: "content",
+              label: <>裁剪题图／公式区域</>,
+              children: (
+                <>
+                  <div className="live-inline">
+                    {(["x", "y", "width", "height"] as const).map((k) => (
+                      <Field
+                        className="ui-field"
+                        key={k}
+                        label={
+                          <>
+                            {{ x: "左", y: "上", width: "宽", height: "高" }[k]}
+                            %
+                          </>
+                        }
+                      >
+                        <InputNumber
+                          aria-label="%"
+                          min={0}
+                          max={100}
+                          value={Math.round(crop[k] * 100)}
+                          onChange={(e) =>
+                            setCrop({
+                              ...crop,
+                              [k]: Number(String(e ?? "")) / 100,
+                            })
+                          }
+                        />
+                      </Field>
+                    ))}
+                    <Field className="ui-field" label={<>内容类型</>}>
+                      <Select
+                        aria-label="内容类型"
+                        value={kind}
+                        onChange={(e) => setKind(e)}
+                        showSearch
+                        optionFilterProp="children"
+                      >
+                        <Select.Option value="image">图片</Select.Option>
+                        <Select.Option value="formula">公式</Select.Option>
+                        <Select.Option value="chart">数据图表</Select.Option>
+                        <Select.Option value="diagram">
+                          结构／流程图
+                        </Select.Option>
+                      </Select>
+                    </Field>
+                    <Button
+                      disabled={
+                        action.busy || crop.width <= 0 || crop.height <= 0
+                      }
+                      onClick={async () => {
+                        if (
+                          draft.dirty &&
+                          !await confirm("切换到裁剪图像？当前转写编辑将保留为草稿。")
+                        )
+                          return;
+                        const a = await action.run<Asset>(
+                          `/assets/${asset.id}/crop`,
+                          {
+                            ...crop,
+                            kind,
+                            parse_revision: sourceRevision,
+                          },
+                        );
+                        if (a) onCreated(a.id);
+                      }}
+                    >
+                      保存裁剪
+                    </Button>
+                  </div>
+                </>
+              ),
+            },
+          ]}
+        />
       )}
       <p className="live-meta">
         {latest
@@ -196,7 +240,7 @@ function AssetEditor({
             target={{ asset_id: asset.id }}
             onAdopt={async (output) => {
               const r = output.asset_revision as Revision;
-              if (r && (!draft.dirty || confirm("载入识别候选？"))) {
+              if (r && (!draft.dirty || await confirm("载入识别候选？"))) {
                 await onRefresh();
                 draft.change({
                   body: r.body,
@@ -206,9 +250,8 @@ function AssetEditor({
             }}
           />
           <DraftNotice {...draft} />
-          <label>
-            核对转写
-            <textarea
+          <Field className="ui-field" label={<>核对转写</>}>
+            <Input.TextArea
               aria-label="图像核对转写"
               rows={7}
               value={draft.value.body}
@@ -216,10 +259,9 @@ function AssetEditor({
                 draft.change({ ...draft.value, body: e.target.value })
               }
             />
-          </label>
+          </Field>
           <RichContent text={draft.value.body} />
-          <button
-            className="primary-link"
+          <Button
             disabled={action.busy || !draft.value.body.trim()}
             onClick={async () => {
               const snapshot = draft.value;
@@ -230,25 +272,35 @@ function AssetEditor({
               });
               if (r) draft.saved(snapshot);
             }}
+            type="primary"
           >
             确认转写并更新原文
-          </button>
+          </Button>
         </>
       )}
       <Feedback message={action.message} failed={action.failed} />
       {!!revisions.length && (
-        <details>
-          <summary>转写历史</summary>
-          {revisions.map((r) => (
-            <article className="rag-hit" key={r.id}>
-              <strong>
-                修订 {r.revision} ·{" "}
-                {r.state === "confirmed" ? "已确认" : "模型候选"}
-              </strong>
-              <RichContent text={r.body} />
-            </article>
-          ))}
-        </details>
+        <Collapse
+          items={[
+            {
+              key: "content",
+              label: <>转写历史</>,
+              children: (
+                <>
+                  {revisions.map((r) => (
+                    <article className="rag-hit" key={r.id}>
+                      <strong>
+                        修订 {r.revision} ·{" "}
+                        {r.state === "confirmed" ? "已确认" : "模型候选"}
+                      </strong>
+                      <RichContent text={r.body} />
+                    </article>
+                  ))}
+                </>
+              ),
+            },
+          ]}
+        />
       )}
     </div>
   );

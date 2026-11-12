@@ -1,6 +1,7 @@
+import { Field } from "../shared/Field";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Drawer, Input, Select, Pagination } from "antd";
+import { Drawer, Input, Select, Pagination, Button, Card, Form } from "antd";
 import { useSession } from "../shared/session";
 import {
   Link,
@@ -12,13 +13,7 @@ import {
   when,
 } from "./context";
 import { useEditorDraft, DraftNotice } from "./editing";
-import {
-  PageHeader,
-  LoadingState,
-  ErrorState,
-  StatusTag,
-  EmptyState,
-} from "../shared/ui";
+import { LoadingState, ErrorState, StatusTag, EmptyState } from "../shared/ui";
 import type { Resource } from "./course";
 import type { Assignment, Submission, Question } from "./assessment";
 interface Intervention {
@@ -73,16 +68,13 @@ export function InterventionPage() {
   );
   return (
     <div className="live-page">
-      <PageHeader
-        title={teacher ? "干预任务" : "老师任务"}
-        actions={
-          teacher && (
-            <button className="primary-link" onClick={() => setCreating(true)}>
-              新建补学补练任务
-            </button>
-          )
-        }
-      />
+      <div className="page-actions">
+        teacher && (
+        <Button onClick={() => setCreating(true)} type="primary">
+          新建补学补练任务
+        </Button>
+        )
+      </div>
       <div className="list-toolbar">
         <Input.Search
           aria-label="搜索任务"
@@ -111,9 +103,7 @@ export function InterventionPage() {
           ]}
         />
         {student && (
-          <button className="ghost-btn" onClick={() => patch({ student: "" })}>
-            查看全部学生
-          </button>
+          <Button onClick={() => patch({ student: "" })}>查看全部学生</Button>
         )}
       </div>
       {query.isPending ? (
@@ -124,7 +114,7 @@ export function InterventionPage() {
           onRetry={() => void query.refetch()}
         />
       ) : (
-        <section className="card-panel">
+        <Card className="card-panel">
           {!rows.length && <EmptyState title="当前筛选没有任务" />}
           {rows.slice((page - 1) * 10, page * 10).map((i) => (
             <article className="live-row" key={i.id}>
@@ -140,16 +130,13 @@ export function InterventionPage() {
                   {i.assignment_id ? "补练作业" : ""}
                 </p>
               </div>
-              <button
-                className="primary-link"
-                onClick={() => patch({ task: i.id })}
-              >
+              <Button onClick={() => patch({ task: i.id })} type="primary">
                 {teacher
                   ? i.status === "submitted"
                     ? "复查完成证据"
                     : "查看任务"
                   : "进入任务"}
-              </button>
+              </Button>
             </article>
           ))}
           <Pagination
@@ -159,7 +146,7 @@ export function InterventionPage() {
             showSizeChanger={false}
             onChange={setPage}
           />
-        </section>
+        </Card>
       )}
       <Drawer
         title="补学补练任务"
@@ -230,10 +217,9 @@ function TaskCreator({
   const change = (key: keyof typeof form, value: string) =>
     draft.change((v) => ({ ...v, [key]: value }));
   return (
-    <form
+    <Form
       className="live-form"
-      onSubmit={async (e) => {
-        e.preventDefault();
+      onFinish={async () => {
         const v = draft.value;
         const result = await action.run<Intervention>("/interventions", {
           ...v,
@@ -244,6 +230,7 @@ function TaskCreator({
           onCreated(result.id);
         }
       }}
+      layout="vertical"
     >
       <DraftNotice {...draft} />
       <Feedback
@@ -262,49 +249,53 @@ function TaskCreator({
           </Link>
         </aside>
       )}
-      <label>
-        指定学生
-        <select
+      <Field className="ui-field" label={<>指定学生</>} required name="student_id" getValueProps={() => ({ value: form.student_id })} rules={[{ validator: async () => { if (!form.student_id) throw Error("请选择学生"); } }]}>
+        <Select
           aria-label="指定学生"
-          required
           disabled={members.isPending || !!source}
           value={form.student_id}
-          onChange={(e) => change("student_id", e.target.value)}
+          onChange={(e) => change("student_id", e)}
+          showSearch
+          optionFilterProp="children"
         >
-          <option value="">选择学生</option>
+          <Select.Option value="">选择学生</Select.Option>
           {members.data?.map((m) => (
-            <option key={m.id} value={m.id}>
+            <Select.Option key={m.id} value={m.id}>
               {m.display_name}
-            </option>
+            </Select.Option>
           ))}
-        </select>
-      </label>
-      <label>
-        任务标题
-        <input
+        </Select>
+      </Field>
+      <Field className="ui-field" label={<>任务标题</>} required={true}>
+        <Input
+          aria-label="任务标题"
           required
           value={form.title}
           onChange={(e) => change("title", e.target.value)}
         />
-      </label>
-      <label>
-        补学资料、练习及完成要求
-        <textarea
+      </Field>
+      <Field
+        className="ui-field"
+        label={<>补学资料、练习及完成要求</>}
+        required={true}
+      >
+        <Input.TextArea
           aria-label="补学资料、练习及完成要求"
           required
           rows={4}
           value={form.description}
           onChange={(e) => change("description", e.target.value)}
         />
-      </label>
-      <label>
-        关联补学资料
-        <select
+      </Field>
+      <Field className="ui-field" label={<>关联补学资料</>}>
+        <Select
           aria-label="关联补学资料"
           value={form.resource_id}
-          onChange={(e) => change("resource_id", e.target.value)}
+          onChange={(e) => change("resource_id", e)}
+          showSearch
+          optionFilterProp="children"
         >
-          <option value="">不指定资料</option>
+          <Select.Option value="">不指定资料</Select.Option>
           {resources.data
             ?.filter((r) => r.status === "published")
             .sort(
@@ -313,36 +304,37 @@ function TaskCreator({
                 Number(a.knowledge_point_id === point),
             )
             .map((r) => (
-              <option key={r.id} value={r.id}>
+              <Select.Option key={r.id} value={r.id}>
                 {r.title} · v{r.version}
-              </option>
+              </Select.Option>
             ))}
-        </select>
-      </label>
-      <label>
-        关联补练作业
-        <select
+        </Select>
+      </Field>
+      <Field className="ui-field" label={<>关联补练作业</>}>
+        <Select
           aria-label="关联补练作业"
           value={form.assignment_id}
-          onChange={(e) => change("assignment_id", e.target.value)}
+          onChange={(e) => change("assignment_id", e)}
+          showSearch
+          optionFilterProp="children"
         >
-          <option value="">不指定作业</option>
+          <Select.Option value="">不指定作业</Select.Option>
           {assignments.data
             ?.filter((a) => a.status === "published")
             .map((a) => (
-              <option key={a.id} value={a.id}>
+              <Select.Option key={a.id} value={a.id}>
                 {a.title}
-              </option>
+              </Select.Option>
             ))}
-        </select>
-      </label>
+        </Select>
+      </Field>
       <p className="live-meta">
         下发后，学生需要完成关联资料并为补练作业逐题产生新提交。
       </p>
-      <button className="primary-link" disabled={action.busy}>
+      <Button disabled={action.busy} htmlType="submit" type="primary">
         保存任务草稿
-      </button>
-    </form>
+      </Button>
+    </Form>
   );
 }
 function TaskDetail({
@@ -458,22 +450,21 @@ function TaskDetail({
         </section>
       )}
       {teacher && i.status === "draft" && (
-        <button
-          className="primary-link"
+        <Button
           disabled={action.busy}
           onClick={() =>
             action.run(`/interventions/${i.id}/state`, { state: "assigned" })
           }
+          type="primary"
         >
           确认下发
-        </button>
+        </Button>
       )}
       {((teacher && i.status === "submitted") ||
         (!teacher && i.status === "assigned")) && (
-        <form
+        <Form
           className="live-form"
-          onSubmit={async (e) => {
-            e.preventDefault();
+          onFinish={async () => {
             const v = draft.value;
             if (
               await action.run(`/interventions/${i.id}/state`, {
@@ -483,28 +474,33 @@ function TaskDetail({
             )
               draft.saved(v);
           }}
+          layout="vertical"
         >
           <DraftNotice {...draft} />
-          <label>
-            {teacher ? "复查意见" : "执行结果与新学习证据"}
-            <textarea
+          <Field
+            className="ui-field"
+            label={<>{teacher ? "复查意见" : "执行结果与新学习证据"}</>}
+            required={true}
+          >
+            <Input.TextArea
               aria-label={teacher ? "复查意见" : "执行结果与新学习证据"}
               required
               rows={4}
               value={draft.value}
               onChange={(e) => draft.change(e.target.value)}
             />
-          </label>
-          <button
-            className="primary-link"
+          </Field>
+          <Button
             disabled={action.busy || (!teacher && !ready)}
+            htmlType="submit"
+            type="primary"
           >
             {teacher ? "确认复查完成" : "提交执行结果"}
-          </button>
+          </Button>
           {!teacher && !ready && (
             <p>请先完成上方未满足的条件，再提交执行结果。</p>
           )}
-        </form>
+        </Form>
       )}
     </div>
   );

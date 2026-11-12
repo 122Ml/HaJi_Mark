@@ -1,4 +1,6 @@
-import { PageHeader } from "../shared/ui";
+import { Field } from "../shared/Field";
+import { useConfirm } from "../shared/confirm";
+import { Card, Form, Input, Button } from "antd";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSession } from "../shared/session";
@@ -40,73 +42,63 @@ export function ProfilePage() {
   }
   return (
     <div className="live-page">
-      <header className="live-heading">
-        <p>账户</p>
-        <h1>个人设置</h1>
-        <p>
-          用户名：{session?.user.username} · 身份：
-          {session?.user.role === "teacher" ? "教师" : "学生"}
-        </p>
-      </header>
       <Feedback message={message} />
-      <section className="card-panel">
-        <h2>个人资料</h2>
-        <form
+      <Card className="card-panel" title={<h2>个人资料</h2>}>
+
+        <Form
           className="live-form"
-          onSubmit={(e) => {
-            e.preventDefault();
+          onFinish={() => {
             void save();
           }}
+          layout="vertical"
         >
-          <label>
-            显示姓名
-            <input
+          <Field className="ui-field" label={<>显示姓名</>} required={true}>
+            <Input
+              aria-label="显示姓名"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
-          </label>
-          <button className="primary-link" disabled={busy}>
+          </Field>
+          <Button disabled={busy} htmlType="submit" type="primary">
             保存资料
-          </button>
-        </form>
-      </section>
-      <section className="card-panel">
-        <h2>修改密码</h2>
-        <form
+          </Button>
+        </Form>
+      </Card>
+      <Card className="card-panel" title={<h2>修改密码</h2>}>
+
+        <Form
           className="live-form"
-          onSubmit={(e) => {
-            e.preventDefault();
+          onFinish={() => {
             void save(true);
           }}
+          layout="vertical"
         >
-          <label>
-            原密码
-            <input
+          <Field className="ui-field" label={<>原密码</>} required={true}>
+            <Input.Password
+              aria-label="原密码"
               required
-              type="password"
               autoComplete="current-password"
               value={oldPassword}
               onChange={(e) => setOldPassword(e.target.value)}
             />
-          </label>
-          <label>
-            新密码
-            <input
+          </Field>
+          <Field className="ui-field" label={<>新密码</>} required={true}>
+            <Input.Password
+              aria-label="新密码"
               required
               minLength={12}
-              type="password"
               autoComplete="new-password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
             />
-          </label>
+          </Field>
           <p>新密码至少12字节；修改后所有已登录设备都需重新登录。</p>
-          <button className="ghost-btn" disabled={busy}>
+          <Button disabled={busy} htmlType="submit">
             修改密码
-          </button>
-        </form>
-      </section>
+          </Button>
+        </Form>
+      </Card>
     </div>
   );
 }
@@ -119,6 +111,7 @@ interface RecordItem {
   created_at: string;
 }
 export function RecordsPage({ industry = false }: { industry?: boolean }) {
+  const confirm = useConfirm();
   const path = industry ? "/industry" : "/research";
   const query = useLiveQuery<RecordItem[]>(path);
   const action = useAction();
@@ -131,14 +124,16 @@ export function RecordsPage({ industry = false }: { industry?: boolean }) {
   });
   return (
     <div className="live-page">
-      <PageHeader eyebrow="交流与教研" title={industry ? "行业能力资料库" : "教研协同中心"} />
-      <Feedback error={query.error} message={action.message} failed={action.failed} />
-      <section className="card-panel">
-        <h2>{industry ? "录入岗位与技能" : "新增教研记录"}</h2>
-        <form
+      <Feedback
+        error={query.error}
+        message={action.message}
+        failed={action.failed}
+      />
+      <Card className="card-panel" title={<h2>{industry ? "录入岗位与技能" : "新增教研记录"}</h2>}>
+
+        <Form
           className="live-form"
-          onSubmit={async (e) => {
-            e.preventDefault();
+          onFinish={async () => {
             if (
               await action.run(
                 editing ? `${path}/${editing}` : path,
@@ -150,20 +145,25 @@ export function RecordsPage({ industry = false }: { industry?: boolean }) {
               setEditing("");
             }
           }}
+          layout="vertical"
         >
-          <label>
-            标题
-            <input
+          <Field className="ui-field" label={<>标题</>} required={true}>
+            <Input
+              aria-label="标题"
               required
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
-          </label>
+          </Field>
           {industry ? (
             <>
-              <label>
-                原始来源链接
-                <input
+              <Field
+                className="ui-field"
+                label={<>原始来源链接</>}
+                required={true}
+              >
+                <Input
+                  aria-label="原始来源链接"
                   required
                   type="url"
                   value={form.source_url}
@@ -171,55 +171,59 @@ export function RecordsPage({ industry = false }: { industry?: boolean }) {
                     setForm({ ...form, source_url: e.target.value })
                   }
                 />
-              </label>
-              <label>
-                技能要求
-                <textarea
+              </Field>
+              <Field
+                className="ui-field"
+                label={<>技能要求</>}
+                required={true}
+              >
+                <Input.TextArea
                   aria-label="技能要求"
                   required
                   rows={5}
                   value={form.skills}
                   onChange={(e) => setForm({ ...form, skills: e.target.value })}
                 />
-              </label>
+              </Field>
             </>
           ) : (
-            <label>
-              教研内容
-              <textarea
+            <Field
+              className="ui-field"
+              label={<>教研内容</>}
+              required={true}
+            >
+              <Input.TextArea
                 aria-label="教研内容"
                 required
                 rows={6}
                 value={form.content}
                 onChange={(e) => setForm({ ...form, content: e.target.value })}
               />
-            </label>
+            </Field>
           )}
-          <button className="primary-link" disabled={action.busy}>
+          <Button disabled={action.busy} htmlType="submit" type="primary">
             {editing ? "保存修改" : "保存记录"}
-          </button>
+          </Button>
           {editing && (
-            <button
-              type="button"
-              className="ghost-btn"
+            <Button
               onClick={() => {
                 setEditing("");
                 setForm({ title: "", content: "", source_url: "", skills: "" });
               }}
+              htmlType="button"
             >
               取消编辑
-            </button>
+            </Button>
           )}
-        </form>
-      </section>
+        </Form>
+      </Card>
       {query.data?.map((r) => (
-        <article className="card-panel" key={r.id}>
-          <h2>{r.title}</h2>
+        <Card className="card-panel" key={r.id} title={<h2>{r.title}</h2>}>
+
           <p className="live-meta">{when(r.created_at)}</p>
           <p className="live-prose">{r.content || r.skills}</p>
           <div className="live-inline">
-            <button
-              className="ghost-btn"
+            <Button
               onClick={() => {
                 setEditing(r.id);
                 setForm({
@@ -232,13 +236,12 @@ export function RecordsPage({ industry = false }: { industry?: boolean }) {
               }}
             >
               编辑
-            </button>
-            <button
-              className="ghost-btn"
+            </Button>
+            <Button
               disabled={action.busy}
               onClick={async () => {
                 if (
-                  confirm(`删除记录“${r.title}”？`) &&
+                  await confirm(`删除记录“${r.title}”？`) &&
                   (await action.run(`${path}/${r.id}`, {}, "DELETE")) &&
                   editing === r.id
                 ) {
@@ -253,14 +256,14 @@ export function RecordsPage({ industry = false }: { industry?: boolean }) {
               }}
             >
               删除
-            </button>
+            </Button>
           </div>
           {r.source_url && (
             <a href={r.source_url} target="_blank" rel="noreferrer">
               查看原始来源
             </a>
           )}
-        </article>
+        </Card>
       ))}
       {!query.data?.length && <p>暂无记录。</p>}
     </div>

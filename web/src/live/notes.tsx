@@ -1,3 +1,5 @@
+import { Field } from "../shared/Field";
+import { Form, Input, Checkbox, Button } from "antd";
 import { useEffect } from "react";
 import { useEditorDraft, DraftNotice } from "./editing";
 import { useLiveQuery, useAction, Feedback } from "./context";
@@ -33,12 +35,12 @@ export function ResourceNotes({ resourceId }: { resourceId: string }) {
     return () => clearTimeout(timer);
   }, [note, favorite, draft.dirty, draft.ready, action.busy, action.failed]);
   return (
-    <form
+    <Form
       className="live-form"
-      onSubmit={(e) => {
-        e.preventDefault();
+      onFinish={() => {
         void save();
       }}
+      layout="vertical"
     >
       <h3>学习笔记</h3>
       <DraftNotice {...draft} />
@@ -50,28 +52,26 @@ export function ResourceNotes({ resourceId }: { resourceId: string }) {
         message={action.message}
         failed={action.failed}
       />
-      <label>
-        我的笔记
-        <textarea
+      <Field className="ui-field" label={<>我的笔记</>}>
+        <Input.TextArea
           aria-label="我的笔记"
           rows={5}
           disabled={!query.isSuccess}
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
-      </label>
-      <label className="live-option">
-        <input
-          type="checkbox"
-          disabled={!query.isSuccess}
-          checked={favorite}
-          onChange={(e) => setFavorite(e.target.checked)}
-        />
+      </Field>
+      <Checkbox
+        className="live-option"
+        disabled={!query.isSuccess}
+        checked={favorite}
+        onChange={(e) => setFavorite(e.target.checked)}
+      >
         收藏这份资料
-      </label>
-      <button className="ghost-btn" disabled={action.busy || !query.isSuccess}>
+      </Checkbox>
+      <Button disabled={action.busy || !query.isSuccess} htmlType="submit">
         保存笔记与收藏
-      </button>
-    </form>
+      </Button>
+    </Form>
   );
 }

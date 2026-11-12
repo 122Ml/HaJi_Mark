@@ -1,3 +1,6 @@
+import { Field } from "../shared/Field";
+import { useConfirm } from "../shared/confirm";
+import { Button, Card, Select, Input, InputNumber, Alert } from "antd";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Feedback, Link, useAction, useLiveQuery } from "./context";
@@ -57,10 +60,9 @@ export function RegradesPage() {
   return (
     <div className="live-page">
       <header className="workspace-heading">
-        <h1>整组重评</h1>
-        <button className="primary-link" onClick={() => setCreating(!creating)}>
+        <Button onClick={() => setCreating(!creating)} type="primary">
           {creating ? "收起" : "建立重评批次"}
-        </button>
+        </Button>
       </header>
       <Feedback error={q.error} />
       {creating && (
@@ -73,7 +75,7 @@ export function RegradesPage() {
           }}
         />
       )}
-      <section className="card-panel">
+      <Card className="card-panel">
         {q.data?.length ? (
           q.data.map((b) => (
             <div className="live-row" key={b.id}>
@@ -83,8 +85,7 @@ export function RegradesPage() {
                   {b.reason} · {stateNames[b.state]}
                 </p>
               </div>
-              <button
-                className="ghost-btn"
+              <Button
                 onClick={() => {
                   const p = new URLSearchParams(params);
                   p.set("batch", b.id);
@@ -92,13 +93,13 @@ export function RegradesPage() {
                 }}
               >
                 查看批次
-              </button>
+              </Button>
             </div>
           ))
         ) : (
           <p>暂无重评批次</p>
         )}
-      </section>
+      </Card>
       {id && <RegradeDetail key={id} id={id} />}
     </div>
   );
@@ -143,118 +144,129 @@ function CreateRegrade({ onCreated }: { onCreated: (id: string) => void }) {
     reason,
   };
   return (
-    <section className="card-panel live-form" onChange={() => setPreview(null)}>
-      <h2>冻结本题有效提交</h2>
-      <label>
-        已关闭作业
-        <select
+    <Card className="card-panel live-form" onChange={() => setPreview(null)} title={<h2>冻结本题有效提交</h2>}>
+
+      <Field className="ui-field" label={<>已关闭作业</>}>
+        <Select
           aria-label="已关闭作业"
           value={assignment}
           onChange={(e) => {
-            setAssignment(e.target.value);
+            setAssignment(e);
             setQuestion("");
             setRubric("");
             setVersion("");
           }}
+          showSearch
+          optionFilterProp="children"
         >
-          <option value="">请选择</option>
+          <Select.Option value="">请选择</Select.Option>
           {assignments.data
             ?.filter((a) => a.status === "closed")
             .map((a) => (
-              <option key={a.id} value={a.id}>
+              <Select.Option key={a.id} value={a.id}>
                 {a.title}
-              </option>
+              </Select.Option>
             ))}
-        </select>
-      </label>
-      <label>
-        题目
-        <select
+        </Select>
+      </Field>
+      <Field className="ui-field" label={<>题目</>}>
+        <Select
           aria-label="重评题目"
           value={question}
           onChange={(e) => {
-            setQuestion(e.target.value);
+            setQuestion(e);
             setRubric("");
             setVersion("");
             setAnswer("");
           }}
+          showSearch
+          optionFilterProp="children"
         >
-          <option value="">请选择</option>
+          <Select.Option value="">请选择</Select.Option>
           {detail.data?.questions.map((q) => (
-            <option key={q.id} value={q.id}>
+            <Select.Option key={q.id} value={q.id}>
               {q.prompt.slice(0, 100)}
-            </option>
+            </Select.Option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </Field>
       {current?.type === "quiz" ? (
-        <label>
-          更正答案
-          <select aria-label="更正答案" value={answer} onChange={(e) => setAnswer(e.target.value)}>
-            <option value="">请选择</option>
+        <Field className="ui-field" label={<>更正答案</>}>
+          <Select
+            aria-label="更正答案"
+            value={answer}
+            onChange={(e) => setAnswer(e)}
+            showSearch
+            optionFilterProp="children"
+          >
+            <Select.Option value="">请选择</Select.Option>
             {current.options.map((o, i) => (
-              <option key={i} value={o}>
+              <Select.Option key={i} value={o}>
                 {o}
-              </option>
+              </Select.Option>
             ))}
-          </select>
-        </label>
+          </Select>
+        </Field>
       ) : (
         current && (
           <>
             {current.bank_question_version_id && (
-              <label>
-                题库确认版本
-                <select
+              <Field className="ui-field" label={<>题库确认版本</>}>
+                <Select
                   aria-label="题库确认版本"
                   value={version || current.bank_question_version_id}
                   onChange={(e) => {
-                    setVersion(e.target.value);
+                    setVersion(e);
                     setRubric("");
                   }}
+                  showSearch
+                  optionFilterProp="children"
                 >
                   {bank.data?.versions
                     .filter((v) => v.state === "confirmed")
                     .map((v) => (
-                      <option key={v.id} value={v.id}>
+                      <Select.Option key={v.id} value={v.id}>
                         v{v.version} · {v.title}
-                      </option>
+                      </Select.Option>
                     ))}
-                </select>
-              </label>
+                </Select>
+              </Field>
             )}
-            <label>
-              统一新标准
-              <select
+            <Field className="ui-field" label={<>统一新标准</>}>
+              <Select
                 aria-label="统一新标准"
                 value={rubric}
-                onChange={(e) => setRubric(e.target.value)}
+                onChange={(e) => setRubric(e)}
+                showSearch
+                optionFilterProp="children"
               >
-                <option value="">请选择已确认标准</option>
+                <Select.Option value="">请选择已确认标准</Select.Option>
                 {rubrics.data
                   ?.filter((r) => r.state === "confirmed")
                   .map((r) => (
-                    <option key={r.id} value={r.id}>
+                    <Select.Option key={r.id} value={r.id}>
                       标准 v{r.version} ·{" "}
                       {r.criteria.map((c) => c.title).join("、")}
-                    </option>
+                    </Select.Option>
                   ))}
-              </select>
-            </label>
+              </Select>
+            </Field>
           </>
         )
       )}
-      <label>
-        重评原因
-        <textarea value={reason} onChange={(e) => setReason(e.target.value)} />
-      </label>
+      <Field className="ui-field" label={<>重评原因</>}>
+        <Input.TextArea
+          aria-label="重评原因"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
+      </Field>
       <Feedback
         error={detail.error || rubrics.error}
         message={action.message}
         failed={action.failed}
       />
-      <button
-        className="ghost-btn"
+      <Button
         disabled={
           action.busy ||
           !question ||
@@ -270,29 +282,30 @@ function CreateRegrade({ onCreated }: { onCreated: (id: string) => void }) {
         }}
       >
         预览范围
-      </button>
+      </Button>
       {preview && (
         <div>
           <p>
             本题 {preview.count}{" "}
             份有效提交；每名学生取最新正式提交，未交不补零。
           </p>
-          <button
-            className="primary-link"
+          <Button
             disabled={action.busy}
             onClick={async () => {
               const b = await action.run<Batch>("/regrades", payload);
               if (b) onCreated(b.id);
             }}
+            type="primary"
           >
             确认冻结并建立批次
-          </button>
+          </Button>
         </div>
       )}
-    </section>
+    </Card>
   );
 }
 function RegradeDetail({ id }: { id: string }) {
+  const confirm = useConfirm();
   const q = useLiveQuery<Detail>(`/regrades/${id}`),
     action = useAction(),
     [selected, setSelected] = useState("");
@@ -302,57 +315,57 @@ function RegradeDetail({ id }: { id: string }) {
   const item = d.items.find((i) => i.submission_id === selected) || d.items[0],
     done = d.items.filter((i) => i.confirmed).length;
   return (
-    <section className="card-panel live-form">
+    <Card className="card-panel live-form">
       <div className="workspace-heading">
         <h2>
           {stateNames[d.batch.state]} · {done}/{d.items.length}
         </h2>
         <div className="live-inline">
-          <button
-            className="primary-link"
+          <Button
             disabled={
               action.busy ||
               d.batch.state !== "active" ||
               done !== d.items.length
             }
-            onClick={() => {
-              if (confirm("统一发布整组新结果？"))
+            onClick={async () => {
+              if (await confirm("统一发布整组新结果？"))
                 void action.run(`/regrades/${id}/state`, { state: "released" });
             }}
+            type="primary"
           >
             整组发布
-          </button>
-          <button
-            className="ghost-btn"
+          </Button>
+          <Button
             disabled={action.busy || d.batch.state !== "active"}
-            onClick={() => {
-              if (confirm("取消批次并保留原有正式结果？"))
+            onClick={async () => {
+              if (await confirm("取消批次并保留原有正式结果？"))
                 void action.run(`/regrades/${id}/state`, { state: "canceled" });
             }}
           >
             取消批次
-          </button>
+          </Button>
         </div>
       </div>
       <RichContent text={d.batch.question_snapshot.prompt} />
       <p>{d.batch.reason}</p>
       <FrozenEvidence sources={d.rubric?.evidence_refs} />
       <Feedback message={action.message} failed={action.failed} />
-      <label>
-        冻结名单
-        <select
+      <Field className="ui-field" label={<>冻结名单</>}>
+        <Select
           aria-label="冻结名单"
           value={item?.submission_id || ""}
-          onChange={(e) => setSelected(e.target.value)}
+          onChange={(e) => setSelected(e)}
+          showSearch
+          optionFilterProp="children"
         >
           {d.items.map((i) => (
-            <option key={i.submission_id} value={i.submission_id}>
+            <Select.Option key={i.submission_id} value={i.submission_id}>
               {i.display_name} · 第{i.attempt}次 ·{" "}
               {i.confirmed ? "已确认" : "待复核"}
-            </option>
+            </Select.Option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </Field>
       {item && (
         <RegradeEditor
           key={`${item.submission_id}:${item.edit_version}`}
@@ -361,7 +374,7 @@ function RegradeDetail({ id }: { id: string }) {
           rubric={d.rubric}
         />
       )}
-    </section>
+    </Card>
   );
 }
 function RegradeEditor({
@@ -373,6 +386,7 @@ function RegradeEditor({
   item: Item;
   rubric: RubricVersion | null;
 }) {
+  const confirm = useConfirm();
   const action = useAction(),
     [model, setModel] = useState(""),
     [job, setJob] = useState("");
@@ -423,8 +437,7 @@ function RegradeEditor({
           <div className="rag-ai-tool">
             <div className="live-inline">
               <ModelSelect kind="chat" value={model} onChange={setModel} />
-              <button
-                className="ghost-btn"
+              <Button
                 disabled={
                   action.busy ||
                   ["queued", "running"].includes(ai.data?.state || "")
@@ -438,14 +451,13 @@ function RegradeEditor({
                 }}
               >
                 生成本份重评草稿
-              </button>
+              </Button>
             </div>
-            {ai.data?.state === "failed" && <p role="alert">{ai.data.error}</p>}
+            {ai.data?.state === "failed" && <Alert type="error" showIcon role="alert" message={<>{ai.data.error}</>} />}
             {ai.data?.state === "succeeded" && (
-              <button
-                className="ghost-btn"
-                onClick={() => {
-                  if (draft.dirty && !confirm("载入AI草稿？")) return;
+              <Button
+                onClick={async () => {
+                  if (draft.dirty && !await confirm("载入AI草稿？")) return;
                   const o = ai.data!.output as {
                     score: number;
                     feedback: string;
@@ -455,58 +467,61 @@ function RegradeEditor({
                 }}
               >
                 载入评分草稿
-              </button>
+              </Button>
             )}
           </div>
         )}
         {rubric?.criteria.map((c, i) => (
-          <fieldset key={c.id} disabled={batch.state !== "active"}>
-            <legend>
-              {c.title} · {c.max_score}分
-            </legend>
+          <Card
+            size="small"
+            key={c.id}
+            title={
+              <>
+                {c.title} · {c.max_score}分
+              </>
+            }
+          >
             <p>{c.rule}</p>
-            <label>
-              得分
-              <input
+            <Field className="ui-field" label={<>得分</>}>
+              <InputNumber
                 aria-label="得分"
-                type="number"
                 min={0}
                 max={c.max_score}
                 value={v.points[i]?.score || 0}
-                onChange={(e) => point(i, { score: Number(e.target.value) })}
+                onChange={(e) => point(i, { score: Number(String(e ?? "")) })}
+                disabled={batch.state !== "active"}
               />
-            </label>
-            <label>
-              学生原文引用
-              <textarea
+            </Field>
+            <Field className="ui-field" label={<>学生原文引用</>}>
+              <Input.TextArea
                 aria-label="学生原文引用"
                 value={v.points[i]?.quote || ""}
                 onChange={(e) => point(i, { quote: e.target.value })}
+                disabled={batch.state !== "active"}
               />
-            </label>
-            <label>
-              逐点反馈
-              <textarea
+            </Field>
+            <Field className="ui-field" label={<>逐点反馈</>}>
+              <Input.TextArea
                 aria-label="逐点反馈"
                 value={v.points[i]?.feedback || ""}
                 onChange={(e) => point(i, { feedback: e.target.value })}
+                disabled={batch.state !== "active"}
               />
-            </label>
-          </fieldset>
+            </Field>
+          </Card>
         ))}
         <strong>
           总分 {total}/{max}
         </strong>
         {!rubric && <p>按本批固定答案「{batch.correct_answer}」判分</p>}
-        <label>
-          总反馈
-          <textarea
+        <Field className="ui-field" label={<>总反馈</>}>
+          <Input.TextArea
             aria-label="总反馈"
             disabled={batch.state !== "active"}
             value={v.feedback}
             onChange={(e) => draft.change({ ...v, feedback: e.target.value })}
           />
-        </label>
+        </Field>
         <Feedback
           error={ai.error}
           message={action.message}
@@ -514,9 +529,8 @@ function RegradeEditor({
         />
         <div className="live-inline">
           {[false, true].map((confirmed) => (
-            <button
+            <Button
               key={String(confirmed)}
-              className={confirmed ? "primary-link" : "ghost-btn"}
               disabled={
                 action.busy || batch.state !== "active" || !v.feedback.trim()
               }
@@ -534,9 +548,10 @@ function RegradeEditor({
                 );
                 if (r) draft.saved(snapshot);
               }}
+              type={confirmed ? "primary" : "default"}
             >
               {confirmed ? "确认本份" : "保存草稿"}
-            </button>
+            </Button>
           ))}
         </div>
       </div>

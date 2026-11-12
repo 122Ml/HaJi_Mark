@@ -1,5 +1,8 @@
-import { Fragment } from "react";
-import katex from "katex";
+import { Alert } from "antd";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { useLearning, useLiveQuery } from "./context";
 
@@ -12,29 +15,13 @@ export type Asset = {
   native_data: unknown;
 };
 export function RichContent({ text }: { text: string }) {
-  const parts = text.split(/(\$\$[\s\S]*?\$\$|\\\([\s\S]*?\\\))/g);
+  const content = text.replace(/\\\(([\s\S]*?)\\\)/g, (_, math: string) => `$${math}$`).replace(/\\\[([\s\S]*?)\\\]/g, (_, math: string) => `\n$$\n${math}\n$$\n`);
   return (
     <div className="live-prose rich-content">
-      {parts.map((p, i) => {
-        const block = p.startsWith("$$");
-        if (!block && !p.startsWith("\\("))
-          return <Fragment key={i}>{p}</Fragment>;
-        const html = katex.renderToString(p.slice(2, -2), {
-          displayMode: block,
-          throwOnError: false,
-          trust: false,
-          strict: "warn",
-          maxExpand: 1000,
-          maxSize: 20,
-        });
-        return (
-          <span
-            key={i}
-            className={block ? "formula-block" : undefined}
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
-        );
-      })}
+      <Markdown skipHtml remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[[rehypeKatex, { trust: false, throwOnError: false, maxExpand: 1000, maxSize: 20 }]]}
+        components={{ img: () => null, a: ({ children, href }) => <a href={href} target="_blank" rel="noreferrer">{children}</a> }}>
+        {content}
+      </Markdown>
     </div>
   );
 }
@@ -47,7 +34,7 @@ export function PublishedAssets({
 }) {
   const q = useLiveQuery<Asset[]>(`/${kind}/${id}/assets`);
   const { course } = useLearning();
-  if (q.error) return <p role="alert">图像读取失败：{q.error.message}</p>;
+  if (q.error) return <Alert type="error" showIcon role="alert" message={<>图像读取失败：{q.error.message}</>} />;
   return (
     <div className="published-assets">
       {q.data?.map((a) => (

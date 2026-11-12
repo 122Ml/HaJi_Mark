@@ -1,6 +1,9 @@
+import { Field } from "../shared/Field";
+import { useConfirm } from "../shared/confirm";
+import { FileUpload } from "../shared/FileUpload";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Drawer, Select, Progress, Tabs } from "antd";
+import { Drawer, Select, Progress, Tabs, Collapse, Button, Card, Form, Input, Checkbox, Tag, Alert } from "antd";
 import { useSession } from "../shared/session";
 import { requestJSON } from "../shared/api";
 import { LoadingState, ErrorState, EmptyState } from "../shared/ui";
@@ -102,31 +105,42 @@ export type AssistAnswer = {
 export function FrozenEvidence({ sources }: { sources?: Hit[] }) {
   if (!sources?.length) return null;
   return (
-    <details>
-      <summary>引用依据（{sources.length}）</summary>
-      {sources.map((hit) => (
-        <article className="rag-hit" key={hit.id}>
-          <strong>{hit.title}</strong>
-          <small>{location(hit.locator)}</small>
-          <p className="live-prose">{hit.body}</p>
-          {hit.source_id && (
-            <Link
-              to={`/teacher/materials?source=${hit.source_id}&fragment=${hit.fragment_ids?.[0] || ""}`}
-            >
-              查看引用原文
-            </Link>
-          )}
-          {hit.knowledge_id && <Link to="/teacher/knowledge">查看知识库</Link>}
-        </article>
-      ))}
-    </details>
+    <Collapse
+      items={[
+        {
+          key: "content",
+          label: <>引用依据（{sources.length}）</>,
+          children: (
+            <>
+              {sources.map((hit) => (
+                <article className="rag-hit" key={hit.id}>
+                  <strong>{hit.title}</strong>
+                  <small>{location(hit.locator)}</small>
+                  <p className="live-prose">{hit.body}</p>
+                  {hit.source_id && (
+                    <Link
+                      to={`/teacher/materials?source=${hit.source_id}&fragment=${hit.fragment_ids?.[0] || ""}`}
+                    >
+                      查看引用原文
+                    </Link>
+                  )}
+                  {hit.knowledge_id && (
+                    <Link to="/teacher/knowledge">查看知识库</Link>
+                  )}
+                </article>
+              ))}
+            </>
+          ),
+        },
+      ]}
+    />
   );
 }
 export function GroundedAnswer({ answer }: { answer: AssistAnswer }) {
   const { session } = useSession();
   return (
     <>
-      <p className="live-prose">{answer.text}</p>
+      <RichContent text={answer.text} />
       {answer.citations?.map((c, i) => {
         const hit = answer.sources.find((h) => h.id === c.id);
         return (
@@ -289,9 +303,7 @@ export function AIDraft({
     <section className="rag-ai-tool">
       <div className="live-inline">
         <ModelSelect kind="chat" value={model} onChange={setModel} />
-        <button
-          type="button"
-          className="ghost-btn"
+        <Button
           disabled={busy || jobs.isPending || !!jobs.error || !!q.error}
           onClick={async () => {
             await action.run<Job>(bank ? "/question-bank/jobs" : "/jobs", {
@@ -300,6 +312,7 @@ export function AIDraft({
               ...target,
             });
           }}
+          htmlType="button"
         >
           {busy
             ? "生成中…"
@@ -308,7 +321,7 @@ export function AIDraft({
               : kind === "rubric"
                 ? "AI起草标准"
                 : "AI生成评阅草稿"}
-        </button>
+        </Button>
       </div>
       <Feedback
         error={jobs.error || q.error}
@@ -324,25 +337,44 @@ export function AIDraft({
           {busy && <Progress percent={q.data.progress} size="small" />}
           {q.data.state === "failed" &&
             typeof q.data.output.raw_response === "string" && (
-              <details>
-                <summary>查看模型原始回复</summary>
-                <pre className="live-prose">{q.data.output.raw_response}</pre>
-              </details>
+              <Collapse
+                items={[
+                  {
+                    key: "content",
+                    label: <>查看模型原始回复</>,
+                    children: (
+                      <>
+                        <pre className="live-prose">
+                          {q.data.output.raw_response}
+                        </pre>
+                      </>
+                    ),
+                  },
+                ]}
+              />
             )}
           {q.data.state === "succeeded" && (
             <>
-              <details>
-                <summary>查看AI草稿</summary>
-                <DraftPreview output={q.data.output} />
-              </details>
-              <button
-                type="button"
-                className="ghost-btn"
+              <Collapse
+                items={[
+                  {
+                    key: "content",
+                    label: <>查看AI草稿</>,
+                    children: (
+                      <>
+                        <DraftPreview output={q.data.output} />
+                      </>
+                    ),
+                  },
+                ]}
+              />
+              <Button
                 disabled={busy || stale}
                 onClick={() => onAdopt(q.data!.output, id)}
+                htmlType="button"
               >
                 载入编辑区
-              </button>
+              </Button>
               {stale && (
                 <p className="live-meta">
                   当前要求或依据已变化，请按当前条件重新生成。
@@ -371,11 +403,20 @@ function DraftPreview({ output }: { output: Record<string, unknown> }) {
       )?.map((q, i) => (
         <article key={i}>
           <strong>{q.title}</strong>
-          <p className="live-prose">{q.prompt}</p>
-          <details>
-            <summary>参考解答</summary>
-            <p className="live-prose">{q.reference_answer}</p>
-          </details>
+          <RichContent text={q.prompt} />
+          <Collapse
+            items={[
+              {
+                key: "content",
+                label: <>参考解答</>,
+                children: (
+                  <>
+                    <RichContent text={q.reference_answer} />
+                  </>
+                ),
+              },
+            ]}
+          />
         </article>
       ))}
       {(output.requirements as string[] | undefined)?.map((r, i) => (
@@ -386,7 +427,8 @@ function DraftPreview({ output }: { output: Record<string, unknown> }) {
       ))}
       {(
         output.associations as
-          { evidence_id: string; reason: string }[] | undefined
+          | { evidence_id: string; reason: string }[]
+          | undefined
       )?.map((r, i) => (
         <p key={`a${i}`}>关联理由：{r.reason}</p>
       ))}
@@ -409,7 +451,7 @@ function DraftPreview({ output }: { output: Record<string, unknown> }) {
       ))}
       {typeof output.feedback === "string" && <p>{output.feedback}</p>}
       <FrozenEvidence sources={output.evidence_refs as Hit[] | undefined} />
-      <span className="rag-tag">待教师审核</span>
+      <Tag >待教师审核</Tag>
     </div>
   );
 }
@@ -417,61 +459,74 @@ export function JobsPanel({ kinds }: { kinds?: string[] }) {
   const query = useLiveQuery<Job[]>("/jobs");
   const action = useAction();
   const { reload } = useLearning();
-  const rows = query.data?.filter((j) => !kinds || kinds.includes(j.kind)) || [];
-  const active = rows.some((j) =>
-    ["queued", "running"].includes(j.state),
-  );
+  const rows =
+    query.data?.filter((j) => !kinds || kinds.includes(j.kind)) || [];
+  const active = rows.some((j) => ["queued", "running"].includes(j.state));
   useEffect(() => {
     if (!active) return;
     const t = setInterval(async () => {
       const r = await query.refetch();
-      if (!r.data?.some((j) => (!kinds || kinds.includes(j.kind)) && ["queued", "running"].includes(j.state)))
+      if (
+        !r.data?.some(
+          (j) =>
+            (!kinds || kinds.includes(j.kind)) &&
+            ["queued", "running"].includes(j.state),
+        )
+      )
         await reload();
     }, 2000);
     return () => clearInterval(t);
   }, [active]);
   return (
-    <details className="card-panel rag-jobs">
-      <summary>处理任务{active ? " · 处理中" : ""}</summary>
-      <Feedback
-        error={query.error}
-        message={action.message}
-        failed={action.failed}
-      />
-      {!rows.length && <p>暂无处理任务。</p>}
-      {rows.slice(0, 15).map((j) => (
-        <article key={j.id} className="rag-job">
-          <div>
-            <strong>{labels[j.kind]}</strong>
-            <span>
-              {labels[j.state]} · {when(j.created_at)}
-            </span>
-            {j.error && <p role="alert">{j.error}</p>}
-          </div>
-          {j.state === "running" && (
-            <Progress percent={j.progress} size="small" />
-          )}
-          {["queued", "running"].includes(j.state) && (
-            <button
-              className="ghost-btn"
-              disabled={action.busy}
-              onClick={() => action.run(`/jobs/${j.id}/cancel`)}
-            >
-              取消
-            </button>
-          )}
-          {j.state === "failed" && (
-            <button
-              className="ghost-btn"
-              disabled={action.busy}
-              onClick={() => action.run(`/jobs/${j.id}/retry`)}
-            >
-              重试
-            </button>
-          )}
-        </article>
-      ))}
-    </details>
+    <Collapse
+      className="card-panel rag-jobs"
+      items={[
+        {
+          key: "content",
+          label: <>处理任务{active ? " · 处理中" : ""}</>,
+          children: (
+            <>
+              <Feedback
+                error={query.error}
+                message={action.message}
+                failed={action.failed}
+              />
+              {!rows.length && <p>暂无处理任务。</p>}
+              {rows.slice(0, 15).map((j) => (
+                <article key={j.id} className="rag-job">
+                  <div>
+                    <strong>{labels[j.kind]}</strong>
+                    <span>
+                      {labels[j.state]} · {when(j.created_at)}
+                    </span>
+                    {j.error && <Alert type="error" showIcon role="alert" message={<>{j.error}</>} />}
+                  </div>
+                  {j.state === "running" && (
+                    <Progress percent={j.progress} size="small" />
+                  )}
+                  {["queued", "running"].includes(j.state) && (
+                    <Button
+                      disabled={action.busy}
+                      onClick={() => action.run(`/jobs/${j.id}/cancel`)}
+                    >
+                      取消
+                    </Button>
+                  )}
+                  {j.state === "failed" && (
+                    <Button
+                      disabled={action.busy}
+                      onClick={() => action.run(`/jobs/${j.id}/retry`)}
+                    >
+                      重试
+                    </Button>
+                  )}
+                </article>
+              ))}
+            </>
+          ),
+        },
+      ]}
+    />
   );
 }
 export function MaterialsPage() {
@@ -488,81 +543,115 @@ export function MaterialsPage() {
   const [upload, setUpload] = useState(false);
   const action = useAction();
   const [embedding, setEmbedding] = useState("");
-  const tab = params.get("tab") === "published" || params.has("resource") ? "published" : "sources";
+  const tab =
+    params.get("tab") === "published" || params.has("resource")
+      ? "published"
+      : "sources";
   return (
     <div className="live-page">
       <div className="workspace-heading">
-        <div>
-          <h1>学习资料</h1>
-        </div>
-        <button className="primary-link" onClick={() => setUpload(true)}>
+        <Button onClick={() => setUpload(true)} type="primary">
           导入资料
-        </button>
+        </Button>
       </div>
-      <Tabs activeKey={tab} onChange={(value) => { const next = new URLSearchParams(params); next.set("tab", value); next.delete("resource"); next.delete("source"); next.delete("fragment"); setParams(next); }} items={[
-        { key: "sources", label: "原始资料" }, { key: "published", label: "学习内容" },
-      ]} />
-      {tab === "published" ? <CourseWorkspace embedded /> : <>
-      <details className="card-panel">
-        <summary>检索索引</summary>
-        <div className="live-inline">
-          <ModelSelect
-            kind="embedding"
-            value={embedding}
-            onChange={setEmbedding}
-          />
-          <button
-            className="ghost-btn"
-            disabled={action.busy}
-            onClick={() =>
-              action.run("/jobs", { kind: "index", profile_id: embedding })
-            }
-          >
-            更新检索索引
-          </button>
-          <Link to="/teacher/retrieval">检索与问答</Link>
-        </div>
-        <Feedback message={action.message} failed={action.failed} />
-      </details>
-      {sources.isPending ? (
-        <LoadingState />
-      ) : sources.error ? (
-        <ErrorState
-          message={sources.error.message}
-          onRetry={() => void sources.refetch()}
-        />
-      ) : !sources.data?.length ? (
-        <section className="card-panel">
-          <EmptyState title="还没有资料">
-            导入课程文件后，可核对原文、发布学习内容和提炼知识。
-          </EmptyState>
-        </section>
+      <Tabs
+        activeKey={tab}
+        onChange={(value) => {
+          const next = new URLSearchParams(params);
+          next.set("tab", value);
+          next.delete("resource");
+          next.delete("source");
+          next.delete("fragment");
+          setParams(next);
+        }}
+        items={[
+          { key: "sources", label: "原始资料" },
+          { key: "published", label: "学习内容" },
+        ]}
+      />
+      {tab === "published" ? (
+        <CourseWorkspace />
       ) : (
-        <div className="rag-source-list">
-          {sources.data.map((s) => (
-            <button
-              key={s.id}
-              className="card-panel rag-source"
-              onClick={() => setSelected(s.id)}
-            >
-              <strong>{s.title}</strong>
-              <span>{s.filename}</span>
-              <div className="live-inline">
-                <span className="rag-tag">
-                  {s.state === "archived" ? "已归档" : labels[s.parse_state]}
-                </span>
-                <span>{s.fragment_count || 0} 个片段</span>
-                {!!s.review_count && (
-                  <span className="rag-warning">{s.review_count} 个待核对</span>
-                )}
-              </div>
-              {s.parse_error && <p>{s.parse_error}</p>}
-            </button>
-          ))}
-        </div>
+        <>
+          <Collapse
+            className="card-panel"
+            items={[
+              {
+                key: "content",
+                label: <>检索索引</>,
+                children: (
+                  <>
+                    <div className="live-inline">
+                      <ModelSelect
+                        kind="embedding"
+                        value={embedding}
+                        onChange={setEmbedding}
+                      />
+                      <Button
+                        disabled={action.busy}
+                        onClick={() =>
+                          action.run("/jobs", {
+                            kind: "index",
+                            profile_id: embedding,
+                          })
+                        }
+                      >
+                        更新检索索引
+                      </Button>
+                      <Link to="/teacher/retrieval">检索与问答</Link>
+                    </div>
+                    <Feedback message={action.message} failed={action.failed} />
+                  </>
+                ),
+              },
+            ]}
+          />
+          {sources.isPending ? (
+            <LoadingState />
+          ) : sources.error ? (
+            <ErrorState
+              message={sources.error.message}
+              onRetry={() => void sources.refetch()}
+            />
+          ) : !sources.data?.length ? (
+            <Card className="card-panel">
+              <EmptyState title="还没有资料">
+                导入课程文件后，可核对原文、发布学习内容和提炼知识。
+              </EmptyState>
+            </Card>
+          ) : (
+            <div className="rag-source-list">
+              {sources.data.map((s) => (
+                <Button
+                  key={s.id}
+                  onClick={() => setSelected(s.id)}
+                  className={"card-panel rag-source"}
+                >
+                  <strong>{s.title}</strong>
+                  <span>{s.filename}</span>
+                  <div className="live-inline">
+                    <Tag >
+                      {s.state === "archived"
+                        ? "已归档"
+                        : labels[s.parse_state]}
+                    </Tag>
+                    <span>{s.fragment_count || 0}个片段</span>
+                    {!!s.review_count && (
+                      <Tag color="warning">
+                        {s.review_count}个待核对
+                      </Tag>
+                    )}
+                  </div>
+                  {s.parse_error && <p>{s.parse_error}</p>}
+                </Button>
+              ))}
+            </div>
+          )}
+          <JobsPanel
+            kinds={["parse", "index", "extract", "vision", "source_suggest"]}
+          />
+        </>
       )}
-      <JobsPanel kinds={["parse", "index", "extract", "vision", "source_suggest"]} />
-      </>}
       <Drawer
         title="导入资料"
         aria-label="导入资料"
@@ -634,10 +723,9 @@ function UploadForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   return (
-    <form
+    <Form
       className="live-form"
-      onSubmit={async (e) => {
-        e.preventDefault();
+      onFinish={async () => {
         if (!files.length) {
           setError("请选择文件");
           return;
@@ -667,42 +755,41 @@ function UploadForm({
           setBusy(false);
         }
       }}
+      layout="vertical"
     >
-      <label>
-        课程文件
-        <input
+      <Field className="ui-field" label={<>课程文件</>} required={true}>
+        <FileUpload
+          aria-label="课程文件"
           required
-          type="file"
           multiple
           accept=".pdf,.docx,.pptx,.txt,.md,.html,.htm,.csv"
-          onChange={(e) => setFiles(Array.from(e.target.files || []))}
+          onChange={(e) => setFiles(e)}
         />
-      </label>
+      </Field>
       <small>
         每批10个以内，每个30MiB以内；PDF / PPTX最多200页。扫描文字须人工核对。
       </small>
-      <label>
-        资料来源
-        <textarea
+      <Field className="ui-field" label={<>资料来源</>} required={true}>
+        <Input.TextArea
+          aria-label="资料来源"
           required
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="如：课程讲义、教材版本、编写者或来源网址"
         />
-      </label>
-      <label className="rag-check">
-        <input
-          type="checkbox"
-          checked={allow}
-          onChange={(e) => setAllow(e.target.checked)}
-        />
+      </Field>
+      <Checkbox
+        className="rag-check"
+        checked={allow}
+        onChange={(e) => setAllow(e.target.checked)}
+      >
         允许从本资料提炼知识候选
-      </label>
+      </Checkbox>
       <Feedback error={error ? new Error(error) : undefined} />
-      <button className="primary-link" disabled={busy}>
+      <Button disabled={busy} htmlType="submit" type="primary">
         {busy ? "上传中…" : "上传并解析"}
-      </button>
-    </form>
+      </Button>
+    </Form>
   );
 }
 function SourceWorkspace({
@@ -712,6 +799,7 @@ function SourceWorkspace({
   id: string;
   fragmentID: string;
 }) {
+  const confirm = useConfirm();
   const query = useLiveQuery<SourceDetail>(
     `/sources/${id}${fragmentID ? `?fragment_id=${encodeURIComponent(fragmentID)}` : ""}`,
   );
@@ -736,9 +824,9 @@ function SourceWorkspace({
   return (
     <div className="live-form">
       <div className="live-inline">
-        <button className="ghost-btn" onClick={() => setReplacing(!replacing)}>
+        <Button onClick={() => setReplacing(!replacing)}>
           {replacing ? "取消上传新版本" : "上传原件新版本"}
-        </button>
+        </Button>
         {editable && (
           <Link
             className="ghost-btn"
@@ -747,21 +835,20 @@ function SourceWorkspace({
             据此出题
           </Link>
         )}
-        <span className="rag-tag">
+        <Tag >
           {labels[source.parse_state]} · 原文修订 {query.data.display_revision}
-        </span>
-        <a
-          className="ghost-btn"
+        </Tag>
+        <Button
+
           href={`/api/v1/learning/courses/${course!.id}/sources/${id}/download`}
         >
           下载完整原件
-        </a>
-        <button
-          className="ghost-btn"
+        </Button>
+        <Button
           disabled={action.busy || source.state === "archived"}
-          onClick={() => {
+          onClick={async () => {
             if (
-              confirm(
+              await confirm(
                 "归档后原件及关联知识将停止参与检索，历史依据仍保留。继续？",
               )
             )
@@ -769,7 +856,7 @@ function SourceWorkspace({
           }}
         >
           归档
-        </button>
+        </Button>
       </div>
       <Feedback message={action.message} failed={action.failed} />
       {historical && (
@@ -785,35 +872,40 @@ function SourceWorkspace({
         revision={source.parse_revision}
         editable={editable}
       />
-      {editable && fragments.length > 0 && <Link className="ghost-btn" to={`/teacher/question-bank?paper_source=${id}`}>到题库拆分试卷</Link>}
+      {editable && fragments.length > 0 && (
+        <Link
+          className="ghost-btn"
+          to={`/teacher/question-bank?paper_source=${id}`}
+        >
+          到题库拆分试卷
+        </Link>
+      )}
       <DecisionHistory id={id} />
       {replacing && (
         <UploadForm supersedesID={id} onDone={() => setReplacing(false)} />
       )}
-      <label className="rag-check">
-        <input
-          type="checkbox"
-          checked={source.allow_derived}
-          disabled={action.busy}
-          onChange={(e) =>
-            void action.run(
-              `/sources/${id}/derivation`,
-              { allow_derived: e.target.checked },
-              "PUT",
-            )
-          }
-        />
+      <Checkbox
+        className="rag-check"
+        checked={source.allow_derived}
+        disabled={action.busy}
+        onChange={(e) =>
+          void action.run(
+            `/sources/${id}/derivation`,
+            { allow_derived: e.target.checked },
+            "PUT",
+          )
+        }
+      >
         允许知识提炼
-      </label>
-      {source.parse_error && <p role="alert">{source.parse_error}</p>}
+      </Checkbox>
+      {source.parse_error && <Alert type="error" showIcon role="alert" message={<>{source.parse_error}</>} />}
       {!fragments.length && (
-        <button
-          className="ghost-btn"
+        <Button
           disabled={action.busy}
           onClick={() => action.run("/jobs", { kind: "parse", source_id: id })}
         >
           重新解析
-        </button>
+        </Button>
       )}
       <div className="rag-fragments">
         {fragments.map((f) => (
@@ -846,13 +938,12 @@ function SourceWorkspace({
         ))}
       </div>
       {fragments.length > 0 && editable && (
-        <section className="card-panel">
-          <h2>
-            选中片段 · {selected.length} / {fragments.length}
-          </h2>
+        <Card className="card-panel" title={<h2>
+            选中片段 · {selected.length}/ {fragments.length}
+          </h2>}>
+
           <div className="live-inline">
-            <button
-              className="ghost-btn"
+            <Button
               onClick={() =>
                 setSelected(
                   fragments
@@ -862,29 +953,25 @@ function SourceWorkspace({
               }
             >
               选择已核对片段
-            </button>
-            <button className="ghost-btn" onClick={() => setSelected([])}>
-              清除选择
-            </button>
+            </Button>
+            <Button onClick={() => setSelected([])}>清除选择</Button>
           </div>
-          <label>
-            发布标题
-            <input
+          <Field className="ui-field" label={<>发布标题</>}>
+            <Input
+              aria-label="发布标题"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={source.title}
             />
-          </label>
-          <label className="rag-check">
-            <input
-              type="checkbox"
-              checked={full}
-              onChange={(e) => setFull(e.target.checked)}
-            />
+          </Field>
+          <Checkbox
+            className="rag-check"
+            checked={full}
+            onChange={(e) => setFull(e.target.checked)}
+          >
             发布完整原件（须选中全部片段）
-          </label>
-          <button
-            className="primary-link"
+          </Checkbox>
+          <Button
             disabled={action.busy || !selected.length}
             onClick={() =>
               action.run(`/sources/${id}/publish`, {
@@ -893,14 +980,14 @@ function SourceWorkspace({
                 full_source: full,
               })
             }
+            type="primary"
           >
             确认并发布到课程学习
-          </button>
+          </Button>
           <hr />
           <div className="live-inline">
             <ModelSelect kind="chat" value={model} onChange={setModel} />
-            <button
-              className="ghost-btn"
+            <Button
               disabled={
                 action.busy || !selected.length || !source.allow_derived
               }
@@ -914,10 +1001,10 @@ function SourceWorkspace({
               }
             >
               AI提炼知识候选
-            </button>
+            </Button>
             <Link to="/teacher/knowledge">审核知识候选</Link>
           </div>
-        </section>
+        </Card>
       )}
     </div>
   );
@@ -944,15 +1031,14 @@ function FragmentEditor({
     <article className="rag-fragment">
       <DraftNotice {...draft} />
       <div className="live-inline">
-        <label className="rag-check">
-          <input
-            type="checkbox"
-            checked={selected}
-            disabled={!editable || f.quality !== "ready"}
-            onChange={(e) => onSelect(e.target.checked)}
-          />
+        <Checkbox
+          className="rag-check"
+          checked={selected}
+          disabled={!editable || f.quality !== "ready"}
+          onChange={(e) => onSelect(e.target.checked)}
+        >
           {f.heading || location(f.locator)}
-        </label>
+        </Checkbox>
         <span
           className={`rag-tag ${f.quality === "needs_review" ? "rag-warning" : ""}`}
         >
@@ -961,29 +1047,24 @@ function FragmentEditor({
       </div>
       {f.heading && <small>{location(f.locator)}</small>}
       {editing ? (
-        <label>
-          原文校正
-          <textarea
+        <Field className="ui-field" label={<>原文校正</>}>
+          <Input.TextArea
+            aria-label="原文校正"
             value={body}
             onChange={(e) => setBody(e.target.value)}
             rows={8}
           />
-        </label>
+        </Field>
       ) : (
         <p className="live-prose">{f.body}</p>
       )}
       {editable && (
         <div className="live-inline">
-          <button
-            className="ghost-btn"
-            disabled={busy}
-            onClick={() => setEditing(!editing)}
-          >
+          <Button disabled={busy} onClick={() => setEditing(!editing)}>
             {editing ? "收起编辑" : "校正原文"}
-          </button>
+          </Button>
           {(editing || f.quality === "needs_review") && (
-            <button
-              className="ghost-btn"
+            <Button
               disabled={busy}
               onClick={async () => {
                 setBusy(true);
@@ -996,7 +1077,7 @@ function FragmentEditor({
               }}
             >
               保存新修订并确认原文
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -1004,6 +1085,7 @@ function FragmentEditor({
   );
 }
 export function KnowledgePage() {
+  const confirm = useConfirm();
   const { session } = useSession();
   const teacher = session?.user.role === "teacher";
   const query = useLiveQuery<Knowledge[]>("/knowledge");
@@ -1037,22 +1119,19 @@ export function KnowledgePage() {
   }, [linkedID, query.data]);
   return (
     <div className="live-page">
-      <div className="workspace-heading">
-        <div>
-          <h1>知识库</h1>
-        </div>
-        {teacher && (
-          <button
-            className="primary-link"
+      {teacher && (
+        <div className="workspace-heading">
+          <Button
             onClick={() => {
               setSelected(null);
               setCreating(true);
             }}
+            type="primary"
           >
             新建知识
-          </button>
-        )}
-      </div>
+          </Button>
+        </div>
+      )}
       {teacher && (
         <div className="rag-toolbar card-panel">
           <Select
@@ -1090,25 +1169,25 @@ export function KnowledgePage() {
       {query.isPending ? (
         <LoadingState />
       ) : !rows?.length ? (
-        <section className="card-panel">
+        <Card className="card-panel">
           <EmptyState title="暂无知识条目">
             {teacher
               ? "可从资料提炼候选，或手工添加有原文依据的知识。"
               : "教师确认并开放学习的知识会显示在这里。"}
           </EmptyState>
-        </section>
+        </Card>
       ) : (
         rows.map((k) => (
-          <article
+          <Card
             key={k.id}
             id={`knowledge-${k.id}`}
             className="card-panel rag-knowledge"
           >
             <div className="workspace-heading">
               <h2>{k.title}</h2>
-              <span className="rag-tag">
+              <Tag >
                 {labels[k.state]} · v{k.version}
-              </span>
+              </Tag>
             </div>
             <p className="live-meta">
               {kinds.find((v) => v.value === k.content_kind)?.label} ·{" "}
@@ -1124,28 +1203,35 @@ export function KnowledgePage() {
                 {k.conditions}
               </p>
             )}
-            <details>
-              <summary>原文依据（{k.evidence.length}）</summary>
-              {k.evidence.map((e, i) => (
-                <blockquote key={i}>
-                  {e.quote}
-                  <small>片段 {e.fragment_id.slice(0, 8)}</small>
-                  {teacher && (
-                    <Link
-                      to={`/teacher/materials?source=${e.source_id}&fragment=${e.fragment_id}`}
-                    >
-                      查看引用原文
-                    </Link>
-                  )}
-                </blockquote>
-              ))}
-            </details>
+            <Collapse
+              items={[
+                {
+                  key: "content",
+                  label: <>原文依据（{k.evidence.length}）</>,
+                  children: (
+                    <>
+                      {k.evidence.map((e, i) => (
+                        <blockquote key={i}>
+                          {e.quote}
+                          <small>片段 {e.fragment_id.slice(0, 8)}</small>
+                          {teacher && (
+                            <Link
+                              to={`/teacher/materials?source=${e.source_id}&fragment=${e.fragment_id}`}
+                            >
+                              查看引用原文
+                            </Link>
+                          )}
+                        </blockquote>
+                      ))}
+                    </>
+                  ),
+                },
+              ]}
+            />
             {teacher && (
               <div className="live-inline">
                 {k.state === "draft" && (
-                  <button className="ghost-btn" onClick={() => setReviewing(k)}>
-                    比较与处理
-                  </button>
+                  <Button onClick={() => setReviewing(k)}>比较与处理</Button>
                 )}
                 {k.state === "confirmed" && k.use_for_grading && (
                   <Link
@@ -1155,18 +1241,16 @@ export function KnowledgePage() {
                     据此出题
                   </Link>
                 )}
-                <button
-                  className="ghost-btn"
+                <Button
                   onClick={() => {
                     setSelected(k);
                     setCreating(true);
                   }}
                 >
                   {k.state === "draft" ? "编辑候选" : "建立新版本"}
-                </button>
+                </Button>
                 {k.state === "draft" && (
-                  <button
-                    className="primary-link"
+                  <Button
                     disabled={action.busy}
                     onClick={() =>
                       action.run(`/knowledge/${k.id}/state`, {
@@ -1174,16 +1258,16 @@ export function KnowledgePage() {
                         edit_version: k.edit_version,
                       })
                     }
+                    type="primary"
                   >
                     确认知识
-                  </button>
+                  </Button>
                 )}
                 {k.state !== "archived" && (
-                  <button
-                    className="ghost-btn"
+                  <Button
                     disabled={action.busy}
-                    onClick={() => {
-                      if (confirm("归档此知识条目？历史版本和引用仍保留。"))
+                    onClick={async () => {
+                      if (await confirm("归档此知识条目？历史版本和引用仍保留。"))
                         void action.run(`/knowledge/${k.id}/state`, {
                           state: "archived",
                           edit_version: k.edit_version,
@@ -1191,7 +1275,7 @@ export function KnowledgePage() {
                     }}
                   >
                     归档
-                  </button>
+                  </Button>
                 )}
               </div>
             )}
@@ -1201,7 +1285,7 @@ export function KnowledgePage() {
                 <DecisionHistory id={k.id} />
               </>
             )}
-          </article>
+          </Card>
         ))
       )}
       {teacher && <JobsPanel kinds={["extract", "knowledge_compare"]} />}
@@ -1275,10 +1359,9 @@ function KnowledgeEditor({
   const change = (patch: Partial<typeof v>) =>
     draft.change((old) => ({ ...old, ...patch }));
   return (
-    <form
+    <Form
       className="live-form"
-      onSubmit={async (e) => {
-        e.preventDefault();
+      onFinish={async () => {
         const path =
           initial?.state === "draft"
             ? `/knowledge/${initial.id}`
@@ -1297,54 +1380,55 @@ function KnowledgeEditor({
           onDone();
         }
       }}
+      layout="vertical"
     >
       <DraftNotice {...draft} />
       <Feedback message={action.message} failed={action.failed} />
-      <label>
-        标题
-        <input
+      <Field className="ui-field" label={<>标题</>} required={true}>
+        <Input
+          aria-label="标题"
           required
           value={v.title}
           onChange={(e) => change({ title: e.target.value })}
         />
-      </label>
+      </Field>
       <div className="rag-two-fields">
-        <label>
-          知识类型
+        <Field className="ui-field" label={<>知识类型</>}>
           <Select
+            aria-label="知识类型"
             value={v.content_kind}
             options={kinds}
             onChange={(content_kind) => change({ content_kind })}
           />
-        </label>
-        <label>
-          分类
-          <input
+        </Field>
+        <Field className="ui-field" label={<>分类</>}>
+          <Input
+            aria-label="分类"
             value={v.category}
             onChange={(e) => change({ category: e.target.value })}
           />
-        </label>
+        </Field>
       </div>
-      <label>
-        知识正文
-        <textarea
+      <Field className="ui-field" label={<>知识正文</>} required={true}>
+        <Input.TextArea
+          aria-label="知识正文"
           required
           rows={6}
           value={v.body}
           onChange={(e) => change({ body: e.target.value })}
         />
-      </label>
-      <label>
-        适用条件与限制
-        <textarea
+      </Field>
+      <Field className="ui-field" label={<>适用条件与限制</>}>
+        <Input.TextArea
+          aria-label="适用条件与限制"
           rows={2}
           value={v.conditions}
           onChange={(e) => change({ conditions: e.target.value })}
         />
-      </label>
-      <label>
-        关联课程知识点
+      </Field>
+      <Field className="ui-field" label={<>关联课程知识点</>}>
         <Select
+          aria-label="关联课程知识点"
           mode="multiple"
           value={v.knowledge_point_ids}
           onChange={(knowledge_point_ids) => change({ knowledge_point_ids })}
@@ -1353,10 +1437,10 @@ function KnowledgeEditor({
             label: p.title,
           }))}
         />
-      </label>
-      <label>
-        相似或相关知识
+      </Field>
+      <Field className="ui-field" label={<>相似或相关知识</>}>
         <Select
+          aria-label="相似或相关知识"
           mode="multiple"
           value={v.related_ids}
           onChange={(related_ids) => change({ related_ids })}
@@ -1364,14 +1448,17 @@ function KnowledgeEditor({
             ?.filter((k) => k.id !== initial?.id)
             .map((k) => ({ value: k.id, label: k.title }))}
         />
-      </label>
-      <fieldset>
-        <legend>原文依据</legend>
+      </Field>
+      <Card size="small" title={<>原文依据</>}>
         {v.evidence.map((ev, i) => (
           <div key={i}>
-            <label>
-              逐字引用
-              <textarea
+            <Field
+              className="ui-field"
+              label={<>逐字引用</>}
+              required={true}
+            >
+              <Input.TextArea
+                aria-label="逐字引用"
                 required
                 value={ev.quote}
                 onChange={(e) =>
@@ -1382,52 +1469,64 @@ function KnowledgeEditor({
                   })
                 }
               />
-            </label>
-            <button
-              type="button"
-              className="ghost-btn"
+            </Field>
+            <Button
               onClick={() =>
                 change({ evidence: v.evidence.filter((_, n) => n !== i) })
               }
+              htmlType="button"
             >
               移除这条依据
-            </button>
+            </Button>
           </div>
         ))}
-        <label>
-          来源文件
+        <Field className="ui-field" label={<>来源文件</>}>
           <Select
+            aria-label="来源文件"
             value={sourceID || undefined}
             onChange={setSourceID}
             options={sources.data
               ?.filter((s) => s.state === "active" && s.allow_derived)
               .map((s) => ({ value: s.id, label: s.title }))}
           />
-        </label>
+        </Field>
         <Feedback error={source.error} />
         {source.data?.fragments
           .filter((f) => f.quality === "ready")
           .map((f) => (
-            <details key={f.id}>
-              <summary>{f.heading || location(f.locator)}</summary>
-              <p className="live-prose">{f.body}</p>
-              <button
-                type="button"
-                className="ghost-btn"
-                onClick={() =>
-                  change({
-                    evidence: [
-                      ...v.evidence,
-                      { source_id: sourceID, fragment_id: f.id, quote: f.body },
-                    ],
-                  })
-                }
-              >
-                引用此片段
-              </button>
-            </details>
+            <Collapse
+              key={f.id}
+              items={[
+                {
+                  key: "content",
+                  label: <>{f.heading || location(f.locator)}</>,
+                  children: (
+                    <>
+                      <p className="live-prose">{f.body}</p>
+                      <Button
+                        onClick={() =>
+                          change({
+                            evidence: [
+                              ...v.evidence,
+                              {
+                                source_id: sourceID,
+                                fragment_id: f.id,
+                                quote: f.body,
+                              },
+                            ],
+                          })
+                        }
+                        htmlType="button"
+                      >
+                        引用此片段
+                      </Button>
+                    </>
+                  ),
+                },
+              ]}
+            />
           ))}
-      </fieldset>
+      </Card>
       <div className="rag-checks">
         {(
           [
@@ -1436,23 +1535,24 @@ function KnowledgeEditor({
             ["use_for_grading", "用于评分依据"],
           ] as const
         ).map(([key, label]) => (
-          <label className="rag-check" key={key}>
-            <input
-              type="checkbox"
-              checked={v[key]}
-              onChange={(e) => change({ [key]: e.target.checked })}
-            />
+          <Checkbox
+            className="rag-check"
+            key={key}
+            checked={v[key]}
+            onChange={(e) => change({ [key]: e.target.checked })}
+          >
             {label}
-          </label>
+          </Checkbox>
         ))}
       </div>
-      <button
-        className="primary-link"
+      <Button
         disabled={action.busy || !v.evidence.length}
+        htmlType="submit"
+        type="primary"
       >
         保存待审核版本
-      </button>
-    </form>
+      </Button>
+    </Form>
   );
 }
 export function RetrievalPage() {
@@ -1468,13 +1568,10 @@ export function RetrievalPage() {
   const [answer, setAnswer] = useState<AssistAnswer | null>(null);
   return (
     <div className="live-page">
-      <div className="workspace-heading">
-        <h1>{teacher ? "检索与问答验证" : "资料问答"}</h1>
-      </div>
-      <form
+
+      <Form
         className="card-panel live-form"
-        onSubmit={async (e) => {
-          e.preventDefault();
+        onFinish={async () => {
           setAnswer(null);
           const r = await action.run<{ hits: Hit[]; mode: string }>(
             "/retrieval",
@@ -1482,21 +1579,22 @@ export function RetrievalPage() {
           );
           if (r) setResult(r);
         }}
+        layout="vertical"
       >
-        <label>
-          课程问题
-          <textarea
+        <Field className="ui-field" label={<>课程问题</>} required={true}>
+          <Input.TextArea
+            aria-label="课程问题"
             required
             rows={3}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-        </label>
+        </Field>
         {teacher && (
           <div className="live-inline">
-            <label>
-              检索用途
+            <Field className="ui-field" label={<>检索用途</>}>
               <Select
+                aria-label="检索用途"
                 value={purpose}
                 onChange={setPurpose}
                 options={[
@@ -1504,17 +1602,15 @@ export function RetrievalPage() {
                   { value: "grading", label: "评分依据" },
                 ]}
               />
-            </label>
+            </Field>
             <ModelSelect kind="chat" value={model} onChange={setModel} />
           </div>
         )}
         <div className="live-inline">
-          <button className="primary-link" disabled={action.busy}>
+          <Button disabled={action.busy} htmlType="submit" type="primary">
             检索依据
-          </button>
-          <button
-            type="button"
-            className="ghost-btn"
+          </Button>
+          <Button
             disabled={action.busy || !query.trim() || purpose === "grading"}
             onClick={async () => {
               const r = await action.run<AssistAnswer>("/assist", {
@@ -1526,20 +1622,21 @@ export function RetrievalPage() {
                 setResult({ hits: r.sources, mode: r.mode });
               }
             }}
+            htmlType="button"
           >
             {action.busy ? "处理中…" : "根据资料回答"}
-          </button>
+          </Button>
         </div>
         <Feedback message={action.message} failed={action.failed} />
-      </form>
+      </Form>
       {answer && (
-        <section className="card-panel">
-          <h2>AI回答</h2>
+        <Card className="card-panel" title={<h2>AI回答</h2>}>
+
           <GroundedAnswer answer={answer} />
-        </section>
+        </Card>
       )}
       {result && (
-        <section className="card-panel">
+        <Card className="card-panel">
           <div className="workspace-heading">
             <h2>检索依据 · {result.hits.length}</h2>
             <span className="live-meta">{result.mode}</span>
@@ -1562,7 +1659,7 @@ export function RetrievalPage() {
               )}
             </article>
           ))}
-        </section>
+        </Card>
       )}
     </div>
   );

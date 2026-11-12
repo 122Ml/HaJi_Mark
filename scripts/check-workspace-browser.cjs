@@ -1,3 +1,4 @@
+const { choose, selectedText } = require('./browser-ui.cjs');
 // Local-only acceptance: real database writes remain in a labelled test course.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -91,9 +92,9 @@ function pass(message) { checks.push(message); console.log('PASS:', message); }
     await t.getByText('还有未保存的内容，确认退出？', { exact: true }).waitFor();
     await t.getByRole('button', { name: '继续编辑', exact: true }).click();
     await t.getByText('还有未保存的内容，确认退出？', { exact: true }).waitFor({ state: 'hidden' });
-    const anotherCourse = await t.getByLabel('当前课程', { exact: true }).locator('option').evaluateAll((options, id) => options.find(o => o.value && o.value !== id)?.value, course.id);
+    const anotherCourse = (await (await t.request.get(base + '/api/v1/me/courses')).json()).data.find(c => c.id !== course.id);
     if (anotherCourse) {
-      await t.getByLabel('当前课程', { exact: true }).selectOption(anotherCourse);
+      await choose(t.getByRole('combobox', { name: '当前课程', exact: true }), anotherCourse.title);
       await t.getByRole('button', { name: '继续编辑', exact: true }).click();
       assert(new URL(t.url()).searchParams.get('course') === course.id, 'Cancelled switch changed course URL');
       assert(await t.evaluate(id => sessionStorage.getItem('haji-course:' + id), teacher.me.user.id) === course.id, 'Cancelled switch changed remembered course');
@@ -149,7 +150,7 @@ function pass(message) { checks.push(message); console.log('PASS:', message); }
     await a.getByRole('dialog').getByText('确认提交本题？', { exact: true }).waitFor();
     await a.getByRole('button', { name: '确认提交', exact: true }).click();
     await answerPanel.getByText(/提交成功 · 第1次/).waitFor();
-    await a.getByText('已提交 2 / 2 题', { exact: true }).waitFor();
+    await a.getByText(/^已提交\s*2\s*\/\s*2\s*题$/).waitFor();
     pass('慢保存期间的新输入不丢失、失败恢复、逐题确认回执与多题进度');
 
     await a.goto(url('student', `homework/submissions/${submissions[0].id}/feedback`));
@@ -161,12 +162,13 @@ function pass(message) { checks.push(message); console.log('PASS:', message); }
     await t.goto(url('teacher', 'dashboard', '&view=evidence&student=' + student.me.user.id));
     await t.getByRole('link', { name: '根据本次反馈安排任务', exact: true }).first().click();
     const creator = t.getByRole('dialog');
-    await t.waitForFunction(id => document.querySelector('select[aria-label="指定学生"]')?.value === id, student.me.user.id);
+    await creator.locator('.ant-select[aria-label="指定学生"] .ant-select-selection-item').filter({ hasText: student.me.user.display_name }).waitFor();
+    assert(await selectedText(creator.getByRole('combobox', { name: '指定学生', exact: true })) === student.me.user.display_name, 'Evidence selected a different student');
     await creator.getByRole('link', { name: '查看原始依据', exact: true }).waitFor();
     await creator.getByLabel('任务标题', { exact: true }).fill('交互验收补学补练');
     await creator.getByLabel('补学资料、练习及完成要求', { exact: true }).fill('学习资料，并为两道题补交新答案。');
-    await creator.getByLabel('关联补学资料', { exact: true }).selectOption(resource.id);
-    await creator.getByLabel('关联补练作业', { exact: true }).selectOption(assignment.id);
+    await choose(creator.getByRole('combobox', { name: '关联补学资料', exact: true }), {label:'交互验收资料 · v1'});
+    await choose(creator.getByRole('combobox', { name: '关联补练作业', exact: true }), {label:'交互验收两题作业'});
     await creator.getByRole('button', { name: '保存任务草稿', exact: true }).click();
     await t.getByRole('button', { name: '确认下发', exact: true }).waitFor();
     const task = new URL(t.url()).searchParams.get('task');
@@ -206,14 +208,14 @@ function pass(message) { checks.push(message); console.log('PASS:', message); }
       for (const width of [1440, 390]) {
         await page.setViewportSize({ width, height: 1000 });
         for (const route of routes) {
-          await page.goto(url(role, route)); await page.locator('main h1').first().waitFor(); await page.waitForLoadState('networkidle');
+          await page.goto(url(role, route)); await page.locator('main .live-page').first().waitFor(); await page.waitForLoadState('networkidle');
           assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${role}/${route} overflows at ${width}`);
           assert(new URL(page.url()).searchParams.get('course') === course.id, 'Deep link lost course');
         }
       }
     }
     await t.setViewportSize({ width: 1440, height: 1000 }); await t.goto(url('teacher', 'curriculum'));
-    await t.getByRole('heading', { name: '课程目录', exact: true, level: 1 }).waitFor();
+    await t.getByRole('heading', { name: '章节与知识点', exact: true }).waitFor();
     await t.screenshot({ path: path.join(root, '.local/workspace-course.png'), fullPage: true });
     await t.goto(url('teacher', 'courses')); await t.getByLabel('新课程名称', { exact: true }).waitFor();
     await t.getByRole('tab', { name: '课程成员', exact: true }).click(); await t.getByLabel('学生用户名', { exact: true }).waitFor();

@@ -1,16 +1,23 @@
-import { Pagination, Input, Select, Modal } from "antd";
+import { Field } from "../shared/Field";
+import {
+  Table,
+  Pagination,
+  Input,
+  Select,
+  Modal,
+  Button,
+  Card,
+  Form,
+  InputNumber,
+  Collapse,
+  Radio,
+} from "antd";
 import { useEditorDraft, DraftNotice } from "./editing";
 import { requestJSON } from "../shared/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { reviewNames, type QueueItem } from "./grading";
 import type { Point, Resource } from "./course";
-import {
-  PageHeader,
-  EmptyState,
-  ErrorState,
-  LoadingState,
-  StatusTag,
-} from "../shared/ui";
+import { EmptyState, ErrorState, LoadingState, StatusTag } from "../shared/ui";
 import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Link, useCourseNavigate as useNavigate } from "./context";
@@ -100,20 +107,16 @@ export function AssignmentList({ quiz = false }: { quiz?: boolean }) {
   }
   return (
     <div className="live-page">
-      <PageHeader
-        eyebrow={quiz ? "测验中心" : "作业中心"}
-        title={quiz ? "测验列表" : teacher ? "作业列表" : "作业测验"}
-        actions={
-          teacher && (
-            <Link
-              className="primary-link"
-              to={quiz ? "/teacher/quiz/new" : "/teacher/homework/new"}
-            >
-              {quiz ? "新建测验" : "新建作业"}
-            </Link>
-          )
-        }
-      />
+      <div className="page-actions">
+        teacher && (
+        <Link
+          className="primary-link"
+          to={quiz ? "/teacher/quiz/new" : "/teacher/homework/new"}
+        >
+          {quiz ? "新建测验" : "新建作业"}
+        </Link>
+        )
+      </div>
       <div className="list-toolbar">
         <Input.Search
           aria-label="搜索作业"
@@ -143,39 +146,36 @@ export function AssignmentList({ quiz = false }: { quiz?: boolean }) {
           onChange={(v) => filter({ sort: v, page: "1" })}
         />
         {point && (
-          <button
-            className="ghost-btn"
-            onClick={() => filter({ point: "", page: "1" })}
-          >
+          <Button onClick={() => filter({ point: "", page: "1" })}>
             清除知识点筛选
-          </button>
+          </Button>
         )}
       </div>
       <Feedback message={action.message} failed={action.failed} />
       {query.error ? (
-        <section className="card-panel">
+        <Card className="card-panel">
           <ErrorState
             message={query.error.message}
             onRetry={() => void query.refetch()}
           />
-        </section>
+        </Card>
       ) : query.isPending ? (
-        <section className="card-panel">
+        <Card className="card-panel">
           <LoadingState />
-        </section>
+        </Card>
       ) : !list.length ? (
-        <section className="card-panel">
+        <Card className="card-panel">
           <EmptyState title={`当前没有${quiz ? "测验" : "作业"}`}>
             {teacher
               ? "新建后先保存为草稿，确认题目与标准后再发布。"
               : "教师发布后会显示在这里。"}
           </EmptyState>
-        </section>
+        </Card>
       ) : (
-        <section className="card-panel">
+        <Card className="card-panel">
           <div className="section-head">
             <h2>{quiz ? "全部测验" : "全部作业"}</h2>
-            <span className="live-meta">共 {query.data?.total || 0} 项</span>
+            <span className="live-meta">共 {query.data?.total || 0}项</span>
           </div>
           {list.map((a) => (
             <article className="live-row" key={a.id}>
@@ -195,13 +195,13 @@ export function AssignmentList({ quiz = false }: { quiz?: boolean }) {
                             ? "草稿"
                             : "未开始"}
                     </strong>{" "}
-                    · 已提交 {a.submitted_count} / {a.question_count} 题 ·{" "}
-                    {a.feedback_count} 题有反馈
+                    · 已提交 {a.submitted_count}/ {a.question_count}题 ·{" "}
+                    {a.feedback_count}题有反馈
                   </p>
                 )}
                 <p className="live-meta">
-                  <StatusTag status={a.status} label={names[a.status]} /> 满分{" "}
-                  {a.max_score} · 截止 {when(a.due_at)}
+                  <StatusTag status={a.status} label={names[a.status]} />
+                  满分 {a.max_score} · 截止 {when(a.due_at)}
                 </p>
               </div>
               <div className="live-inline">
@@ -232,21 +232,20 @@ export function AssignmentList({ quiz = false }: { quiz?: boolean }) {
                       查看提交
                     </Link>
                     {a.status === "draft" && (
-                      <button
-                        className="primary-link"
+                      <Button
                         disabled={action.busy}
                         onClick={() =>
                           action.run(`/assignments/${a.id}/state`, {
                             state: "published",
                           })
                         }
+                        type="primary"
                       >
                         发布
-                      </button>
+                      </Button>
                     )}
                     {a.status === "published" && (
-                      <button
-                        className="ghost-btn"
+                      <Button
                         disabled={action.busy}
                         onClick={() =>
                           action.run(`/assignments/${a.id}/state`, {
@@ -255,7 +254,7 @@ export function AssignmentList({ quiz = false }: { quiz?: boolean }) {
                         }
                       >
                         关闭
-                      </button>
+                      </Button>
                     )}
                   </>
                 )}
@@ -269,7 +268,7 @@ export function AssignmentList({ quiz = false }: { quiz?: boolean }) {
             onChange={(v) => filter({ page: String(v) })}
             showSizeChanger={false}
           />
-        </section>
+        </Card>
       )}
     </div>
   );
@@ -374,66 +373,62 @@ export function AssignmentEditor({
   }
   return (
     <div className="live-page">
-      <header className="live-heading">
-        <p>作业与评价</p>
-        <h1>{assignmentId ? "编辑作业" : quiz ? "新建测验" : "新建作业"}</h1>
-        <p className="live-meta">发布后不可修改题目与评分标准。</p>
-      </header>
+
       <Feedback message={action.message} failed={action.failed} />
-      <section className="card-panel">
+      <Card className="card-panel">
         <DraftNotice {...draft} />
-        <form
+        <Form
           className="live-form"
-          onSubmit={(e) => {
-            e.preventDefault();
+          onFinish={() => {
             void save(false);
           }}
+          layout="vertical"
         >
-          <label>
-            {quiz ? "测验标题" : "作业标题"}
-            <input
+          <Field
+            className="ui-field"
+            label={<>{quiz ? "测验标题" : "作业标题"}</>}
+            required={true}
+          >
+            <Input
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
-          </label>
-          <label>
-            任务说明
-            <textarea
+          </Field>
+          <Field className="ui-field" label={<>任务说明</>}>
+            <Input.TextArea
               aria-label="任务说明"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
-          </label>
-          <label>
-            截止时间
-            <input
+          </Field>
+          <Field className="ui-field" label={<>截止时间</>}>
+            <Input
+              aria-label="截止时间"
               type="datetime-local"
               value={due}
               onChange={(e) => setDue(e.target.value)}
             />
-          </label>
+          </Field>
           <div className="section-head">
             <h2>题目列表</h2>
-            <button
-              type="button"
-              className="ghost-btn"
-              onClick={() => setPicking(true)}
-            >
+            <Button onClick={() => setPicking(true)} htmlType="button">
               从题库选题
-            </button>
+            </Button>
           </div>
           {questions.map((q, i) => (
-            <fieldset key={i}>
-              <legend>第{i + 1}题</legend>
+            <Card size="small" key={i} title={<>第{i + 1}题</>}>
               {q.bank_question_version_id && (
                 <p className="live-meta">
                   使用题库确认版本，题目与标准固定。修改请返回题库另建版本后重新选题。
                 </p>
               )}
-              <label>
-                题目要求
-                <textarea
+              <Field
+                className="ui-field"
+                label={<>题目要求</>}
+                required={true}
+              >
+                <Input.TextArea
                   aria-label="题目要求"
                   readOnly={!!q.bank_question_version_id}
                   required
@@ -447,12 +442,11 @@ export function AssignmentEditor({
                     )
                   }
                 />
-              </label>
-              <label>
-                满分
-                <input
+              </Field>
+              <Field className="ui-field" label={<>满分</>} required={true}>
+                <InputNumber
+                  aria-label="满分"
                   required
-                  type="number"
                   readOnly={!!q.bank_question_version_id}
                   min={1}
                   max={10000}
@@ -461,16 +455,19 @@ export function AssignmentEditor({
                     setQuestions((v) =>
                       v.map((x, j) =>
                         j === i
-                          ? { ...x, max_score: Number(e.target.value) }
+                          ? { ...x, max_score: Number(String(e ?? "")) }
                           : x,
                       ),
                     )
                   }
                 />
-              </label>
-              <label>
-                评分标准
-                <textarea
+              </Field>
+              <Field
+                className="ui-field"
+                label={<>评分标准</>}
+                required={true}
+              >
+                <Input.TextArea
                   aria-label="评分标准"
                   readOnly={!!q.bank_question_version_id}
                   required
@@ -484,62 +481,63 @@ export function AssignmentEditor({
                     )
                   }
                 />
-              </label>
-              <label>
-                关联知识点
-                <select
+              </Field>
+              <Field className="ui-field" label={<>关联知识点</>}>
+                <Select
                   aria-label="关联知识点"
                   disabled={!!q.bank_question_version_id}
                   value={q.knowledge_point_id}
                   onChange={(e) =>
                     setQuestions((v) =>
                       v.map((x, j) =>
-                        j === i
-                          ? { ...x, knowledge_point_id: e.target.value }
-                          : x,
+                        j === i ? { ...x, knowledge_point_id: e } : x,
                       ),
                     )
                   }
+                  showSearch
+                  optionFilterProp="children"
                 >
-                  <option value="">不关联</option>
+                  <Select.Option value="">不关联</Select.Option>
                   {points.data?.points
                     .filter((p) => p.kind === "point")
                     .map((p) => (
-                      <option key={p.id} value={p.id}>
+                      <Select.Option key={p.id} value={p.id}>
                         {p.title}
-                      </option>
+                      </Select.Option>
                     ))}
-                </select>
-              </label>
-              <label>
-                评分依据资料
-                <select
+                </Select>
+              </Field>
+              <Field className="ui-field" label={<>评分依据资料</>}>
+                <Select
                   aria-label="评分依据资料"
                   disabled={!!q.bank_question_version_id}
                   value={q.resource_id}
                   onChange={(e) =>
                     setQuestions((v) =>
-                      v.map((x, j) =>
-                        j === i ? { ...x, resource_id: e.target.value } : x,
-                      ),
+                      v.map((x, j) => (j === i ? { ...x, resource_id: e } : x)),
                     )
                   }
+                  showSearch
+                  optionFilterProp="children"
                 >
-                  <option value="">教师手填标准</option>
+                  <Select.Option value="">教师手填标准</Select.Option>
                   {resources.data
                     ?.filter((r) => r.status === "published")
                     .map((r) => (
-                      <option key={r.id} value={r.id}>
+                      <Select.Option key={r.id} value={r.id}>
                         {r.title} · {r.locator} · v{r.version}
-                      </option>
+                      </Select.Option>
                     ))}
-                </select>
-              </label>
+                </Select>
+              </Field>
               {quiz && (
                 <>
-                  <label>
-                    选项（每行一个）
-                    <textarea
+                  <Field
+                    className="ui-field"
+                    label={<>选项（每行一个）</>}
+                    required={true}
+                  >
+                    <Input.TextArea
                       aria-label="选项（每行一个）"
                       readOnly={!!q.bank_question_version_id}
                       required
@@ -554,49 +552,50 @@ export function AssignmentEditor({
                         )
                       }
                     />
-                  </label>
-                  <label>
-                    正确答案
-                    <select
+                  </Field>
+                  <Field
+                    className="ui-field"
+                    label={<>正确答案</>}
+                    name={["questions", i, "correct_answer"]} getValueProps={() => ({ value: q.correct_answer })}
+                    rules={[{ validator: async () => { if (!q.correct_answer) throw Error("请选择正确答案"); } }]}
+                    required={true}
+                  >
+                    <Select
                       aria-label="正确答案"
                       disabled={!!q.bank_question_version_id}
-                      required
                       value={q.correct_answer}
                       onChange={(e) =>
                         setQuestions((v) =>
                           v.map((x, j) =>
-                            j === i
-                              ? { ...x, correct_answer: e.target.value }
-                              : x,
+                            j === i ? { ...x, correct_answer: e } : x,
                           ),
                         )
                       }
+                      showSearch
+                      optionFilterProp="children"
                     >
-                      <option value="">选择正确答案</option>
+                      <Select.Option value="">选择正确答案</Select.Option>
                       {q.options.filter(Boolean).map((v, k) => (
-                        <option key={k}>{v}</option>
+                        <Select.Option key={k} value={v}>{v}</Select.Option>
                       ))}
-                    </select>
-                  </label>
+                    </Select>
+                  </Field>
                 </>
               )}
               {questions.length > 1 && (
-                <button
-                  type="button"
-                  className="ghost-btn"
+                <Button
                   onClick={() =>
                     setQuestions((v) => v.filter((_, j) => j !== i))
                   }
+                  htmlType="button"
                 >
                   移除本题
-                </button>
+                </Button>
               )}
-            </fieldset>
+            </Card>
           ))}
           <div className="live-inline">
-            <button
-              type="button"
-              className="ghost-btn"
+            <Button
               onClick={() =>
                 setQuestions((v) => [
                   ...v,
@@ -611,22 +610,23 @@ export function AssignmentEditor({
                   },
                 ])
               }
+              htmlType="button"
             >
               新增题目
-            </button>
-            <button className="ghost-btn" disabled={action.busy || !course}>
+            </Button>
+            <Button disabled={action.busy || !course} htmlType="submit">
               保存草稿
-            </button>
-            <button
-              type="button"
-              className="primary-link"
+            </Button>
+            <Button
               disabled={action.busy || !course}
               onClick={() => save(true)}
+              htmlType="button"
+              type="primary"
             >
               保存并发布
-            </button>
+            </Button>
           </div>
-        </form>
+        </Form>
         <BankQuestionPicker
           open={picking}
           onClose={() => setPicking(false)}
@@ -656,7 +656,7 @@ export function AssignmentEditor({
             );
           }}
         />
-      </section>
+      </Card>
     </div>
   );
 }
@@ -674,16 +674,6 @@ export function AssignmentDetail() {
   return (
     <div className="live-page">
       <header className="live-heading">
-        <p>
-          <Link
-            to={
-              params.get("from") ||
-              `/${teacher ? "teacher" : "student"}/${query.data?.assignment.type === "quiz" ? "quiz" : "homework"}`
-            }
-          >
-            ‹ 返回列表
-          </Link>
-        </p>
         <h1>{query.data?.assignment.title || "作业详情"}</h1>
         {query.data?.assignment.description && (
           <p>{query.data.assignment.description}</p>
@@ -707,8 +697,8 @@ export function AssignmentDetail() {
           />
           <span>截止：{when(query.data.assignment.due_at)}</span>
           <strong>
-            已提交 {new Set(submissions.data?.map((s) => s.question_id)).size} /{" "}
-            {query.data.questions.length} 题
+            已提交 {new Set(submissions.data?.map((s) => s.question_id)).size}/{" "}
+            {query.data.questions.length}题
           </strong>
           {teacher && (
             <Link
@@ -739,26 +729,40 @@ export function AssignmentDetail() {
           }
         />
       ))}
-      <details className="card-panel">
-        <summary>
-          {teacher ? "提交记录" : "我的提交历史"}（
-          {submissions.data?.length || 0}）
-        </summary>
-        {submissions.data?.map((s) => (
-          <p key={s.id}>
-            <Link
-              to={`/${teacher ? "teacher" : "student"}/homework/submissions/${s.id}/${teacher ? "grade" : "feedback"}`}
-            >
-              {
-                query.data?.questions.find((q) => q.id === s.question_id)
-                  ?.prompt
-              }{" "}
-              · 第{s.attempt}次提交 · {when(s.submitted_at)} · {names[s.status]}
-            </Link>
-          </p>
-        ))}
-        {!submissions.data?.length && <p>暂无提交记录。</p>}
-      </details>
+      <Collapse
+        className="card-panel"
+        items={[
+          {
+            key: "content",
+            label: (
+              <>
+                {teacher ? "提交记录" : "我的提交历史"}（
+                {submissions.data?.length || 0}）
+              </>
+            ),
+            children: (
+              <>
+                {submissions.data?.map((s) => (
+                  <p key={s.id}>
+                    <Link
+                      to={`/${teacher ? "teacher" : "student"}/homework/submissions/${s.id}/${teacher ? "grade" : "feedback"}`}
+                    >
+                      {
+                        query.data?.questions.find(
+                          (q) => q.id === s.question_id,
+                        )?.prompt
+                      }{" "}
+                      · 第{s.attempt}次提交 · {when(s.submitted_at)} ·{" "}
+                      {names[s.status]}
+                    </Link>
+                  </p>
+                ))}
+                {!submissions.data?.length && <p>暂无提交记录。</p>}
+              </>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }
@@ -866,7 +870,7 @@ function QuestionAnswer({
     });
   }
   return (
-    <section className="card-panel answer-panel">
+    <Card className="card-panel answer-panel">
       {modalContext}
       <RichContent text={q.prompt} />
       <PublishedAssets kind="questions" id={q.id} />
@@ -901,26 +905,25 @@ function QuestionAnswer({
           {q.type === "quiz" ? (
             <div role="radiogroup" aria-label="我的作答">
               {q.options.map((o, i) => (
-                <label className="live-option" key={i}>
-                  <input
-                    type="radio"
-                    name={q.id}
-                    disabled={!draft.ready || closed}
-                    checked={answer === o}
-                    onChange={() => {
-                      draft.change(o);
-                      setRequestID(crypto.randomUUID());
-                      setError("");
-                    }}
-                  />
+                <Radio
+                  className="live-option"
+                  key={i}
+                  name={q.id}
+                  disabled={!draft.ready || closed}
+                  checked={answer === o}
+                  onChange={() => {
+                    draft.change(o);
+                    setRequestID(crypto.randomUUID());
+                    setError("");
+                  }}
+                >
                   {o}
-                </label>
+                </Radio>
               ))}
             </div>
           ) : (
-            <label>
-              我的作答
-              <textarea
+            <Field className="ui-field" label={<>我的作答</>}>
+              <Input.TextArea
                 aria-label="我的作答"
                 rows={12}
                 disabled={!draft.ready || closed}
@@ -931,7 +934,7 @@ function QuestionAnswer({
                   setError("");
                 }}
               />
-            </label>
+            </Field>
           )}
           <div className="answer-status" role="status">
             {saving
@@ -945,7 +948,7 @@ function QuestionAnswer({
                     : remote.data
                       ? `草稿已读取 · ${when(remote.data.updated_at)}`
                       : "尚未开始作答"}
-            <span>{answer.length} 字</span>
+            <span>{answer.length}字</span>
           </div>
           {closed && (
             <p className="live-meta">
@@ -954,20 +957,19 @@ function QuestionAnswer({
             </p>
           )}
           <div className="live-inline">
-            <button
-              className="ghost-btn"
+            <Button
               disabled={saving || !draft.ready || closed}
               onClick={() => void saveDraft()}
             >
               保存作答草稿
-            </button>
-            <button
-              className="primary-link"
+            </Button>
+            <Button
               disabled={action.busy || saving || closed || !answer.trim()}
               onClick={submit}
+              type="primary"
             >
               提交本题
-            </button>
+            </Button>
             {latest && (
               <Link to={`/student/homework/submissions/${latest.id}/feedback`}>
                 查看第{latest.attempt}次提交与反馈
@@ -976,7 +978,7 @@ function QuestionAnswer({
           </div>
         </>
       )}
-    </section>
+    </Card>
   );
 }
 export function SubmissionList() {
@@ -1016,29 +1018,39 @@ export function SubmissionList() {
           <Link to={params.get("from") || "/teacher/homework"}>
             ‹ 返回作业列表
           </Link>
-          <h1>学生提交与批改</h1>
+
           <p>{detail.data?.assignment.title}</p>
         </div>
       </header>
       <Feedback error={q.error || roster.error || detail.error} />
       {roster.data && (
         <section className="assignment-summary">
-          共 {roster.data.total} 人 · 全部提交 {roster.data.submitted} ·
-          部分提交 {roster.data.partial} · 未提交 {roster.data.not_submitted}
+          共 {roster.data.total}人 · 全部提交 {roster.data.submitted} · 部分提交{" "}
+          {roster.data.partial} · 未提交 {roster.data.not_submitted}
         </section>
       )}
-      <details className="card-panel">
-        <summary>查看提交覆盖名单</summary>
-        {roster.data?.rows.map((m) => (
-          <p key={m.student_id}>
-            <Link to={`/teacher/dashboard?student=${m.student_id}`}>
-              {m.display_name}
-            </Link>{" "}
-            · {m.submitted_questions} / {m.total_questions} 题
-          </p>
-        ))}
-      </details>
-      <section className="card-panel">
+      <Collapse
+        className="card-panel"
+        items={[
+          {
+            key: "content",
+            label: <>查看提交覆盖名单</>,
+            children: (
+              <>
+                {roster.data?.rows.map((m) => (
+                  <p key={m.student_id}>
+                    <Link to={`/teacher/dashboard?student=${m.student_id}`}>
+                      {m.display_name}
+                    </Link>{" "}
+                    · {m.submitted_questions}/ {m.total_questions}题
+                  </p>
+                ))}
+              </>
+            ),
+          },
+        ]}
+      />
+      <Card className="card-panel">
         <div className="list-toolbar">
           <Input.Search
             aria-label="搜索学生"
@@ -1064,37 +1076,19 @@ export function SubmissionList() {
           <LoadingState />
         ) : (
           <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>学生</th>
-                  <th>题目</th>
-                  <th>次数</th>
-                  <th>时间</th>
-                  <th>状态</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {q.data?.rows.map((s) => (
-                  <tr key={s.id}>
-                    <td>{s.student_name}</td>
-                    <td>{s.prompt}</td>
-                    <td>{s.attempt}</td>
-                    <td>{when(s.submitted_at)}</td>
-                    <td>{reviewNames[s.review_state]}</td>
-                    <td>
-                      <Link
-                        to={`/teacher/homework/submissions/${s.id}/grade?${params}`}
-                      >
-                        批改详情
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!q.data?.rows.length && <EmptyState title="当前筛选没有提交" />}
+            <Table<QueueItem>
+              rowKey="id" dataSource={q.data?.rows || []} pagination={false} scroll={{ x: 720 }}
+              locale={{ emptyText: "当前筛选没有提交" }}
+              columns={[
+                { title: "学生", dataIndex: "student_name" },
+                { title: "题目", dataIndex: "prompt", ellipsis: true },
+                { title: "次数", dataIndex: "attempt" },
+                { title: "时间", dataIndex: "submitted_at", render: (value: string) => when(value) },
+                { title: "状态", dataIndex: "review_state", render: (value: string) => reviewNames[value] },
+                { title: "操作", key: "actions", render: (_, s) => <Link to={`/teacher/homework/submissions/${s.id}/grade?${params}`}>批改详情</Link> },
+              ]}
+            />
+
           </div>
         )}
         <Pagination
@@ -1104,7 +1098,7 @@ export function SubmissionList() {
           onChange={(v) => filter({ page: String(v) })}
           showSizeChanger={false}
         />
-      </section>
+      </Card>
     </div>
   );
 }

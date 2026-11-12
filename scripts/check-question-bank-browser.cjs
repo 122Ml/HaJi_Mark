@@ -1,3 +1,4 @@
+const { choose, selectedText, selectFile } = require('./browser-ui.cjs');
 // Local browser acceptance against Docker. Optional real calls share the server budget.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -41,7 +42,7 @@ const pass = message => { report.checks.push(message); save(); console.log('PASS
     const post = (page, ending) => page.waitForResponse(r => r.request().method() === 'POST' && new URL(r.url()).pathname.endsWith(ending));
     await t.goto(url('teacher', 'question-bank'));
     await t.getByRole('button', { name: '新建题目', exact: true }).click();
-    await t.getByLabel('导入题目 JSON', { exact: true }).setInputFiles({ name: 'invalid.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ title: 'bad', prompt: {}, criteria: 'bad' })) });
+    await selectFile(t.getByRole('button', { name: '导入题目 JSON', exact: true }), { name: 'invalid.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ title: 'bad', prompt: {}, criteria: 'bad' })) });
     await t.getByText('题目须含文本title、prompt，reference_answer也须为文本', { exact: true }).waitFor();
     pass('malformed import is rejected without crashing the editor');
     const title = '浏览器题库验收 ' + Date.now();
@@ -73,7 +74,7 @@ const pass = message => { report.checks.push(message); save(); console.log('PASS
     await t.getByLabel('作业标题', { exact: true }).fill(title + ' 作业');
     await t.getByRole('button', { name: '从题库选题', exact: true }).click();
     const picker = t.getByRole('dialog', { name: '从题库选题', exact: true });
-    await picker.getByLabel('题目', { exact: true }).selectOption(version.bank_id);
+    await choose(picker.getByRole('combobox', { name: '题目', exact: true }), title);
     await picker.getByRole('button', { name: '加入作业', exact: true }).click();
     assert(await t.getByLabel('题目要求', { exact: true }).evaluate(el => el.readOnly), 'bank prompt was editable');
     assert(await t.getByLabel('满分', { exact: true }).evaluate(el => el.readOnly), 'bank score was editable');

@@ -1,4 +1,5 @@
-import { PageHeader } from "../shared/ui";
+import { Field } from "../shared/Field";
+import { Card, Form, Select, Input, Button } from "antd";
 import { useState } from "react";
 import { useSession } from "../shared/session";
 import { useAction, useLiveQuery, Feedback, when } from "./context";
@@ -24,14 +25,16 @@ export function InteractionPage() {
   });
   return (
     <div className="live-page">
-      <PageHeader eyebrow={teacher ? "交流与教研" : "任务与交流"} title={teacher ? "教学互动中心" : "互动答疑"} />
-      <Feedback error={query.error} message={action.message} failed={action.failed} />
-      <section className="card-panel">
-        <h2>{form.parent_id ? "回复" : "发布内容"}</h2>
-        <form
+      <Feedback
+        error={query.error}
+        message={action.message}
+        failed={action.failed}
+      />
+      <Card className="card-panel" title={<h2>{form.parent_id ? "回复" : "发布内容"}</h2>}>
+
+        <Form
           className="live-form"
-          onSubmit={async (e) => {
-            e.preventDefault();
+          onFinish={async () => {
             if (await action.run("/interactions", form))
               setForm({
                 ...form,
@@ -41,71 +44,71 @@ export function InteractionPage() {
                 parent_id: "",
               });
           }}
+          layout="vertical"
         >
-          <label>
-            类型
-            <select
+          <Field className="ui-field" label={<>类型</>}>
+            <Select
               aria-label="类型"
               value={form.kind}
-              onChange={(e) =>
-                setForm({ ...form, kind: e.target.value, parent_id: "" })
-              }
+              onChange={(e) => setForm({ ...form, kind: e, parent_id: "" })}
+              showSearch
+              optionFilterProp="children"
             >
               {teacher && (
                 <>
-                  <option value="announcement">公告</option>
-                  <option value="discussion">讨论</option>
+                  <Select.Option value="announcement">公告</Select.Option>
+                  <Select.Option value="discussion">讨论</Select.Option>
                 </>
               )}
-              <option value="question">课程提问</option>
-              {form.parent_id && <option value="reply">回复</option>}
-            </select>
-          </label>
-          <label>
-            标题
-            <input
+              <Select.Option value="question">课程提问</Select.Option>
+              {form.parent_id && (
+                <Select.Option value="reply">回复</Select.Option>
+              )}
+            </Select>
+          </Field>
+          <Field className="ui-field" label={<>标题</>}>
+            <Input
+              aria-label="标题"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
-          </label>
-          <label>
-            内容
-            <textarea
+          </Field>
+          <Field className="ui-field" label={<>内容</>} required={true}>
+            <Input.TextArea
               aria-label="内容"
               required
               rows={4}
               value={form.content}
               onChange={(e) => setForm({ ...form, content: e.target.value })}
             />
-          </label>
-          <button className="primary-link" disabled={action.busy}>
+          </Field>
+          <Button disabled={action.busy} htmlType="submit" type="primary">
             发布
-          </button>
+          </Button>
           {form.parent_id && (
-            <button
-              type="button"
-              className="ghost-btn"
+            <Button
               onClick={() =>
                 setForm({ ...form, kind: "question", parent_id: "" })
               }
+              htmlType="button"
             >
               取消回复
-            </button>
+            </Button>
           )}
-        </form>
-      </section>
+        </Form>
+      </Card>
       {query.data
         ?.filter((p) => !p.parent_id)
         .map((p) => (
-          <article className="card-panel" key={p.id}>
-            <h2>
+          <Card className="card-panel" key={p.id} title={<h2>
               {p.title ||
                 {
                   announcement: "课程公告",
                   question: "课程提问",
                   discussion: "课程讨论",
                 }[p.kind]}
-            </h2>
+            </h2>}>
+
             <p className="live-meta">
               {p.author_name} · {when(p.created_at)}
             </p>
@@ -114,12 +117,11 @@ export function InteractionPage() {
               ?.filter((r) => r.parent_id === p.id)
               .map((r) => (
                 <blockquote key={r.id}>
-                  <strong>{r.author_name}</strong> · {when(r.created_at)}
+                  <strong>{r.author_name}</strong>· {when(r.created_at)}
                   <p>{r.content}</p>
                 </blockquote>
               ))}
-            <button
-              className="ghost-btn"
+            <Button
               onClick={() => {
                 setForm({
                   kind: "reply",
@@ -131,8 +133,8 @@ export function InteractionPage() {
               }}
             >
               回复
-            </button>
-          </article>
+            </Button>
+          </Card>
         ))}
       {!query.data?.length && <p>还没有课程互动。</p>}
     </div>

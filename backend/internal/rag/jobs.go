@@ -443,8 +443,14 @@ func (s *Service) Extract(ctx context.Context, j store.ProcessingJob, in JobInpu
 		}
 		known = append(known, map[string]string{"id": k.ID, "title": k.Title, "conditions": k.Conditions})
 	}
-	input, _ := json.Marshal(map[string]any{"source_id": src.ID, "fragments": selected, "course_points": points, "existing_knowledge": known})
-	text, e := s.Models.Chat(ctx, j.CourseID, j.CreatedBy, "extract", in.ProfileID, safeSystem+`提炼最多6条知识候选。返回 {"candidates":[{"title":"","body":"","category":"建议知识分类","content_kind":"concept|method|rule|example|misconception","conditions":"适用前提与限制","knowledge_point_ids":[],"related_ids":[],"evidence":[{"source_id":"","fragment_id":"","quote":"逐字连续原文"}]}]}。分类与关联仅建议，不创建知识点。不与已有条目强行合并，发现相似条目写related_ids，保留条件差异。`, string(input), true)
+	pointIDs := []string{}
+	for _, point := range points {
+		if point.Kind == "point" {
+			pointIDs = append(pointIDs, point.ID)
+		}
+	}
+	input, _ := json.Marshal(map[string]any{"source_id": src.ID, "fragments": selected, "course_points": points, "allowed_knowledge_point_ids": pointIDs, "existing_knowledge": known})
+	text, e := s.Models.Chat(ctx, j.CourseID, j.CreatedBy, "extract", in.ProfileID, safeSystem+`提炼最多6条知识候选。返回 {"candidates":[{"title":"","body":"","category":"建议知识分类","content_kind":"concept|method|rule|example|misconception","conditions":"适用前提与限制","knowledge_point_ids":[],"related_ids":[],"evidence":[{"source_id":"","fragment_id":"","quote":"逐字连续原文"}]}]}。分类与关联仅建议，不创建知识点。不与已有条目强行合并，发现相似条目写related_ids，保留条件差异。knowledge_point_ids只能取allowed_knowledge_point_ids，related_ids只能取existing_knowledge中的id。对应列表为空时必须返回[]，不可将原件ID、片段ID、标题或推测的ID充当关联。没有关联不妨碍知识提炼。`, string(input), true)
 	if e != nil {
 		return nil, e
 	}

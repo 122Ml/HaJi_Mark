@@ -4,6 +4,8 @@
 
 ## 当前可用
 
+2026-11-17，本地新增[对话助理与执行运行时](docs/agent-harness.md)：协调 Agent 委派资料知识、题目标准、作业评阅及学习支持专家，调用真实业务工具。支持附件、持久对话、输入／选择问题卡、逐操作审批、后台任务等待、取消恢复及正式反馈 CSV；三种权限模式均保留角色、课程和对象校验，正式确认与发布始终人工批准。[当前 API 清单](docs/api-inventory.md)区分普通 HTTP、后台模型任务、工具编排和业务事件 SSE；实际验证范围见[本轮验收](docs/research/agent-acceptance-2026-11-17.md)。没有更新公网。
+
 2026-10-28，分支 `codex/platform-completion`。用户已授权合并成员CO-01/AS-01并部署[课堂平台](https://hajistudy.online)，未授权新的GitHub同步。原交付与适配采用见[贡献记录](references/contributions/README.md)，生产配置与运维见[部署说明](deploy/README.md)。此前26页前端复刻保留源码和历史对照，当前入口为真实服务端业务。
 
 | 学生端 | 教师端 |

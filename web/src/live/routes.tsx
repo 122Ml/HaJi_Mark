@@ -19,6 +19,7 @@ import { RegradesPage } from "./regrades";
 import { ContentImpactPage } from "./content-impact";
 import { CourseManagement } from "./course-management";
 import { CurriculumPage } from "./curriculum";
+import { AgentPage } from "./agent";
 export function LiveRoutes({ teacher }: { teacher: boolean }) {
   const { course } = useLearning();
   const location = useLocation();
@@ -84,6 +85,7 @@ export function LiveRoutes({ teacher }: { teacher: boolean }) {
   return (
     <Routes key={`${course?.id}:${location.pathname}`}>
       <Route path="profile" element={<ProfilePage />} />
+      <Route path="assistant" element={<AgentPage />} />
       {teacher && <Route path="courses" element={<CourseManagement />} />}
       {teacher && <Route path="curriculum" element={<CurriculumPage />} />}
       {teacher && <Route path="research" element={<RecordsPage />} />}

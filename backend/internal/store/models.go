@@ -11,6 +11,86 @@ import (
 	"github.com/pgvector/pgvector-go"
 )
 
+type AgentAttachment struct {
+	ID             string             `json:"id"`
+	ConversationID string             `json:"conversation_id"`
+	Filename       string             `json:"filename"`
+	StoragePath    string             `json:"storage_path"`
+	Sha256         string             `json:"sha256"`
+	SizeBytes      int64              `json:"size_bytes"`
+	Kind           string             `json:"kind"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+type AgentConversation struct {
+	ID             string             `json:"id"`
+	CourseID       string             `json:"course_id"`
+	OwnerID        string             `json:"owner_id"`
+	Title          string             `json:"title"`
+	Mode           string             `json:"mode"`
+	ProfileID      string             `json:"profile_id"`
+	LearnerContext bool               `json:"learner_context"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type AgentEvent struct {
+	ID             int64              `json:"id"`
+	ConversationID string             `json:"conversation_id"`
+	RunID          string             `json:"run_id"`
+	Kind           string             `json:"kind"`
+	Payload        json.RawMessage    `json:"payload"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+type AgentMessage struct {
+	ID             string             `json:"id"`
+	ConversationID string             `json:"conversation_id"`
+	Role           string             `json:"role"`
+	Content        string             `json:"content"`
+	AttachmentIds  []string           `json:"attachment_ids"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+type AgentRequest struct {
+	ID        string             `json:"id"`
+	RunID     string             `json:"run_id"`
+	StepID    string             `json:"step_id"`
+	Kind      string             `json:"kind"`
+	Prompt    string             `json:"prompt"`
+	Fields    json.RawMessage    `json:"fields"`
+	Snapshot  json.RawMessage    `json:"snapshot"`
+	Response  json.RawMessage    `json:"response"`
+	State     string             `json:"state"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type AgentRun struct {
+	ID              string             `json:"id"`
+	ConversationID  string             `json:"conversation_id"`
+	RequestID       string             `json:"request_id"`
+	SessionHash     string             `json:"session_hash"`
+	State           string             `json:"state"`
+	Runtime         json.RawMessage    `json:"runtime"`
+	Error           string             `json:"error"`
+	CancelRequested bool               `json:"cancel_requested"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+}
+
+type AgentStep struct {
+	ID        string             `json:"id"`
+	RunID     string             `json:"run_id"`
+	Agent     string             `json:"agent"`
+	Tool      string             `json:"tool"`
+	Arguments json.RawMessage    `json:"arguments"`
+	State     string             `json:"state"`
+	Result    json.RawMessage    `json:"result"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
 type AnswerDraft struct {
 	StudentID  string             `json:"student_id"`
 	QuestionID string             `json:"question_id"`

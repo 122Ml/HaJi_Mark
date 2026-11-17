@@ -7,6 +7,7 @@ services:
     env_file: [.local/model-secrets.env]
     environment:
       RAG_ENABLED: 'true'
+      AGENT_ENABLED: 'true'
       MATERIALS_DIR: /data/materials
     volumes: [materials-data:/data/materials]
   migrate:

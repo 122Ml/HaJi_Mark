@@ -1,5 +1,25 @@
 # 本地开发与验证
 
+## 对话助理（2026-11-17，本地）
+
+先执行迁移00013；既有00001—00012不修改，新迁移从00014开始。默认Compose仍可运行人工业务；`compose.rag.yaml`显式启用RAG和`AGENT_ENABLED=true`，沿用忽略的模型密钥文件与共享50元账本。助理由API进程的关闭上下文管理，不另起Agent服务。运行时、模型／工具协议和三种模式见[助理说明](agent-harness.md)。
+
+```powershell
+docker compose -f compose.yaml -f compose.rag.yaml build api
+docker compose -f compose.yaml -f compose.rag.yaml build worker
+docker compose -f compose.yaml -f compose.rag.yaml build web
+docker compose -f compose.yaml -f compose.rag.yaml run --rm migrate
+docker compose -f compose.yaml -f compose.rag.yaml up -d --no-build api worker web
+```
+
+构建串行执行；迁移前先用既有backup.py备份。教师`/teacher/assistant`、学生`/student/assistant`均依赖顶栏当前课程；人工业务页继续可用。生成工具省略profile_id时沿用会话所选模型，Embedding与视觉使用各自配置，不把生成profile强加给它们。
+
+`python -X utf8 -u scripts/check-agent.py --phase import --real-model`开始新的有标签真实模型验收，再按content、questions、assignment、grading、student顺序执行。若需核验教师规则纠正路径，在questions之后执行rubric-correction，另存标准版本再创建新作业，不改写旧版本。`--retry-phase`明确归档停止的旧尝试后另发新任务；`--resume-run`明确恢复可安全续行的检查点，两者互斥，均可能计费，禁止自动循环重试。最后重启API／worker后执行`--phase verify`只读核对持久关系与权限。问题／审批由测试白名单处理，未知请求立即停下；自动化批准不是独立教师审核。
+
+浏览器`node scripts/check-agent-browser.cjs --real-model`验证真实文件、问题卡、刷新、审批和后台解析。去掉该参数只检查配置与布局；不会将空对话截图伪装为模型闭环。Go Agent集成在backend-test的隔离schema运行、使用明确标注的模型协议fixture。报告、失败日志、截图、账号和备份仅保留在忽略的`.local`。已执行结果见[验收记录](research/agent-acceptance-2026-11-17.md)。
+
+API清单：`python -B scripts/api-inventory.py`。架构图：`python -B docs/diagrams/generate-agent.py`、`node docs/diagrams/render-agent.cjs`；保留原全景与历史图册。源码／文档变更后运行`python -B scripts/check_docs.py`及工作区`check --repo`。
+
 ## Git 手动同步约定
 
 本仓库继承 GitHub 历史，初始化任务分支 `codex/bootstrap` 从 `origin/codex/integration@53909b0` 建立。2026-10-28用户已授权同步整个初始化成果，解除原本地push URL阻断，经任务分支→PR→检查→codex/integration合入；main保留稳定基线。保留 `push.default=nothing`，推送必须显式指定任务分支，不配置后台同步。
@@ -208,6 +228,7 @@ python -B scripts/check-question-bank.py --resume
 | Compose与冒烟 | 秒至分钟级，Light | 本项目小型PG/Redis，无模型/GPU | 迁移/种子 → hajimark专属数据卷 |
 | 文档/哈希/元数据检查 | 秒级，Light | 无网络 | 当前文档、原件哈希、清单 → 标准输出 |
 | RAG浏览器与真实接口验收 | 含OCR/模型等待，单次通常数分钟，按Moderate预留 | Edge预算1GB；worker空闲约160MiB，OCR峰值待量测；无GPU | 有标签本地课程/私密profile → 原件卷、任务、模型共享预算、.local证据 |
+| Agent真实闭环与界面验收 | 各phase独立执行，单次秒至分钟；长任务按Moderate预留 | 运行推进最多2槽；浏览器与构建串行，无GPU | 本机API／Worker与忽略凭据 → 有标签业务、持久对话、共享50元账本及.local记录；verify不调用模型 |
 
 共享写入：sqlc写internal/store，npm写package-lock/dist，Compose迁移/seed写数据库；运行生成/迁移时不要同时手改这些目标。批量任务按总内存重估；未知任务先探测，再安排。受资源压力影响时只继续小检查，暂缓新构建。
 

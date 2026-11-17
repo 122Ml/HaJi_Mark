@@ -180,11 +180,12 @@ func (h *Handler) RequireSession() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")
 		raw, err := c.Cookie(CookieName)
-		if err != nil || len(raw) != 64 {
+		ref, internal := c.Request.Context().Value(sessionReferenceKey{}).(sessionReference)
+		if !internal && (err != nil || len(raw) != 64) {
 			Fail(c, http.StatusUnauthorized, "unauthorized", "请先登录")
 			return
 		}
-		if _, err := hex.DecodeString(raw); err != nil {
+		if _, err := hex.DecodeString(raw); !internal && err != nil {
 			Fail(c, http.StatusUnauthorized, "unauthorized", "会话无效，请重新登录")
 			return
 		}
@@ -192,7 +193,11 @@ func (h *Handler) RequireSession() gin.HandlerFunc {
 			Fail(c, http.StatusServiceUnavailable, "service_unavailable", "身份服务暂不可用")
 			return
 		}
-		row, err := h.queries.GetSessionUser(c.Request.Context(), hashToken(raw))
+		hash := hashToken(raw)
+		if internal {
+			hash = ref.hash
+		}
+		row, err := h.queries.GetSessionUser(c.Request.Context(), hash)
 		if errors.Is(err, pgx.ErrNoRows) {
 			h.cookie(c, "", -1)
 			Fail(c, http.StatusUnauthorized, "unauthorized", "会话已失效，请重新登录")
@@ -209,6 +214,10 @@ func (h *Handler) RequireSession() gin.HandlerFunc {
 
 func (h *Handler) RequireCSRF() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if _, ok := c.Request.Context().Value(sessionReferenceKey{}).(sessionReference); ok {
+			c.Next()
+			return
+		}
 		if !SameOrigin(c) {
 			return
 		}

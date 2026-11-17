@@ -1,5 +1,7 @@
 # HaJi Mark 界面设计与复刻指南
 
+2026-11-17新增`live/agent.tsx`与`agent.css`：沿用深青／薄荷和Ant Design，课程选择继续在顶栏。对话工作区提供会话列表、模型／权限控件、附件、正文渲染、执行记录、输入／单选／多选问题卡及确切参数审批卡；已答问题刷新后显示持久回答，确认操作与模型摘要分开呈现。运行中禁改模式，未知写入和耗尽上限不提供误导性的恢复按钮。手机端会话列表横排，正文和输入区在可见范围内。
+
 2026-10-31 UI 重构 · React 19 / TypeScript / Vite / Ant Design 5.27.4。页面数据继续通过 learning API 读取 PostgreSQL。设计验收范围是本地 Docker；生产状态另见 [部署记录](deploy/README.md) 与仓库根 RESULT.md。改动清单与取舍见 [ui-refresh-2026-10-31](docs/ui-refresh-2026-10-31.md)。
 
 ## 设计来源

@@ -10,4 +10,5 @@ coverage/
 .DS_Store
 .idea/
 .local/
+__pycache__/
 artifacts/

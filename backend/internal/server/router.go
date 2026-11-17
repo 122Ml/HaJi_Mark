@@ -3,17 +3,24 @@ package server
 import (
 	"context"
 	"net/http"
+	"os"
 	"time"
 
+	"github.com/122Ml/HaJi_Mark/backend/internal/agent"
 	"github.com/122Ml/HaJi_Mark/backend/internal/course"
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
 	"github.com/122Ml/HaJi_Mark/backend/internal/learning"
+	"github.com/122Ml/HaJi_Mark/backend/internal/rag"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 )
 
 func New(db *pgxpool.Pool, cache *redis.Client, secureCookie bool) *gin.Engine {
+	return NewWithContext(nil, db, cache, secureCookie)
+}
+
+func NewWithContext(ctx context.Context, db *pgxpool.Pool, cache *redis.Client, secureCookie bool) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery())
 	r.GET("/api/v1/health/live", func(c *gin.Context) {
@@ -35,5 +42,14 @@ func New(db *pgxpool.Pool, cache *redis.Client, secureCookie bool) *gin.Engine {
 	auth.Register(r.Group("/api/v1"))
 	auth.RegisterContext(r.Group("/api/v1"))
 	learning.Register(r.Group("/api/v1"), db, auth)
+	var models *rag.Models
+	if os.Getenv("AGENT_ENABLED") == "true" && rag.Enabled() && db != nil {
+		models, _ = rag.LoadModels(db)
+	}
+	harness := agent.New(db, models, identity.Gateway{Handler: r})
+	harness.Register(r.Group("/api/v1"), auth)
+	if ctx != nil && models != nil {
+		go harness.Serve(ctx)
+	}
 	return r
 }

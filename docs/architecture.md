@@ -1,5 +1,7 @@
 # 架构与实现边界
 
+2026-11-17，本地加入[对话助理与执行运行时](agent-harness.md)。`internal/agent`通过进程内`identity.Gateway`重走既有业务路由；协调 Agent 与四类专家共用服务端模型 Profiles、预算和任务。对话、运行、步骤、问题／审批、附件和事件使用00013新增表；资料、题库、作业、评分与学习数据继续由原领域负责。师生入口均为`assistant`，原检索问答保留独立页面。现有业务全景不改写为四个 Agent 的并列关系；新增[Agent 架构图](diagrams/agent/architecture.svg)展开编排、门禁、业务交接和持久运行关系。实际验收见[记录](research/agent-acceptance-2026-11-17.md)。
+
 2026-10-28 · 本地整个平台完善。当前实现以本页和 [接口契约](contracts.md) 为准；旧立项范围与历史复刻证据保留在 references 和 research。
 
 2026-11-11本地已接入独立题库、AI出题／分析／标准草稿、逐点依据和作业固定版本；[题库方案](research/question-bank-rubric-plan.md)保留设计与实施范围对照。公网仍为旧版，以下历史实现未迁移或重写既有成绩。
@@ -39,7 +41,8 @@ flowchart LR
 | --- | --- |
 | backend/internal/identity | bcrypt、8小时数据库会话、角色/课程/本人权限、CSRF与登录频率限制 |
 | backend/internal/learning | 课程/目录/资料/成员，作业/提交/评分，学情/路径/干预，互动和账号、教研/行业记录 |
-| backend/internal/store；backend/db | sqlc类型查询，Goose迁移00001—00012；原文和修订的唯一事实源 |
+| backend/internal/store；backend/db | sqlc类型查询，Goose迁移00001—00013；原文和修订的唯一事实源 |
+| backend/internal/agent | 对话与附件、单层委派、工具策略、问题审批、检查点、取消恢复及业务SSE；不复制业务状态机 |
 | web/src/live | course/curriculum/graph/notes、assessment、insight/path、communication、account、assistant |
 | web/src/shared | API、会话与错误恢复；原课程示例保留但不作为活动主入口 |
 | backend/internal/course | 兼容公开的已发布课程摘要；不包含学生数据 |

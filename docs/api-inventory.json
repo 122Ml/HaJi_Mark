@@ -1,6 +1,6 @@
 {
   "date": "2026-11-17",
-  "source_sha256": "d1c21ba1d02726c2ca91adc28a8b2990d30e261273b88aa069786a417e2b7b56",
+  "source_sha256": "cb2ae5efce29192ad46f77ab6c9421f1a62c6637f66dad40c89cc64dc3fec594",
   "basis": "mounted source registrations; not runtime/network frequency",
   "route_count": 141,
   "method_counts": {

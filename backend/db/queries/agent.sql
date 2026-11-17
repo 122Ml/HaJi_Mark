@@ -44,7 +44,7 @@ SELECT * FROM agent_runs WHERE id=$1;
 SELECT c.* FROM agent_conversations c JOIN agent_runs r ON r.conversation_id=c.id WHERE r.id=$1;
 
 -- name: ListAgentRuns :many
-SELECT id,conversation_id,state,error,cancel_requested,created_at,updated_at FROM agent_runs WHERE conversation_id=$1 ORDER BY created_at DESC,id DESC LIMIT 30;
+SELECT id,conversation_id,request_id,state,error,cancel_requested,created_at,updated_at FROM agent_runs WHERE conversation_id=$1 ORDER BY created_at DESC,id DESC LIMIT 30;
 
 -- name: ListReadyAgentRuns :many
 SELECT a.id FROM agent_runs a WHERE state IN ('queued','running','waiting_job') OR
@@ -73,7 +73,9 @@ SELECT * FROM agent_steps WHERE id=$1;
 UPDATE agent_steps SET state=$2,result=$3,updated_at=now() WHERE id=$1;
 
 -- name: ListAgentSteps :many
-SELECT * FROM agent_steps WHERE run_id IN (SELECT id FROM agent_runs WHERE conversation_id=$1) ORDER BY created_at,id LIMIT 1000;
+SELECT * FROM agent_steps WHERE run_id IN (
+ SELECT id FROM agent_runs WHERE conversation_id=$1 ORDER BY created_at DESC,id DESC LIMIT 30
+) ORDER BY created_at,id;
 
 -- name: CreateAgentRequest :one
 INSERT INTO agent_requests(id,run_id,step_id,kind,prompt,fields,snapshot) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(step_id) DO UPDATE SET step_id=excluded.step_id RETURNING *;
@@ -91,7 +93,9 @@ UPDATE agent_requests SET state=$2,response=$3 WHERE id=$1 AND state='pending' A
 UPDATE agent_requests SET state='expired' WHERE run_id=$1 AND state='pending';
 
 -- name: ListAgentRequests :many
-SELECT r.* FROM agent_requests r JOIN agent_runs a ON a.id=r.run_id WHERE a.conversation_id=$1 ORDER BY r.created_at,r.id;
+SELECT r.* FROM agent_requests r WHERE r.run_id IN (
+ SELECT id FROM agent_runs WHERE conversation_id=$1 ORDER BY created_at DESC,id DESC LIMIT 30
+) ORDER BY r.created_at,r.id;
 
 -- name: CreateAgentAttachment :one
 INSERT INTO agent_attachments(id,conversation_id,filename,storage_path,sha256,size_bytes,kind) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *;

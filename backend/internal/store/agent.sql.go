@@ -612,7 +612,9 @@ func (q *Queries) ListAgentMessages(ctx context.Context, conversationID string) 
 }
 
 const listAgentRequests = `-- name: ListAgentRequests :many
-SELECT r.id, r.run_id, r.step_id, r.kind, r.prompt, r.fields, r.snapshot, r.response, r.state, r.expires_at, r.created_at FROM agent_requests r JOIN agent_runs a ON a.id=r.run_id WHERE a.conversation_id=$1 ORDER BY r.created_at,r.id
+SELECT r.id, r.run_id, r.step_id, r.kind, r.prompt, r.fields, r.snapshot, r.response, r.state, r.expires_at, r.created_at FROM agent_requests r WHERE r.run_id IN (
+ SELECT id FROM agent_runs WHERE conversation_id=$1 ORDER BY created_at DESC,id DESC LIMIT 30
+) ORDER BY r.created_at,r.id
 `
 
 func (q *Queries) ListAgentRequests(ctx context.Context, conversationID string) ([]AgentRequest, error) {
@@ -648,12 +650,13 @@ func (q *Queries) ListAgentRequests(ctx context.Context, conversationID string) 
 }
 
 const listAgentRuns = `-- name: ListAgentRuns :many
-SELECT id,conversation_id,state,error,cancel_requested,created_at,updated_at FROM agent_runs WHERE conversation_id=$1 ORDER BY created_at DESC,id DESC LIMIT 30
+SELECT id,conversation_id,request_id,state,error,cancel_requested,created_at,updated_at FROM agent_runs WHERE conversation_id=$1 ORDER BY created_at DESC,id DESC LIMIT 30
 `
 
 type ListAgentRunsRow struct {
 	ID              string             `json:"id"`
 	ConversationID  string             `json:"conversation_id"`
+	RequestID       string             `json:"request_id"`
 	State           string             `json:"state"`
 	Error           string             `json:"error"`
 	CancelRequested bool               `json:"cancel_requested"`
@@ -673,6 +676,7 @@ func (q *Queries) ListAgentRuns(ctx context.Context, conversationID string) ([]L
 		if err := rows.Scan(
 			&i.ID,
 			&i.ConversationID,
+			&i.RequestID,
 			&i.State,
 			&i.Error,
 			&i.CancelRequested,
@@ -690,7 +694,9 @@ func (q *Queries) ListAgentRuns(ctx context.Context, conversationID string) ([]L
 }
 
 const listAgentSteps = `-- name: ListAgentSteps :many
-SELECT id, run_id, agent, tool, arguments, state, result, created_at, updated_at FROM agent_steps WHERE run_id IN (SELECT id FROM agent_runs WHERE conversation_id=$1) ORDER BY created_at,id LIMIT 1000
+SELECT id, run_id, agent, tool, arguments, state, result, created_at, updated_at FROM agent_steps WHERE run_id IN (
+ SELECT id FROM agent_runs WHERE conversation_id=$1 ORDER BY created_at DESC,id DESC LIMIT 30
+) ORDER BY created_at,id
 `
 
 func (q *Queries) ListAgentSteps(ctx context.Context, conversationID string) ([]AgentStep, error) {

@@ -233,7 +233,7 @@ func (s *Service) conversation(c *gin.Context) {
 			var rt runtime
 			canResume = json.Unmarshal(checkpoint.Runtime, &rt) == nil && resumable(rt)
 		}
-		publicRuns = append(publicRuns, gin.H{"id": run.ID, "state": run.State, "error": run.Error, "cancel_requested": run.CancelRequested, "created_at": run.CreatedAt, "can_resume": canResume})
+		publicRuns = append(publicRuns, gin.H{"id": run.ID, "request_id": run.RequestID, "state": run.State, "error": run.Error, "cancel_requested": run.CancelRequested, "created_at": run.CreatedAt, "can_resume": canResume})
 	}
 	data(c, gin.H{"conversation": conv, "messages": messages, "runs": publicRuns, "steps": publicSteps, "requests": publicRequests, "attachments": attachments}, e)
 }

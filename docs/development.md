@@ -18,6 +18,8 @@ docker compose -f compose.yaml -f compose.rag.yaml up -d --no-build api worker w
 
 浏览器`node scripts/check-agent-browser.cjs --real-model`验证真实文件、问题卡、刷新、审批和后台解析。去掉该参数只检查配置与布局；不会将空对话截图伪装为模型闭环。Go Agent集成在backend-test的隔离schema运行、使用明确标注的模型协议fixture。报告、失败日志、截图、账号和备份仅保留在忽略的`.local`。已执行结果见[验收记录](research/agent-acceptance-2026-11-17.md)。
 
+`node scripts/check-agent-polish.cjs`验证草稿切换／刷新、UTF-8上限、失败发送重试、账号与课程隔离、多轮消息顺序、折叠审批和真实下载；仅拦截消息POST制造503，避免意外模型调用。需要已有`.local/agent-acceptance.json`及S1账号，保留带标签的私有上传和两个空对话，报告写入`.local/agent-polish/`并归档上一次结果。人工验收顺序见[助理说明](agent-harness.md#本地人工验收)。
+
 API清单：`python -B scripts/api-inventory.py`。架构图：`python -B docs/diagrams/generate-agent.py`、`node docs/diagrams/render-agent.cjs`；保留原全景与历史图册。源码／文档变更后运行`python -B scripts/check_docs.py`及工作区`check --repo`。
 
 ## Git 手动同步约定

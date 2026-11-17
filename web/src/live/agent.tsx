@@ -1,21 +1,26 @@
-import { useEffect, useRef, useState } from "react";
-import { Alert, App, Button, Card, Collapse, Empty, Form, Input, List, Popconfirm, Radio, Select, Space, Spin, Tag, Tooltip, Typography, Upload } from "antd";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Alert, App, Button, Card, Collapse, Dropdown, Empty, Form, Input, List, Popconfirm, Radio, Select, Space, Spin, Tag, Tooltip, Typography, Upload } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { APIError, requestJSON } from "../shared/api";
 import { useSession } from "../shared/session";
 import { useLearning } from "./context";
 import { RichContent } from "./content-render";
+import { DraftNotice, useEditorDraft } from "./editing";
 import "./agent.css";
 
 type Conversation = { id: string; title: string; mode: string; profile_id: string; learner_context: boolean };
 type Attachment = { id: string; filename: string; kind: string; size_bytes: number };
-type Run = { id: string; state: string; error: string; cancel_requested: boolean; can_resume: boolean };
+type Run = { id: string; request_id: string; state: string; error: string; cancel_requested: boolean; can_resume: boolean; created_at: string };
 type Step = { id: string; run_id: string; agent: string; tool: string; state: string; arguments: Record<string, unknown>; result: Record<string, unknown> };
 type Field = { key: string; label: string; kind: string; required: boolean; options?: string[] };
 type Request = { id: string; run_id: string; step_id: string; kind: string; prompt: string; fields: Field[]; snapshot: { arguments?: Record<string, unknown>; before?: unknown }; response: Record<string, unknown>; state: string; expires_at: string };
-type Snapshot = { conversation: Conversation; messages: { id: string; role: string; content: string; attachment_ids: string[] }[]; runs: Run[]; steps: Step[]; requests: Request[]; attachments: Attachment[] };
+type Message = { id: string; role: string; content: string; attachment_ids: string[]; created_at: string };
+type Snapshot = { conversation: Conversation; messages: Message[]; runs: Run[]; steps: Step[]; requests: Request[]; attachments: Attachment[] };
 type Status = { configured: boolean; profiles: { id: string; label: string; available: boolean; model: string }[]; tools: { name: string; label: string }[] };
+type ComposerDraft = { text: string; attachments: Attachment[]; requestID?: string };
+const emptyDraft: ComposerDraft = { text: "", attachments: [] };
+const emptyDrafts: Record<string, ComposerDraft> = {};
 
 const states: Record<string, [string, string]> = {
   queued: ["排队中", "default"], running: ["执行中", "processing"], waiting_input: ["等待回答", "warning"], waiting_approval: ["等待确认", "warning"], waiting_job: ["等待后台任务", "processing"], succeeded: ["已结束", "success"], failed: ["失败", "error"], canceled: ["已停止", "default"], unknown: ["结果待核对", "warning"], proposed: ["准备中", "default"], executing: ["执行中", "processing"], denied: ["未执行", "default"], pending: ["待处理", "warning"], answered: ["已确认", "success"], rejected: ["已拒绝", "default"], expired: ["已过期", "default"],
@@ -40,7 +45,7 @@ function RequestCard({ request, disabled, respond }: { request: Request; disable
   const pending = request.state === "pending" && !expired;
   useEffect(() => { if (request.state === "answered") form.setFieldsValue(request.response); }, [request.state, request.response, form]);
   return <Card size="small" className="agent-request" title={<Space wrap><Tag color={request.kind === "input" ? "blue" : "orange"}>{request.kind === "input" ? "需要补充" : "操作确认"}</Tag><span>{request.prompt}</span></Space>} extra={<StateTag state={expired && request.state === "pending" ? "expired" : request.state} />}>
-    {request.kind === "input" ? <Form form={form} layout="vertical" disabled={!pending || disabled} onFinish={(values) => void respond(request.id, "approve", values)}>
+    {request.kind === "input" ? <Form name={`agent-input-${request.id}`} form={form} layout="vertical" disabled={!pending || disabled} onFinish={(values) => void respond(request.id, "approve", values)}>
       {request.fields.map((f) => <Form.Item key={f.key} name={f.key} label={f.label} rules={[{ required: f.required, message: "请填写或选择此项" }]}>
         {f.kind === "text" ? <Input.TextArea autoSize={{ minRows: 2, maxRows: 5 }} maxLength={10000} /> : f.kind === "select" ? <Radio.Group options={f.options?.map((x) => ({ label: x, value: x }))} /> : <Select mode="multiple" options={f.options?.map((x) => ({ label: x, value: x }))} />}
       </Form.Item>)}
@@ -53,91 +58,199 @@ function RequestCard({ request, disabled, respond }: { request: Request; disable
   </Card>;
 }
 
+function RunPanel({ run, steps, requests, toolLabels, disabled, hasActive, respond, resume }: {
+  run: Run; steps: Step[]; requests: Request[]; toolLabels: Map<string, string>;
+  disabled: boolean; hasActive: boolean;
+  respond: (id: string, decision: string, values?: Record<string, unknown>) => Promise<void>;
+  resume: () => Promise<void>;
+}) {
+  const pending = requests.filter((r) => r.state === "pending" && isActive(run.state));
+  const completed = requests.filter((r) => !pending.includes(r));
+  const card = (r: Request) => <RequestCard key={r.id} request={r} disabled={disabled || !isActive(run.state) || run.cancel_requested} respond={respond} />;
+  return <div className="agent-run" data-run-id={run.id}>
+    <Collapse size="small" items={[{ key: run.id, label: <Space wrap><StateTag state={run.state} /><span>执行记录</span><Typography.Text type="secondary">{steps.length} 步</Typography.Text></Space>, children:
+      <Space direction="vertical" className="agent-full-width">{steps.map((step) => <Collapse key={step.id} size="small" items={[{
+        key: step.id, label: <Space wrap><Tag>{domains[step.agent] || step.agent}</Tag><span>{toolLabels.get(step.tool) || step.tool}</span><StateTag state={step.state} /></Space>,
+        children: <><Typography.Text strong>操作内容</Typography.Text><ValueView value={step.arguments} /><Typography.Text strong>执行回执</Typography.Text><ValueView value={step.result} /></>,
+      }]} />)}</Space>,
+    }]} />
+    {run.error && <Alert showIcon type={run.state === "unknown" ? "warning" : "error"} message={run.error} />}
+    {run.state === "succeeded" && steps.some((s) => ["failed", "denied", "unknown"].includes(s.state)) && <Alert showIcon type="warning" message="本轮包含失败或未执行的操作，请展开记录核对。" />}
+    {run.can_resume && !hasActive && <Popconfirm title="从检查点恢复，模型请求可能再次计费；未知写操作会被拒绝重放。" onConfirm={resume}><Button disabled={disabled}>从检查点恢复</Button></Popconfirm>}
+    {pending.map(card)}
+    {!!completed.length && <Collapse size="small" items={[{ key: "completed", label: `已处理的确认与补充（${completed.length}）`, children: <Space direction="vertical" className="agent-full-width">{completed.map(card)}</Space> }]} />}
+  </div>;
+}
+
 export function AgentPage() {
-  const { course } = useLearning(); const { session, refresh } = useSession(); const cache = useQueryClient(); const { message } = App.useApp();
-  const [params, setParams] = useSearchParams(); const conversationID = params.get("conversation") || "";
-  const [text, setText] = useState(""); const [attachments, setAttachments] = useState<Attachment[]>([]); const [busy, setBusy] = useState(false); const [uploading, setUploading] = useState(false);
-  const [streamState, setStreamState] = useState("连接中"); const bottom = useRef<HTMLDivElement>(null); const scroll = useRef<HTMLDivElement>(null);
-  const pendingSend = useRef<{ signature: string; requestID: string } | null>(null);
+  const { course } = useLearning();
+  const { session, refresh } = useSession();
+  const cache = useQueryClient();
+  const { message } = App.useApp();
+  const [params, setParams] = useSearchParams();
+  const conversationID = params.get("conversation") || "";
+  const draftKey = conversationID || "new";
+  const drafts = useEditorDraft(`agent:${course!.id}`, emptyDrafts);
+  const composer = drafts.value[draftKey] || emptyDraft;
+  const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [following, setFollowing] = useState(true);
+  const [streamState, setStreamState] = useState("连接中");
+  const scroll = useRef<HTMLDivElement>(null);
+  const mutationLocked = useRef(false);
+  const scope = `${session?.user.id}:${course!.id}`;
+  const currentScope = useRef(scope);
+  currentScope.current = scope;
   const prefix = `/learning/courses/${course!.id}/agent`;
   const key = ["agent", session?.user.id, course!.id];
   const get = async <T,>(path: string, signal?: AbortSignal) => (await requestJSON<{ data: T }>(`${prefix}${path}`, { signal })).data;
+  const write = async <T,>(path: string, body: unknown, method = "POST") => (await requestJSON<{ data: T }>(`${prefix}${path}`, { method, body: JSON.stringify(body) }, session?.csrf_token)).data;
   const status = useQuery({ queryKey: [...key, "status"], queryFn: ({ signal }) => get<Status>("/status", signal) });
   const conversations = useQuery({ queryKey: [...key, "conversations"], queryFn: ({ signal }) => get<Conversation[]>("/conversations", signal) });
   const snapshot = useQuery({ queryKey: [...key, conversationID], enabled: !!conversationID, queryFn: ({ signal }) => get<Snapshot>(`/conversations/${conversationID}`, signal), refetchInterval: 5000 });
   const current = snapshot.data?.conversation;
-  const runs = snapshot.data?.runs || []; const active = runs.find((r) => isActive(r.state));
+  const runs = snapshot.data?.runs || [];
+  const active = runs.find((r) => isActive(r.state));
   const toolLabels = new Map(status.data?.tools.map((t) => [t.name, t.label]));
-  const invalidate = async () => { await cache.invalidateQueries({ queryKey: key }); await cache.invalidateQueries({ queryKey: ["live", course!.id] }); };
-  const write = async <T,>(path: string, body: unknown, method = "POST") => (await requestJSON<{ data: T }>(`${prefix}${path}`, { method, body: JSON.stringify(body) }, session?.csrf_token)).data;
-  const handleError = (e: unknown) => { if (e instanceof APIError && e.status === 401) void refresh(); void message.error(e instanceof Error ? e.message : "操作失败，请刷新后核对"); };
-  const selectConversation = (id: string, preserveDraft = false) => { setParams((p) => { p.set("conversation", id); return p; }); if (!preserveDraft) { setText(""); setAttachments([]); pendingSend.current = null; } };
-  const create = async (preserveDraft = false) => { const v = await write<Conversation>("/conversations", { mode: "auto-review", profile_id: status.data?.profiles.find((p) => p.available)?.id || "" }); selectConversation(v.id, preserveDraft); await cache.invalidateQueries({ queryKey: [...key, "conversations"] }); return v.id; };
-  useEffect(() => { if (!conversationID && conversations.data?.[0]) selectConversation(conversations.data[0].id); }, [conversations.data, conversationID]);
-  useEffect(() => { setAttachments([]); setText(""); pendingSend.current = null; }, [course?.id]);
+  const configured = !!status.data?.configured && status.data.profiles.some((p) => p.available);
+  const inputDisabled = busy || !!active || !configured || !drafts.ready || (!!conversationID && !current);
+  const bytes = new TextEncoder().encode(composer.text).length;
+  const allAttachments = snapshot.data?.attachments || [];
+  const reusable = allAttachments.filter((a) => a.kind === "upload" && !composer.attachments.some((selected) => selected.id === a.id));
+  const exports = allAttachments.filter((a) => a.kind === "export");
+  const fileURL = (id: string) => `/api/v1${prefix}/conversations/${conversationID}/attachments/${id}/file`;
+  const timeline = [
+    ...(snapshot.data?.messages || []).map((m) => ({ kind: "message" as const, value: m, priority: m.role === "user" ? 0 : 2 })),
+    ...runs.map((r) => ({ kind: "run" as const, value: r, priority: 1 })),
+  ].sort((a, b) => Date.parse(a.value.created_at) - Date.parse(b.value.created_at) || a.priority - b.priority);
+
+  const invalidate = async () => {
+    await Promise.all([
+      cache.invalidateQueries({ queryKey: [...key, conversationID] }),
+      cache.invalidateQueries({ queryKey: [...key, "conversations"] }),
+    ]);
+  };
+  const selectConversation = (id: string) => setParams((p) => { p.set("conversation", id); return p; });
+  function updateComposer(patch: Partial<ComposerDraft>) {
+    drafts.change((all) => ({ ...all, [draftKey]: { ...(all[draftKey] || emptyDraft), ...patch, requestID: undefined } }));
+  }
+  function clearDraft(id: string) {
+    drafts.change((all) => { const next = { ...all }; delete next[id]; return next; });
+  }
+  async function create(preserveDraft = !conversationID) {
+    const v = await write<Conversation>("/conversations", { mode: "auto-review", profile_id: status.data?.profiles.find((p) => p.available)?.id || "" });
+    if (scope === currentScope.current) {
+      if (preserveDraft) drafts.change((all) => { const next = { ...all, [v.id]: all[draftKey] || emptyDraft }; delete next[draftKey]; return next; });
+      setSearch("");
+      selectConversation(v.id);
+    }
+    await cache.invalidateQueries({ queryKey: [...key, "conversations"] });
+    return v.id;
+  }
+  async function action(fn: () => Promise<unknown>) {
+    if (mutationLocked.current) return;
+    mutationLocked.current = true;
+    setBusy(true);
+    try { await fn(); await invalidate(); }
+    catch (e) {
+      if (e instanceof APIError && e.status === 401) void refresh();
+      if (scope === currentScope.current) void message.error(e instanceof Error ? e.message : "操作失败，请刷新后核对");
+    } finally { mutationLocked.current = false; setBusy(false); }
+  }
+  async function send() {
+    if (inputDisabled || mutationLocked.current || bytes > 12000 || (!composer.text.trim() && !composer.attachments.length)) return;
+    const requestID = composer.requestID || crypto.randomUUID();
+    drafts.change((all) => ({ ...all, [draftKey]: { ...composer, requestID } }));
+    setFollowing(true);
+    await action(async () => {
+      const id = conversationID || await create(true);
+      await write(`/conversations/${id}/messages`, { content: composer.text, attachment_ids: composer.attachments.map((a) => a.id), request_id: requestID });
+      if (scope === currentScope.current) clearDraft(id);
+    });
+  }
+
+  useEffect(() => { if (!conversationID && conversations.data?.[0] && !composer.text && !composer.attachments.length) selectConversation(conversations.data[0].id); }, [conversations.data, conversationID]);
+  useEffect(() => { setFollowing(true); }, [scope, conversationID]);
+  useEffect(() => { setSearch(""); }, [scope]);
+  useEffect(() => {
+    if (drafts.ready && drafts.dirty && !Object.values(drafts.value).some((d) => d.text || d.attachments.length || d.requestID)) drafts.reset(emptyDrafts);
+  }, [drafts.value, drafts.ready, drafts.dirty]);
+  useEffect(() => {
+    if (drafts.ready && composer.requestID && runs.some((r) => r.request_id === composer.requestID)) clearDraft(draftKey);
+  }, [snapshot.data, drafts.ready, composer.requestID]);
   useEffect(() => {
     if (!conversationID) return;
+    setStreamState("连接中");
     const stream = new EventSource(`/api/v1${prefix}/conversations/${conversationID}/events`);
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const update = () => { if (timer) return; timer = setTimeout(() => { timer = undefined; void cache.invalidateQueries({ queryKey: [...key, conversationID] }); void cache.invalidateQueries({ queryKey: [...key, "conversations"] }); void cache.invalidateQueries({ queryKey: ["live", course!.id] }); }, 200); };
-    stream.onopen = () => setStreamState("实时连接"); stream.onerror = () => setStreamState("重新连接中");
+    const update = (e: Event) => {
+      if (e.type === "done") void cache.invalidateQueries({ queryKey: ["live", course!.id] });
+      if (timer) return;
+      timer = setTimeout(() => { timer = undefined; void invalidate(); }, 200);
+    };
+    stream.onopen = () => setStreamState("实时连接");
+    stream.onerror = () => setStreamState("重连中 · 定时同步");
     for (const event of ["status", "tool", "plan", "delegated", "request", "response", "done"]) stream.addEventListener(event, update);
     return () => { stream.close(); if (timer) clearTimeout(timer); };
-  }, [course?.id, conversationID, session?.user.id]);
-  useEffect(() => { const el = scroll.current; if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 250) bottom.current?.scrollIntoView({ block: "nearest" }); }, [snapshot.data?.messages.length, snapshot.data?.steps.length]);
-  async function action(fn: () => Promise<unknown>) { setBusy(true); try { await fn(); await invalidate(); } catch (e) { handleError(e); } finally { setBusy(false); } }
-  async function send() {
-    if (!text.trim() && !attachments.length) return;
-    if (busy || uploading || active) return;
-    const signature = JSON.stringify([course!.id, text, attachments.map((a) => a.id)]);
-    if (pendingSend.current?.signature !== signature) pendingSend.current = { signature, requestID: crypto.randomUUID() };
-    const requestID = pendingSend.current.requestID;
-    await action(async () => { const id = conversationID || await create(true); await write(`/conversations/${id}/messages`, { content: text, attachment_ids: attachments.map((a) => a.id), request_id: requestID }); pendingSend.current = null; setText(""); setAttachments([]); });
-  }
+  }, [scope, conversationID]);
+  useLayoutEffect(() => {
+    if (following && scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight;
+  }, [snapshot.data, following, conversationID]);
+
   return <div className="agent-workspace">
     <aside className="agent-conversations">
-      <Button block type="primary" disabled={busy || uploading || !status.data?.configured} onClick={() => void action(() => create())}>新对话</Button>
-      <List loading={conversations.isPending} dataSource={conversations.data || []} locale={{ emptyText: "暂无对话" }} renderItem={(c) => <List.Item><Button type={c.id === conversationID ? "text" : "default"} aria-current={c.id === conversationID ? "page" : undefined} className={c.id === conversationID ? "agent-selected" : ""} block onClick={() => selectConversation(c.id)}><span>{c.title}</span></Button></List.Item>} />
+      <Button block type="primary" disabled={busy || !configured || !drafts.ready} onClick={() => void action(() => create())}>新对话</Button>
+      <Input aria-label="搜索对话" placeholder="搜索对话" allowClear value={search} onChange={(e) => setSearch(e.target.value)} />
+      <List loading={conversations.isPending} dataSource={conversations.data?.filter((c) => c.title.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())) || []} locale={{ emptyText: search ? "没有匹配的对话" : "暂无对话" }} renderItem={(c) => <List.Item><Button data-conversation-id={c.id} disabled={busy} title={c.title} type={c.id === conversationID ? "text" : "default"} aria-current={c.id === conversationID ? "page" : undefined} className={c.id === conversationID ? "agent-selected" : ""} block onClick={() => selectConversation(c.id)}><span>{c.title}</span>{drafts.value[c.id]?.text || drafts.value[c.id]?.attachments.length ? <Tag>草稿</Tag> : null}</Button></List.Item>} />
     </aside>
     <section className="agent-main" aria-label="课程助理对话">
       <div className="agent-toolbar">
         <Space wrap>
-          <Select aria-label="对话模型" placeholder="选择模型" value={current?.profile_id || status.data?.profiles.find((p) => p.available)?.id} disabled={!current || !!active || busy} onChange={(profile_id) => void action(() => write(`/conversations/${conversationID}`, { mode: current!.mode, profile_id }, "PATCH"))} options={status.data?.profiles.map((p) => ({ value: p.id, label: `${p.label} · ${p.model}`, disabled: !p.available }))} />
+          <Select aria-label="对话模型" placeholder="选择模型" value={current?.profile_id || status.data?.profiles.find((p) => p.available)?.id} disabled={!current || !!active || busy} onChange={(profile_id) => void action(() => write(`/conversations/${conversationID}`, { mode: current!.mode, profile_id }, "PATCH"))} options={status.data?.profiles.map((p) => ({ value: p.id, label: p.label, disabled: !p.available }))} />
           <Tooltip title="只读不写入；自动审查允许草稿并确认重要修改；完整操作仍须确认正式发布和成绩。">
             <Select aria-label="权限模式" value={current?.mode || "auto-review"} disabled={!current || !!active || busy} options={modes.filter((m) => session?.user.role === "teacher" || m.value !== "full-access")} onChange={(mode) => void action(() => write(`/conversations/${conversationID}`, { mode, profile_id: current!.profile_id }, "PATCH"))} />
           </Tooltip>
-          {active && <StateTag state={active.state} />}
+          {active && <span role="status"><StateTag state={active.state} /></span>}
           {conversationID && <Tag>{streamState}</Tag>}
         </Space>
         {active && <Popconfirm title="停止后保留已完成的操作，已发出的模型调用仍会记账。" onConfirm={() => action(() => write(`/runs/${active.id}/cancel`, {}))}><Button danger disabled={busy || active.cancel_requested}>{active.cancel_requested ? "正在停止" : "停止"}</Button></Popconfirm>}
       </div>
-      {(status.error || conversations.error || snapshot.error) && <Alert showIcon type="error" message={(status.error || conversations.error || snapshot.error)?.message} action={<Button onClick={() => void invalidate()}>重试</Button>} />}
-      {status.data && !status.data.configured && <Alert showIcon type="warning" message="课程助理尚未配置生成模型，请联系维护者启用服务端接口。" />}
+      {(status.error || conversations.error || snapshot.error) && <Alert showIcon type="error" message={(status.error || conversations.error || snapshot.error)?.message} action={<Button onClick={() => { void invalidate(); void status.refetch(); }}>重试</Button>} />}
+      {status.data && !configured && <Alert showIcon type="warning" message="暂无可用生成模型，请联系维护者检查服务端配置。" />}
       {current?.learner_context && <Alert showIcon type="info" message="本对话已读取学习或作答数据；出题与评分标准请使用独立新对话。" />}
-      <div className="agent-scroll" ref={scroll}>
-        {snapshot.isPending && conversationID ? <Spin /> : !snapshot.data?.messages?.length ? <Empty description="发送要求或上传资料，开始处理当前课程任务" /> : snapshot.data.messages.map((m) => <article key={m.id} className={`agent-message agent-message-${m.role}`}>
-          <Typography.Text strong>{m.role === "user" ? "你" : "课程助理"}</Typography.Text>
-          {m.content && <RichContent text={m.content} />}
-          <Space wrap>{m.attachment_ids?.map((id) => <Tag key={id}>{snapshot.data?.attachments.find((a) => a.id === id)?.filename || "附件"}</Tag>)}</Space>
-        </article>)}
-        {[...runs].reverse().map((run) => <div className="agent-run" key={run.id}>
-          <Collapse size="small" items={[{ key: run.id, label: <Space wrap><StateTag state={run.state} /><span>执行记录</span><Typography.Text type="secondary">{snapshot.data?.steps.filter((s) => s.run_id === run.id).length || 0} 步</Typography.Text></Space>, children: <Space direction="vertical" className="agent-full-width">{snapshot.data?.steps.filter((s) => s.run_id === run.id).map((step) => <Collapse key={step.id} size="small" items={[{ key: step.id, label: <Space wrap><Tag>{domains[step.agent] || step.agent}</Tag><span>{toolLabels.get(step.tool) || step.tool}</span><StateTag state={step.state} /></Space>, children: <><Typography.Text strong>操作内容</Typography.Text><ValueView value={step.arguments} /><Typography.Text strong>执行回执</Typography.Text><ValueView value={step.result} /></> }]} />)}</Space> }]} />
-          {run.error && <Alert showIcon type={run.state === "unknown" ? "warning" : "error"} message={run.error} />}
-          {run.state === "succeeded" && snapshot.data?.steps.some((s) => s.run_id === run.id && ["failed", "denied", "unknown"].includes(s.state)) && <Alert showIcon type="warning" message="本轮包含失败或未执行的操作，请展开记录核对。" />}
-          {run.can_resume && !active && <Popconfirm title="从检查点恢复，模型请求可能再次计费；未知写操作会被拒绝重放。" onConfirm={() => action(() => write(`/runs/${run.id}/resume`, {}))}><Button disabled={busy}>从检查点恢复</Button></Popconfirm>}
-          {snapshot.data?.requests.filter((r) => r.run_id === run.id).map((r) => <RequestCard key={r.id} request={r} disabled={busy || !isActive(run.state) || run.cancel_requested} respond={(id, decision, values) => action(() => write(`/requests/${id}/respond`, { decision, values: values || {} }))} />)}
-        </div>)}
-        <div ref={bottom} />
+      <div className="agent-scroll" ref={scroll} onScroll={() => { const el = scroll.current!; setFollowing(el.scrollHeight - el.scrollTop - el.clientHeight < 100); }}>
+        {snapshot.isPending && conversationID ? <Spin /> : !timeline.length ? <Empty description="发送要求或上传资料，开始处理当前课程任务" /> : timeline.map((item) => item.kind === "message" ? <article key={item.value.id} data-message-id={item.value.id} className={`agent-message agent-message-${item.value.role}`}>
+          <Typography.Text strong>{item.value.role === "user" ? "你" : "课程助理"}</Typography.Text>
+          {item.value.content && <RichContent text={item.value.content} />}
+          <Space wrap>{item.value.attachment_ids?.map((id) => <Tag key={id}><a href={fileURL(id)}>{allAttachments.find((a) => a.id === id)?.filename || "下载附件"}</a></Tag>)}</Space>
+        </article> : <RunPanel key={item.value.id} run={item.value} steps={snapshot.data!.steps.filter((s) => s.run_id === item.value.id)} requests={snapshot.data!.requests.filter((r) => r.run_id === item.value.id)} toolLabels={toolLabels} disabled={busy} hasActive={!!active}
+          respond={(id, decision, values) => action(() => write(`/requests/${id}/respond`, { decision, values: values || {} }))} resume={() => action(() => write(`/runs/${item.value.id}/resume`, {}))} />)}
+        {!!exports.length && <List className="agent-exports" size="small" header={<Typography.Text strong>导出文件</Typography.Text>} dataSource={exports} renderItem={(file) => <List.Item actions={[<Button key="download" href={fileURL(file.id)}>下载</Button>]}><Typography.Text>{file.filename}</Typography.Text></List.Item>} />}
       </div>
+      {!following && <Button className="agent-jump" size="small" onClick={() => setFollowing(true)}>回到最新</Button>}
       <form className="agent-composer" onSubmit={(e) => { e.preventDefault(); void send(); }}>
-        <Space wrap>{attachments.map((a) => <Tag key={a.id} closable onClose={() => setAttachments((old) => old.filter((x) => x.id !== a.id))}>{a.filename}</Tag>)}</Space>
-        <Input.TextArea aria-label="消息" placeholder={active ? "先处理上方问题或等待任务完成" : "输入要求，或上传需要导入的文件"} value={text} maxLength={12000} showCount autoSize={{ minRows: 3, maxRows: 8 }} disabled={busy || !!active || !status.data?.configured} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void send(); } }} />
-        <div className="agent-compose-actions"><Upload accept=".pdf,.docx,.pptx,.txt,.md,.html,.htm,.csv" showUploadList={false} disabled={busy || uploading || !!active || !status.data?.configured} beforeUpload={(file) => {
-          if (file.size > 30 * 1024 * 1024 || !file.size) { void message.error("文件须为非空且不超过30MiB"); return Upload.LIST_IGNORE; }
-          setUploading(true);
-          void (async () => { try { const id = conversationID || await create(true); const body = new FormData(); body.append("file", file); const a = (await requestJSON<{ data: Attachment }>(`${prefix}/conversations/${id}/attachments`, { method: "POST", body }, session?.csrf_token)).data; setAttachments((old) => [...old, a]); } catch (e) { handleError(e); } finally { setUploading(false); } })();
-          return false;
-        }}><Button loading={uploading} disabled={busy || !!active || !status.data?.configured}>上传文件</Button></Upload><Button htmlType="submit" type="primary" loading={busy} disabled={uploading || !!active || !status.data?.configured || (!text.trim() && !attachments.length)}>发送</Button></div>
+        {(composer.text || composer.attachments.length > 0) && <DraftNotice restored={drafts.restored} storageError={drafts.storageError} />}
+        <Space wrap>{composer.attachments.map((a) => <Tag key={a.id} closable={!busy} onClose={() => updateComposer({ attachments: composer.attachments.filter((x) => x.id !== a.id) })}>{a.filename}</Tag>)}</Space>
+        <Input.TextArea aria-label="消息" placeholder={active?.state === "waiting_input" ? "请先回答当前问题" : active?.state === "waiting_approval" ? "请先确认或拒绝当前操作" : active ? "任务执行中，可查看执行记录或停止" : "输入要求，或上传需要导入的文件"} value={drafts.ready ? composer.text : ""} maxLength={12000} status={bytes > 12000 ? "error" : undefined} showCount={{ formatter: () => `${bytes} / 12000 字节` }} autoSize={{ minRows: 3, maxRows: 8 }} disabled={inputDisabled} onChange={(e) => updateComposer({ text: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }} />
+        {bytes > 12000 && <Typography.Text type="danger" role="alert">消息超过12000字节，请缩短后发送。</Typography.Text>}
+        <div className="agent-compose-actions"><Space wrap>
+          <Upload accept=".pdf,.docx,.pptx,.txt,.md,.html,.htm,.csv" showUploadList={false} disabled={inputDisabled || composer.attachments.length >= 10} beforeUpload={(file) => {
+            if (mutationLocked.current) return Upload.LIST_IGNORE;
+            if (file.size > 30 * 1024 * 1024 || !file.size) { void message.error("文件须为非空且不超过30MiB"); return Upload.LIST_IGNORE; }
+            void action(async () => {
+              setUploading(true);
+              try {
+                const id = conversationID || await create(true);
+                const body = new FormData(); body.append("file", file);
+                const a = (await requestJSON<{ data: Attachment }>(`${prefix}/conversations/${id}/attachments`, { method: "POST", body }, session?.csrf_token)).data;
+                if (scope === currentScope.current) drafts.change((all) => ({ ...all, [id]: { ...(all[id] || emptyDraft), attachments: [...(all[id]?.attachments || []), a], requestID: undefined } }));
+              } finally { setUploading(false); }
+            });
+            return false;
+          }}><Button loading={uploading} disabled={inputDisabled || composer.attachments.length >= 10}>上传文件</Button></Upload>
+          {!!reusable.length && <Dropdown menu={{ items: reusable.map((a) => ({ key: a.id, label: a.filename })), onClick: ({ key }) => updateComposer({ attachments: [...composer.attachments, reusable.find((a) => a.id === key)!] }) }} disabled={inputDisabled || composer.attachments.length >= 10}><Button disabled={inputDisabled || composer.attachments.length >= 10}>已上传文件</Button></Dropdown>}
+        </Space><Button htmlType="submit" type="primary" loading={busy && !uploading} disabled={inputDisabled || bytes > 12000 || (!composer.text.trim() && !composer.attachments.length)}>发送</Button></div>
       </form>
     </section>
   </div>;

@@ -50,6 +50,21 @@
 
 失败、重试、恢复和预算均保存在忽略的 `.local/agent-acceptance.json` 及对应日志，没有清空预算或删除失败记录。迁移前数据库备份在 `.local/backups/`，已核对备份目录，未做本轮完整恢复演练。
 
+## 交互收口复验
+
+在上述主线完成后再次修改并复验，不用首次结果替代本次结果。前端将消息与运行按时间合并，已处理问题／审批折叠保留；复用`useEditorDraft`隔离账号、课程及对话，保存消息、附件选择和不确定发送的request_id，收到已有运行快照后清理已接收草稿。上传可复选，已发附件及导出结果可直接授权下载；中文输入法组合期间不触发快捷发送。向上阅读保持位置，提供“回到最新”。后端步骤／请求与最近30轮对齐，避免历史1000步骤限制漏掉最新记录。
+
+| 检查 | 本次结果与证据 |
+| --- | --- |
+| Go集成／vet | `.local/agent-polish-go.log`，Agent全部用例与agent／identity的vet通过；新增31轮、每轮40步与1卡，读取最近30轮时返回完整1200步与30卡，request_id关联正确 |
+| Docker | 默认Go校验源连接失败记录在`.local/agent-polish-api-build.log`；沿既有开发约定使用`GOPROXY=https://goproxy.cn,direct`后构建成功，未关闭校验。`.local/agent-polish-api-proxy-build.log`及`.local/agent-polish-web-final-build.log`保留最终API／Web构建；仅重建本地api和web，保留worker、数据库和文件卷 |
+| 不收费交互回归 | `.local/agent-polish/report.json`六组通过；切换／刷新恢复文本附件、不同账号课程隔离、12000 UTF-8字节限制、503发送失败后跨刷新沿用请求编号、真实多轮时间顺序、折叠历史回答、私有文件／CSV下载和窄屏。POST消息被明确拦截，不冒充真实生成；真实上传只保存会话私有文件。初版脚本误用课程查询路径的404保留在归档报告中，修正为已有`/me/courses`后通过 |
+| 真实模型浏览器 | `.local/agent-polish-real-browser.log`与`.local/agent-browser/report.json`七组通过：模式保存、上传／键盘发送、问题／刷新／审批、后台解析到ready并核对原文、已答卡刷新、学生权限、桌面／窄屏，无pageerror或5xx |
+| 原业务回归 | `.local/agent-polish-platform.log`完整教学浏览器主线通过，含教师16／学生9路由、跨标签账号切换、评分发布、客观题、补学复查与CSV；`.local/agent-polish-navigation.log`九组通过 |
+| 持久与权限复核 | `.local/agent-polish-persistence.log`，API重建后只读核对既有对话、输入／审批／执行、原件、知识、旧／新标准、作业固定版本、学生正式10分反馈、CSV与课程／所有者隔离通过 |
+
+本次真实浏览器复验新增记账0.424954元；共享50元账本由17.063424元增至17.488378元、预留0。数据与失败记录保留，没有清空或重置预算。人工验收顺序见[本地指引](../agent-harness.md#本地人工验收)；界面不显示调试账目或供应商密钥。
+
 ## 验收边界
 
 模型调用采用完整 assistant／tool 消息协议，当前为供应商非流式调用；SSE 是应用业务事件，不能称为 token 流。四专家使用同一可选择的服务端生成配置，不代表四个独立训练模型。

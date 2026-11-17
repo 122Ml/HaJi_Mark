@@ -1,6 +1,6 @@
 # 当前 API 全量清单
 
-盘点日期：2026-11-17；注册入口内容 SHA256：`d1c21ba1d02726c2ca91adc28a8b2990d30e261273b88aa069786a417e2b7b56`。
+盘点日期：2026-11-17；注册入口内容 SHA256：`cb2ae5efce29192ad46f77ab6c9421f1a62c6637f66dad40c89cc64dc3fec594`。
 
 共 **141 个 method + path**，方法统计：`{"GET": 61, "POST": 62, "DELETE": 3, "PUT": 14, "PATCH": 1}`。
 

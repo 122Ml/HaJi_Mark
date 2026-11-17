@@ -634,6 +634,46 @@ func TestHarnessBusinessLoop(t *testing.T) {
 			t.Fatal("SSE cursor replay broken")
 		}
 	})
+	t.Run("long_conversation_keeps_latest_runs_and_complete_receipts", func(t *testing.T) {
+		cid := conversation("teacher", "auto-review")
+		must(`INSERT INTO agent_runs(id,conversation_id,request_id,session_hash,state,created_at)
+		 SELECT 'history-'||$1||'-'||n,$1,'request-'||n,'fixture','succeeded',now()+n*interval '1 second' FROM generate_series(1,31) n`, cid)
+		must(`INSERT INTO agent_steps(id,run_id,agent,tool,arguments,state)
+		 SELECT r.id||'-step-'||n,r.id,'learning','course_context','{}','succeeded'
+		 FROM agent_runs r CROSS JOIN generate_series(1,40) n WHERE r.conversation_id=$1`, cid)
+		must(`INSERT INTO agent_requests(id,run_id,step_id,kind,prompt,fields,state)
+		 SELECT r.id||'-input',r.id,r.id||'-step-1','input','已回答的问题','[]','answered'
+		 FROM agent_runs r WHERE r.conversation_id=$1`, cid)
+		var snapshot struct {
+			Runs []struct {
+				ID        string `json:"id"`
+				RequestID string `json:"request_id"`
+			} `json:"runs"`
+			Steps    []store.AgentStep    `json:"steps"`
+			Requests []store.AgentRequest `json:"requests"`
+		}
+		body := request("teacher", "GET", base+"/conversations/"+cid, nil, 200)
+		if e := json.Unmarshal(body, &snapshot); e != nil {
+			t.Fatal(e)
+		}
+		if len(snapshot.Runs) != 30 || len(snapshot.Steps) != 1200 || len(snapshot.Requests) != 30 {
+			t.Fatalf("latest window incomplete: runs=%d steps=%d requests=%d", len(snapshot.Runs), len(snapshot.Steps), len(snapshot.Requests))
+		}
+		oldest, newest := "history-"+cid+"-1", "history-"+cid+"-31"
+		if snapshot.Runs[0].ID != newest || snapshot.Runs[0].RequestID != "request-31" {
+			t.Fatal("missing latest run or request correlation")
+		}
+		for _, step := range snapshot.Steps {
+			if step.RunID == oldest {
+				t.Fatal("old receipts displaced current receipts")
+			}
+		}
+		for _, r := range snapshot.Requests {
+			if r.RunID == oldest {
+				t.Fatal("requests outside visible run window")
+			}
+		}
+	})
 	t.Run("expired_session_prevents_background_work", func(t *testing.T) {
 		cid := conversation("teacher", "auto-review")
 		rid := send("teacher", cid)

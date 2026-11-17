@@ -7,7 +7,8 @@ const { chromium } = require('playwright');
 
 (async () => {
   const out = path.join(__dirname, 'current');
-  const files = JSON.parse(fs.readFileSync(path.join(out, 'structure-check.json'), 'utf8')).figures;
+  const structure = JSON.parse(fs.readFileSync(path.join(out, 'structure-check.json'), 'utf8'));
+  const files = structure.figures;
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   const page = await browser.newPage();
   const errors = [];
@@ -59,6 +60,13 @@ const { chromium } = require('playwright');
     assert(await page.locator('.panel.active .node.dim').count() > 0);
     await page.locator('#module').selectOption('questions');
     assert(await page.locator('.panel.active .node.selected').count() === 3);
+    await page.locator('#module').selectOption('agent');
+    assert(await page.locator('.panel.active .node.selected').count() === 6);
+    assert(await page.locator('.panel.active .node[data-node="learning"]').getAttribute('data-status') === 'done');
+    assert(await page.locator('.panel.active .node[data-node="qa"]').getAttribute('data-status') === 'partial');
+    assert(await page.locator('.panel.active .node[data-node="agent-coverage"]').getAttribute('data-status') === 'partial');
+    assert(await page.locator('.panel.active .node[data-node="answers"] [data-item-status="planned"]').count() === 1);
+    assert(await page.locator('.panel.active .implementation-legend').textContent().then(t => ['完全实现', '部分实现', '未实现'].every(s => t.includes(s))));
     await page.locator('#boundaries').uncheck();
     assert(await page.locator('.panel.active .canvas.hide-modules').count() === 1);
     await page.locator('#boundaries').check();
@@ -91,10 +99,10 @@ const { chromium } = require('playwright');
     assert(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth), 'viewer mobile overflow');
     assert.deepEqual(errors, []);
     fs.writeFileSync(path.join(out,'browser-check.json'),JSON.stringify({
-      scope:'diagrams-only', date:'2026-11-12', geometry,
-      checks:['node-highlighting','module-filter','module-boundaries','reset','zoom-fit','five-tabs','svg-png-links','keyboard','unique-svg-ids','390px-viewer'],
+      scope:'diagrams-only', date:structure.date, code_baseline:structure.code_baseline, geometry,
+      checks:['node-highlighting','module-filter','agent-module-filter','current-feature-status','module-boundaries','reset','zoom-fit','five-tabs','svg-png-links','keyboard','unique-svg-ids','390px-viewer'],
       page_errors:errors
     }, null, 2));
-    process.stdout.write('PASS: diagram geometry, exports and 10 viewer checks.\n');
+    process.stdout.write('PASS: diagram geometry, exports and 12 viewer checks.\n');
   } finally { await browser.close(); }
 })().catch(e=>{process.stderr.write(String(e.stack)+'\n');process.exitCode=1;});

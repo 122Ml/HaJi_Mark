@@ -1,17 +1,22 @@
 {
   "scope": "local-implementation",
-  "date": "2026-11-12",
+  "date": "2026-11-17",
+  "code_baseline": "560de5e",
+  "original_business_nodes": 19,
+  "original_business_edges": 42,
+  "added_agent_nodes": 6,
+  "added_agent_edges": 5,
   "original_network_preserved": true,
   "original_edge_routes_preserved": true,
   "original_module_boundaries_preserved": true,
   "figures": [
     {
       "file": "00_全景架构_实现状态",
-      "nodes": 19,
-      "edges": 42,
+      "nodes": 25,
+      "edges": 47,
       "size": [
         3600,
-        3250
+        4050
       ]
     },
     {

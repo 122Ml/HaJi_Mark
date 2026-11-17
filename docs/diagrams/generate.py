@@ -11,9 +11,11 @@ OUT = HERE / "current"
 NS = "http://www.w3.org/2000/svg"
 ET.register_namespace("", NS)
 FONT = "C:/Windows/Fonts/msyh.ttc"
+AS_OF = "2026-11-17"
+CODE_BASELINE = "560de5e"
 FONTS = {}
 COL = {"done": "#187653", "partial": "#A06413", "planned": "#78818A"}
-STATUS = {"done": "已实现", "partial": "部分实现", "planned": "待实现"}
+STATUS = {"done": "完全实现", "partial": "部分实现", "planned": "未实现"}
 ROLE = {
     "system": ("#FFFFFF", "#CFD5D5", "#242424", "#58616A", "系统"),
     "teacher": ("#303235", "#303235", "#FFFFFF", "#E1E5E8", "教师"),
@@ -94,7 +96,7 @@ NETWORK = {
     "ingest": ("资料解析与原文核对", "system", [
         ("done", "正文 / 常规表格 / 中文印刷OCR / 定位"),
         ("done", "异常片段待核；教师校正 → 新修订"),
-        ("done", "印刷公式图表 / 按需视觉 / 目录建议")]),
+        ("done", "常规印刷公式图表 / 按需视觉 / 目录建议")]),
     "knowledge-review": ("知识候选与教师审核", "teacher", [
         ("done", "AI提炼 / 分类 / 条件 / 关联候选"),
         ("done", "教师编辑、确认；候选不生效"),
@@ -128,11 +130,12 @@ NETWORK = {
         ("done", "完整资料 ↔ 精炼知识 ↔ 原文定位"),
         ("done", "阅读 / 笔记 / 收藏 / 学习完成"),
         ("done", "检索提问 / 正式反馈 / 执行补学"),
-        ("planned", "问答持久历史（现为当次结果）")]),
+        ("done", "课程助理持久问答 / 引用 / 草稿恢复")]),
     "qa": ("RAG检索答疑", "ai", [
         ("done", "可见资料 + 学习用途确认知识"),
         ("done", "向量 + 关键词 → RRF融合"),
-        ("done", "带引用回答 / 原文定位；不足可提问")]),
+        ("done", "带引用回答 / 原文定位；不足可提问"),
+        ("planned", "独立检索页历史（助理历史已实现）")]),
     "tasks": ("作业与测验", "system", [
         ("done", "选确认版本 / 发布 / 截止 / 关闭"),
         ("done", "课程 / 名单 / 题目与任务版本"),
@@ -158,7 +161,7 @@ NETWORK = {
     "recommend": ("规则学习路径与补练", "system", [
         ("done", "低表现 / 无证据 + 前置知识 → 路径"),
         ("done", "教师指定资料与已确认练习"),
-        ("planned", "AI个性推荐 / 自动补练生成")]),
+        ("planned", "知识驱动个性推荐 / 自动补练生成")]),
     "diagnose": ("学情证据与错因诊断", "system", [
         ("done", "正式结果去重 / 分母 / 班级个人表现"),
         ("done", "反馈 → 评分点 → 原文；缺证据单列"),
@@ -172,6 +175,73 @@ NETWORK = {
         ("done", "影响清单 / 站内决定 / 整组重评；旧成绩与依据保留"),
         ("planned", "典型作答匿名化沉淀案例")]),
 }
+
+
+def agent_layer(main, root):
+    """Add execution capabilities while retaining the original business network."""
+    zone = el(root.find(f".//{tag('g')}[@class='module-zones']"), "g",
+              **{"class": "module-region", "data-module": "agent"})
+    box(zone, 80, 2540, 3440, 750, "#F0F4F1", "#9AAFA7", stroke_dasharray="10 7", stroke_width=2)
+    group = el(main, "g", **{"class": "agent-architecture"})
+    txt(group, 110, 2585, "对话助理与授权执行模块", 29, font_weight=600)
+    badge(group, 565, 2560, "partial")
+    txt(group, 3490, 2585, "复用上方业务对象与状态，不另建第二套业务数据", 22, "#526575", text_anchor="end")
+    links = el(group, "g", **{"class": "agent-links"})
+    for a, b, route, both in [
+        ("agent-chat", "agent-coordinator", "M 860 2720 H 1000", False),
+        ("agent-coordinator", "agent-specialists", "M 1640 2720 H 1780", False),
+        ("agent-specialists", "agent-policy", "M 2635 2840 V 2865 H 550 V 2920", False),
+        ("agent-chat", "agent-policy", "M 460 2820 V 2920", True),
+        ("agent-policy", "agent-gateway", "M 960 3040 H 1080", False),
+    ]:
+        g = el(links, "g", **{"class": "edge", "data-from": a, "data-to": b, "data-status": "done"})
+        attrs = {"marker-end": "url(#runtime-arrow)"}
+        if both:
+            attrs["marker-start"] = "url(#runtime-arrow)"
+        el(g, "path", d=route, fill="none", stroke="#638092", stroke_width=2.5, **attrs)
+    txt(group, 930, 2701, "目标", 21, "#526575", text_anchor="middle")
+    txt(group, 1710, 2701, "顺序委派", 21, "#526575", text_anchor="middle")
+    txt(group, 435, 2902, "问题 / 审批 ↔ 回答", 21, "#526575", text_anchor="end")
+    txt(group, 1820, 2898, "类型化工具调用 → 身份 / 模式 / 快照核对", 21, "#526575", text_anchor="middle")
+    txt(group, 1020, 3021, "准入", 21, "#526575", text_anchor="middle")
+    cards = [
+        ("agent-chat", 110, 2630, 750, 190, "师生对话与文件", "system", [
+            ("done", "消息 / 附件 / 模型选择 / 业务事件SSE"),
+            ("done", "文本 / 单选 / 多选问题卡；逐操作审批"),
+            ("done", "持久历史 / 草稿恢复 / 私有下载与CSV")]),
+        ("agent-coordinator", 1000, 2630, 640, 190, "协调Agent与持久运行时", "ai", [
+            ("done", "完整目标 + 已验证补充回答"),
+            ("done", "单层顺序委派 / 限额 / 后台等待"),
+            ("done", "检查点 / 取消 / 显式恢复")]),
+        ("agent-specialists", 1780, 2630, 1710, 210, "四领域专家 → 上方业务模块", "ai", [
+            ("done", "资料与知识 → 学习资料 / 知识审核 / 专题库 / 来源生命周期"),
+            ("done", "题目与标准 → 独立题库 / 参考解答 / 标准版本；不读待评作答"),
+            ("done", "作业与评阅 → 作业 / 固定标准 / 评分 / 整组重评 / 正式结果导出"),
+            ("done", "学习支持 → RAG答疑 / 笔记 / 正式证据 / 规则路径 / 补学任务")]),
+        ("agent-policy", 110, 2920, 850, 240, "类型化工具与权限门禁", "teacher", [
+            ("done", "read-only / auto-review / full-access"),
+            ("done", "auto-review为确定性风险门禁"),
+            ("done", "正式确认 / 发布始终逐操作批准"),
+            ("done", "角色 / 课程 / 本人 / 参数快照重核")]),
+        ("agent-gateway", 1080, 2920, 680, 240, "业务Gateway与真实回执", "system", [
+            ("done", "重走原路由 → 已有领域数据"),
+            ("done", "后台任务等到真实终态才报完成"),
+            ("done", "未知写操作不重放；保留已完成业务"),
+            ("done", "已读作答会话禁止出题与标准工具")]),
+        ("agent-coverage", 1880, 2920, 1610, 240, "对话代办覆盖与扩展边界", "system", [
+            ("done", "资料 / 知识 / 题目 / 标准 / 作业 / 评分 / 学习的已登记工具"),
+            ("done", "整卷采纳、学生正式提交及部分课程维护继续使用既有页面"),
+            ("planned", "全站所有动作工具化；长会话历史分页"),
+            ("planned", "供应商token流（当前是非流式模型调用 + 业务事件SSE）")]),
+    ]
+    for name, x, y, w, h, title, role, lines in cards:
+        g = el(group, "g", **{"class": "node", "data-node": name, "data-module": "agent",
+                               "role": "button", "tabindex": "0", "aria-label": title})
+        node_content(g, x, y, w, h, title, lines, role, compact=True)
+    call = el(group, "g", **{"class": "runtime-connections"})
+    el(call, "path", d="M 1440 3160 V 3430", fill="none", stroke="#638092", stroke_width=2.5,
+       marker_start="url(#runtime-arrow)", marker_end="url(#runtime-arrow)")
+    txt(group, 1470, 3320, "调用业务 / 返回真实结果", 21, "#526575")
 
 
 def panorama():
@@ -190,30 +260,33 @@ def panorama():
     main = root.find(tag("g"))
     for t in root.iter(tag("text")):
         if t.text == "目标设计":
-            t.text = "本地实现状态 · 2026-11-12"
+            t.text = f"本地实现 · {AS_OF} · {CODE_BASELINE}"
         elif t.text == "HaJi Mark · 全系统业务与智能数据关系图":
             t.text = "HaJi Mark · 全景业务与实现架构图"
         elif t.text == "学习推荐与补练生成":
             t.text = "规则学习路径与补练"
         elif t.text == "AI处理":
             t.text = "AI功能"
+        elif t.text and t.text.startswith("课程 / 章节目录"):
+            t.text = "课程 / 章节目录 / 知识点依赖 / 成员权限 / 公告答疑 / 人工教研与行业记录"
     for g in root.iter(tag("g")):
         if g.get("class") == "module-label" and g.get("data-module") == "shared":
             g.set("transform", "translate(1480 0)")
     # Place the status legend in existing whitespace; role colors remain unchanged.
     lg = el(main, "g", **{"class": "implementation-legend"})
     legend(lg, 198)
-    txt(lg, 3520, 198, "节点内圆点逐项标状态；非公网部署状态", 22, "#62656A", text_anchor="end")
+    txt(lg, 3520, 198, "实现状态对应所列能力；非模型质量或公网状态", 22, "#62656A", text_anchor="end")
+    badge(lg, 1870, 120, "done")
     # Expand only the old shared-base area; all business geometry stays intact.
-    root.set("height", "3250")
-    root.set("viewBox", "0 0 3600 3250")
-    main.find(tag("rect")).set("height", "3250")
+    root.set("height", "4050")
+    root.set("viewBox", "0 0 3600 4050")
+    main.find(tag("rect")).set("height", "4050")
     for child in list(main):
         if ((child.tag == tag("rect") and child.get("y") == "2540")
                 or (child.tag == tag("text") and child.text
                     and (child.text == "共享运行底座" or child.text.startswith("PostgreSQL：业务")))):
             main.remove(child)
-    runtime = el(main, "g", **{"class": "runtime-architecture"})
+    runtime = el(main, "g", transform="translate(0 800)", **{"class": "runtime-architecture"})
     box(runtime, 80, 2540, 3440, 610, "#EAE9E3", rx=10)
     txt(runtime, 110, 2585, "共享运行架构 · Go单体 + 独立worker · Docker Compose", 29, font_weight=600)
     defs = root.find(tag("defs"))
@@ -237,19 +310,19 @@ def panorama():
         el(connections, "path", d=route, fill="none", stroke="#638092", stroke_width=2, **attrs)
     components = [
         ("web", 110, 2630, 600, 190, "浏览器 / Nginx Web", "system", [
-            "React / TypeScript / Ant Design", "教师工作区 / 学生工作区", "同源请求；会话与编辑恢复"]),
+            "React / TypeScript / Ant Design", "师生表单 / 课程助理 / 业务SSE", "同源请求；持久对话与编辑恢复"]),
         ("api", 830, 2630, 800, 190, "Go / Gin API", "system", [
-            "会话 / 角色 / 课程 / CSRF", "同步事务 / 固定版本 / 整组发布", "sqlc / pgx；机械核对与教师状态"]),
+            "会话 / 角色 / 课程 / CSRF", "同步事务 / 固定版本 / 整组发布", "sqlc / pgx；业务Gateway与教师状态"]),
         ("worker", 1830, 2630, 800, 190, "Go worker / Asynq", "system", [
             "本地Python解析 / 中文OCR / 图像裁剪", "索引 / 提炼 / 出题 / 标准 / 评阅", "PG持久任务 + Redis执行队列"]),
         ("models", 2830, 2630, 660, 190, "第三方模型 API", "ai", [
-            "Embedding / 生成 / 视觉分别选择", "服务端profile / 模型 / 维度 / 凭据", "累计50元预算：事务预留 → 结算"]),
+            "Embedding / 生成 / 视觉；推理非流式", "服务端profile / 模型 / 维度 / 凭据", "累计50元预算：事务预留 → 结算"]),
         ("postgres", 830, 2890, 800, 160, "PostgreSQL / pgvector", "data", [
-            "业务 / 版本 / 权限 / 任务 / 预算账", "pgvector精确余弦 / 中文GIN索引"]),
+            "业务 / 版本 / 任务 / 预算 / 对话与审批", "pgvector精确余弦 / 中文GIN索引"]),
         ("redis", 1830, 2890, 800, 160, "Redis / Asynq", "data", [
             "队列投递 / 领取 / 执行；AOF持久化", "失联任务状态由PG核对与恢复"]),
         ("files", 2830, 2890, 660, 160, "共享文件卷", "data", [
-            "原件 / 网页快照 / 图像与裁剪定位", "API与worker共享；保留历史"]),
+            "原件 / 网页快照 / 图像 / 私有附件 / CSV", "API与worker共享；授权下载，保留历史"]),
     ]
     for name, x, y, w, h, title, role, lines in components:
         component = el(runtime, "g", **{"class": "runtime-component", "data-component": name})
@@ -259,7 +332,7 @@ def panorama():
         for i, line in enumerate(lines):
             assert width(line, 22) <= w-48, f"Runtime text overflow: {name}: {line}"
             txt(component, x+24, y+80+i*32, line, 22, muted)
-    for x, y, label in [(2200, 2600, "同步问答 / 查询向量"),
+    for x, y, label in [(2200, 2600, "同步问答 / 查询向量 / Agent推理"),
                          (770, 2703, "HTTP"), (1730, 2693, "任务ID"),
                          (1730, 2770, "Redis / Asynq"), (2730, 2703, "模型调用"),
                          (1350, 2867, "业务 / 事务"), (1730, 2850, "任务 / 预算 / 索引"),
@@ -269,7 +342,7 @@ def panorama():
     txt(runtime, 110, 2971, "web / api / worker / postgres / redis", 22, "#526575")
     txt(runtime, 110, 3006, "migrate一次性执行；具名数据卷", 22, "#526575")
     txt(runtime, 110, 3107, "中断恢复：生成失败显式重试 · 解析 / 索引幂等恢复 · 未知调用按预留保守结算一次 · 评分草稿须教师确认发布", 23, "#526575")
-    txt(main, 110, 3200, "可靠原文直接索引；问答、出题与标准共用权限RAG（Go内RRF融合）；评阅只读冻结依据，不临时检索追加扣分点。", 23, "#526575")
+    txt(main, 110, 4000, "可靠原文直接索引；问答、出题与标准共用权限RAG（Go内RRF融合）；评阅只读冻结依据，不临时检索追加扣分点。", 23, "#526575")
     changes = {
         ("ingest", "knowledge-review"): "按需提炼 / 分类 / 关联候选",
         ("ingest", "materials"): "可靠原文 · 教师独立发布",
@@ -308,8 +381,8 @@ def panorama():
             tw, cx = width(t.text, 22), float(t.get("x"))
             r.set("x", str(cx - tw / 2 - 9))
             r.set("width", str(tw + 18))
-    root.find(tag("title")).text = "HaJi Mark 全景关系网 · 本地实现状态"
-    root.find(tag("desc")).text = "保留19个业务节点和42条关系，逐项标注本地已实现及待实现。学习资料、知识库、独立题库经版本与权限RAG关联，贯通作业、评阅、反馈及干预。"
+    root.find(tag("title")).text = f"HaJi Mark 全景关系网 · {AS_OF} 本地实现状态"
+    root.find(tag("desc")).text = "保留19个原业务节点与42条关系，新增对话助理与授权执行层；按完全实现、部分实现、未实现逐项标注。"
     for cls in ("node", "edge"):
         def identities(tree):
             return [(e.get("data-node"), e.get("data-from"), e.get("data-to"))
@@ -321,6 +394,7 @@ def panorama():
     def regions(tree):
         return [ET.tostring(g, encoding="unicode") for g in tree.iter(tag("g")) if g.get("class") == "module-region"]
     assert regions(root) == regions(original), "Original module boundaries changed"
+    agent_layer(main, root)
     return root
 
 
@@ -335,7 +409,7 @@ class Figure:
         self.main = el(self.root, "g", font_family="Microsoft YaHei, sans-serif")
         box(self.main, 0, 0, 2400, height, "#F7F6F2", rx=0)
         txt(self.main, 80, 76, title, 40, font_weight=600)
-        txt(self.main, 2320, 76, "2026-11-12 · 本地", 23, "#62656A", text_anchor="end")
+        txt(self.main, 2320, 76, f"{AS_OF} · 本地", 23, "#62656A", text_anchor="end")
         legend(self.main, 136, detailed=True)
         self.edges = el(self.main, "g", **{"class": "links"})
         self.nodes = el(self.main, "g", **{"class": "nodes"})
@@ -575,12 +649,12 @@ def main():
         report.append({"file": filename, "nodes": sum(e.get("class")=="node" for e in root.iter()),
                        "edges": sum(e.get("class")=="edge" for e in root.iter()),
                        "size": [int(root.get("width")), int(root.get("height"))]})
-    modules = [("materials","学习资料"),("knowledge","知识库"),("questions","题目与标准"),("learning","学习与答疑"),("assignments","作业测验"),("grading","评阅反馈"),("intervention","推荐干预"),("diagnosis","学情诊断")]
+    modules = [("materials","学习资料"),("knowledge","知识库"),("questions","题目与标准"),("learning","学习与答疑"),("assignments","作业测验"),("grading","评阅反馈"),("intervention","推荐干预"),("diagnosis","学情诊断"),("agent","对话与授权执行")]
     html = VIEWER.replace("TABS", "".join(f'<button data-index="{i}">{label}</button>' for i,(_,label,_) in enumerate(FIGURES)))
     html = html.replace("MODULES", "".join(f'<option value="{k}">{v}</option>' for k,v in modules))
     html = html.replace("PANELS", "".join(panels)).replace("FILES", json.dumps([f[0] for f in FIGURES], ensure_ascii=False))
     (OUT / "index.html").write_text(html, encoding="utf-8")
-    (OUT / "structure-check.json").write_text(json.dumps({"scope":"local-implementation", "date":"2026-11-12", "original_network_preserved":True, "original_edge_routes_preserved":True, "original_module_boundaries_preserved":True, "figures":report}, ensure_ascii=False, indent=2), encoding="utf-8")
+    (OUT / "structure-check.json").write_text(json.dumps({"scope":"local-implementation", "date":AS_OF, "code_baseline":CODE_BASELINE, "original_business_nodes":19, "original_business_edges":42, "added_agent_nodes":6, "added_agent_edges":5, "original_network_preserved":True, "original_edge_routes_preserved":True, "original_module_boundaries_preserved":True, "figures":report}, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False))
 
 

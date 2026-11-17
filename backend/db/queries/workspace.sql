@@ -16,7 +16,7 @@ LIMIT sqlc.arg(page_size) OFFSET sqlc.arg(page_offset);
 
 -- name: ListSubmissionWorklist :many
 SELECT s.id,s.assignment_id,s.question_id,s.student_id,s.attempt,s.status,s.submitted_at,
- u.display_name AS student_name,q.prompt,
+ u.display_name AS student_name,q.prompt,EXISTS(SELECT 1 FROM submission_import_items i WHERE i.submission_id=s.id) AS teacher_imported,
  COALESCE(g.state,'pending')::text AS review_state,
  count(*) OVER()::int AS total
 FROM submissions s JOIN users u ON u.id=s.student_id JOIN questions q ON q.id=s.question_id

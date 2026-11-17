@@ -2,7 +2,7 @@
 
 ## 对话助理（2026-11-17，本地）
 
-先执行迁移00013；既有00001—00012不修改，新迁移从00014开始。默认Compose仍可运行人工业务；`compose.rag.yaml`显式启用RAG和`AGENT_ENABLED=true`，沿用忽略的模型密钥文件与共享50元账本。助理由API进程的关闭上下文管理，不另起Agent服务。运行时、模型／工具协议和三种模式见[助理说明](agent-harness.md)。
+先执行到迁移00014；既有00001—00013不修改，新迁移从00015开始。默认Compose仍可运行人工业务；`compose.rag.yaml`显式启用RAG和`AGENT_ENABLED=true`，沿用忽略的模型密钥文件与共享50元账本。助理由API进程的关闭上下文管理，不另起Agent服务。运行时、模型／工具协议和三种模式见[助理说明](agent-harness.md)。
 
 ```powershell
 docker compose -f compose.yaml -f compose.rag.yaml build api
@@ -21,6 +21,8 @@ docker compose -f compose.yaml -f compose.rag.yaml up -d --no-build api worker w
 `node scripts/check-agent-polish.cjs`验证草稿切换／刷新、UTF-8上限、失败发送重试、账号与课程隔离、多轮消息顺序、折叠审批和真实下载；仅拦截消息POST制造503，避免意外模型调用。需要已有`.local/agent-acceptance.json`及S1账号，保留带标签的私有上传和两个空对话，报告写入`.local/agent-polish/`并归档上一次结果。人工验收顺序见[助理说明](agent-harness.md#本地人工验收)。
 
 API清单：`python -B scripts/api-inventory.py`。架构图：`python -B docs/diagrams/generate-agent.py`、`node docs/diagrams/render-agent.cjs`；保留原全景与历史图册。源码／文档变更后运行`python -B scripts/check_docs.py`及工作区`check --repo`。
+
+本轮新增`node scripts/check-completion-browser.cjs`，检查批量导入预览/确认、正式评分点名单与证据、独立问答历史、长会话分页及学习路径的精炼知识链接。只访问本机18080；真实提交与评分经API，长历史/知识可见性使用新课程内明确标记的构造数据，不调用模型或删除记录。结果见`.local/completion/report.json`与[收口记录](research/partial-completion-2026-11-17.md)。Docker无法连接默认Go代理时可在单次构建加`--build-arg GOPROXY=https://goproxy.cn,direct`；不修改生产配置。
 
 ## Git 手动同步约定
 

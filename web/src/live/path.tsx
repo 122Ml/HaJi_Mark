@@ -1,8 +1,9 @@
-import { Button, Card, Collapse } from "antd";
+import { Button, Card, Collapse, List, Tag } from "antd";
 import { LoadingState, ErrorState, EmptyState, MetaTag, MetaTags, StatusTag } from "../shared/ui";
 import { Link } from "./context";
 import { useLiveQuery, useAction, Feedback, when } from "./context";
 import type { Resource } from "./course";
+import type { Knowledge } from "./knowledge";
 interface PathData {
   path: { id: string; created_at: string; rule_version: string };
   items: {
@@ -16,19 +17,21 @@ interface PathData {
 export function StudyPath() {
   const query = useLiveQuery<PathData | null>("/path");
   const resources = useLiveQuery<Resource[]>("/resources");
+  const knowledge = useLiveQuery<Knowledge[]>("/knowledge");
   const events =
     useLiveQuery<{ resource_id: string; verb: string }[]>("/events");
   const action = useAction();
-  if (query.isPending || resources.isPending || events.isPending)
+  if (query.isPending || resources.isPending || events.isPending || knowledge.isPending)
     return <LoadingState />;
-  if (query.error || resources.error || events.error)
+  if (query.error || resources.error || events.error || knowledge.error)
     return (
       <ErrorState
-        message={(query.error || resources.error || events.error)!.message}
+        message={(query.error || resources.error || events.error || knowledge.error)!.message}
         onRetry={() => {
           void query.refetch();
           void resources.refetch();
           void events.refetch();
+          void knowledge.refetch();
         }}
       />
     );
@@ -80,6 +83,7 @@ export function StudyPath() {
               resources.data?.filter(
                 (r) => r.knowledge_point_id === p.knowledge_point_id,
               ) || [];
+            const relatedKnowledge = (knowledge.data || []).filter(k => k.knowledge_point_ids.includes(p.knowledge_point_id));
             return (
               <Card className="card-panel" key={p.knowledge_point_id} title={<h2>
                   {i + 1}. {p.title}
@@ -87,6 +91,9 @@ export function StudyPath() {
 
                 <p>{p.reason}</p>
                 <p>{p.description}</p>
+                <Collapse items={[{ key: "knowledge", label: `关联精炼知识（${relatedKnowledge.length}）`, children: relatedKnowledge.length ?
+                  <List dataSource={relatedKnowledge} pagination={{ pageSize: 5, size: "small" }} renderItem={k => <List.Item actions={[<Link key="read" to={`/student/knowledge?knowledge=${k.id}`}>阅读知识</Link>]}><List.Item.Meta title={<>{k.title} <Tag>v{k.version}</Tag></>} description={k.conditions || "按教师确认的知识点关联推荐"} /></List.Item>} /> :
+                  <EmptyState title="暂无可见的关联知识">教师确认并关联知识点后会显示在这里，现有资料学习不受影响。</EmptyState> }]} />
                 {linked.length ? (
                   linked.map((r) => (
                     <div className="live-row" key={r.id}>

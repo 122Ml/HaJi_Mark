@@ -27,6 +27,7 @@ import { MaterialAssets } from "./material-assets";
 import { URLImport, SourceSuggestions } from "./material-assist";
 import { KnowledgeReview } from "./knowledge-review";
 import { RichContent } from "./content-render";
+import { RetrievalHistory } from "./retrieval-history";
 import { CourseWorkspace } from "./course";
 
 type Profile = { id: string; label: string; kind: string; available: boolean };
@@ -1617,6 +1618,7 @@ export function RetrievalPage() {
               const r = await action.run<AssistAnswer>("/assist", {
                 topic: query,
                 profile_id: model,
+                request_id: crypto.randomUUID(),
               });
               if (r) {
                 setAnswer(r);
@@ -1662,6 +1664,7 @@ export function RetrievalPage() {
           ))}
         </Card>
       )}
+      <RetrievalHistory renderAnswer={saved => <GroundedAnswer answer={saved} />} reuse={(text) => { setQuery(text); setAnswer(null); setResult(null); window.scrollTo({ top: 0, behavior: "auto" }); }} />
     </div>
   );
 }

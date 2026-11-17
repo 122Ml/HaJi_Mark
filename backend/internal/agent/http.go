@@ -2,6 +2,7 @@ package agent
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func (s *Service) Register(api *gin.RouterGroup, auth *identity.Handler) {
@@ -96,7 +98,13 @@ func (s *Service) status(c *gin.Context) {
 	c.JSON(200, gin.H{"data": gin.H{"configured": s.Model != nil, "profiles": profiles, "tools": tools, "limits": gin.H{"steps": maxOperations, "model_calls": maxModelCalls, "delegation_depth": 1, "file_mib": 30, "attachment_count": 30}}})
 }
 func (s *Service) conversations(c *gin.Context) {
-	v, e := s.Q.ListAgentConversations(c.Request.Context(), store.ListAgentConversationsParams{CourseID: c.Param("courseID"), OwnerID: identity.Current(c).ID})
+	size, e := strconv.Atoi(c.DefaultQuery("size", "100"))
+	offset, e2 := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if e != nil || e2 != nil || size < 1 || size > 100 || offset < 0 || offset > 1000000 || len(c.Query("search")) > 200 {
+		fail(c, 422, "对话分页或搜索参数无效")
+		return
+	}
+	v, e := s.Q.ListAgentConversationPage(c.Request.Context(), store.ListAgentConversationPageParams{CourseID: c.Param("courseID"), OwnerID: identity.Current(c).ID, Search: c.Query("search"), PageSize: int32(size), PageOffset: int32(offset)})
 	data(c, v, e)
 }
 func validMode(mode, role string) bool {
@@ -182,36 +190,81 @@ func (s *Service) conversation(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
+	before := struct {
+		Time time.Time `json:"time"`
+		ID   string    `json:"id"`
+	}{Time: time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC), ID: "~"}
+	if cursor := c.Query("before"); cursor != "" {
+		raw, err := base64.RawURLEncoding.DecodeString(cursor)
+		if err != nil || len(raw) > 256 || json.Unmarshal(raw, &before) != nil || before.Time.IsZero() || before.ID == "" {
+			fail(c, 422, "历史游标无效，请重新打开对话")
+			return
+		}
+	}
+	timeline, e := s.Q.ListAgentTimeline(ctx, store.ListAgentTimelineParams{ConversationID: conv.ID, BeforeTime: pgtype.Timestamptz{Time: before.Time, Valid: true}, BeforeID: before.ID})
+	if e != nil {
+		data(c, nil, e)
+		return
+	}
+	hasMore := len(timeline) > 50
+	if hasMore {
+		timeline = timeline[:50]
+	}
+	messageIDs, runIDs := []string{}, []string{}
+	for _, item := range timeline {
+		if item.Kind == "message" {
+			messageIDs = append(messageIDs, item.ID)
+		} else {
+			runIDs = append(runIDs, item.ID)
+		}
+	}
+	nextCursor := ""
+	if hasMore {
+		last := timeline[len(timeline)-1]
+		raw, _ := json.Marshal(struct {
+			Time time.Time `json:"time"`
+			ID   string    `json:"id"`
+		}{last.CreatedAt.Time, last.ID})
+		nextCursor = base64.RawURLEncoding.EncodeToString(raw)
+	}
 	// All private runtime fields (session references and model reasoning) stay server-side.
-	messages, e := s.Q.ListAgentMessages(ctx, conv.ID)
+	messages, e := s.Q.ListAgentPageMessages(ctx, store.ListAgentPageMessagesParams{ConversationID: conv.ID, Ids: messageIDs})
 	if e != nil {
 		data(c, nil, e)
 		return
 	}
-	runs, e := s.Q.ListAgentRuns(ctx, conv.ID)
+	runs, e := s.Q.ListAgentPageRuns(ctx, store.ListAgentPageRunsParams{ConversationID: conv.ID, Ids: runIDs})
 	if e != nil {
 		data(c, nil, e)
 		return
 	}
-	steps, e := s.Q.ListAgentSteps(ctx, conv.ID)
+	runIDs = runIDs[:0]
+	for _, run := range runs {
+		runIDs = append(runIDs, run.ID)
+	}
+	steps, e := s.Q.ListAgentPageSteps(ctx, runIDs)
 	if e != nil {
 		data(c, nil, e)
 		return
 	}
-	requests, e := s.Q.ListAgentRequests(ctx, conv.ID)
+	requests, e := s.Q.ListAgentPageRequests(ctx, runIDs)
 	if e != nil {
 		data(c, nil, e)
 		return
 	}
-	attachments, e := s.Q.ListAgentAttachments(ctx, conv.ID)
+	attachmentIDs := []string{}
+	for _, message := range messages {
+		attachmentIDs = append(attachmentIDs, message.AttachmentIds...)
+	}
+	attachments, e := s.Q.ListAgentPageAttachments(ctx, store.ListAgentPageAttachmentsParams{ConversationID: conv.ID, Ids: attachmentIDs})
 	if messages == nil {
 		messages = []store.AgentMessage{}
 	}
 	if runs == nil {
-		runs = []store.ListAgentRunsRow{}
+		runs = []store.ListAgentPageRunsRow{}
 	}
 	if attachments == nil {
-		attachments = []store.ListAgentAttachmentsRow{}
+		attachments = []store.ListAgentPageAttachmentsRow{}
 	}
 	publicSteps := []gin.H{}
 	for _, step := range steps {
@@ -235,7 +288,7 @@ func (s *Service) conversation(c *gin.Context) {
 		}
 		publicRuns = append(publicRuns, gin.H{"id": run.ID, "request_id": run.RequestID, "state": run.State, "error": run.Error, "cancel_requested": run.CancelRequested, "created_at": run.CreatedAt, "can_resume": canResume})
 	}
-	data(c, gin.H{"conversation": conv, "messages": messages, "runs": publicRuns, "steps": publicSteps, "requests": publicRequests, "attachments": attachments}, e)
+	data(c, gin.H{"conversation": conv, "messages": messages, "runs": publicRuns, "steps": publicSteps, "requests": publicRequests, "attachments": attachments, "has_more": hasMore, "next_cursor": nextCursor}, e)
 }
 
 func resumable(rt runtime) bool {

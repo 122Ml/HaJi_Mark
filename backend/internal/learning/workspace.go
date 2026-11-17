@@ -110,7 +110,7 @@ func (h *Handler) interventionEvidence(c *gin.Context) {
 			return
 		}
 		for _, v := range rows {
-			if item.AssignedAt.Valid && v.SubmittedAt.Time.Compare(item.AssignedAt.Time) >= 0 {
+			if !v.TeacherImported && item.AssignedAt.Valid && v.SubmittedAt.Time.Compare(item.AssignedAt.Time) >= 0 {
 				submissions = append(submissions, gin.H{"id": v.ID, "question_id": v.QuestionID, "attempt": v.Attempt, "submitted_at": v.SubmittedAt})
 			}
 		}

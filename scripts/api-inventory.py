@@ -32,7 +32,9 @@ DESCRIPTIONS = {
     'createIntervention':'创建补学补练任务草稿', 'interventionState':'按角色下发、提交完成、复核任务',
     'interactions':'读取课程答疑互动', 'createInteraction':'按角色提交问题/回复',
     'overview':'查询班级学情汇总', 'evidence':'读取授权评分表现及证据', 'assistStatus':'查询助教是否配置',
-    'assist':'课程RAG问答；检索后一次生成，校验原文引用', 'research':'读取教研记录',
+    'assist':'幂等课程RAG问答；核对引用并保存本人历史', 'assistHistory':'分页读取本人课程问答历史',
+    'assistTurn':'读取本人问答、引用快照及生成状态', 'submissionImports':'查询本作业教师导入审计',
+    'importSubmissions':'预览核对或原子确认导入文本作答；保留来源与新attempt', 'research':'读取教研记录',
     'createResearch':'新增/修改人工教研记录', 'deleteResearch':'删除教研记录',
     'industry':'读取行业案例', 'createIndustry':'新增/修改人工行业案例', 'deleteIndustry':'删除行业案例',
     'models':'查询模型profile及预算/调用台账（没有配置修改接口）', 'sources':'查询原件列表',
@@ -122,6 +124,7 @@ for file in FILES:
             if handler in ['createRAGJob','createBankJob','regradeAI','retryJob']: mode = 'HTTP JSON返回任务ID → Asynq → 前端轮询'
             if handler in ['jobs','job']: mode = 'HTTP JSON；后台状态读取/轮询'
             if handler == 'assist': mode = 'HTTP同步；RAG＋非流式Chat；返回JSON'
+            if handler == 'importSubmissions': mode = 'HTTP JSON；CSV预览哈希 → 显式确认 → 幂等整批事务'
             if handler in ['retrieval','bankEvidence']: mode = 'HTTP同步；关键词/向量检索；可能调用Embedding'
             if file == 'agent/http.go':
                 mode = 'HTTP JSON；持久对话及权限门禁'

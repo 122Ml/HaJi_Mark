@@ -1,8 +1,8 @@
 # 当前 API 全量清单
 
-盘点日期：2026-11-17；注册入口内容 SHA256：`cb2ae5efce29192ad46f77ab6c9421f1a62c6637f66dad40c89cc64dc3fec594`。
+盘点日期：2026-11-17；注册入口内容 SHA256：`b0abefb41e313bcfedf12a74f8d262bb2b560beb8ee935961aa27f6221f36a63`。
 
-共 **141 个 method + path**，方法统计：`{"GET": 61, "POST": 62, "DELETE": 3, "PUT": 14, "PATCH": 1}`。
+共 **145 个 method + path**，方法统计：`{"GET": 64, "POST": 63, "DELETE": 3, "PUT": 14, "PATCH": 1}`。
 
 依据 server.New 实际调用的注册入口展开角色循环；这是源码入口清单，不是线上调用量、生产启用证明或安全审计结论。
 
@@ -83,31 +83,35 @@ Agent审批和业务状态转换分别执行；审批通过后仍走原业务路
 | GET | `/api/v1/learning/courses/:courseID/assignments/:id/submissions` | 读取授权范围内的作答 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [submissions:66](../backend/internal/learning/http.go) |
 | GET | `/api/v1/learning/courses/:courseID/assignments/:id/roster` | 查询作业提交名单及未交情况 | 教师；本课程 | HTTP JSON；同步读取 | — | [roster:67](../backend/internal/learning/http.go) |
 | POST | `/api/v1/learning/courses/:courseID/assignments/:id/submissions` | 提交本人答案；客观题可按教师答案规则判分 | 学生；本人/本课程 | HTTP JSON；同步业务处理 | 是 | [submit:68](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/assignments/:id/questions/:questionID/draft` | 读取本人逐题草稿 | 学生；本人/本课程 | HTTP JSON；同步读取 | — | [draft:69](../backend/internal/learning/http.go) |
-| PUT | `/api/v1/learning/courses/:courseID/assignments/:id/questions/:questionID/draft` | 保存本人逐题草稿 | 学生；本人/本课程 | HTTP JSON；同步业务处理 | 是 | [saveDraft:70](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/submissions/:id` | 读取授权作答详情与可见评阅结果 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [submission:71](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/questions/:id/rubrics` | 读取作业题目的评分标准版本 | 教师；本课程 | HTTP JSON；同步读取 | — | [rubrics:72](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/questions/:id/rubrics` | 保存作业题目标准草稿/采纳AI草稿 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createRubric:73](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/rubrics/:id/confirm` | 确认评分标准版本 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [confirmRubric:74](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/submissions/:id/revisions` | 保存评分修订/采纳AI评分草稿 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [grade:75](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/revisions/:id/state` | 确认或发布评分修订 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [gradeState:76](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/interventions` | 读取授权补学补练任务 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [interventions:77](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/interventions` | 创建补学补练任务草稿 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createIntervention:78](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/interventions/:id/state` | 按角色下发、提交完成、复核任务 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步业务处理 | 是 | [interventionState:79](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/interactions` | 读取课程答疑互动 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [interactions:80](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/interactions` | 按角色提交问题/回复 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步业务处理 | 是 | [createInteraction:81](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/overview` | 查询班级学情汇总 | 教师；本课程 | HTTP JSON；同步读取 | — | [overview:82](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/evidence` | 读取授权评分表现及证据 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [evidence:83](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/assist` | 查询助教是否配置 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [assistStatus:84](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/assist` | 课程RAG问答；检索后一次生成，校验原文引用 | 师生；本课程；按对象/可见性过滤 | HTTP同步；RAG＋非流式Chat；返回JSON | 是 | [assist:85](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/research` | 读取教研记录 | 教师；本课程 | HTTP JSON；同步读取 | — | [research:86](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/research` | 新增/修改人工教研记录 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createResearch:87](../backend/internal/learning/http.go) |
-| PUT | `/api/v1/learning/courses/:courseID/research/:id` | 新增/修改人工教研记录 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createResearch:88](../backend/internal/learning/http.go) |
-| DELETE | `/api/v1/learning/courses/:courseID/research/:id` | 删除教研记录 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [deleteResearch:89](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/industry` | 读取行业案例 | 教师；本课程 | HTTP JSON；同步读取 | — | [industry:90](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/industry` | 新增/修改人工行业案例 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createIndustry:91](../backend/internal/learning/http.go) |
-| PUT | `/api/v1/learning/courses/:courseID/industry/:id` | 新增/修改人工行业案例 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createIndustry:92](../backend/internal/learning/http.go) |
-| DELETE | `/api/v1/learning/courses/:courseID/industry/:id` | 删除行业案例 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [deleteIndustry:93](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/assignments/:id/imports` | 查询本作业教师导入审计 | 教师；本课程 | HTTP JSON；同步读取 | — | [submissionImports:69](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/assignments/:id/import/:operation` | 预览核对或原子确认导入文本作答；保留来源与新attempt | 教师；本课程 | HTTP JSON；CSV预览哈希 → 显式确认 → 幂等整批事务 | 是 | [importSubmissions:70](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/assignments/:id/questions/:questionID/draft` | 读取本人逐题草稿 | 学生；本人/本课程 | HTTP JSON；同步读取 | — | [draft:71](../backend/internal/learning/http.go) |
+| PUT | `/api/v1/learning/courses/:courseID/assignments/:id/questions/:questionID/draft` | 保存本人逐题草稿 | 学生；本人/本课程 | HTTP JSON；同步业务处理 | 是 | [saveDraft:72](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/submissions/:id` | 读取授权作答详情与可见评阅结果 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [submission:73](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/questions/:id/rubrics` | 读取作业题目的评分标准版本 | 教师；本课程 | HTTP JSON；同步读取 | — | [rubrics:74](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/questions/:id/rubrics` | 保存作业题目标准草稿/采纳AI草稿 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createRubric:75](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/rubrics/:id/confirm` | 确认评分标准版本 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [confirmRubric:76](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/submissions/:id/revisions` | 保存评分修订/采纳AI评分草稿 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [grade:77](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/revisions/:id/state` | 确认或发布评分修订 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [gradeState:78](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/interventions` | 读取授权补学补练任务 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [interventions:79](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/interventions` | 创建补学补练任务草稿 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createIntervention:80](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/interventions/:id/state` | 按角色下发、提交完成、复核任务 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步业务处理 | 是 | [interventionState:81](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/interactions` | 读取课程答疑互动 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [interactions:82](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/interactions` | 按角色提交问题/回复 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步业务处理 | 是 | [createInteraction:83](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/overview` | 查询班级学情汇总 | 教师；本课程 | HTTP JSON；同步读取 | — | [overview:84](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/evidence` | 读取授权评分表现及证据 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [evidence:85](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/assist` | 查询助教是否配置 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [assistStatus:86](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/assist` | 幂等课程RAG问答；核对引用并保存本人历史 | 师生；本课程；按对象/可见性过滤 | HTTP同步；RAG＋非流式Chat；返回JSON | 是 | [assist:87](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/assist/history` | 分页读取本人课程问答历史 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [assistHistory:88](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/assist/history/:id` | 读取本人问答、引用快照及生成状态 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [assistTurn:89](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/research` | 读取教研记录 | 教师；本课程 | HTTP JSON；同步读取 | — | [research:90](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/research` | 新增/修改人工教研记录 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createResearch:91](../backend/internal/learning/http.go) |
+| PUT | `/api/v1/learning/courses/:courseID/research/:id` | 新增/修改人工教研记录 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createResearch:92](../backend/internal/learning/http.go) |
+| DELETE | `/api/v1/learning/courses/:courseID/research/:id` | 删除教研记录 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [deleteResearch:93](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/industry` | 读取行业案例 | 教师；本课程 | HTTP JSON；同步读取 | — | [industry:94](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/industry` | 新增/修改人工行业案例 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createIndustry:95](../backend/internal/learning/http.go) |
+| PUT | `/api/v1/learning/courses/:courseID/industry/:id` | 新增/修改人工行业案例 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createIndustry:96](../backend/internal/learning/http.go) |
+| DELETE | `/api/v1/learning/courses/:courseID/industry/:id` | 删除行业案例 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [deleteIndustry:97](../backend/internal/learning/http.go) |
 
 ## learning/materials.go
 
@@ -185,15 +189,15 @@ Agent审批和业务状态转换分别执行；审批通过后仍走原业务路
 
 | 方法 | 完整路径 | 功能 | 访问范围 | 调用方式 | CSRF | 代码 |
 |---|---|---|---|---|---|---|
-| GET | `/api/v1/learning/courses/:courseID/agent/status` | 读取可用模型、工具及运行上限 | 师生；本人对话；本课程；写入仍按业务身份授权 | HTTP JSON；持久对话及权限门禁 | — | [status:25](../backend/internal/agent/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/agent/conversations` | 列出本人课程对话 | 师生；本人对话；本课程；写入仍按业务身份授权 | HTTP JSON；持久对话及权限门禁 | — | [conversations:26](../backend/internal/agent/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/agent/conversations` | 新建对话 | 师生；本人对话；本课程；写入仍按业务身份授权 | HTTP JSON；持久对话及权限门禁 | 是 | [createConversation:27](../backend/internal/agent/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/agent/conversations/:conversationID` | 读取消息、运行、步骤及问题卡 | 师生；本人对话；本课程；写入仍按业务身份授权 | HTTP JSON；持久对话及权限门禁 | — | [conversation:28](../backend/internal/agent/http.go) |
-| PATCH | `/api/v1/learning/courses/:courseID/agent/conversations/:conversationID` | 切换模型与权限模式（空闲时） | 师生；本人对话；本课程；写入仍按业务身份授权 | HTTP JSON；持久对话及权限门禁 | 是 | [options:29](../backend/internal/agent/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/agent/conversations/:conversationID/messages` | 幂等提交消息并创建持久运行 | 师生；本人对话；本课程；写入仍按业务身份授权 | HTTP JSON返回run_id → PostgreSQL检查点 → 多Agent工具循环 | 是 | [send:30](../backend/internal/agent/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/agent/conversations/:conversationID/attachments` | 上传会话私有附件 | 师生；本人对话；本课程；写入仍按业务身份授权 | multipart上传；私有文件卷＋数据库元数据 | 是 | [upload:31](../backend/internal/agent/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/agent/conversations/:conversationID/attachments/:attachmentID/file` | 授权下载附件／反馈CSV | 师生；本人对话；本课程；写入仍按业务身份授权 | 授权HTTP文件响应 | — | [download:32](../backend/internal/agent/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/agent/conversations/:conversationID/events` | 按游标重放运行事件并保持SSE连接 | 师生；本人对话；本课程；写入仍按业务身份授权 | 业务事件SSE；游标重放、心跳与重连；非模型token流 | — | [stream:33](../backend/internal/agent/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/agent/runs/:runID/cancel` | 请求停止运行，保留已完成业务 | 师生；本人对话；本课程；写入仍按业务身份授权 | HTTP JSON；持久对话及权限门禁 | 是 | [cancel:34](../backend/internal/agent/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/agent/runs/:runID/resume` | 显式恢复可恢复检查点 | 师生；本人对话；本课程；写入仍按业务身份授权 | HTTP JSON；持久对话及权限门禁 | 是 | [resume:35](../backend/internal/agent/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/agent/requests/:requestID/respond` | 提交问题答案或批准／拒绝具体操作 | 师生；本人对话；本课程；写入仍按业务身份授权 | HTTP JSON → 参数／业务快照核验 → 恢复原运行 | 是 | [respond:36](../backend/internal/agent/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/agent/status` | 读取可用模型、工具及运行上限 | 师生；本人对话；本课程；写入仍按业务身份授权 | HTTP JSON；持久对话及权限门禁 | — | [status:27](../backend/internal/agent/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/agent/conversations` | 列出本人课程对话 | 师生；本人对话；本课程；写入仍按业务身份授权 | HTTP JSON；持久对话及权限门禁 | — | [conversations:28](../backend/internal/agent/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/agent/conversations` | 新建对话 | 师生；本人对话；本课程；写入仍按业务身份授权 | HTTP JSON；持久对话及权限门禁 | 是 | [createConversation:29](../backend/internal/agent/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/agent/conversations/:conversationID` | 读取消息、运行、步骤及问题卡 | 师生；本人对话；本课程；写入仍按业务身份授权 | HTTP JSON；持久对话及权限门禁 | — | [conversation:30](../backend/internal/agent/http.go) |
+| PATCH | `/api/v1/learning/courses/:courseID/agent/conversations/:conversationID` | 切换模型与权限模式（空闲时） | 师生；本人对话；本课程；写入仍按业务身份授权 | HTTP JSON；持久对话及权限门禁 | 是 | [options:31](../backend/internal/agent/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/agent/conversations/:conversationID/messages` | 幂等提交消息并创建持久运行 | 师生；本人对话；本课程；写入仍按业务身份授权 | HTTP JSON返回run_id → PostgreSQL检查点 → 多Agent工具循环 | 是 | [send:32](../backend/internal/agent/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/agent/conversations/:conversationID/attachments` | 上传会话私有附件 | 师生；本人对话；本课程；写入仍按业务身份授权 | multipart上传；私有文件卷＋数据库元数据 | 是 | [upload:33](../backend/internal/agent/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/agent/conversations/:conversationID/attachments/:attachmentID/file` | 授权下载附件／反馈CSV | 师生；本人对话；本课程；写入仍按业务身份授权 | 授权HTTP文件响应 | — | [download:34](../backend/internal/agent/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/agent/conversations/:conversationID/events` | 按游标重放运行事件并保持SSE连接 | 师生；本人对话；本课程；写入仍按业务身份授权 | 业务事件SSE；游标重放、心跳与重连；非模型token流 | — | [stream:35](../backend/internal/agent/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/agent/runs/:runID/cancel` | 请求停止运行，保留已完成业务 | 师生；本人对话；本课程；写入仍按业务身份授权 | HTTP JSON；持久对话及权限门禁 | 是 | [cancel:36](../backend/internal/agent/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/agent/runs/:runID/resume` | 显式恢复可恢复检查点 | 师生；本人对话；本课程；写入仍按业务身份授权 | HTTP JSON；持久对话及权限门禁 | 是 | [resume:37](../backend/internal/agent/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/agent/requests/:requestID/respond` | 提交问题答案或批准／拒绝具体操作 | 师生；本人对话；本课程；写入仍按业务身份授权 | HTTP JSON → 参数／业务快照核验 → 恢复原运行 | 是 | [respond:38](../backend/internal/agent/http.go) |

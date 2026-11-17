@@ -248,3 +248,13 @@ CO-01 发布 course demo-boundary 与资料版本 → AS-01 学生提交“测�
 实际验证与限制见[三模块验收](research/three-module-acceptance-2026-11-12.md)。
 
 模型中断恢复：worker将超过15分钟的生成类running任务转failed，等待显式重试；失联reserved调用转unknown并按预留额保守计费。恢复与后到结算均按调用状态保护，不能重复结算。parse/index保留幂等恢复。
+
+## 问答历史与作答导入（00014）
+
+- `POST /assist`可带`request_id`。同课程/本人/同请求的成功记录返回原回答；改变问题或模型返回409，已有失败/待核对记录不隐式重发。`GET /assist/history?page=&size=`返回`rows,total`，`GET /assist/history/:id`读取原问题、状态与回答快照；教师也不能读取另一人的历史。
+- `POST /assignments/:id/import/preview`接收`question_id,csv`，只核对返回`rows,valid,preview_hash,assignment_version`；列头固定`username,answer_text`，UTF-8，最多200行答案、512KiB。用户名必须为当前课程学生，拒绝重复、空白、NUL与超长答案。引号、空格、CRLF及多行原文保留。
+- `POST /assignments/:id/import/confirm`另带`preview_hash,request_id`；重新核对任务与当前次数，过期预览409；异常行422且整批不写入。整批回执`batch,submissions`，重复请求复用。题型限主观/代码文本，任务已发布未截止；无自动建号、覆盖或评分。
+- `GET /assignments/:id/imports`为教师审计；作答与队列增加`teacher_imported`，详情增加可空`import_origin`（批次/导入人/时间/源行）。事件actor为教师，verb为`submission.imported`；学生可看本人的导入事件，干预执行证据排除教师导入。
+- `GET /agent/conversations?size=&offset=&search=`仍返回本人对话数组；详情带`has_more,next_cursor`，用`?before=`取更早50个时间线条目。当前页消息/运行带完整步骤/问题卡，外加活跃和最近更新10次运行；前端按ID合并，不能累加当作总数。运行私有checkpoint/session/reasoning不返回。
+
+评分缺口以现有`/evidence`每人每题的最新有效正式结果为基础，按题/标准/评分点分组；只比较当前在课、该点有正式分值的记录，不把不同标准、未作答或无逐点反馈补成零分。规则路径使用现有`/knowledge`权限过滤，不输出不可见条目。

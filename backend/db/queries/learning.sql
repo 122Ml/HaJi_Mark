@@ -96,7 +96,7 @@ INSERT INTO submissions(id,assignment_id,question_id,course_id,student_id,attemp
 VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *;
 
 -- name: ListBusinessSubmissions :many
-SELECT s.*,u.display_name AS student_name FROM submissions s JOIN users u ON u.id=s.student_id
+SELECT s.*,u.display_name AS student_name,EXISTS(SELECT 1 FROM submission_import_items i WHERE i.submission_id=s.id) AS teacher_imported FROM submissions s JOIN users u ON u.id=s.student_id
 WHERE s.assignment_id=$1 AND (sqlc.arg(teacher)::boolean OR s.student_id=sqlc.arg(actor_id)) ORDER BY s.submitted_at DESC,s.id;
 
 -- name: LockBusinessAssignment :one
@@ -113,9 +113,10 @@ INSERT INTO grading_revisions(id,submission_id,revision,score,feedback,method,st
 VALUES($1,$2,1,$3,'根据教师已发布的标准答案自动判分','rule','released',$4,$5,now()) RETURNING *;
 
 -- name: CourseReleasedEvidence :many
-SELECT DISTINCT ON (s.student_id,s.question_id) s.id AS submission_id,s.student_id,s.question_id,s.answer_text,s.attempt,r.id AS revision_id,r.score,r.feedback,q.max_score,q.prompt,q.knowledge_point_id,q.resource_id,r.released_at,r.rubric_id,r.point_scores
+SELECT DISTINCT ON (s.student_id,s.question_id) s.id AS submission_id,s.student_id,s.question_id,s.answer_text,s.attempt,r.id AS revision_id,r.score,r.feedback,q.max_score,q.prompt,q.knowledge_point_id,q.resource_id,r.released_at,r.rubric_id,r.point_scores,rv.version AS rubric_version
 FROM submissions s JOIN questions q ON q.id=s.question_id
 JOIN LATERAL (SELECT * FROM grading_revisions g WHERE g.submission_id=s.id AND g.state='released' ORDER BY g.revision DESC LIMIT 1) r ON true
+LEFT JOIN rubric_versions rv ON rv.id=r.rubric_id
 WHERE s.course_id=$1 AND (sqlc.arg(teacher)::boolean OR s.student_id=sqlc.arg(actor_id))
 ORDER BY s.student_id,s.question_id,s.attempt DESC;
 
@@ -259,7 +260,7 @@ FROM learning_events e JOIN users u ON u.id=e.actor_id
 LEFT JOIN resources r ON r.id=e.resource_id
 LEFT JOIN submissions s ON s.id=e.submission_id
 LEFT JOIN assignments a ON a.id=s.assignment_id
-WHERE e.course_id=sqlc.arg(course_id) AND (sqlc.arg(student_id)::text='' OR e.actor_id=sqlc.arg(student_id))
+WHERE e.course_id=sqlc.arg(course_id) AND (sqlc.arg(student_id)::text='' OR e.actor_id=sqlc.arg(student_id) OR s.student_id=sqlc.arg(student_id))
 ORDER BY e.occurred_at DESC,e.id DESC LIMIT 500;
 
 -- name: LockBusinessCourse :one
@@ -272,6 +273,7 @@ SELECT EXISTS(SELECT 1 FROM learning_events WHERE actor_id=$1 AND resource_id=$2
 SELECT EXISTS(SELECT 1 FROM questions q WHERE q.assignment_id=$2 GROUP BY q.assignment_id HAVING count(*) = (
  SELECT count(DISTINCT s.question_id) FROM submissions s
  WHERE s.student_id=$1 AND s.assignment_id=$2 AND s.submitted_at >= $3
+ AND NOT EXISTS(SELECT 1 FROM submission_import_items i WHERE i.submission_id=s.id)
 ));
 
 -- name: RenameBusinessCourse :one

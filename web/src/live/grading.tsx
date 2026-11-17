@@ -41,6 +41,7 @@ export interface QueueItem {
   attempt: number;
   review_state: string;
   submitted_at: string;
+  teacher_imported?: boolean;
 }
 export const reviewNames: Record<string, string> = {
   pending: "待批阅",
@@ -62,6 +63,7 @@ export function GradePage() {
     submission: Submission;
     question: Question;
     revisions: Revision[];
+    import_origin?: { id: string; created_at: string } | null;
   }>(`/submissions/${submissionId}`);
   const data = query.data;
   const page = Math.max(1, Number(params.get("page")) || 1);
@@ -193,11 +195,12 @@ export function GradePage() {
               queue.data?.rows.find((r) => r.id === submissionId)
                 ?.student_name ||
               (teacher ? "学生作答" : session?.user.display_name)}{" "}
-            · 第{data.submission.attempt}次提交 ·{" "}
+            · 第{data.submission.attempt}次作答 ·{" "}
             {when(data.submission.submitted_at)}
           </p>
         </div>
         <div className="live-inline">
+          <MetaTag>{data.import_origin ? "教师导入" : "学生提交"}</MetaTag>
           <StatusTag
             status={latest?.state || "pending"}
             label={latest ? names[latest.state] : "待批阅"}

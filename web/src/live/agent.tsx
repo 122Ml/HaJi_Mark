@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Alert, App, Button, Card, Collapse, Dropdown, Empty, Form, Input, List, Popconfirm, Radio, Select, Space, Spin, Tag, Tooltip, Typography, Upload } from "antd";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { APIError, requestJSON } from "../shared/api";
 import { useSession } from "../shared/session";
@@ -16,11 +16,26 @@ type Step = { id: string; run_id: string; agent: string; tool: string; state: st
 type Field = { key: string; label: string; kind: string; required: boolean; options?: string[] };
 type Request = { id: string; run_id: string; step_id: string; kind: string; prompt: string; fields: Field[]; snapshot: { arguments?: Record<string, unknown>; before?: unknown }; response: Record<string, unknown>; state: string; expires_at: string };
 type Message = { id: string; role: string; content: string; attachment_ids: string[]; created_at: string };
-type Snapshot = { conversation: Conversation; messages: Message[]; runs: Run[]; steps: Step[]; requests: Request[]; attachments: Attachment[] };
+type Snapshot = { conversation: Conversation; messages: Message[]; runs: Run[]; steps: Step[]; requests: Request[]; attachments: Attachment[]; has_more: boolean; next_cursor: string };
 type Status = { configured: boolean; profiles: { id: string; label: string; available: boolean; model: string }[]; tools: { name: string; label: string }[] };
 type ComposerDraft = { text: string; attachments: Attachment[]; requestID?: string };
 const emptyDraft: ComposerDraft = { text: "", attachments: [] };
 const emptyDrafts: Record<string, ComposerDraft> = {};
+
+function uniqueRows<T extends { id: string }>(rows: T[]) {
+  const seen = new Set<string>();
+  return rows.filter(row => { if (seen.has(row.id)) return false; seen.add(row.id); return true; });
+}
+function withHistory(latest: Snapshot | undefined, older: Snapshot[]): Snapshot | undefined {
+  if (!latest) return latest;
+  const pages = [latest, ...older];
+  const oldest = pages[pages.length - 1];
+  return { ...latest, has_more: oldest.has_more, next_cursor: oldest.next_cursor,
+    messages: uniqueRows(pages.flatMap(p => p.messages)), runs: uniqueRows(pages.flatMap(p => p.runs)),
+    steps: uniqueRows(pages.flatMap(p => p.steps)), requests: uniqueRows(pages.flatMap(p => p.requests)),
+    attachments: uniqueRows(pages.flatMap(p => p.attachments)),
+  };
+}
 
 const states: Record<string, [string, string]> = {
   queued: ["排队中", "default"], running: ["执行中", "processing"], waiting_input: ["等待回答", "warning"], waiting_approval: ["等待确认", "warning"], waiting_job: ["等待后台任务", "processing"], succeeded: ["已结束", "success"], failed: ["失败", "error"], canceled: ["已停止", "default"], unknown: ["结果待核对", "warning"], proposed: ["准备中", "default"], executing: ["执行中", "processing"], denied: ["未执行", "default"], pending: ["待处理", "warning"], answered: ["已确认", "success"], rejected: ["已拒绝", "default"], expired: ["已过期", "default"],
@@ -95,11 +110,18 @@ export function AgentPage() {
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [search, setSearch] = useState("");
+  const [archive, setArchive] = useState<{ key: string; pages: Snapshot[] }>({ key: "", pages: [] });
+  const [historyLoadingKey, setHistoryLoadingKey] = useState("");
+  const [historyError, setHistoryError] = useState<{ key: string; message: string } | null>(null);
+  const anchor = useRef<{ top: number; height: number } | null>(null);
   const [following, setFollowing] = useState(true);
   const [streamState, setStreamState] = useState("连接中");
   const scroll = useRef<HTMLDivElement>(null);
   const mutationLocked = useRef(false);
   const scope = `${session?.user.id}:${course!.id}`;
+  const archiveKey = `${scope}:${conversationID}`;
+  const currentArchiveKey = useRef(archiveKey);
+  currentArchiveKey.current = archiveKey;
   const currentScope = useRef(scope);
   currentScope.current = scope;
   const prefix = `/learning/courses/${course!.id}/agent`;
@@ -107,8 +129,15 @@ export function AgentPage() {
   const get = async <T,>(path: string, signal?: AbortSignal) => (await requestJSON<{ data: T }>(`${prefix}${path}`, { signal })).data;
   const write = async <T,>(path: string, body: unknown, method = "POST") => (await requestJSON<{ data: T }>(`${prefix}${path}`, { method, body: JSON.stringify(body) }, session?.csrf_token)).data;
   const status = useQuery({ queryKey: [...key, "status"], queryFn: ({ signal }) => get<Status>("/status", signal) });
-  const conversations = useQuery({ queryKey: [...key, "conversations"], queryFn: ({ signal }) => get<Conversation[]>("/conversations", signal) });
-  const snapshot = useQuery({ queryKey: [...key, conversationID], enabled: !!conversationID, queryFn: ({ signal }) => get<Snapshot>(`/conversations/${conversationID}`, signal), refetchInterval: 5000 });
+  const conversationPages = useInfiniteQuery({ queryKey: [...key, "conversations", search], initialPageParam: 0,
+    queryFn: async ({ signal, pageParam }) => {
+      const rows = await get<Conversation[]>(`/conversations?${new URLSearchParams({ size: "31", offset: String(pageParam), search })}`, signal);
+      return { rows: rows.slice(0, 30), more: rows.length > 30, offset: pageParam };
+    }, getNextPageParam: page => page.more ? page.offset + 30 : undefined,
+  });
+  const conversations = { ...conversationPages, data: uniqueRows(conversationPages.data?.pages.flatMap(p => p.rows) || []) };
+  const latestSnapshot = useQuery({ queryKey: [...key, conversationID], enabled: !!conversationID, queryFn: ({ signal }) => get<Snapshot>(`/conversations/${conversationID}`, signal), refetchInterval: 5000 });
+  const snapshot = { ...latestSnapshot, data: withHistory(latestSnapshot.data, archive.key === archiveKey ? archive.pages : []) };
   const current = snapshot.data?.conversation;
   const runs = snapshot.data?.runs || [];
   const active = runs.find((r) => isActive(r.state));
@@ -170,9 +199,29 @@ export function AgentPage() {
     });
   }
 
+  async function loadHistory() {
+    if (!snapshot.data?.next_cursor || historyLoadingKey === archiveKey) return;
+    const cursor = snapshot.data.next_cursor;
+    setHistoryLoadingKey(archiveKey); setHistoryError(null);
+    try {
+      const page = await get<Snapshot>(`/conversations/${conversationID}?before=${encodeURIComponent(cursor)}`);
+      if (currentArchiveKey.current !== archiveKey) return;
+      if (scroll.current) anchor.current = { top: scroll.current.scrollTop, height: scroll.current.scrollHeight };
+      setFollowing(false);
+      setArchive(previous => ({ key: archiveKey, pages: [...(previous.key === archiveKey && previous.pages.length ? previous.pages : latestSnapshot.data ? [latestSnapshot.data] : []), page] }));
+    } catch (e) { if (currentArchiveKey.current === archiveKey) setHistoryError({ key: archiveKey, message: e instanceof Error ? e.message : "历史读取失败，请重试" }); }
+    finally { if (currentArchiveKey.current === archiveKey) setHistoryLoadingKey(""); }
+  }
+
   useEffect(() => { if (!conversationID && conversations.data?.[0] && !composer.text && !composer.attachments.length) selectConversation(conversations.data[0].id); }, [conversations.data, conversationID]);
-  useEffect(() => { setFollowing(true); }, [scope, conversationID]);
+  useEffect(() => { setFollowing(true); anchor.current = null; }, [scope, conversationID]);
   useEffect(() => { setSearch(""); }, [scope]);
+  useEffect(() => {
+    if (!latestSnapshot.data) return;
+    setArchive(previous => previous.key === archiveKey && previous.pages.length ? {
+      key: archiveKey, pages: [withHistory(latestSnapshot.data, [previous.pages[0]])!, ...previous.pages.slice(1)],
+    } : previous);
+  }, [latestSnapshot.data, archiveKey]);
   useEffect(() => {
     if (drafts.ready && drafts.dirty && !Object.values(drafts.value).some((d) => d.text || d.attachments.length || d.requestID)) drafts.reset(emptyDrafts);
   }, [drafts.value, drafts.ready, drafts.dirty]);
@@ -195,14 +244,19 @@ export function AgentPage() {
     return () => { stream.close(); if (timer) clearTimeout(timer); };
   }, [scope, conversationID]);
   useLayoutEffect(() => {
-    if (following && scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight;
-  }, [snapshot.data, following, conversationID]);
+    if (!scroll.current) return;
+    if (anchor.current) {
+      scroll.current.scrollTop = anchor.current.top + scroll.current.scrollHeight - anchor.current.height;
+      anchor.current = null;
+    } else if (following) scroll.current.scrollTop = scroll.current.scrollHeight;
+  }, [latestSnapshot.data, archive, following, conversationID]);
 
   return <div className="agent-workspace">
     <aside className="agent-conversations">
       <Button block type="primary" disabled={busy || !configured || !drafts.ready} onClick={() => void action(() => create())}>新对话</Button>
       <Input aria-label="搜索对话" placeholder="搜索对话" allowClear value={search} onChange={(e) => setSearch(e.target.value)} />
       <List loading={conversations.isPending} dataSource={conversations.data?.filter((c) => c.title.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())) || []} locale={{ emptyText: search ? "没有匹配的对话" : "暂无对话" }} renderItem={(c) => <List.Item><Button data-conversation-id={c.id} disabled={busy} title={c.title} type={c.id === conversationID ? "text" : "default"} aria-current={c.id === conversationID ? "page" : undefined} className={c.id === conversationID ? "agent-selected" : ""} block onClick={() => selectConversation(c.id)}><span>{c.title}</span>{drafts.value[c.id]?.text || drafts.value[c.id]?.attachments.length ? <Tag>草稿</Tag> : null}</Button></List.Item>} />
+      {conversationPages.hasNextPage && <Button block loading={conversationPages.isFetchingNextPage} onClick={() => void conversationPages.fetchNextPage()}>加载更多对话</Button>}
     </aside>
     <section className="agent-main" aria-label="课程助理对话">
       <div className="agent-toolbar">
@@ -220,6 +274,8 @@ export function AgentPage() {
       {status.data && !configured && <Alert showIcon type="warning" message="暂无可用生成模型，请联系维护者检查服务端配置。" />}
       {current?.learner_context && <Alert showIcon type="info" message="本对话已读取学习或作答数据；出题与评分标准请使用独立新对话。" />}
       <div className="agent-scroll" ref={scroll} onScroll={() => { const el = scroll.current!; setFollowing(el.scrollHeight - el.scrollTop - el.clientHeight < 100); }}>
+        {snapshot.data?.has_more && <Button block loading={historyLoadingKey === archiveKey} onClick={() => void loadHistory()}>加载更早记录</Button>}
+        {historyError?.key === archiveKey && <Alert type="error" showIcon message={historyError.message} action={<Button onClick={() => void loadHistory()}>重试</Button>} />}
         {snapshot.isPending && conversationID ? <Spin /> : !timeline.length ? <Empty description="发送要求或上传资料，开始处理当前课程任务" /> : timeline.map((item) => item.kind === "message" ? <article key={item.value.id} data-message-id={item.value.id} className={`agent-message agent-message-${item.value.role}`}>
           <Typography.Text strong>{item.value.role === "user" ? "你" : "课程助理"}</Typography.Text>
           {item.value.content && <RichContent text={item.value.content} />}

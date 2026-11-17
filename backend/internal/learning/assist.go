@@ -1,12 +1,19 @@
 package learning
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
-	"github.com/gin-gonic/gin"
 	"regexp"
 	"strings"
+	"time"
+
+	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
+	"github.com/122Ml/HaJi_Mark/backend/internal/store"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 var answerReference = regexp.MustCompile(`\[R[0-9]+\]`)
@@ -16,6 +23,7 @@ func (h *Handler) assist(c *gin.Context) {
 	var in struct {
 		Topic     string `json:"topic"`
 		ProfileID string `json:"profile_id"`
+		RequestID string `json:"request_id"`
 	}
 	if !bind(c, &in) {
 		return
@@ -28,13 +36,60 @@ func (h *Handler) assist(c *gin.Context) {
 		identity.Fail(c, 503, "model_not_configured", "尚未配置模型，可继续使用资料和人工答疑")
 		return
 	}
+	if in.RequestID == "" {
+		in.RequestID = uuid.NewString()
+	}
+	if !validText(in.RequestID, 128) {
+		invalid(c, "请求号无效")
+		return
+	}
+	ctx := c.Request.Context()
+	turn, e := h.q.CreateAssistTurn(ctx, store.CreateAssistTurnParams{ID: uuid.NewString(), CourseID: c.Param("courseID"), OwnerID: identity.Current(c).ID, RequestID: in.RequestID, Question: in.Topic, ProfileID: in.ProfileID})
+	if errors.Is(e, pgx.ErrNoRows) {
+		previous, err := h.q.GetAssistTurnByRequest(ctx, store.GetAssistTurnByRequestParams{CourseID: c.Param("courseID"), OwnerID: identity.Current(c).ID, RequestID: in.RequestID})
+		if err != nil {
+			result(c, nil, err)
+			return
+		}
+		if previous.Question != in.Topic || previous.ProfileID != in.ProfileID {
+			identity.Fail(c, 409, "request_conflict", "同一请求号不能改变问题或模型")
+			return
+		}
+		if previous.State == "succeeded" {
+			result(c, previous.Response, nil)
+		} else {
+			identity.Fail(c, 409, "request_pending", "本次请求已有记录，请在问答历史核对；需要重新生成时请发起新请求")
+		}
+		return
+	}
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	finished := false
+	defer func() {
+		if !finished {
+			cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+			defer cancel()
+			h.q.FinishAssistTurn(cleanup, store.FinishAssistTurnParams{ID: turn.ID, Response: json.RawMessage(`{}`), State: "failed"})
+		}
+	}()
+	respond := func(answer gin.H) {
+		answer["turn_id"] = turn.ID
+		raw, _ := json.Marshal(answer)
+		err := h.q.FinishAssistTurn(ctx, store.FinishAssistTurnParams{ID: turn.ID, Response: raw, State: "succeeded"})
+		if err == nil {
+			finished = true
+		}
+		result(c, answer, err)
+	}
 	hits, mode, e := h.rag.Search(c.Request.Context(), c.Param("courseID"), identity.Current(c).ID, in.Topic, "learning", teacher(c))
 	if e != nil {
 		ragError(c, e)
 		return
 	}
 	if len(hits) == 0 {
-		result(c, gin.H{"text": "当前可见资料没有检索到可引用依据，请联系教师补充资料。", "sources": hits, "status": "insufficient_evidence", "mode": mode}, nil)
+		respond(gin.H{"text": "当前可见资料没有检索到可引用依据，请联系教师补充资料。", "sources": hits, "status": "insufficient_evidence", "mode": mode})
 		return
 	}
 	sources := []gin.H{}
@@ -59,7 +114,7 @@ func (h *Handler) assist(c *gin.Context) {
 		return
 	}
 	if len(out.Citations) == 0 {
-		result(c, gin.H{"text": "检索到的资料不足以形成带原文依据的回答，请联系教师补充资料。", "sources": hits, "status": "insufficient_evidence", "mode": mode}, nil)
+		respond(gin.H{"text": "检索到的资料不足以形成带原文依据的回答，请联系教师补充资料。", "sources": hits, "status": "insufficient_evidence", "mode": mode})
 		return
 	}
 	cited := map[string]bool{}
@@ -91,5 +146,30 @@ func (h *Handler) assist(c *gin.Context) {
 			return
 		}
 	}
-	result(c, gin.H{"text": out.Text, "sources": hits, "citations": out.Citations, "status": "ai_draft", "mode": mode}, nil)
+	respond(gin.H{"text": out.Text, "sources": hits, "citations": out.Citations, "status": "ai_draft", "mode": mode})
+}
+
+func (h *Handler) assistHistory(c *gin.Context) {
+	size, offset, ok := workspacePage(c)
+	if !ok {
+		return
+	}
+	params := store.ListAssistHistoryParams{CourseID: c.Param("courseID"), OwnerID: identity.Current(c).ID, PageSize: size, PageOffset: offset}
+	rows, e := h.q.ListAssistHistory(c.Request.Context(), params)
+	var total int32
+	if len(rows) > 0 {
+		total = rows[0].Total
+	} else if offset > 0 && e == nil {
+		params.PageOffset, params.PageSize = 0, 1
+		first, err := h.q.ListAssistHistory(c.Request.Context(), params)
+		e = err
+		if len(first) > 0 {
+			total = first[0].Total
+		}
+	}
+	result(c, gin.H{"rows": rows, "total": total}, e)
+}
+func (h *Handler) assistTurn(c *gin.Context) {
+	v, e := h.q.GetAssistTurn(c.Request.Context(), store.GetAssistTurnParams{ID: c.Param("id"), CourseID: c.Param("courseID"), OwnerID: identity.Current(c).ID})
+	result(c, v, e)
 }

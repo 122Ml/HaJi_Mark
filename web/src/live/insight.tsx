@@ -12,7 +12,9 @@ import type { Resource } from "./course";
 import type { Assignment } from "./assessment";
 import type { Point } from "./course";
 import { RevisionPoints, PointFeedback } from "./rubrics";
+import { LearningGaps } from "./learning-gaps";
 interface Evidence {
+  rubric_version: number | null;
   rubric_id: string | null;
   point_scores: PointFeedback[];
   submission_id: string;
@@ -114,6 +116,7 @@ export function OverviewPage() {
             { key: "overview", label: "班级总览" },
             { key: "students", label: "学生与进度" },
             { key: "evidence", label: "评分证据" },
+            { key: "gaps", label: "评分缺口" },
           ]}
         />
       )}
@@ -206,7 +209,7 @@ export function OverviewPage() {
           <Link to="/student/course-content">继续学习课程资料</Link>
         </Card>
       )}
-      {teacher && (
+      {teacher && view !== "gaps" && (
         <div className="live-inline">
           <Field className="ui-field" label={<>学生范围</>}>
             <Select
@@ -434,13 +437,7 @@ export function OverviewPage() {
         />
       </Card>
       {teacher && (
-        <Card className="card-panel" title={<h2>共性难点</h2>}>
-
-          <p>
-            低于本题满分60%的有效作答 {low.length}/ {rows.length}，涉及{" "}
-            {new Set(low.map((r) => r.student_id)).size}名学生。
-          </p>
-        </Card>
+        <LearningGaps evidence={evidence.data || []} members={overview.data || []} />
       )}
     </div>
   );

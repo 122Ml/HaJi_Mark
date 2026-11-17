@@ -42,8 +42,8 @@ export function ActivityTimeline({
           <div>
             <h3>{event.title}</h3>
             <MetaTags>
-              <StatusTag status={event.verb === "submission.submitted" ? "submitted" : event.verb === "completed" ? "completed" : "opened"}
-                label={event.verb === "submission.submitted"
+              <StatusTag status={event.verb.startsWith("submission.") ? "submitted" : event.verb === "completed" ? "completed" : "opened"}
+                label={event.verb === "submission.imported" ? "教师导入作答" : event.verb === "submission.submitted"
                 ? "提交作答"
                 : event.verb === "completed"
                   ? "完成学习"

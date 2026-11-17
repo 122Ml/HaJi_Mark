@@ -8,8 +8,10 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -371,7 +373,9 @@ INSERT INTO material_fragments(id,source_id,revision,position,body,locator,quali
 				t.Fatal(err)
 			}
 			modelText := "依据公开内容回答[R1]。"
+			var providerCalls atomic.Int32
 			provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				providerCalls.Add(1)
 				content, _ := json.Marshal(map[string]any{"text": modelText, "citations": []map[string]string{{"id": "R1", "quote": "公开内容"}}})
 				_ = json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]string{"content": string(content)}, "finish_reason": "stop"}}, "usage": map[string]int{"prompt_tokens": 8, "completion_tokens": 8}})
 			}))
@@ -384,12 +388,29 @@ INSERT INTO material_fragments(id,source_id,revision,position,body,locator,quali
 			}
 			t.Setenv("MODEL_PROFILES_PATH", profiles)
 			router = server.New(db, nil, false)
-			for _, test := range []struct {
+			for i, test := range []struct {
 				text   string
 				status int
 			}{{"依据公开内容回答[R1]。", 200}, {"依据公开内容回答[R99]。", 422}, {"依据公开内容回答。", 422}, {"依据公开内容回答[R1]和[R99]。", 422}} {
 				modelText = test.text
-				call(student, "POST", base+"/assist", map[string]string{"topic": "公开内容"}, test.status)
+				input := map[string]string{"topic": "公开内容", "request_id": fmt.Sprintf("citation-%d", i)}
+				before := providerCalls.Load()
+				raw := call(student, "POST", base+"/assist", input, test.status)
+				if test.status == 200 {
+					var original, replay any
+					_ = json.Unmarshal(raw, &original)
+					_ = json.Unmarshal(call(student, "POST", base+"/assist", input, 200), &replay)
+					if !reflect.DeepEqual(original, replay) {
+						t.Fatal("saved answer changed on retry")
+					}
+				} else {
+					call(student, "POST", base+"/assist", input, 409)
+				}
+				if providerCalls.Load() != before+1 {
+					t.Fatal("same request repeated a model call")
+				}
+				input["topic"] = "changed input"
+				call(student, "POST", base+"/assist", input, 409)
 			}
 		})
 		call(student, "GET", base+"/sources/publication-source/download", nil, 403)
@@ -504,6 +525,20 @@ INSERT INTO material_fragments(id,source_id,revision,position,body,locator,quali
 			if len(response.Revisions) != 2 || response.Revisions[0].Score != 8 || response.Revisions[0].RubricID.String != revised.ID {
 				t.Fatal("student did not get latest whole-group result")
 			}
+			var formal []store.CourseReleasedEvidenceRow
+			decode(call([]actor{student, peer}[i], "GET", base+"/evidence", nil, 200), &formal)
+			found := false
+			for _, row := range formal {
+				if row.SubmissionID == s {
+					found = true
+					if row.RubricVersion.Int32 != revised.Version {
+						t.Fatal("formal standard version mismatch")
+					}
+				}
+			}
+			if !found {
+				t.Fatal("formal evidence missing")
+			}
 			call(teacher, "POST", base+"/submissions/"+s+"/revisions", map[string]any{"score": 4, "feedback": "旧口径不能覆盖重评", "request_id": fmt.Sprintf("regrade-bypass-%d", i), "rubric_id": rubric.ID, "points": []any{map[string]any{"criterion_id": "D1", "score": 4, "feedback": "旧口径", "quote": "拒绝超范围输入"}}}, 409)
 		}
 		second := id(call(teacher, "POST", base+"/regrades", request, 200))
@@ -541,4 +576,138 @@ INSERT INTO material_fragments(id,source_id,revision,position,body,locator,quali
 			t.Fatal("server paging/filter mismatch")
 		}
 	})
+	t.Run("bulk_import_is_atomic_immutable_and_audited", func(t *testing.T) {
+		aid := id(call(teacher, "POST", base+"/assignments", map[string]any{"title": "CSV transaction test", "questions": []any{map[string]any{"prompt": "Explain the boundary", "max_score": 10, "rubric": "Evidence"}}}, 200))
+		ap := base + "/assignments/" + aid
+		var assignment struct {
+			Questions []store.Question `json:"questions"`
+		}
+		_ = json.Unmarshal(call(teacher, "GET", ap, nil, 200), &assignment)
+		qid := assignment.Questions[0].ID
+		input := map[string]any{"question_id": qid, "csv": "username,answer_text\r\nstudent,\"原文😀\r\n换行和\"\"引号\"\"\"\r\npeer,peer answer\r\n", "request_id": "import-request"}
+		call(teacher, "POST", ap+"/import/preview", input, 409)
+		call(teacher, "POST", ap+"/state", map[string]string{"state": "published"}, 200)
+		call(student, "POST", ap+"/import/preview", input, 403)
+		call(other, "POST", ap+"/import/preview", input, 403)
+		call(actor{teacher.cookie, ""}, "POST", ap+"/import/confirm", input, 403)
+		var preview struct {
+			Valid       bool   `json:"valid"`
+			PreviewHash string `json:"preview_hash"`
+			Rows        []struct {
+				Next  int    `json:"next_attempt"`
+				Error string `json:"error"`
+			} `json:"rows"`
+		}
+		readPreview := func() {
+			t.Helper()
+			if err := json.Unmarshal(call(teacher, "POST", ap+"/import/preview", input, 200), &preview); err != nil || !preview.Valid {
+				t.Fatal(preview, err)
+			}
+			input["preview_hash"] = preview.PreviewHash
+		}
+		count := func(table string) int {
+			t.Helper()
+			var n int
+			if err := db.QueryRow(ctx, "SELECT count(*) FROM "+table+" WHERE assignment_id=$1", aid).Scan(&n); err != nil {
+				t.Fatal(err)
+			}
+			return n
+		}
+		readPreview()
+		if count("submissions") != 0 || count("submission_imports") != 0 {
+			t.Fatal("preview wrote data")
+		}
+		// A concurrent student submission invalidates the preview, never silently changing attempts.
+		call(student, "POST", ap+"/submissions", map[string]string{"question_id": qid, "answer_text": "own previous answer", "request_id": "before-import"}, 200)
+		call(teacher, "POST", ap+"/import/confirm", input, 409)
+		if count("submissions") != 1 || count("submission_imports") != 0 {
+			t.Fatal("stale preview wrote data")
+		}
+		readPreview()
+		var receipt struct {
+			Batch       store.SubmissionImport `json:"batch"`
+			Submissions []store.Submission     `json:"submissions"`
+		}
+		if err := json.Unmarshal(call(teacher, "POST", ap+"/import/confirm", input, 200), &receipt); err != nil {
+			t.Fatal(err)
+		}
+		if len(receipt.Submissions) != 2 || receipt.Submissions[0].Attempt != 2 || receipt.Submissions[0].AnswerText != "原文😀\r\n换行和\"引号\"" {
+			t.Fatal("import lost immutable text or attempt", receipt.Submissions)
+		}
+		call(teacher, "POST", ap+"/import/confirm", input, 200)
+		if count("submissions") != 3 || count("submission_imports") != 1 {
+			t.Fatal("idempotence failed")
+		}
+		input["csv"] = "username,answer_text\nstudent,changed"
+		call(teacher, "POST", ap+"/import/confirm", input, 409)
+		input["request_id"] = "invalid-import"
+		input["csv"] = "username,answer_text\nstudent,valid\nunknown,invalid"
+		var invalidPreview struct {
+			Valid       bool   `json:"valid"`
+			PreviewHash string `json:"preview_hash"`
+		}
+		_ = json.Unmarshal(call(teacher, "POST", ap+"/import/preview", input, 200), &invalidPreview)
+		if invalidPreview.Valid {
+			t.Fatal("unknown student accepted")
+		}
+		input["preview_hash"] = invalidPreview.PreviewHash
+		call(teacher, "POST", ap+"/import/confirm", input, 422)
+		if count("submissions") != 3 || count("submission_imports") != 1 {
+			t.Fatal("invalid batch partially committed")
+		}
+		call(student, "GET", ap+"/imports", nil, 403)
+		for _, s := range receipt.Submissions {
+			body := string(call(teacher, "GET", base+"/submissions/"+s.ID, nil, 200))
+			if !strings.Contains(body, `"imported_by":"teacher"`) {
+				t.Fatal("missing teacher provenance", body)
+			}
+			var actor, verb string
+			if err := db.QueryRow(ctx, "SELECT actor_id,verb FROM learning_events WHERE submission_id=$1", s.ID).Scan(&actor, &verb); err != nil || actor != "teacher" || verb != "submission.imported" {
+				t.Fatal("event impersonates student", actor, verb, err)
+			}
+		}
+		if ready, err := store.New(db).HasInterventionSubmission(ctx, store.HasInterventionSubmissionParams{StudentID: "peer", AssignmentID: aid, SubmittedAt: receipt.Submissions[1].SubmittedAt}); err != nil || ready {
+			t.Fatal("teacher import counted as student action", ready, err)
+		}
+		call(peer, "GET", base+"/submissions/"+receipt.Submissions[0].ID, nil, 403)
+		if body := string(call(student, "GET", base+"/activity", nil, 200)); !strings.Contains(body, "submission.imported") {
+			t.Fatal("student cannot see imported event")
+		}
+		call(teacher, "POST", ap+"/state", map[string]string{"state": "closed"}, 200)
+		call(teacher, "POST", ap+"/import/preview", input, 409)
+		// A retry may recover the already committed receipt after closure.
+		input["request_id"] = "import-request"
+		input["csv"] = "username,answer_text\r\nstudent,\"原文😀\r\n换行和\"\"引号\"\"\"\r\npeer,peer answer\r\n"
+		call(teacher, "POST", ap+"/import/confirm", input, 200)
+	})
+	t.Run("assist_history_is_private_paginated_and_durable", func(t *testing.T) {
+		var existing int
+		if err := db.QueryRow(ctx, "SELECT count(*) FROM assist_turns WHERE course_id='course' AND owner_id='student'").Scan(&existing); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(ctx, `INSERT INTO assist_turns(id,course_id,owner_id,request_id,question,state,response,created_at)
+ SELECT 'turn-'||n,'course','student','request-'||n,'question-'||n,CASE WHEN n=1 THEN 'failed' ELSE 'succeeded' END,'{"text":"saved answer","sources":[]}',now()+n*interval '1 second' FROM generate_series(1,13)n;
+ INSERT INTO assist_turns(id,course_id,owner_id,request_id,question) VALUES('peer-turn','course','peer','private','peer question')`); err != nil {
+			t.Fatal(err)
+		}
+		var page struct {
+			Total int                `json:"total"`
+			Rows  []store.AssistTurn `json:"rows"`
+		}
+		_ = json.Unmarshal(call(student, "GET", base+"/assist/history?page=2&size=10", nil, 200), &page)
+		if page.Total != 13+existing || len(page.Rows) != min(10, 3+existing) || page.Rows[0].ID != "turn-3" {
+			t.Fatal("history pagination", page)
+		}
+		_ = json.Unmarshal(call(student, "GET", base+"/assist/history?page=8&size=10", nil, 200), &page)
+		if page.Total != 13+existing || len(page.Rows) != 0 {
+			t.Fatal("past last page total", page)
+		}
+		if body := string(call(student, "GET", base+"/assist/history/turn-1", nil, 200)); !strings.Contains(body, `"state":"failed"`) {
+			t.Fatal("failed history hidden")
+		}
+		call(peer, "GET", base+"/assist/history/turn-3", nil, 404)
+		call(teacher, "GET", base+"/assist/history/turn-3", nil, 404)
+		call(other, "GET", base+"/assist/history", nil, 403)
+	})
+
 }

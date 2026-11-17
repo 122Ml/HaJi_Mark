@@ -260,9 +260,10 @@ func (q *Queries) BusinessOverview(ctx context.Context, courseID string) ([]Busi
 }
 
 const courseReleasedEvidence = `-- name: CourseReleasedEvidence :many
-SELECT DISTINCT ON (s.student_id,s.question_id) s.id AS submission_id,s.student_id,s.question_id,s.answer_text,s.attempt,r.id AS revision_id,r.score,r.feedback,q.max_score,q.prompt,q.knowledge_point_id,q.resource_id,r.released_at,r.rubric_id,r.point_scores
+SELECT DISTINCT ON (s.student_id,s.question_id) s.id AS submission_id,s.student_id,s.question_id,s.answer_text,s.attempt,r.id AS revision_id,r.score,r.feedback,q.max_score,q.prompt,q.knowledge_point_id,q.resource_id,r.released_at,r.rubric_id,r.point_scores,rv.version AS rubric_version
 FROM submissions s JOIN questions q ON q.id=s.question_id
 JOIN LATERAL (SELECT id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id, regrade_batch_id FROM grading_revisions g WHERE g.submission_id=s.id AND g.state='released' ORDER BY g.revision DESC LIMIT 1) r ON true
+LEFT JOIN rubric_versions rv ON rv.id=r.rubric_id
 WHERE s.course_id=$1 AND ($2::boolean OR s.student_id=$3)
 ORDER BY s.student_id,s.question_id,s.attempt DESC
 `
@@ -289,6 +290,7 @@ type CourseReleasedEvidenceRow struct {
 	ReleasedAt       pgtype.Timestamptz `json:"released_at"`
 	RubricID         pgtype.Text        `json:"rubric_id"`
 	PointScores      json.RawMessage    `json:"point_scores"`
+	RubricVersion    pgtype.Int4        `json:"rubric_version"`
 }
 
 func (q *Queries) CourseReleasedEvidence(ctx context.Context, arg CourseReleasedEvidenceParams) ([]CourseReleasedEvidenceRow, error) {
@@ -316,6 +318,7 @@ func (q *Queries) CourseReleasedEvidence(ctx context.Context, arg CourseReleased
 			&i.ReleasedAt,
 			&i.RubricID,
 			&i.PointScores,
+			&i.RubricVersion,
 		); err != nil {
 			return nil, err
 		}
@@ -1357,6 +1360,7 @@ const hasInterventionSubmission = `-- name: HasInterventionSubmission :one
 SELECT EXISTS(SELECT 1 FROM questions q WHERE q.assignment_id=$2 GROUP BY q.assignment_id HAVING count(*) = (
  SELECT count(DISTINCT s.question_id) FROM submissions s
  WHERE s.student_id=$1 AND s.assignment_id=$2 AND s.submitted_at >= $3
+ AND NOT EXISTS(SELECT 1 FROM submission_import_items i WHERE i.submission_id=s.id)
 ))
 `
 
@@ -1762,7 +1766,7 @@ func (q *Queries) ListBusinessRevisions(ctx context.Context, arg ListBusinessRev
 }
 
 const listBusinessSubmissions = `-- name: ListBusinessSubmissions :many
-SELECT s.id, s.assignment_id, s.question_id, s.course_id, s.student_id, s.attempt, s.answer_text, s.answer_sha256, s.status, s.request_id, s.submitted_at, s.assignment_version,u.display_name AS student_name FROM submissions s JOIN users u ON u.id=s.student_id
+SELECT s.id, s.assignment_id, s.question_id, s.course_id, s.student_id, s.attempt, s.answer_text, s.answer_sha256, s.status, s.request_id, s.submitted_at, s.assignment_version,u.display_name AS student_name,EXISTS(SELECT 1 FROM submission_import_items i WHERE i.submission_id=s.id) AS teacher_imported FROM submissions s JOIN users u ON u.id=s.student_id
 WHERE s.assignment_id=$1 AND ($2::boolean OR s.student_id=$3) ORDER BY s.submitted_at DESC,s.id
 `
 
@@ -1786,6 +1790,7 @@ type ListBusinessSubmissionsRow struct {
 	SubmittedAt       pgtype.Timestamptz `json:"submitted_at"`
 	AssignmentVersion int32              `json:"assignment_version"`
 	StudentName       string             `json:"student_name"`
+	TeacherImported   bool               `json:"teacher_imported"`
 }
 
 func (q *Queries) ListBusinessSubmissions(ctx context.Context, arg ListBusinessSubmissionsParams) ([]ListBusinessSubmissionsRow, error) {
@@ -1811,6 +1816,7 @@ func (q *Queries) ListBusinessSubmissions(ctx context.Context, arg ListBusinessS
 			&i.SubmittedAt,
 			&i.AssignmentVersion,
 			&i.StudentName,
+			&i.TeacherImported,
 		); err != nil {
 			return nil, err
 		}
@@ -1831,7 +1837,7 @@ FROM learning_events e JOIN users u ON u.id=e.actor_id
 LEFT JOIN resources r ON r.id=e.resource_id
 LEFT JOIN submissions s ON s.id=e.submission_id
 LEFT JOIN assignments a ON a.id=s.assignment_id
-WHERE e.course_id=$1 AND ($2::text='' OR e.actor_id=$2)
+WHERE e.course_id=$1 AND ($2::text='' OR e.actor_id=$2 OR s.student_id=$2)
 ORDER BY e.occurred_at DESC,e.id DESC LIMIT 500
 `
 

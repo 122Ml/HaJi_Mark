@@ -221,6 +221,26 @@
 .teacher-overview-evidence > .knowledge-section {
   display: none;
 }
+.teacher-overview-overview > .diagnosis-section,
+.teacher-overview-students > .diagnosis-section,
+.teacher-overview-evidence > .diagnosis-section,
+.teacher-overview-gaps > .student-section,
+.teacher-overview-gaps > .activity-section,
+.teacher-overview-gaps > .knowledge-section,
+.teacher-overview-gaps > .evidence-section,
+.teacher-overview-gaps > .live-shortcuts,
+.teacher-overview-gaps > .live-metrics {
+  display: none;
+}
+.table-text-action {
+  max-width: 100%;
+  height: auto;
+  padding-inline: 0;
+  white-space: normal;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+.live-full-width { width: 100%; }
 .teacher-overview-evidence > .live-shortcuts,
 .teacher-overview-students > .live-shortcuts {
   display: none;

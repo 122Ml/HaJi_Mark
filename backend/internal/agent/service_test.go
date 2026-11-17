@@ -637,7 +637,10 @@ func TestHarnessBusinessLoop(t *testing.T) {
 	t.Run("long_conversation_keeps_latest_runs_and_complete_receipts", func(t *testing.T) {
 		cid := conversation("teacher", "auto-review")
 		must(`INSERT INTO agent_runs(id,conversation_id,request_id,session_hash,state,created_at)
-		 SELECT 'history-'||$1||'-'||n,$1,'request-'||n,'fixture','succeeded',now()+n*interval '1 second' FROM generate_series(1,31) n`, cid)
+		 SELECT 'history-'||$1||'-'||n,$1,'request-'||n,'fixture','succeeded',now()+n*interval '1 second' FROM generate_series(1,65) n`, cid)
+		must(`UPDATE agent_runs SET updated_at=created_at WHERE conversation_id=$1`, cid)
+		must(`INSERT INTO agent_messages(id,conversation_id,role,content,created_at)
+		 SELECT 'message-'||$1||'-'||n,$1,'user','history message '||n,now()+n*interval '1 second' FROM generate_series(1,225)n`, cid)
 		must(`INSERT INTO agent_steps(id,run_id,agent,tool,arguments,state)
 		 SELECT r.id||'-step-'||n,r.id,'learning','course_context','{}','succeeded'
 		 FROM agent_runs r CROSS JOIN generate_series(1,40) n WHERE r.conversation_id=$1`, cid)
@@ -651,16 +654,19 @@ func TestHarnessBusinessLoop(t *testing.T) {
 			} `json:"runs"`
 			Steps    []store.AgentStep    `json:"steps"`
 			Requests []store.AgentRequest `json:"requests"`
+			Messages []store.AgentMessage `json:"messages"`
+			HasMore  bool                 `json:"has_more"`
+			Cursor   string               `json:"next_cursor"`
 		}
 		body := request("teacher", "GET", base+"/conversations/"+cid, nil, 200)
 		if e := json.Unmarshal(body, &snapshot); e != nil {
 			t.Fatal(e)
 		}
-		if len(snapshot.Runs) != 30 || len(snapshot.Steps) != 1200 || len(snapshot.Requests) != 30 {
-			t.Fatalf("latest window incomplete: runs=%d steps=%d requests=%d", len(snapshot.Runs), len(snapshot.Steps), len(snapshot.Requests))
+		if len(snapshot.Runs) != 10 || len(snapshot.Steps) != 400 || len(snapshot.Requests) != 10 || len(snapshot.Messages) != 50 || !snapshot.HasMore {
+			t.Fatalf("latest window incomplete: runs=%d steps=%d requests=%d messages=%d", len(snapshot.Runs), len(snapshot.Steps), len(snapshot.Requests), len(snapshot.Messages))
 		}
-		oldest, newest := "history-"+cid+"-1", "history-"+cid+"-31"
-		if snapshot.Runs[0].ID != newest || snapshot.Runs[0].RequestID != "request-31" {
+		oldest, newest := "history-"+cid+"-1", "history-"+cid+"-65"
+		if snapshot.Runs[0].ID != newest || snapshot.Runs[0].RequestID != "request-65" {
 			t.Fatal("missing latest run or request correlation")
 		}
 		for _, step := range snapshot.Steps {
@@ -672,6 +678,54 @@ func TestHarnessBusinessLoop(t *testing.T) {
 			if r.RunID == oldest {
 				t.Fatal("requests outside visible run window")
 			}
+		}
+		messages, runs := map[string]bool{}, map[string]bool{}
+		pages := 0
+		for {
+			for _, m := range snapshot.Messages {
+				if messages[m.ID] {
+					t.Fatal("message duplicated across pages", m.ID)
+				}
+				messages[m.ID] = true
+			}
+			for _, r := range snapshot.Runs {
+				runs[r.ID] = true
+			}
+			if len(snapshot.Steps) != len(snapshot.Runs)*40 || len(snapshot.Requests) != len(snapshot.Runs) {
+				t.Fatal("paged receipts incomplete")
+			}
+			pages++
+			if !snapshot.HasMore {
+				break
+			}
+			if pages > 10 || snapshot.Cursor == "" {
+				t.Fatal("cursor did not advance")
+			}
+			body = request("teacher", "GET", base+"/conversations/"+cid+"?before="+snapshot.Cursor, nil, 200)
+			if e := json.Unmarshal(body, &snapshot); e != nil {
+				t.Fatal(e)
+			}
+		}
+		if len(messages) != 225 || len(runs) != 65 {
+			t.Fatal("history truncated", len(messages), len(runs))
+		}
+		request("teacher", "GET", base+"/conversations/"+cid+"?before=not-valid", nil, 422)
+		// Pending approvals remain actionable even when their run is older than the page.
+		must("UPDATE agent_runs SET state='waiting_input' WHERE id=$1", oldest)
+		body = request("teacher", "GET", base+"/conversations/"+cid, nil, 200)
+		if !strings.Contains(string(body), oldest+"-input") {
+			t.Fatal("active old run hidden")
+		}
+		must("UPDATE agent_runs SET state='succeeded',updated_at=now()+interval '1 day' WHERE id=$1", oldest)
+		body = request("teacher", "GET", base+"/conversations/"+cid, nil, 200)
+		if !strings.Contains(string(body), oldest+"-input") {
+			t.Fatal("resumed terminal run hidden")
+		}
+		must(`INSERT INTO agent_conversations(id,course_id,owner_id,title,mode) SELECT 'list-'||$1||'-'||n,'course','teacher','searchable-'||n,'read-only' FROM generate_series(1,35)n`, cid)
+		var conversations []store.AgentConversation
+		_ = json.Unmarshal(request("teacher", "GET", base+"/conversations?search=searchable-&size=10&offset=30", nil, 200), &conversations)
+		if len(conversations) != 5 {
+			t.Fatal("conversation search/paging", len(conversations))
 		}
 	})
 	t.Run("expired_session_prevents_background_work", func(t *testing.T) {

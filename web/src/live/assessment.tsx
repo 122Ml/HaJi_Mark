@@ -24,6 +24,7 @@ import { Link, useCourseNavigate as useNavigate } from "./context";
 import { useSession } from "../shared/session";
 import { RubricManager, PointFeedback } from "./rubrics";
 import { BankQuestionPicker } from "./question-bank";
+import { SubmissionImport } from "./submission-import";
 import { RichContent, PublishedAssets } from "./content-render";
 import {
   useLearning,
@@ -1019,6 +1020,7 @@ export function SubmissionList() {
 
           <p>{detail.data?.assignment.title}</p>
         </div>
+        {detail.data && <SubmissionImport key={assignmentId} assignment={detail.data.assignment} questions={detail.data.questions} />}
       </header>
       <Feedback error={q.error || roster.error || detail.error} />
       {roster.data && (
@@ -1085,6 +1087,7 @@ export function SubmissionList() {
                 { title: "学生", dataIndex: "student_name" },
                 { title: "题目", dataIndex: "prompt", ellipsis: true },
                 { title: "次数", dataIndex: "attempt" },
+                { title: "来源", dataIndex: "teacher_imported", render: (value: boolean) => <MetaTag>{value ? "教师导入" : "学生提交"}</MetaTag> },
                 { title: "时间", dataIndex: "submitted_at", render: (value: string) => when(value) },
                 { title: "状态", dataIndex: "review_state", render: (value: string) => <StatusTag status={value} label={reviewNames[value]} /> },
                 { title: "操作", key: "actions", render: (_, s) => <Link to={`/teacher/homework/submissions/${s.id}/grade?${params}`}>批改详情</Link> },

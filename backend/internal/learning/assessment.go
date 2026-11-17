@@ -423,5 +423,14 @@ func (h *Handler) submission(c *gin.Context) {
 		question.BankQuestionVersionID = pgtype.Text{}
 	}
 	revisions, e := h.q.ListBusinessRevisions(c.Request.Context(), store.ListBusinessRevisionsParams{SubmissionID: s.ID, Teacher: teacher(c)})
-	result(c, gin.H{"submission": s, "question": question, "revisions": revisions}, e)
+	var origin any
+	if e == nil {
+		v, err := h.q.GetSubmissionImportOrigin(c.Request.Context(), s.ID)
+		if err == nil {
+			origin = v
+		} else if !errors.Is(err, pgx.ErrNoRows) {
+			e = err
+		}
+	}
+	result(c, gin.H{"submission": s, "question": question, "revisions": revisions, "import_origin": origin}, e)
 }

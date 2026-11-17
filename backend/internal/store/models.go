@@ -125,6 +125,18 @@ type Assignment struct {
 	PublishedAt pgtype.Timestamptz `json:"published_at"`
 }
 
+type AssistTurn struct {
+	ID        string             `json:"id"`
+	CourseID  string             `json:"course_id"`
+	OwnerID   string             `json:"owner_id"`
+	RequestID string             `json:"request_id"`
+	Question  string             `json:"question"`
+	ProfileID string             `json:"profile_id"`
+	State     string             `json:"state"`
+	Response  json.RawMessage    `json:"response"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type BankQuestionAsset struct {
 	VersionID string `json:"version_id"`
 	AssetID   string `json:"asset_id"`
@@ -557,6 +569,23 @@ type Submission struct {
 	RequestID         string             `json:"request_id"`
 	SubmittedAt       pgtype.Timestamptz `json:"submitted_at"`
 	AssignmentVersion int32              `json:"assignment_version"`
+}
+
+type SubmissionImport struct {
+	ID           string             `json:"id"`
+	CourseID     string             `json:"course_id"`
+	AssignmentID string             `json:"assignment_id"`
+	QuestionID   string             `json:"question_id"`
+	ImportedBy   string             `json:"imported_by"`
+	RequestID    string             `json:"request_id"`
+	InputHash    string             `json:"input_hash"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+}
+
+type SubmissionImportItem struct {
+	BatchID      string `json:"batch_id"`
+	SubmissionID string `json:"submission_id"`
+	RowNumber    int32  `json:"row_number"`
 }
 
 type TopicLink struct {

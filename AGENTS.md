@@ -10,7 +10,7 @@
 - RequireSession→RequireRole/RequireCourse；所有认证写请求再 RequireCSRF。对象 ID 要从数据库读取课程/学生归属，不只检查请求 body。学生不能读别人提交、笔记、路径、评分草稿，教师只能访问本人课程。
 - 题目/标准发布后冻结，原始作答保存 attempt、assignment_version、原文 SHA256。评分新增修订，教师确认后单独发布；客观题使用教师答案规则判分。知识点表现只用已发布、去重结果，不把无证据当零分或能力概率。
 - 资料修订新增版本并保留旧文，题目绑定确切 resource_id；干预关联学习/练习时验证下发之后的新证据。状态转换和相关写入在数据库事务中完成。
-- 新增迁移不得修改已执行迁移；当前 00001—00013 已分配且本地执行，后续从 00014 开始。先修改 db/queries，再用 sqlc 生成 store，不手改生成物。
+- 新增迁移不得修改已执行迁移；当前 00001—00014 已分配且本地执行，后续从 00015 开始。先修改 db/queries，再用 sqlc 生成 store，不手改生成物。
 - 独立题库入口是learning/question_bank.go、rag/question_bank.go和live/question-bank.tsx。题目/参考解答分别确认，题库标准归属确切题目版本；questions保留为作业实例，bank_question_version_id/bound_rubric_id固定组合，评分不能改绑。旧作业仍走原question_id归属，不重写历史。
 - 逐点评分入口为 learning/rubrics.go、feedback.go 和 live/rubrics.tsx、grading.tsx；AI草稿任务在internal/rag，确认标准绑定题目，评分绑定当时标准及依据。规则私有，机械核对不代替教师语义复核。
 - 资料/知识HTTP入口为learning/materials.go，页面为live/knowledge.tsx。原件、解析修订、学习资料发布、知识确认和索引空间分开；索引不能扩大权限，部分发布不允许下载完整原件。来源归档/撤回提炼许可须阻断派生知识未来检索，历史评分快照保留。
@@ -31,3 +31,5 @@
 - 2026-11-12前端分区：courses管理课程/成员，curriculum维护目录/依赖，materials分原件与学习内容，knowledge独立，question-bank承接题目/标准/整卷拆题；旧course-twin按对象重定向。课程选择在顶栏，切课保持模块并清理对象参数；不展示联调账目/调试JSON。导航回归入口check-navigation-browser.cjs；人工演示账号与S1自动化数据分开，均只在忽略的.local保存。
 
 - 2026-11-17本地对话助理入口是internal/agent、rag/agent.go和live/agent.tsx。协调者单层顺序委派四领域专家，工具只经identity.Gateway重走已授权业务路由，不开放SQL/shell/任意HTTP；浏览器写请求仍须CSRF。auto-review是确定性风险门禁，full-access不绕过正式确认／发布审批。作答／学情工具永久标记会话learner_context，随后禁止本会话出题与标准工具。运行和审批持久化到00013七张表；未知写操作不重放，未知模型调用不自动收费重试。自动等待业务任务真实终态，queued不能冒充完成。详见docs/agent-harness.md；验收入口check-agent.py、check-agent-browser.cjs和agent/service_test.go，真实模型共享原50元预算。
+
+- 2026-11-17收口入口：learning/submission_import.go（单题CSV预览/确认/审计）、assist_turns及live/retrieval-history.tsx（本人问答历史）、completion.sql和agent/http.go（长历史游标分页）、live/learning-gaps.tsx（正式评分点缺口）及path.tsx（授权精炼知识关联）。导入追加不可变attempt，actor为教师，不能计为干预后的学生执行。新增00014；验收check-completion-browser.cjs，待定业务规则见docs/research/partial-completion-2026-11-17.md。

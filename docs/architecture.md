@@ -181,6 +181,14 @@ flowchart LR
 
 `workflow_jobs.go`查询实际引用影响，普通新版不替换旧引用；保存新版处理决定时留存前版消费者快照，与页面预览一致。`regrade.go`冻结单个关闭作业的一道题、每人最新正式提交、哈希和既有评分基线；新规则统一，题干／题型／选项／满分须不变。批次行锁、作业锁、提交锁与数据库事务防止部分发布；取消保留原结果，重复发布幂等，输入／基线冲突整体回滚。历史作业绑定不改；正式结果消费者继续按当前已发布修订去重。
 
-新增前端按职责分为`material-assets/material-assist/content-topics/knowledge-review/content-impact/regrades`，复用`context`查询失效和`editing`恢复；`content-render`用KaTeX显示核对公式，不执行HTML。教师批量导入作答、问答历史、E4、自动个性推荐及补练、作答匿名沉淀仍未实现。
+新增前端按职责分为`material-assets/material-assist/content-topics/knowledge-review/content-impact/regrades`，复用`context`查询失效和`editing`恢复；`content-render`用KaTeX显示核对公式，不执行HTML。E4错因、AI个性排序及补练生成、作答匿名沉淀仍未实现。
 
 中断恢复：超过15分钟的生成类running任务转failed，须显式重试，避免后台自动重发付费生成；parse/index继续幂等恢复。调用结算返回实际更新行，恢复和后到结算不能重复扣账。该机制仍不提供供应商调用的严格exactly-once保证。
+
+## 2026-11-17 部分实现项收口
+
+`learning/submission_import.go`与`live/submission-import.tsx`接通单题CSV导入：预览名单/重复行/次数→确认哈希→作业行锁下整批新增不可变提交、批次来源与教师操作事件。仅已发布未截止作业；失败整批回滚，相同请求重放回原回执。`submission.imported`不冒充学生动作，不满足干预下发后的新提交条件。
+
+`assist_turns`保存本人课程问答及当时引用快照，`retrieval-history.tsx`支持分页和深链；请求去重，失败/待核对不后台重发。`agent/http.go`对消息/执行记录进行游标分页，带出所属步骤、审批和附件，活跃及最近更新运行保留可操作；浏览器加载早期记录保留滚动位置。模型上下文策略与供应商非流式协议不变。
+
+`path.tsx`从授权知识查询接入各知识点的精炼内容。`learning-gaps.tsx`用现有正式去重证据按题/标准/评分点统计并下钻，其他标准及无正式结果单列，不推断错因。新增00014；更多规则与验收入口见[收口记录](research/partial-completion-2026-11-17.md)。

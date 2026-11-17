@@ -112,7 +112,7 @@ func (q *Queries) ListAssignmentWorklist(ctx context.Context, arg ListAssignment
 
 const listSubmissionWorklist = `-- name: ListSubmissionWorklist :many
 SELECT s.id,s.assignment_id,s.question_id,s.student_id,s.attempt,s.status,s.submitted_at,
- u.display_name AS student_name,q.prompt,
+ u.display_name AS student_name,q.prompt,EXISTS(SELECT 1 FROM submission_import_items i WHERE i.submission_id=s.id) AS teacher_imported,
  COALESCE(g.state,'pending')::text AS review_state,
  count(*) OVER()::int AS total
 FROM submissions s JOIN users u ON u.id=s.student_id JOIN questions q ON q.id=s.question_id
@@ -133,17 +133,18 @@ type ListSubmissionWorklistParams struct {
 }
 
 type ListSubmissionWorklistRow struct {
-	ID           string             `json:"id"`
-	AssignmentID string             `json:"assignment_id"`
-	QuestionID   string             `json:"question_id"`
-	StudentID    string             `json:"student_id"`
-	Attempt      int32              `json:"attempt"`
-	Status       string             `json:"status"`
-	SubmittedAt  pgtype.Timestamptz `json:"submitted_at"`
-	StudentName  string             `json:"student_name"`
-	Prompt       string             `json:"prompt"`
-	ReviewState  string             `json:"review_state"`
-	Total        int32              `json:"total"`
+	ID              string             `json:"id"`
+	AssignmentID    string             `json:"assignment_id"`
+	QuestionID      string             `json:"question_id"`
+	StudentID       string             `json:"student_id"`
+	Attempt         int32              `json:"attempt"`
+	Status          string             `json:"status"`
+	SubmittedAt     pgtype.Timestamptz `json:"submitted_at"`
+	StudentName     string             `json:"student_name"`
+	Prompt          string             `json:"prompt"`
+	TeacherImported bool               `json:"teacher_imported"`
+	ReviewState     string             `json:"review_state"`
+	Total           int32              `json:"total"`
 }
 
 func (q *Queries) ListSubmissionWorklist(ctx context.Context, arg ListSubmissionWorklistParams) ([]ListSubmissionWorklistRow, error) {
@@ -171,6 +172,7 @@ func (q *Queries) ListSubmissionWorklist(ctx context.Context, arg ListSubmission
 			&i.SubmittedAt,
 			&i.StudentName,
 			&i.Prompt,
+			&i.TeacherImported,
 			&i.ReviewState,
 			&i.Total,
 		); err != nil {

@@ -1,10 +1,10 @@
 # 全景业务与实现架构
 
-**当前总图：[PNG](current/00_全景架构_实现状态.png)／[可编辑SVG](current/00_全景架构_实现状态.svg)／[交互查看](current/index.html)。** 2026-11-17，对照本地应用代码`560de5e`更新。保留原19个业务节点、42条关系及模块边界，加入6个对话助理节点与5条关系，共25个节点、47条关系；底部同步展开运行架构。
+**当前总图：[PNG](current/00_全景架构_实现状态.png)／[可编辑SVG](current/00_全景架构_实现状态.svg)／[交互查看](current/index.html)。** 2026-11-17，对照本地应用代码`3938ffe`更新。保留原19个业务节点、42条关系及模块边界，加入6个对话助理节点与5条关系，共25个节点、47条关系；底部同步展开运行架构。
 
 对话助理已合入同一全景，包含协调者、四领域专家、问题与审批、权限门禁和真实业务Gateway。单独展开图仍可查看：[助理架构PNG](agent/architecture.png)／[SVG](agent/architecture.svg)；范围见[助理说明](../agent-harness.md)和[实际验收](../research/agent-acceptance-2026-11-17.md)。单图生成入口为generate-agent.py与render-agent.cjs。
 
-课程图册 F01–F19 见[详细设计图册](atlas/README.md)：19 类、27 张图，展开业务分支、六类生命周期、41 张表／103 条外键和四条关键调用时序，逐图列出当前实现证据与未完成边界。[直接打开图册](atlas/index.html)。
+课程图册 F01–F19 见[详细设计图册](atlas/README.md)：19 类、27 张图，保留当时的业务分支、六类生命周期、41 张表／103 条外键和四条关键调用时序。[直接打开图册](atlas/index.html)。图册保留原设计基线，本轮新增表与交互以当前全景、迁移00014及[收口记录](../research/partial-completion-2026-11-17.md)为准，不将旧图册当作最新数据库结构。
 
 实现状态按[架构](../architecture.md)、[三模块验收记录](../research/three-module-acceptance-2026-11-12.md)、助理验收和直接调用链标注。**完全实现限于图中列明能力，具体验证范围以验收记录为准，不表示全部扩展样例通过、独立教师验收或公网部署。**
 
@@ -34,7 +34,8 @@
 | --- | --- |
 | 资料、知识、检索和模型任务 | [materials.go](../../backend/internal/learning/materials.go)、[RAG](../../backend/internal/rag)、[解析工具](../../backend/tools/parser/parse.py)、[页面](../../web/src/live/knowledge.tsx) |
 | 独立题库、标准和固定绑定 | [题库HTTP](../../backend/internal/learning/question_bank.go)、[生成任务](../../backend/internal/rag/question_bank.go)、[题库页面](../../web/src/live/question-bank.tsx)、[题库方案与实施边界](../research/question-bank-rubric-plan.md) |
-| 规则路径与学生收藏 | [path.go](../../backend/internal/learning/path.go)、[路径页面](../../web/src/live/path.tsx)、[笔记与收藏](../../backend/internal/learning/notes.go) |
+| 规则路径、授权知识与学生收藏 | [path.go](../../backend/internal/learning/path.go)、[路径页面](../../web/src/live/path.tsx)、[笔记与收藏](../../backend/internal/learning/notes.go) |
+| 问答历史、作答导入与评分缺口 | [问答持久化](../../backend/internal/learning/assist.go)、[CSV导入](../../backend/internal/learning/submission_import.go)、[正式评分证据](../../web/src/live/learning-gaps.tsx)、[本轮验收](../research/partial-completion-2026-11-17.md) |
 | 对话助理、权限门禁和授权执行 | [Agent服务](../../backend/internal/agent/service.go)、[工具目录](../../backend/internal/agent/catalog.go)、[助理页面](../../web/src/live/assistant.tsx)、[实现与验收](../research/agent-acceptance-2026-11-17.md) |
 | 原全景结构 | [原模块标注SVG快照](base-network.svg)；来自课程目录20261108的原总图，不修改历史三个SVG |
 
@@ -42,7 +43,9 @@
 
 总图底部展开当前运行关系：React／Nginx → Gin API；同步问答、查询向量和Agent推理由API调用模型，耗时任务经Redis／Asynq交Go worker执行。共享PostgreSQL／pgvector保存业务版本、持久任务、预算、会话与审批；文件卷保存原件、快照、私有附件和CSV。模型推理当前非流式，前端接收业务事件SSE；未知调用保守结算，生成中断后显式重试。Agent使用已有业务路由及权限，不开放任意数据库写入。
 
-特别保留的未实现项包括：精炼知识接入个性推荐、E4 AI共性错因诊断、自动补练生成、教师批量导入作答、独立检索问答页的会话历史和典型作答匿名沉淀。对话助理已保存自己的问答历史；整卷采纳、学生正式提交及部分课程维护仍使用现有页面，尚未全站工具化，长会话历史分页和供应商token流未实现。auto-review是确定性风险门禁，正式确认与发布始终逐操作审批。
+本轮接通教师单题CSV作答预览与原子导入、本人检索问答历史与引用快照、助理长历史分页、规则路径到授权精炼知识，以及正式评分点缺口到学生原句与干预。导入记录不冒充学生执行，问答重放不自动再次收费调用，班级统计按同题同标准的实际有效人数计算。
+
+仍有四个部分实现节点：规则路径（AI个性排序／自动补练待定）、学情诊断（E4共性错因待定）、来源与知识生命周期（典型作答授权与匿名沉淀待定）、助理覆盖（整卷采纳、学生正式提交及部分课程维护尚未工具化，供应商token流未接入）。这些分支保留未实现标记，具体可选方案见[下一轮待选规则](../research/partial-completion-2026-11-17.md#下一轮需要选择的规则)。auto-review仍是确定性风险门禁，正式确认与发布始终逐操作审批。
 
 ## 生成与检查
 
@@ -56,4 +59,4 @@ python -B scripts/check_docs.py
 
 生成脚本需要Pillow与微软雅黑字体；渲染脚本需要可用的Playwright和Microsoft Edge。`current`保存SVG、PNG、HTML及结构／浏览器检查结果；脚本串行渲染，不访问业务服务或模型，不改变生产数据。
 
-本轮检查覆盖五图文本边界、细图连线不穿无关节点、原19个节点与42条关系及原路径保留，另通过12项查看器检查，包括助理模块筛选、关键能力状态、五图切换、高亮、边界开关、缩放、文件链接、键盘和窄屏入口。总图PNG已目视核对；本轮仅更新图表与说明，业务和真实模型验证沿用实际验收记录。
+本轮检查覆盖五图文本边界、细图连线不穿无关节点、原19个节点与42条关系及原路径保留，另通过12项查看器检查，包括助理模块筛选、历史／导入／知识关联状态、五图切换、高亮、边界开关、缩放、文件链接、键盘和窄屏入口。总图PNG已目视核对；本轮业务验证见收口记录，没有新增真实模型调用。

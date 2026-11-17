@@ -12,7 +12,7 @@ NS = "http://www.w3.org/2000/svg"
 ET.register_namespace("", NS)
 FONT = "C:/Windows/Fonts/msyh.ttc"
 AS_OF = "2026-11-17"
-CODE_BASELINE = "560de5e"
+CODE_BASELINE = "3938ffe"
 FONTS = {}
 COL = {"done": "#187653", "partial": "#A06413", "planned": "#78818A"}
 STATUS = {"done": "完全实现", "partial": "部分实现", "planned": "未实现"}
@@ -135,7 +135,7 @@ NETWORK = {
         ("done", "可见资料 + 学习用途确认知识"),
         ("done", "向量 + 关键词 → RRF融合"),
         ("done", "带引用回答 / 原文定位；不足可提问"),
-        ("planned", "独立检索页历史（助理历史已实现）")]),
+        ("done", "本人问答历史 / 引用快照 / 分页恢复")]),
     "tasks": ("作业与测验", "system", [
         ("done", "选确认版本 / 发布 / 截止 / 关闭"),
         ("done", "课程 / 名单 / 题目与任务版本"),
@@ -143,7 +143,7 @@ NETWORK = {
     "answers": ("原始作答", "data", [
         ("done", "学生草稿自动保存 / 回执 / 提交历史"),
         ("done", "不可变原文 / attempt / 任务版本 / 哈希"),
-        ("planned", "教师批量导入学生作答")]),
+        ("done", "教师CSV预览 / 原子导入 / 来源审计")]),
     "grading": ("有据智能评阅", "ai", [
         ("done", "原文 + 固定标准 + 当时依据快照"),
         ("done", "逐点得分 / 学生原句 / 依据来源"),
@@ -160,11 +160,11 @@ NETWORK = {
         ("done", "只采纳下发后证据；可继续干预")]),
     "recommend": ("规则学习路径与补练", "system", [
         ("done", "低表现 / 无证据 + 前置知识 → 路径"),
-        ("done", "教师指定资料与已确认练习"),
+        ("done", "教师指定资料 / 已确认练习 / 精炼知识关联"),
         ("planned", "知识驱动个性推荐 / 自动补练生成")]),
     "diagnose": ("学情证据与错因诊断", "system", [
         ("done", "正式结果去重 / 分母 / 班级个人表现"),
-        ("done", "反馈 → 评分点 → 原文；缺证据单列"),
+        ("done", "逐点失分统计 → 学生原句 / 反馈 / 干预"),
         ("planned", "E4：AI班级共性错因诊断")]),
     "results": ("正式结果与学习证据", "data", [
         ("done", "分项反馈 / 引用 / 标准与版本"),
@@ -230,8 +230,8 @@ def agent_layer(main, root):
             ("done", "已读作答会话禁止出题与标准工具")]),
         ("agent-coverage", 1880, 2920, 1610, 240, "对话代办覆盖与扩展边界", "system", [
             ("done", "资料 / 知识 / 题目 / 标准 / 作业 / 评分 / 学习的已登记工具"),
-            ("done", "整卷采纳、学生正式提交及部分课程维护继续使用既有页面"),
-            ("planned", "全站所有动作工具化；长会话历史分页"),
+            ("done", "长历史分页 / 原问题与回执 / 活跃审批"),
+            ("planned", "整卷采纳、学生正式提交及部分课程维护尚未工具化"),
             ("planned", "供应商token流（当前是非流式模型调用 + 业务事件SSE）")]),
     ]
     for name, x, y, w, h, title, role, lines in cards:
@@ -348,7 +348,7 @@ def panorama():
         ("ingest", "materials"): "可靠原文 · 教师独立发布",
         ("knowledge", "authoring"): "检索选依据 / 考查要求",
         ("knowledge", "grading"): "标准确认时冻结的依据",
-        ("knowledge", "recommend"): "待 · 精炼知识接入推荐",
+        ("knowledge", "recommend"): "确认精炼知识 / 规则路径",
         ("question", "authoring"): "独立题库 / 生成要求",
         ("authoring", "rubric"): "三类草稿",
         ("rubric", "tasks"): "确认题目 + 匹配标准",
@@ -362,7 +362,7 @@ def panorama():
         ("maintenance", "knowledge-review"): "待 · 匿名化 / 审核入库",
         ("recommend", "question"): "待 · 自动补练题 → 教师审核",
     }
-    pending = {("results", "maintenance"), ("knowledge", "recommend"),
+    pending = {("results", "maintenance"),
                ("maintenance", "knowledge-review"), ("recommend", "question")}
     for g in root.iter(tag("g")):
         if g.get("class") not in ("edge", "edge-label"):

@@ -3,6 +3,7 @@ package learning
 import (
 	"errors"
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
+	"github.com/122Ml/HaJi_Mark/backend/internal/rag"
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -99,7 +100,21 @@ func (h *Handler) publishResource(c *gin.Context) {
 		identity.Fail(c, 409, "state_conflict", "资料已发布，修改须另存新版本")
 		return
 	}
-	v, e := h.q.PublishBusinessResource(c.Request.Context(), store.PublishBusinessResourceParams{ID: r.ID, ReviewedBy: text(identity.Current(c).ID)})
+	ctx := c.Request.Context()
+	tx, e := h.db.Begin(ctx)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	defer tx.Rollback(ctx)
+	q := h.q.WithTx(tx)
+	v, e := q.PublishBusinessResource(ctx, store.PublishBusinessResourceParams{ID: r.ID, ReviewedBy: text(identity.Current(c).ID)})
+	if e == nil {
+		e = rag.QueueIndex(ctx, q, r.CourseID, identity.Current(c).ID)
+	}
+	if e == nil {
+		e = tx.Commit(ctx)
+	}
 	result(c, v, e)
 }
 func (h *Handler) event(c *gin.Context) {

@@ -12,7 +12,7 @@ NS = "http://www.w3.org/2000/svg"
 ET.register_namespace("", NS)
 FONT = "C:/Windows/Fonts/msyh.ttc"
 AS_OF = "2026-11-17"
-CODE_BASELINE = "3938ffe"
+CODE_BASELINE = "4d82dbf + 方案B"
 FONTS = {}
 COL = {"done": "#187653", "partial": "#A06413", "planned": "#78818A"}
 STATUS = {"done": "完全实现", "partial": "部分实现", "planned": "未实现"}
@@ -82,7 +82,7 @@ def legend(parent, y, detailed=False):
     for x, state in ((80, "done"), (275, "partial"), (490, "planned")):
         el(parent, "circle", cx=x+8, cy=y-7, r=6, fill=COL[state])
         txt(parent, x+26, y, STATUS[state], 23, COL[state])
-    txt(parent, 720, y, "实线：已接通关系　虚线：待接通关系", 22, "#62656A")
+    txt(parent, 720, y, "实线：已接通　虚线：待接通或明确限制（见标注）", 22, "#62656A")
     if detailed:
         txt(parent, 2320, y, "AI橙 / 教师深色 / 数据蓝", 22, "#62656A", text_anchor="end")
 
@@ -161,11 +161,12 @@ NETWORK = {
     "recommend": ("规则学习路径与补练", "system", [
         ("done", "低表现 / 无证据 + 前置知识 → 路径"),
         ("done", "教师指定资料 / 已确认练习 / 精炼知识关联"),
-        ("planned", "知识驱动个性推荐 / 自动补练生成")]),
+        ("done", "规则筛选 + AI组内排序 / 偏好历史"),
+        ("planned", "自动生成新补练（尚未纳入）")]),
     "diagnose": ("学情证据与错因诊断", "system", [
         ("done", "正式结果去重 / 分母 / 班级个人表现"),
         ("done", "逐点失分统计 → 学生原句 / 反馈 / 干预"),
-        ("planned", "E4：AI班级共性错因诊断")]),
+        ("done", "E4：标签 + AI逐字证据 → 教师确认")]),
     "results": ("正式结果与学习证据", "data", [
         ("done", "分项反馈 / 引用 / 标准与版本"),
         ("done", "学生本人可见 / 教师CSV导出"),
@@ -173,7 +174,7 @@ NETWORK = {
     "maintenance": ("来源与知识生命周期", "system", [
         ("done", "普通新版不自动停旧；明确归档 / 撤回 / 替换才限制未来"),
         ("done", "影响清单 / 站内决定 / 整组重评；旧成绩与依据保留"),
-        ("planned", "典型作答匿名化沉淀案例")]),
+        ("done", "教师自编教学示例；不转用作答、不用于评分")]),
 }
 
 
@@ -184,7 +185,7 @@ def agent_layer(main, root):
     box(zone, 80, 2540, 3440, 750, "#F0F4F1", "#9AAFA7", stroke_dasharray="10 7", stroke_width=2)
     group = el(main, "g", **{"class": "agent-architecture"})
     txt(group, 110, 2585, "对话助理与授权执行模块", 29, font_weight=600)
-    badge(group, 565, 2560, "partial")
+    badge(group, 565, 2560, "done")
     txt(group, 3490, 2585, "复用上方业务对象与状态，不另建第二套业务数据", 22, "#526575", text_anchor="end")
     links = el(group, "g", **{"class": "agent-links"})
     for a, b, route, both in [
@@ -231,8 +232,8 @@ def agent_layer(main, root):
         ("agent-coverage", 1880, 2920, 1610, 240, "对话代办覆盖与扩展边界", "system", [
             ("done", "资料 / 知识 / 题目 / 标准 / 作业 / 评分 / 学习的已登记工具"),
             ("done", "长历史分页 / 原问题与回执 / 活跃审批"),
-            ("planned", "整卷采纳、学生正式提交及部分课程维护尚未工具化"),
-            ("planned", "供应商token流（当前是非流式模型调用 + 业务事件SSE）")]),
+            ("done", "七类既有工作台 / 保存后服务端核对 / 返回原运行；学生本人草稿与提交"),
+            ("done", "兼容SSE文本持久化 / 完整工具校验 / 同响应JSON与profile非流式回退")]),
     ]
     for name, x, y, w, h, title, role, lines in cards:
         g = el(group, "g", **{"class": "node", "data-node": name, "data-module": "agent",
@@ -314,9 +315,9 @@ def panorama():
         ("api", 830, 2630, 800, 190, "Go / Gin API", "system", [
             "会话 / 角色 / 课程 / CSRF", "同步事务 / 固定版本 / 整组发布", "sqlc / pgx；业务Gateway与教师状态"]),
         ("worker", 1830, 2630, 800, 190, "Go worker / Asynq", "system", [
-            "本地Python解析 / 中文OCR / 图像裁剪", "索引 / 提炼 / 出题 / 标准 / 评阅", "PG持久任务 + Redis执行队列"]),
+            "本地Python解析 / 中文OCR / 图像裁剪", "索引 / 提炼 / 出题 / 评阅 / 诊断 / 推荐", "PG持久任务 + Redis执行队列"]),
         ("models", 2830, 2630, 660, 190, "第三方模型 API", "ai", [
-            "Embedding / 生成 / 视觉；推理非流式", "服务端profile / 模型 / 维度 / 凭据", "累计50元预算：事务预留 → 结算"]),
+            "Embedding / 生成 / 视觉 / Agent流式", "服务端profile / 模型 / 维度 / 凭据", "累计50元预算：事务预留 → 结算"]),
         ("postgres", 830, 2890, 800, 160, "PostgreSQL / pgvector", "data", [
             "业务 / 版本 / 任务 / 预算 / 对话与审批", "pgvector精确余弦 / 中文GIN索引"]),
         ("redis", 1830, 2890, 800, 160, "Redis / Asynq", "data", [
@@ -348,7 +349,7 @@ def panorama():
         ("ingest", "materials"): "可靠原文 · 教师独立发布",
         ("knowledge", "authoring"): "检索选依据 / 考查要求",
         ("knowledge", "grading"): "标准确认时冻结的依据",
-        ("knowledge", "recommend"): "确认精炼知识 / 规则路径",
+        ("knowledge", "recommend"): "确认精炼知识 / 规则候选 + AI排序",
         ("question", "authoring"): "独立题库 / 生成要求",
         ("authoring", "rubric"): "三类草稿",
         ("rubric", "tasks"): "确认题目 + 匹配标准",
@@ -358,20 +359,20 @@ def panorama():
         ("intervention", "tasks"): "补练 / 已确认练习",
         ("results", "diagnose"): "正式证据",
         ("maintenance", "question"): "影响清单 / 选择新版 / 整组重评",
-        ("results", "maintenance"): "待 · 典型作答案例候选",
-        ("maintenance", "knowledge-review"): "待 · 匿名化 / 审核入库",
+        ("results", "maintenance"): "不自动转用学生作答",
+        ("maintenance", "knowledge-review"): "教师自编示例 / 人工审核",
         ("recommend", "question"): "待 · 自动补练题 → 教师审核",
     }
-    pending = {("results", "maintenance"),
-               ("maintenance", "knowledge-review"), ("recommend", "question")}
+    pending = {("recommend", "question")}
+    restricted = {("results", "maintenance")}
     for g in root.iter(tag("g")):
         if g.get("class") not in ("edge", "edge-label"):
             continue
         key = (g.get("data-from"), g.get("data-to"))
-        g.set("data-status", "planned" if key in pending else "done")
+        g.set("data-status", "planned" if key in pending else "restricted" if key in restricted else "done")
         p = g.find(tag("path"))
         if p is not None:
-            if key in pending:
+            if key in pending or key in restricted:
                 p.set("stroke-dasharray", "10 7")
             else:
                 p.attrib.pop("stroke-dasharray", None)
@@ -498,7 +499,7 @@ def materials():
 
 
 def knowledge():
-    f = Figure("02  知识库模块")
+    f = Figure("02  知识库模块", height=1740)
     f.node("source",80,200,"许可允许的可靠原文",["原文片段 / 来源版本 / 定位", "学习资料与知识库不共用发布状态"],"data")
     f.node("ai",660,200,"按需AI提炼与关联",["概念 / 规则 / 方法 / 示例 / 误区", "分类、适用条件、知识点与关联建议", "保留逐字出处；只生成候选"],"ai")
     f.node("candidate",1240,200,"知识候选",["内容 / 条件 / 关联建议 / 原文证据", "候选不可直接供学生或评分使用"],"data")
@@ -515,6 +516,7 @@ def knowledge():
     f.node("decision",660,1140,"教师逐项处理",["不采纳 / 合并 / 并存 / 替换 / 暂缓", "输入过期拒绝；合并保留多来源", "权限取交集；不撤整份来源许可"],"teacher")
     f.node("topics",1240,1140,"多专题与引用影响",["专题 / 标签 / 知识点独立关联", "来源 → 知识 → 题库 → 作业", "保存处理决定，按需整组重评"],"data")
     f.node("frozen",1820,1140,"评阅只使用冻结依据",["标准确认时保留依据快照", "正式评阅不临时检索增加扣分点", "历史结果可回查当时原文"],"external")
+    f.node("teacher-example",1820,1450,"教师自编教学示例",["教师独立编写 → 同一审核入口", "不转用学生作答；不伪造原文出处", "仅学习用途，禁止作为评分依据"],"teacher")
     for a,b,pts in [
         ("source","ai",[(580,290),(660,290)]),
         ("ai","candidate",[(1160,290),(1240,290)]),
@@ -534,7 +536,8 @@ def knowledge():
     f.edge("decision","confirmed",[(910,1140),(910,1090),(1780,1090),(1780,600),(1740,600)])
     f.edge("decision","topics",[(1160,1230),(1240,1230)])
     f.edge("rag","student",[(1490,1010),(1490,1080),(330,1080),(330,1010)],"只返回学生可见学习内容",(930,1068))
-    f.note("学习资料是完整教学内容；知识库是带条件、用途与出处的精炼条目。二者共用检索能力，各自审核、发布与保留版本。")
+    f.edge("teacher-example","review",[(2320,1540),(2360,1540),(2360,290),(2320,290)])
+    f.note("学习资料与知识库独立审核发布；来源知识保留逐字出处，教师自编示例独立标记来源，不开放评分用途。", y=1680)
     return f.validate()
 
 
@@ -616,7 +619,7 @@ FIGURES = [
 
 VIEWER = '''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HaJi Mark · 业务流程与实现架构</title><style>
 *{box-sizing:border-box}body{margin:0;background:#E4E3DE;color:#242424;font:14px "Microsoft YaHei",sans-serif;height:100vh;display:flex;flex-direction:column}header{padding:12px 20px;background:#242424;color:white;display:flex;flex-wrap:wrap;align-items:center;gap:10px}strong{font-size:17px;margin-right:auto}nav{display:flex;gap:6px;flex-wrap:wrap}button,a,select{font:inherit;border:1px solid #888;border-radius:5px;padding:6px 11px;background:transparent;color:white;text-decoration:none;cursor:pointer}button.active{background:#BB5226;border-color:#BB5226}select option{color:#242424;background:white}.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}main{overflow:auto;padding:24px;flex:1;min-height:0}.canvas{margin:auto}svg{display:block;width:100%;height:auto}.node{cursor:pointer}.dim{opacity:.12}.selected>rect:first-child{stroke:#BB5226;stroke-width:5}output{min-width:48px;text-align:center}.hide-modules .module-zones{display:none}.panel{display:none}.panel.active{display:block}button:focus-visible,a:focus-visible,select:focus-visible{outline:3px solid #F8B06C;outline-offset:2px}
-</style></head><body><header><strong>HaJi Mark · 流程与实现架构</strong><nav aria-label="图表">TABS</nav><div class="toolbar"><select id="module" aria-label="查看模块关系"><option value="">全部模块</option>MODULES</select><label><input id="boundaries" type="checkbox" checked>模块边界</label><button id="fit">适宽</button><button id="minus" aria-label="缩小">−</button><output id="level"></output><button id="plus" aria-label="放大">＋</button><button id="reset">重置关系</button><a id="svg-link">SVG</a><a id="png-link">PNG</a></div></header><main>PANELS</main><script>
+</style></head><body><header><strong>HaJi Mark · 流程与实现架构</strong><a href="../interactions/index.html">全平台交互图册 ↗</a><nav aria-label="图表">TABS</nav><div class="toolbar"><select id="module" aria-label="查看模块关系"><option value="">全部模块</option>MODULES</select><label><input id="boundaries" type="checkbox" checked>模块边界</label><button id="fit">适宽</button><button id="minus" aria-label="缩小">−</button><output id="level"></output><button id="plus" aria-label="放大">＋</button><button id="reset">重置关系</button><a id="svg-link">SVG</a><a id="png-link">PNG</a></div></header><main>PANELS</main><script>
 const files=FILES,panels=[...document.querySelectorAll('.panel')],buttons=[...document.querySelectorAll('nav button')],pane=document.querySelector('main'),picker=document.getElementById('module');let active=0,scale=1;
 function canvas(){return panels[active].querySelector('.canvas')}function all(sel){return [...canvas().querySelectorAll(sel)]}
 function zoom(s){scale=Math.max(.15,Math.min(2.5,s));canvas().style.width=(Number(canvas().querySelector('svg').getAttribute('width'))*scale)+'px';document.getElementById('level').value=Math.round(scale*100)+'%'}

@@ -14,10 +14,11 @@ import {
 import { Feedback, Link, useAction, useLiveQuery } from "./context";
 import { WorkflowJob } from "./workflow-job";
 import { type TopicData } from "./content-topics";
+import type { Job } from "./knowledge";
 import { RichContent } from "./content-render";
 import { DraftNotice, useEditorDraft } from "./editing";
 
-export function URLImport({ onDone }: { onDone: () => void }) {
+export function URLImport({ onDone, onBusyChange }: { onDone: (job: Job) => void; onBusyChange?: (busy: boolean) => void }) {
   const [url, setURL] = useState(""),
     [title, setTitle] = useState(""),
     [note, setNote] = useState(""),
@@ -27,15 +28,15 @@ export function URLImport({ onDone }: { onDone: () => void }) {
     <Form
       className="live-form"
       onFinish={async () => {
-        if (
-          await action.run("/sources/url", {
+        onBusyChange?.(true);
+        const job = await action.run<Job>("/sources/url", {
             url,
             title,
             source_note: note,
             allow_derived: allow,
-          })
-        )
-          onDone();
+          });
+        onBusyChange?.(false);
+        if (job) onDone(job);
       }}
       layout="vertical"
     >

@@ -62,6 +62,12 @@ func (h *Handler) knowledgeDecision(c *gin.Context) {
 		locked[id] = k
 	}
 	k := locked[c.Param("knowledgeID")]
+	for _, entry := range locked {
+		if entry.Origin == "teacher_example" {
+			invalid(c, "自编示例请直接编辑、建立版本或归档，不与资料提炼条目合并")
+			return
+		}
+	}
 	if k.State != "draft" || k.EditVersion != in.EditVersion {
 		identity.Fail(c, 409, "stale_revision", "候选已改变，请重新核对")
 		return

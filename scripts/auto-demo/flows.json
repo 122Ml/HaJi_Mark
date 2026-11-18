@@ -1,0 +1,14 @@
+[
+  {"id":"course","title":"课程与教学组织","group":"内容建设","requires":[],"input":"数据库系统原理课程、章节知识点与学生账号","process":"教师创建课程、维护目录、加入学生并发布","output":"courses / knowledge_points / enrollments"},
+  {"id":"materials","title":"资料导入、解析与发布","group":"内容建设","requires":["course"],"input":"自编事务与并发控制讲义文件","process":"上传原件、真实解析、核对片段、发布学习内容并构建向量索引","output":"material_sources / material_fragments / resources / chunk_embeddings"},
+  {"id":"knowledge","title":"知识提炼与审核入库","group":"内容建设","requires":["materials"],"input":"选定的可靠原文片段","process":"AI提炼候选、教师编辑用途和关联、确认后更新检索索引","output":"processing_jobs / knowledge_entries / retrieval_chunks"},
+  {"id":"questions","title":"AI出题与评分标准确认","group":"内容建设","requires":["knowledge"],"input":"授权知识依据、考查要求和满分","process":"真实生成题目、参考解答和标准草稿，分别确认","output":"bank_question_versions / rubric_versions"},
+  {"id":"assignments","title":"作业与客观测验发布","group":"教学闭环","requires":["questions"],"input":"确认的题库版本、标准与客观题答案","process":"建立主观作业、固定题目标准版本，发布客观测验","output":"assignments / questions"},
+  {"id":"submissions","title":"学生学习、笔记与作答","group":"教学闭环","requires":["assignments"],"input":"学生阅读行为、笔记和预设教学作答","process":"阅读收藏、保存草稿、逐题正式提交、客观规则判分","output":"learning_events / learning_notes / answer_drafts / submissions"},
+  {"id":"grading","title":"AI评阅、复核与正式反馈","group":"教学闭环","requires":["submissions"],"input":"真实学生角色提交与绑定标准","process":"生成评分草稿、教师核对确认发布、学生查看、正式CSV导出","output":"processing_jobs / grading_revisions / CSV文件"},
+  {"id":"learning","title":"资料问答与学习路径","group":"教学闭环","requires":["grading"],"input":"学生课程问题、正式结果与可见学习内容","process":"真实检索问答、回看引用历史、规则生成路径和AI排序、保存偏好","output":"assist_turns / study_paths / intelligence_reports / recommendation_choices"},
+  {"id":"intervention","title":"共性诊断与干预复查","group":"教学闭环","requires":["grading"],"input":"同题同标准的正式失分作答","process":"AI诊断、教师确认、下发补学任务、学生产生新学习证据、教师复查","output":"intelligence_reports / interventions / learning_events"},
+  {"id":"agent","title":"对话助理导入附件","group":"扩展闭环","requires":["course"],"input":"私有会话附件与自然语言导入要求","process":"协调委派、填写问题卡、授权导入、等待解析、展示真实回执","output":"agent_runs / agent_steps / agent_requests / material_sources"},
+  {"id":"regrade","title":"内容变更与整组重评","group":"扩展闭环","requires":["grading"],"input":"同题同满分的新标准与关闭作业有效提交","process":"保留原结果、新建标准、冻结提交、逐份复核、整组统一发布","output":"rubric_versions / regrade_batches / regrade_items / grading_revisions"},
+  {"id":"community","title":"课程互动与教研记录","group":"扩展闭环","requires":["course"],"input":"公告、课程提问、教师回复与教学观察","process":"师生发布回复、教师保存教研和行业能力关联记录","output":"interactions / research_records / industry_records"}
+]

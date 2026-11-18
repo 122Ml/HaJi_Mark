@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2600" height="2226" viewBox="0 0 2600 2226" role="img" aria-label="题库、参考解答与评分标准">
+<title>I04 题库、参考解答与评分标准</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 1 L9 5 L0 9Z" fill="#839097"/></marker></defs>
+<g font-family="Microsoft YaHei, sans-serif">
+<rect x="0" y="0" width="2600" height="2226" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="80" y="77" font-size="40" fill="#242424" font-weight="700" text-anchor="start" >I04　题库、参考解答与评分标准</text>
+<text x="2520" y="77" font-size="21" fill="#58616A" font-weight="400" text-anchor="end" >2026-11-17 · 本地实现</text>
+<rect x="62.0" y="125" width="541.0" height="2066" rx="10" fill="#EDECE6" stroke="none" />
+<text x="80.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >教师</text>
+<rect x="707.0" y="125" width="541.0" height="2066" rx="10" fill="#F1F0EB" stroke="none" />
+<text x="725.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >平台</text>
+<rect x="1352.0" y="125" width="541.0" height="2066" rx="10" fill="#EDECE6" stroke="none" />
+<text x="1370.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >AI / 对话助理</text>
+<rect x="1997.0" y="125" width="541.0" height="2066" rx="10" fill="#F1F0EB" stroke="none" />
+<text x="2015.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >学生</text>
+<g class="edges">
+<g class="edge" data-from="input" data-to="split"><title>整卷</title><path d="M585.0,323.0 L1370.0,323.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="split" data-to="correct"><title>人工校正</title><path d="M1875.0,323.0 L1897.0,323.0 L1897.0,793 L58.0,793 L58.0,903.0 L80.0,903.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="correct" data-to="bank"><title>采纳</title><path d="M585.0,903.0 L725.0,903.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="input" data-to="bank"><title>手工 / JSON</title><path d="M332.5,411 L332.5,433 L977.5,433 L977.5,815" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="scope" data-to="draft"><title>AI辅助</title><path d="M585.0,613.0 L1370.0,613.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="draft" data-to="bank"><title>保存候选</title><path d="M1875.0,613.0 L1897.0,613.0 L1897.0,723 L703.0,723 L703.0,932.0 L725.0,932.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="bank" data-to="question"><title>选中编辑</title><path d="M1230.0,903.0 L1252.0,903.0 L1252.0,1083 L58.0,1083 L58.0,1193.0 L80.0,1193.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="bank" data-to="answer"><title>单独审定</title><path d="M977.5,991 L977.5,1373 L332.5,1373 L332.5,1395" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="question" data-to="rubric"><title>单独生成标准</title><path d="M585.0,1193.0 L607.0,1193.0 L607.0,1483.0 L1370.0,1483.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="rubric" data-to="standard"><title>草稿</title><path d="M1875.0,1483.0 L1897.0,1483.0 L1897.0,1663 L58.0,1663 L58.0,1773.0 L80.0,1773.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="bank" data-to="standard"><title>单独编辑标准</title><path d="M1006.5,991 L1006.5,1640 L332.5,1640 L332.5,1685" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="question" data-to="versions"><title>确认题目</title><path d="M332.5,1281 L332.5,1350 L977.5,1350 L977.5,1685" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="answer" data-to="versions"><title>确认解答</title><path d="M585.0,1483.0 L607.0,1483.0 L607.0,1773.0 L725.0,1773.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="standard" data-to="versions"><title>确认匹配标准</title><path d="M585.0,1773.0 L607.0,1773.0 L607.0,1802.0 L725.0,1802.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="versions" data-to="use"><title>引用</title><path d="M1230.0,1773.0 L1252.0,1773.0 L1252.0,1953 L58.0,1953 L58.0,2063.0 L80.0,2063.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="versions" data-to="change"><title>更正</title><path d="M977.5,1861 L977.5,1975" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+</g><g class="nodes">
+<g class="node" data-node="input" tabindex="0" role="button" aria-label="手工录题 / JSON / 整卷导入">
+<rect x="80.0" y="235" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="278" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >手工录题 / JSON / 整卷导入</text>
+<text x="102.0" y="320" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >单选 / 主观 / 代码文本</text>
+</g>
+<g class="node" data-node="scope" tabindex="0" role="button" aria-label="选择资料与知识依据">
+<rect x="80.0" y="525" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="568" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >选择资料与知识依据</text>
+<text x="102.0" y="610" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >考查要求 / 题型 / 满分</text>
+</g>
+<g class="node" data-node="split" tabindex="0" role="button" aria-label="整卷解析与拆题候选">
+<rect x="1370.0" y="235" width="505.0" height="176" rx="10" fill="#FFF1E5" stroke="#E3B89A" stroke-width="2"/>
+<text x="1392.0" y="278" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >整卷解析与拆题候选</text>
+<text x="1392.0" y="320" font-size="22" fill="#775D4E" font-weight="400" text-anchor="start" >跨页 / 印刷公式 / 图表证据</text>
+</g>
+<g class="node" data-node="draft" tabindex="0" role="button" aria-label="生成题目 + 解答 + 标准">
+<rect x="1370.0" y="525" width="505.0" height="176" rx="10" fill="#FFF1E5" stroke="#E3B89A" stroke-width="2"/>
+<text x="1392.0" y="568" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >生成题目 + 解答 + 标准</text>
+<text x="1392.0" y="610" font-size="22" fill="#775D4E" font-weight="400" text-anchor="start" >三份草稿 / 不读取学生作答</text>
+</g>
+<g class="node" data-node="correct" tabindex="0" role="button" aria-label="拆分 / 合并 / 校正边界">
+<rect x="80.0" y="815" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="858" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >拆分 / 合并 / 校正边界</text>
+<text x="102.0" y="900" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >核对题干 / 选项 / 来源</text>
+</g>
+<g class="node" data-node="bank" tabindex="0" role="button" aria-label="独立题库与来源记录">
+<rect x="725.0" y="815" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="858" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >独立题库与来源记录</text>
+<text x="747.0" y="900" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >筛选 / 选用 / 采纳审计</text>
+</g>
+<g class="node" data-node="question" tabindex="0" role="button" aria-label="编辑并确认题目">
+<rect x="80.0" y="1105" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="1148" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >编辑并确认题目</text>
+<text x="102.0" y="1190" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >选项 / 题型 / 知识点 / 版本</text>
+</g>
+<g class="node" data-node="answer" tabindex="0" role="button" aria-label="编辑并确认参考解答">
+<rect x="80.0" y="1395" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="1438" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >编辑并确认参考解答</text>
+<text x="102.0" y="1480" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >与题目和标准分别确认</text>
+</g>
+<g class="node" data-node="rubric" tabindex="0" role="button" aria-label="按确定题目起草标准">
+<rect x="1370.0" y="1395" width="505.0" height="176" rx="10" fill="#FFF1E5" stroke="#E3B89A" stroke-width="2"/>
+<text x="1392.0" y="1438" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >按确定题目起草标准</text>
+<text x="1392.0" y="1480" font-size="22" fill="#775D4E" font-weight="400" text-anchor="start" >选定依据 / 评分点 / 部分分</text>
+</g>
+<g class="node" data-node="standard" tabindex="0" role="button" aria-label="编辑并确认评分标准">
+<rect x="80.0" y="1685" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="1728" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >编辑并确认评分标准</text>
+<text x="102.0" y="1770" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >维度 / 计分规则 / 满分加和</text>
+</g>
+<g class="node" data-node="versions" tabindex="0" role="button" aria-label="冻结题目与匹配标准版本">
+<rect x="725.0" y="1685" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="1728" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >冻结题目与匹配标准版本</text>
+<text x="747.0" y="1770" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >草稿不可发布 / 引用精确版本</text>
+</g>
+<g class="node" data-node="use" tabindex="0" role="button" aria-label="建立作业 / 测验">
+<rect x="80.0" y="1975" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="2018" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >建立作业 / 测验</text>
+<text x="102.0" y="2060" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >选择确认题目与匹配标准</text>
+<text x="565.0" y="2135" font-size="17" fill="#E1E5E8" font-weight="400" text-anchor="end" >↗ I05</text>
+</g>
+<g class="node" data-node="change" tabindex="0" role="button" aria-label="需要更正时新增版本">
+<rect x="725.0" y="1975" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="2018" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >需要更正时新增版本</text>
+<text x="747.0" y="2060" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >改满分另建标准 / 不覆盖历史</text>
+<text x="1210.0" y="2135" font-size="17" fill="#58616A" font-weight="400" text-anchor="end" >↗ I07</text>
+</g>
+</g><g class="labels">
+<g class="edge-label" data-from="input" data-to="split">
+<rect x="948.5" y="289.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="977.5" y="310.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >整卷</text>
+</g>
+<g class="edge-label" data-from="split" data-to="correct">
+<rect x="1907.0" y="543.5" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1955.0" y="564.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >人工校正</text>
+</g>
+<g class="edge-label" data-from="correct" data-to="bank">
+<rect x="626.0" y="869.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="655.0" y="890.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >采纳</text>
+</g>
+<g class="edge-label" data-from="input" data-to="bank">
+<rect x="987.5" y="609.5" width="127.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1051.0" y="630.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >手工 / JSON</text>
+</g>
+<g class="edge-label" data-from="draft" data-to="bank">
+<rect x="1907.0" y="653.5" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1955.0" y="674.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >保存候选</text>
+</g>
+<g class="edge-label" data-from="bank" data-to="question">
+<rect x="1262.0" y="978.5" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1310.0" y="999.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >选中编辑</text>
+</g>
+<g class="edge-label" data-from="bank" data-to="answer">
+<rect x="987.5" y="1167.5" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1035.5" y="1188.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >单独审定</text>
+</g>
+<g class="edge-label" data-from="question" data-to="rubric">
+<rect x="617.0" y="1323.5" width="134.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="684.0" y="1344.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >单独生成标准</text>
+</g>
+<g class="edge-label" data-from="rubric" data-to="standard">
+<rect x="1907.0" y="1558.5" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1936.0" y="1579.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >草稿</text>
+</g>
+<g class="edge-label" data-from="bank" data-to="standard">
+<rect x="1016.5" y="1301.0" width="134.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1083.5" y="1322.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >单独编辑标准</text>
+</g>
+<g class="edge-label" data-from="question" data-to="versions">
+<rect x="342.5" y="1301.0" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="390.5" y="1322.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >确认题目</text>
+</g>
+<g class="edge-label" data-from="answer" data-to="versions">
+<rect x="617.0" y="1613.5" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="665.0" y="1634.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >确认解答</text>
+</g>
+<g class="edge-label" data-from="versions" data-to="use">
+<rect x="1262.0" y="1848.5" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1291.0" y="1869.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >引用</text>
+</g>
+<g class="edge-label" data-from="versions" data-to="change">
+<rect x="987.5" y="1903.5" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1016.5" y="1924.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >更正</text>
+</g>
+</g></g></svg>

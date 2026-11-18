@@ -423,7 +423,7 @@ func (q *Queries) ListAgentPageRequests(ctx context.Context, ids []string) ([]Ag
 }
 
 const listAgentPageRuns = `-- name: ListAgentPageRuns :many
-SELECT a.id,a.conversation_id,a.request_id,a.state,a.error,a.cancel_requested,a.created_at,a.updated_at FROM agent_runs a
+SELECT a.id,a.conversation_id,a.request_id,a.state,a.error,a.cancel_requested,a.created_at,a.updated_at,a.stream_text,a.stream_turn FROM agent_runs a
 WHERE a.conversation_id=$1 AND (a.id=ANY($2::text[]) OR a.state IN ('queued','running','waiting_input','waiting_approval','waiting_job')
  OR a.id IN (SELECT r.id FROM agent_runs r WHERE r.conversation_id=$1 ORDER BY r.updated_at DESC,r.id DESC LIMIT 10)) ORDER BY a.created_at DESC,a.id DESC
 `
@@ -442,6 +442,8 @@ type ListAgentPageRunsRow struct {
 	CancelRequested bool               `json:"cancel_requested"`
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	StreamText      string             `json:"stream_text"`
+	StreamTurn      int32              `json:"stream_turn"`
 }
 
 func (q *Queries) ListAgentPageRuns(ctx context.Context, arg ListAgentPageRunsParams) ([]ListAgentPageRunsRow, error) {
@@ -462,6 +464,8 @@ func (q *Queries) ListAgentPageRuns(ctx context.Context, arg ListAgentPageRunsPa
 			&i.CancelRequested,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.StreamText,
+			&i.StreamTurn,
 		); err != nil {
 			return nil, err
 		}

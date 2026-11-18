@@ -113,8 +113,8 @@ INSERT INTO grading_revisions(id,submission_id,revision,score,feedback,method,st
 VALUES($1,$2,1,$3,'根据教师已发布的标准答案自动判分','rule','released',$4,$5,now()) RETURNING *;
 
 -- name: CourseReleasedEvidence :many
-SELECT DISTINCT ON (s.student_id,s.question_id) s.id AS submission_id,s.student_id,s.question_id,s.answer_text,s.attempt,r.id AS revision_id,r.score,r.feedback,q.max_score,q.prompt,q.knowledge_point_id,q.resource_id,r.released_at,r.rubric_id,r.point_scores,rv.version AS rubric_version
-FROM submissions s JOIN questions q ON q.id=s.question_id
+SELECT DISTINCT ON (s.student_id,s.question_id) s.id AS submission_id,s.student_id,s.question_id,s.assignment_id,a.title AS assignment_title,s.answer_text,s.attempt,r.id AS revision_id,r.score,r.feedback,q.max_score,q.prompt,q.knowledge_point_id,q.resource_id,r.released_at,r.rubric_id,r.point_scores,rv.version AS rubric_version
+FROM submissions s JOIN questions q ON q.id=s.question_id JOIN assignments a ON a.id=s.assignment_id
 JOIN LATERAL (SELECT * FROM grading_revisions g WHERE g.submission_id=s.id AND g.state='released' ORDER BY g.revision DESC LIMIT 1) r ON true
 LEFT JOIN rubric_versions rv ON rv.id=r.rubric_id
 WHERE s.course_id=$1 AND (sqlc.arg(teacher)::boolean OR s.student_id=sqlc.arg(actor_id))
@@ -148,7 +148,7 @@ WHERE i.course_id=$1 AND (sqlc.arg(teacher)::boolean OR (i.student_id=sqlc.arg(a
 SELECT * FROM interventions WHERE id=$1;
 
 -- name: CreateBusinessIntervention :one
-INSERT INTO interventions(id,course_id,student_id,title,description,teacher_id,resource_id,assignment_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *;
+INSERT INTO interventions(id,course_id,student_id,title,description,teacher_id,resource_id,assignment_id,source_submission_id,diagnosis_report_id,diagnosis_label_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *;
 
 -- name: TransitionBusinessIntervention :one
 UPDATE interventions SET status=$2,

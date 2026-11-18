@@ -1,0 +1,215 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2600" height="2516" viewBox="0 0 2600 2516" role="img" aria-label="正式证据、诊断、路径与干预闭环">
+<title>I06 正式证据、诊断、路径与干预闭环</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 1 L9 5 L0 9Z" fill="#839097"/></marker></defs>
+<g font-family="Microsoft YaHei, sans-serif">
+<rect x="0" y="0" width="2600" height="2516" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="80" y="77" font-size="40" fill="#242424" font-weight="700" text-anchor="start" >I06　正式证据、诊断、路径与干预闭环</text>
+<text x="2520" y="77" font-size="21" fill="#58616A" font-weight="400" text-anchor="end" >2026-11-17 · 本地实现</text>
+<rect x="62.0" y="125" width="541.0" height="2356" rx="10" fill="#EDECE6" stroke="none" />
+<text x="80.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >教师</text>
+<rect x="707.0" y="125" width="541.0" height="2356" rx="10" fill="#F1F0EB" stroke="none" />
+<text x="725.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >平台</text>
+<rect x="1352.0" y="125" width="541.0" height="2356" rx="10" fill="#EDECE6" stroke="none" />
+<text x="1370.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >AI / 对话助理</text>
+<rect x="1997.0" y="125" width="541.0" height="2356" rx="10" fill="#F1F0EB" stroke="none" />
+<text x="2015.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >学生</text>
+<g class="edges">
+<g class="edge" data-from="evidence" data-to="dashboard"><title>班级</title><path d="M725.0,323.0 L585.0,323.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="evidence" data-to="home"><title>本人</title><path d="M1230.0,323.0 L2015.0,323.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="dashboard" data-to="request"><title>发起</title><path d="M332.5,411 L332.5,525" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="request" data-to="diagnose"><title>受限输入</title><path d="M585.0,613.0 L1370.0,613.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="diagnose" data-to="review"><title>草稿</title><path d="M1875.0,613.0 L1897.0,613.0 L1897.0,793 L58.0,793 L58.0,903.0 L80.0,903.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="review" data-to="snapshot"><title>确认</title><path d="M585.0,903.0 L725.0,903.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="evidence" data-to="candidates"><title>规则依据</title><path d="M977.5,411 L977.5,433 L703.0,433 L703.0,1083 L977.5,1083 L977.5,1105" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="prefs" data-to="candidates"><title>偏好</title><path d="M2520.0,903.0 L2542.0,903.0 L2542.0,1060 L703.0,1060 L703.0,1193.0 L725.0,1193.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="candidates" data-to="rank"><title>可选AI排序</title><path d="M1230.0,1193.0 L1370.0,1193.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="rank" data-to="path"><title>推荐</title><path d="M1875.0,1193.0 L2015.0,1193.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="candidates" data-to="path"><title>规则路径</title><path d="M1230.0,1222.0 L1252.0,1222.0 L1252.0,1303 L1993.0,1303 L1993.0,1222.0 L2015.0,1222.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="review" data-to="create"><title>制定任务</title><path d="M332.5,991 L332.5,1395" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="home" data-to="path"><title>缺口关联</title><path d="M2267.5,411 L2267.5,433 L1993.0,433 L1993.0,1083 L2267.5,1083 L2267.5,1105" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="path" data-to="act"><title>自主学习</title><path d="M2267.5,1281 L2267.5,1303 L1993.0,1303 L1993.0,1663 L2267.5,1663 L2267.5,1685" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="create" data-to="task"><title>下发</title><path d="M585.0,1483.0 L2015.0,1483.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="task" data-to="act"><title>执行</title><path d="M2267.5,1571 L2267.5,1663 L2296.5,1663 L2296.5,1685" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="act" data-to="verify"><title>新证据</title><path d="M2015.0,1773.0 L1230.0,1773.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="verify" data-to="assess"><title>可复查</title><path d="M1230.0,1802.0 L1252.0,1802.0 L1252.0,1953 L58.0,1953 L58.0,2063.0 L80.0,2063.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="assess" data-to="result"><title>反馈</title><path d="M585.0,2063.0 L2015.0,2063.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="assess" data-to="task"><title>继续改进</title><path d="M585.0,2092.0 L607.0,2092.0 L607.0,1512.0 L2015.0,1512.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="act" data-to="evidence"><title>正式结果后计入</title><path d="M2238.5,1685 L2238.5,1593 L1275.0,1593 L1275.0,433 L1006.5,433 L1006.5,411" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+</g><g class="nodes">
+<g class="node" data-node="dashboard" tabindex="0" role="button" aria-label="教学看板 · 查看学情">
+<rect x="80.0" y="235" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="278" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >教学看板 · 查看学情</text>
+<text x="102.0" y="320" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >班级 / 学生 / 题目 / 标准维度</text>
+</g>
+<g class="node" data-node="evidence" tabindex="0" role="button" aria-label="汇总已发布有效结果">
+<rect x="725.0" y="235" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="278" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >汇总已发布有效结果</text>
+<text x="747.0" y="320" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >去重 / 同题同标准 / 实际有效人数</text>
+</g>
+<g class="node" data-node="home" tabindex="0" role="button" aria-label="我的概览与评分缺口">
+<rect x="2015.0" y="235" width="505.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="2037.0" y="278" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >我的概览与评分缺口</text>
+<text x="2037.0" y="320" font-size="22" fill="#526575" font-weight="400" text-anchor="start" >本人正式结果 / 原句与评分点</text>
+</g>
+<g class="node" data-node="request" tabindex="0" role="button" aria-label="选择题目与标准发起诊断">
+<rect x="80.0" y="525" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="568" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >选择题目与标准发起诊断</text>
+<text x="102.0" y="610" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >查看原句证据 / 选择生成模型</text>
+</g>
+<g class="node" data-node="diagnose" tabindex="0" role="button" aria-label="生成共性问题诊断草稿">
+<rect x="1370.0" y="525" width="505.0" height="176" rx="10" fill="#FFF1E5" stroke="#E3B89A" stroke-width="2"/>
+<text x="1392.0" y="568" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >生成共性问题诊断草稿</text>
+<text x="1392.0" y="610" font-size="22" fill="#775D4E" font-weight="400" text-anchor="start" >只用正式失分答案 / 引用核对</text>
+</g>
+<g class="node" data-node="review" tabindex="0" role="button" aria-label="编辑 · 标签维护 · 确认诊断">
+<rect x="80.0" y="815" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="858" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >编辑 · 标签维护 · 确认诊断</text>
+<text x="102.0" y="900" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >证据变化时禁止确认旧报告</text>
+</g>
+<g class="node" data-node="snapshot" tabindex="0" role="button" aria-label="保存诊断与输入快照">
+<rect x="725.0" y="815" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="858" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >保存诊断与输入快照</text>
+<text x="747.0" y="900" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >保留任务 / 原句 / 教师确认</text>
+</g>
+<g class="node" data-node="prefs" tabindex="0" role="button" aria-label="设置学习偏好">
+<rect x="2015.0" y="815" width="505.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="2037.0" y="858" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >设置学习偏好</text>
+<text x="2037.0" y="900" font-size="22" fill="#526575" font-weight="400" text-anchor="start" >查看路径 / 保存偏好与历史</text>
+</g>
+<g class="node" data-node="candidates" tabindex="0" role="button" aria-label="规则生成授权学习候选">
+<rect x="725.0" y="1105" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="1148" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >规则生成授权学习候选</text>
+<text x="747.0" y="1190" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >知识 / 资料 / 已有练习目标</text>
+</g>
+<g class="node" data-node="rank" tabindex="0" role="button" aria-label="在规则候选内AI排序">
+<rect x="1370.0" y="1105" width="505.0" height="176" rx="10" fill="#FFF1E5" stroke="#E3B89A" stroke-width="2"/>
+<text x="1392.0" y="1148" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >在规则候选内AI排序</text>
+<text x="1392.0" y="1190" font-size="22" fill="#775D4E" font-weight="400" text-anchor="start" >不新增无授权目标 / 保留排序依据</text>
+</g>
+<g class="node" data-node="path" tabindex="0" role="button" aria-label="选学习路径项">
+<rect x="2015.0" y="1105" width="505.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="2037.0" y="1148" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >选学习路径项</text>
+<text x="2037.0" y="1190" font-size="22" fill="#526575" font-weight="400" text-anchor="start" >阅读资料 / 知识 / 进入已有练习</text>
+</g>
+<g class="node" data-node="create" tabindex="0" role="button" aria-label="创建并下发干预任务">
+<rect x="80.0" y="1395" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="1438" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >创建并下发干预任务</text>
+<text x="102.0" y="1480" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >选学生 / 目标 / 截止 / 验收要求</text>
+</g>
+<g class="node" data-node="task" tabindex="0" role="button" aria-label="查看老师任务">
+<rect x="2015.0" y="1395" width="505.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="2037.0" y="1438" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >查看老师任务</text>
+<text x="2037.0" y="1480" font-size="22" fill="#526575" font-weight="400" text-anchor="start" >开始学习或练习 / 查看要求</text>
+</g>
+<g class="node" data-node="act" tabindex="0" role="button" aria-label="学习 / 新作答 / 提交证据">
+<rect x="2015.0" y="1685" width="505.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="2037.0" y="1728" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >学习 / 新作答 / 提交证据</text>
+<text x="2037.0" y="1770" font-size="22" fill="#526575" font-weight="400" text-anchor="start" >要求下发之后产生的新证据</text>
+</g>
+<g class="node" data-node="verify" tabindex="0" role="button" aria-label="验证证据归属与时间">
+<rect x="725.0" y="1685" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="1728" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >验证证据归属与时间</text>
+<text x="747.0" y="1770" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >教师导入不冒充学生执行</text>
+</g>
+<g class="node" data-node="assess" tabindex="0" role="button" aria-label="复查执行结果">
+<rect x="80.0" y="1975" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="2018" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >复查执行结果</text>
+<text x="102.0" y="2060" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >通过 / 继续改进 / 查看关联证据</text>
+</g>
+<g class="node" data-node="result" tabindex="0" role="button" aria-label="查看复查结论">
+<rect x="2015.0" y="1975" width="505.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="2037.0" y="2018" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >查看复查结论</text>
+<text x="2037.0" y="2060" font-size="22" fill="#526575" font-weight="400" text-anchor="start" >继续学习并形成下一轮证据</text>
+</g>
+<g class="node" data-node="future" tabindex="0" role="button" aria-label="未实现：自动发布新补练">
+<rect x="1370.0" y="2265" width="505.0" height="176" rx="10" fill="#F1F1EF" stroke="#929B9E" stroke-width="2"/>
+<text x="1392.0" y="2308" font-size="27" fill="#697278" font-weight="650" text-anchor="start" >未实现：自动发布新补练</text>
+<rect x="1370.0" y="2265" width="505.0" height="176" rx="10" fill="none" stroke="#929B9E" stroke-dasharray="9 7"/>
+<text x="1392.0" y="2350" font-size="22" fill="#697278" font-weight="400" text-anchor="start" >当前由教师选择已有练习</text>
+</g>
+</g><g class="labels">
+<g class="edge-label" data-from="evidence" data-to="dashboard">
+<rect x="626.0" y="289.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="655.0" y="310.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >班级</text>
+</g>
+<g class="edge-label" data-from="evidence" data-to="home">
+<rect x="1593.5" y="289.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1622.5" y="310.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >本人</text>
+</g>
+<g class="edge-label" data-from="dashboard" data-to="request">
+<rect x="342.5" y="453.5" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="371.5" y="474.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >发起</text>
+</g>
+<g class="edge-label" data-from="request" data-to="diagnose">
+<rect x="929.5" y="579.0" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="977.5" y="600.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >受限输入</text>
+</g>
+<g class="edge-label" data-from="diagnose" data-to="review">
+<rect x="1907.0" y="688.5" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1936.0" y="709.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >草稿</text>
+</g>
+<g class="edge-label" data-from="review" data-to="snapshot">
+<rect x="626.0" y="869.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="655.0" y="890.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >确认</text>
+</g>
+<g class="edge-label" data-from="evidence" data-to="candidates">
+<rect x="713.0" y="743.5" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="761.0" y="764.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >规则依据</text>
+</g>
+<g class="edge-label" data-from="prefs" data-to="candidates">
+<rect x="1593.5" y="1026" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1622.5" y="1047" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >偏好</text>
+</g>
+<g class="edge-label" data-from="candidates" data-to="rank">
+<rect x="1242.5" y="1159.0" width="115.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1300.0" y="1180.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >可选AI排序</text>
+</g>
+<g class="edge-label" data-from="rank" data-to="path">
+<rect x="1916.0" y="1159.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1945.0" y="1180.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >推荐</text>
+</g>
+<g class="edge-label" data-from="candidates" data-to="path">
+<rect x="1262.0" y="1248.0" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1310.0" y="1269.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >规则路径</text>
+</g>
+<g class="edge-label" data-from="review" data-to="create">
+<rect x="342.5" y="1178.5" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="390.5" y="1199.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >制定任务</text>
+</g>
+<g class="edge-label" data-from="home" data-to="path">
+<rect x="2003.0" y="743.5" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2051.0" y="764.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >缺口关联</text>
+</g>
+<g class="edge-label" data-from="path" data-to="act">
+<rect x="1887.0" y="1468.5" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1935.0" y="1489.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >自主学习</text>
+</g>
+<g class="edge-label" data-from="create" data-to="task">
+<rect x="1271.0" y="1449.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1300.0" y="1470.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >下发</text>
+</g>
+<g class="edge-label" data-from="task" data-to="act">
+<rect x="2277.5" y="1602.5" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2306.5" y="1623.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >执行</text>
+</g>
+<g class="edge-label" data-from="act" data-to="verify">
+<rect x="1584.0" y="1739.0" width="77.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1622.5" y="1760.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >新证据</text>
+</g>
+<g class="edge-label" data-from="verify" data-to="assess">
+<rect x="1262.0" y="1863.0" width="77.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1300.5" y="1884.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >可复查</text>
+</g>
+<g class="edge-label" data-from="assess" data-to="result">
+<rect x="1271.0" y="2029.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1300.0" y="2050.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >反馈</text>
+</g>
+<g class="edge-label" data-from="assess" data-to="task">
+<rect x="617.0" y="1787.5" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="665.0" y="1808.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >继续改进</text>
+</g>
+<g class="edge-label" data-from="act" data-to="evidence">
+<rect x="2075.5" y="1624.5" width="153.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2152.0" y="1645.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >正式结果后计入</text>
+</g>
+</g></g></svg>

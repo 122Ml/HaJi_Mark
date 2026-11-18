@@ -1,6 +1,6 @@
 import { Field } from "../shared/Field";
 import { useConfirm } from "../shared/confirm";
-import { Collapse, Button, Form, Card, Input, InputNumber } from "antd";
+import { Collapse, Button, Form, Card, Input, InputNumber, Typography } from "antd";
 import { useEditorDraft, DraftNotice } from "./editing";
 import type { Revision } from "./assessment";
 import { useEffect, useState } from "react";
@@ -102,7 +102,7 @@ export function RubricManager({
               {query.data?.slice(0, 1).map((r) => (
                 <article key={r.id} className="live-revision">
                   <div className="section-head">
-                    <h4>标准 v{r.version}</h4>
+                    <Typography.Text strong className="item-title">标准 v{r.version}</Typography.Text>
                     <StatusTag status={r.state} label={names[r.state]} />
                   </div>
                   {r.criteria.map((p) => (
@@ -151,7 +151,7 @@ export function RubricManager({
                           {query.data?.slice(1).map((r) => (
                             <article key={r.id} className="live-revision">
                               <div className="section-head">
-                                <h4>标准 v{r.version}</h4>
+                                <Typography.Text strong className="item-title">标准 v{r.version}</Typography.Text>
                                 <StatusTag status={r.state} label={names[r.state]} />
                               </div>
                               {r.criteria.map((p) => (
@@ -205,7 +205,7 @@ export function RubricManager({
                   }}
                   layout="vertical"
                 >
-                  <h4>新增独立标准版本</h4>
+                  <Typography.Text strong className="item-title">新增独立标准版本</Typography.Text>
                   {criteria.map((p, i) => (
                     <Card
                       size="small"
@@ -311,9 +311,6 @@ export function RubricManager({
                       保存标准草稿
                     </Button>
                   </div>
-                  <p className="live-meta">
-                    确认后的版本可用于评分；更改须另建版本，已有评分保留原标准。
-                  </p>
                 </Form>
               )}
             </>

@@ -195,7 +195,7 @@ func (q *Queries) CreateAgentRequest(ctx context.Context, arg CreateAgentRequest
 }
 
 const createAgentRun = `-- name: CreateAgentRun :one
-INSERT INTO agent_runs(id,conversation_id,request_id,session_hash,state,runtime) VALUES($1,$2,$3,$4,'queued',$5) RETURNING id, conversation_id, request_id, session_hash, state, runtime, error, cancel_requested, created_at, updated_at
+INSERT INTO agent_runs(id,conversation_id,request_id,session_hash,state,runtime) VALUES($1,$2,$3,$4,'queued',$5) RETURNING id, conversation_id, request_id, session_hash, state, runtime, error, cancel_requested, created_at, updated_at, stream_text, stream_turn
 `
 
 type CreateAgentRunParams struct {
@@ -226,6 +226,8 @@ func (q *Queries) CreateAgentRun(ctx context.Context, arg CreateAgentRunParams) 
 		&i.CancelRequested,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StreamText,
+		&i.StreamTurn,
 	)
 	return i, err
 }
@@ -373,7 +375,7 @@ func (q *Queries) GetAgentRequestForStep(ctx context.Context, stepID string) (Ag
 }
 
 const getAgentRun = `-- name: GetAgentRun :one
-SELECT id, conversation_id, request_id, session_hash, state, runtime, error, cancel_requested, created_at, updated_at FROM agent_runs WHERE id=$1
+SELECT id, conversation_id, request_id, session_hash, state, runtime, error, cancel_requested, created_at, updated_at, stream_text, stream_turn FROM agent_runs WHERE id=$1
 `
 
 func (q *Queries) GetAgentRun(ctx context.Context, id string) (AgentRun, error) {
@@ -390,12 +392,14 @@ func (q *Queries) GetAgentRun(ctx context.Context, id string) (AgentRun, error) 
 		&i.CancelRequested,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StreamText,
+		&i.StreamTurn,
 	)
 	return i, err
 }
 
 const getAgentRunByRequest = `-- name: GetAgentRunByRequest :one
-SELECT id, conversation_id, request_id, session_hash, state, runtime, error, cancel_requested, created_at, updated_at FROM agent_runs WHERE conversation_id=$1 AND request_id=$2
+SELECT id, conversation_id, request_id, session_hash, state, runtime, error, cancel_requested, created_at, updated_at, stream_text, stream_turn FROM agent_runs WHERE conversation_id=$1 AND request_id=$2
 `
 
 type GetAgentRunByRequestParams struct {
@@ -417,6 +421,8 @@ func (q *Queries) GetAgentRunByRequest(ctx context.Context, arg GetAgentRunByReq
 		&i.CancelRequested,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StreamText,
+		&i.StreamTurn,
 	)
 	return i, err
 }
@@ -869,6 +875,21 @@ type SetAgentConversationTitleParams struct {
 
 func (q *Queries) SetAgentConversationTitle(ctx context.Context, arg SetAgentConversationTitleParams) error {
 	_, err := q.db.Exec(ctx, setAgentConversationTitle, arg.ID, arg.Title)
+	return err
+}
+
+const setAgentStream = `-- name: SetAgentStream :exec
+UPDATE agent_runs SET stream_text=$2,stream_turn=$3 WHERE id=$1 AND state='running' AND NOT cancel_requested
+`
+
+type SetAgentStreamParams struct {
+	ID         string `json:"id"`
+	StreamText string `json:"stream_text"`
+	StreamTurn int32  `json:"stream_turn"`
+}
+
+func (q *Queries) SetAgentStream(ctx context.Context, arg SetAgentStreamParams) error {
+	_, err := q.db.Exec(ctx, setAgentStream, arg.ID, arg.StreamText, arg.StreamTurn)
 	return err
 }
 

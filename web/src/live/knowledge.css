@@ -266,3 +266,10 @@
 .rich-content { line-height: 1.85; }
 .rich-content th { background: var(--surface); }
 .bank-editor.ant-card > .ant-card-body { display: grid; gap: 18px; }
+.material-task-workspace { display:grid; grid-template-columns:minmax(220px, 280px) minmax(0,1fr); gap:16px; align-items:start; }
+.material-object-list, .material-current-object { min-width:0; }
+.material-object-list .rag-source-list { display:flex; flex-direction:column; max-height:60vh; overflow-y:auto; }
+.material-object-list .rag-source.ant-btn { width:100%; min-height:100px; padding:14px; }
+.material-object-list .rag-source[aria-pressed="true"] { border-color:var(--teal); background:var(--mint-soft); }
+.job-raw-output { white-space:pre-wrap; overflow-wrap:anywhere; max-height:260px; overflow:auto; font-size:12px; }
+@media(max-width:1050px) { .material-task-workspace { grid-template-columns:minmax(0,1fr); } .material-object-list .rag-source-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr)); max-height:240px; } }

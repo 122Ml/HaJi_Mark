@@ -18,17 +18,28 @@ import (
 
 var answerReference = regexp.MustCompile(`\[R[0-9]+\]`)
 
-func (h *Handler) assistStatus(c *gin.Context) { result(c, gin.H{"configured": h.rag != nil}, nil) }
+func (h *Handler) assistStatus(c *gin.Context) {
+	configured := false
+	if h.rag != nil {
+		for _, p := range h.rag.Models.Public() {
+			if p["kind"] == "chat" && p["available"] == true {
+				configured = true
+			}
+		}
+	}
+	result(c, gin.H{"configured": configured}, nil)
+}
 func (h *Handler) assist(c *gin.Context) {
 	var in struct {
-		Topic     string `json:"topic"`
-		ProfileID string `json:"profile_id"`
-		RequestID string `json:"request_id"`
+		Topic      string `json:"topic"`
+		ProfileID  string `json:"profile_id"`
+		RequestID  string `json:"request_id"`
+		ResourceID string `json:"resource_id"`
 	}
 	if !bind(c, &in) {
 		return
 	}
-	if !validText(in.Topic, 4000) {
+	if !validText(in.Topic, 4000) || len(in.ResourceID) > 100 {
 		invalid(c, "请填写不超过4000字节的问题")
 		return
 	}
@@ -38,6 +49,10 @@ func (h *Handler) assist(c *gin.Context) {
 	}
 	if in.RequestID == "" {
 		in.RequestID = uuid.NewString()
+	}
+	question := in.Topic
+	if in.ResourceID != "" {
+		in.Topic += "\n[限定学习资料：" + in.ResourceID + "]"
 	}
 	if !validText(in.RequestID, 128) {
 		invalid(c, "请求号无效")
@@ -83,7 +98,7 @@ func (h *Handler) assist(c *gin.Context) {
 		}
 		result(c, answer, err)
 	}
-	hits, mode, e := h.rag.Search(c.Request.Context(), c.Param("courseID"), identity.Current(c).ID, in.Topic, "learning", teacher(c))
+	hits, mode, e := h.scopedSearch(c, question, "learning", in.ResourceID)
 	if e != nil {
 		ragError(c, e)
 		return

@@ -126,7 +126,7 @@ function seed(sql) {
     assert.equal(await page.getByLabel('课程问题', { exact: true }).inputValue(), '构造历史问题-12');
     await page.goto(`${base}/teacher/retrieval?course=${course.id}&history_page=2`);
     await page.getByRole('button', { name: '构造失败问题', exact: true }).click();
-    await page.getByRole('alert').filter({ hasText: '本次尚无已保存回答' }).waitFor();
+    await page.getByRole('alert').filter({ hasText: '尚无已保存回答' }).waitFor();
     await screenshot('saved-retrieval.png');
     pass('Persistent cited answer drawer, URL refresh, history page 2, failed-state recovery and explicit prompt reuse');
     await page.goto(`${base}/teacher/assistant?course=${course.id}&conversation=${conversation.id}`);

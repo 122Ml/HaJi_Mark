@@ -77,6 +77,8 @@ type AgentRun struct {
 	CancelRequested bool               `json:"cancel_requested"`
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	StreamText      string             `json:"stream_text"`
+	StreamTurn      int32              `json:"stream_turn"`
 }
 
 type AgentStep struct {
@@ -206,6 +208,14 @@ type CourseEdge struct {
 	ToID     string `json:"to_id"`
 }
 
+type DiagnosisLabel struct {
+	ID          string `json:"id"`
+	CourseID    string `json:"course_id"`
+	Title       string `json:"title"`
+	Active      bool   `json:"active"`
+	EditVersion int32  `json:"edit_version"`
+}
+
 type EmbeddingSpace struct {
 	ID             string             `json:"id"`
 	ProfileID      string             `json:"profile_id"`
@@ -249,6 +259,22 @@ type IndustryRecord struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type IntelligenceReport struct {
+	ID          string             `json:"id"`
+	CourseID    string             `json:"course_id"`
+	OwnerID     string             `json:"owner_id"`
+	Kind        string             `json:"kind"`
+	QuestionID  pgtype.Text        `json:"question_id"`
+	JobID       string             `json:"job_id"`
+	RequestID   string             `json:"request_id"`
+	InputHash   string             `json:"input_hash"`
+	Input       json.RawMessage    `json:"input"`
+	Output      json.RawMessage    `json:"output"`
+	State       string             `json:"state"`
+	EditVersion int32              `json:"edit_version"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
 type Interaction struct {
 	ID        string             `json:"id"`
 	CourseID  string             `json:"course_id"`
@@ -261,21 +287,24 @@ type Interaction struct {
 }
 
 type Intervention struct {
-	ID           string             `json:"id"`
-	CourseID     string             `json:"course_id"`
-	StudentID    string             `json:"student_id"`
-	Title        string             `json:"title"`
-	Description  string             `json:"description"`
-	Status       string             `json:"status"`
-	TeacherID    string             `json:"teacher_id"`
-	AnswerText   string             `json:"answer_text"`
-	ReviewNote   string             `json:"review_note"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	AssignedAt   pgtype.Timestamptz `json:"assigned_at"`
-	SubmittedAt  pgtype.Timestamptz `json:"submitted_at"`
-	ReviewedAt   pgtype.Timestamptz `json:"reviewed_at"`
-	ResourceID   pgtype.Text        `json:"resource_id"`
-	AssignmentID pgtype.Text        `json:"assignment_id"`
+	ID                 string             `json:"id"`
+	CourseID           string             `json:"course_id"`
+	StudentID          string             `json:"student_id"`
+	Title              string             `json:"title"`
+	Description        string             `json:"description"`
+	Status             string             `json:"status"`
+	TeacherID          string             `json:"teacher_id"`
+	AnswerText         string             `json:"answer_text"`
+	ReviewNote         string             `json:"review_note"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	AssignedAt         pgtype.Timestamptz `json:"assigned_at"`
+	SubmittedAt        pgtype.Timestamptz `json:"submitted_at"`
+	ReviewedAt         pgtype.Timestamptz `json:"reviewed_at"`
+	ResourceID         pgtype.Text        `json:"resource_id"`
+	AssignmentID       pgtype.Text        `json:"assignment_id"`
+	SourceSubmissionID pgtype.Text        `json:"source_submission_id"`
+	DiagnosisReportID  pgtype.Text        `json:"diagnosis_report_id"`
+	DiagnosisLabelID   pgtype.Text        `json:"diagnosis_label_id"`
 }
 
 type KnowledgeEntry struct {
@@ -299,6 +328,7 @@ type KnowledgeEntry struct {
 	EditVersion       int32              `json:"edit_version"`
 	ConfirmedAt       pgtype.Timestamptz `json:"confirmed_at"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	Origin            string             `json:"origin"`
 }
 
 type KnowledgePoint struct {
@@ -445,6 +475,12 @@ type QuestionBank struct {
 	Archived  bool               `json:"archived"`
 	CreatedBy string             `json:"created_by"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type RecommendationChoice struct {
+	ReportID    string `json:"report_id"`
+	CandidateID string `json:"candidate_id"`
+	Choice      string `json:"choice"`
 }
 
 type RegradeBatch struct {

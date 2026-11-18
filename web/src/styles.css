@@ -140,11 +140,6 @@ p { margin: 0 0 var(--space-4); }
 .state-block strong { color: var(--ink); font-size: var(--text-md); font-weight: 600; }
 .state-block p { margin: 0; max-width: 44ch; }
 .state-block .state-title { font-size: var(--text-xl); font-weight: 600; margin: 0; }
-.state-icon { width: 44px; height: 44px; border-radius: var(--radius-md); display: grid; place-items: center; background: var(--mint); color: var(--teal); }
-.state-icon svg { width: 22px; height: 22px; }
-.state-block.is-error .state-icon { background: var(--danger-bg); color: var(--danger); }
-.state-spinner { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--mint-line); border-top-color: var(--teal); animation: spin .8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
 /* Public sign-in page: Lattice-style hero gradient, white cards beneath. */
 .welcome-page { background: white; min-height: 100vh; display: flex; flex-direction: column; }
 .welcome-hero { background: radial-gradient(ellipse 70% 60% at 18% 30%, #00a99c66 0%, transparent 70%), linear-gradient(180deg, #00615d 0%, #00877f 38%, #9fe6d3 76%, #ffffff 100%); }
@@ -156,26 +151,12 @@ p { margin: 0 0 var(--space-4); }
 .welcome-main { max-width: var(--content-max); margin: 0 auto; width: 100%; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(320px, 440px); align-items: center; gap: 64px; padding: 56px var(--space-5) 88px; }
 .welcome-story { color: white; min-width: 0; }
 .welcome-story h1 { color: white; font-size: clamp(34px, 4.4vw, 58px); font-weight: 500; line-height: 1.12; margin: 0 0 20px; letter-spacing: -.03em; text-wrap: balance; }
-.welcome-story > p { font-size: var(--text-lg); color: #e6fbf5; max-width: 34em; margin: 0; }
-.sign-in-card { width: 100%; background: white; border-radius: var(--radius-lg); padding: 40px; box-shadow: 0 16px 40px #003c441f; scroll-margin-top: 24px; }
-.sign-in-card h2 { font-size: 26px; font-weight: 600; margin: 0 0 6px; }
-.sign-in-card > p { color: var(--muted); font-size: 14px; margin: 0; }
-.sign-in-form { display: grid; gap: 8px; margin-top: 24px; }
-.sign-in-form label { font-size: var(--text-sm); font-weight: 600; margin-top: 8px; }
+.sign-in-card.ant-card { width: 100%; border-radius: var(--radius-lg); box-shadow: 0 16px 40px #003c441f; scroll-margin-top: 24px; }
+.sign-in-card.ant-card > .ant-card-head { padding: 24px 32px 0; border: 0; }
+.sign-in-card.ant-card > .ant-card-body { padding: 24px 32px 32px; }
+.sign-in-form .ant-form-item { margin-bottom: 20px; }
 .sign-in-form > .ant-btn { margin-top: 18px; }
 .sign-in-help { border-top: 1px solid var(--line); margin: 28px 0 0; padding-top: 20px; font-size: var(--text-xs); color: var(--muted); }
-.welcome-flow { max-width: var(--content-max); width: 100%; margin: 0 auto; padding: 8px var(--space-5) 80px; }
-.welcome-flow > header { text-align: center; margin-bottom: 36px; }
-.welcome-flow > header h2 { font-size: clamp(26px, 2.6vw, 36px); font-weight: 500; margin: 14px 0 0; }
-.flow-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-5); list-style: none; padding: 0; margin: 0; }
-.flow-card { display: flex; flex-direction: column; background: white; border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 8px; }
-.flow-card h3 { font-size: var(--text-lg); font-weight: 600; margin: 14px 14px 4px; }
-.flow-card p { font-size: var(--text-sm); color: var(--muted); margin: 0 14px 16px; }
-.flow-art { margin-top: auto; height: 120px; border-radius: var(--radius-md); background: linear-gradient(120deg, #8be6b0, #63d6b4); display: grid; place-items: center; }
-.flow-card:nth-child(2) .flow-art { background: linear-gradient(120deg, #b6eba5, #8ed68a); }
-.flow-card:nth-child(3) .flow-art { background: linear-gradient(120deg, #4fd3c7, #2fbdb7); }
-.flow-card:nth-child(4) .flow-art { background: linear-gradient(120deg, #c9f1e4, #93dfcb); }
-.flow-art span { display: grid; place-items: center; width: 56px; height: 56px; border-radius: var(--radius-md); background: #ffffffee; color: var(--teal); font-weight: 600; box-shadow: 0 4px 10px #004c4824; }
 .welcome-footer { margin-top: auto; border-top: 1px solid var(--line); }
 .welcome-footer > div { max-width: var(--content-max); margin: 0 auto; padding: 24px var(--space-5); display: flex; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; color: var(--muted); font-size: var(--text-xs); }
 .welcome-footer strong { color: var(--teal-deep); font-size: 14px; }
@@ -192,7 +173,6 @@ p { margin: 0 0 var(--space-4); }
   .workspace-footer { padding: var(--space-4); }
   .welcome-main { grid-template-columns: minmax(0, 1fr); gap: 40px; padding: 32px var(--space-5) 64px; }
   .sign-in-card { max-width: 520px; }
-  .flow-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 640px) {
   .layout-shell:has(.workspace-course-select) { --topbar-h: 116px; }
@@ -206,19 +186,13 @@ p { margin: 0 0 var(--space-4); }
   .welcome-nav { padding: 16px; }
   .welcome-main { padding: 24px 16px 48px; }
   .welcome-story h1 { font-size: 34px; }
-  .welcome-story > p { font-size: var(--text-md); }
-  .sign-in-card { padding: 28px 22px; }
-  .welcome-flow { padding: 0 16px 56px; }
-  .flow-cards { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
-  .flow-card { flex-direction: row; align-items: center; }
-  .flow-card > div { flex: 1; min-width: 0; }
-  .flow-art { margin: 0; width: 96px; height: 80px; flex-shrink: 0; }
+  .sign-in-card.ant-card > .ant-card-head { padding: 20px 22px 0; }
+  .sign-in-card.ant-card > .ant-card-body { padding: 20px 22px 24px; }
   .workspace-footer { padding: var(--space-4); }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .sidebar, .sidebar .ant-menu-item, .live-node, .live-shortcut { transition: none; }
-  .state-spinner { animation: none; }
 }
 
 .live-rubrics { margin-top: 20px; }

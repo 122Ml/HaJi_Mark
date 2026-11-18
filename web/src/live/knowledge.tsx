@@ -1,9 +1,11 @@
 import { Field } from "../shared/Field";
+import { ContextAgent } from "./context-agent";
+import { useLocationValue } from "./location-state";
 import { useConfirm } from "../shared/confirm";
 import { FileUpload } from "../shared/FileUpload";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Drawer, Select, Progress, Tabs, Collapse, Button, Card, Form, Input, Checkbox, Alert } from "antd";
+import { Drawer, Select, Progress, Tabs, Collapse, Button, Card, Form, Input, Checkbox, Alert, Typography } from "antd";
 import { useSession } from "../shared/session";
 import { requestJSON } from "../shared/api";
 import { LoadingState, ErrorState, EmptyState, MetaTag, MetaTags, StatusTag } from "../shared/ui";
@@ -15,7 +17,7 @@ import {
   useLiveQuery,
   when,
 } from "./context";
-import { useEditorDraft, DraftNotice } from "./editing";
+import { useEditorDraft, DraftNotice, useUnsavedChanges } from "./editing";
 import "./knowledge.css";
 import {
   ContentLinks,
@@ -24,11 +26,11 @@ import {
   type TopicData,
 } from "./content-topics";
 import { MaterialAssets } from "./material-assets";
-import { URLImport, SourceSuggestions } from "./material-assist";
+import { URLImport, SourceSuggestions, PaperImport } from "./material-assist";
 import { KnowledgeReview } from "./knowledge-review";
 import { RichContent } from "./content-render";
 import { RetrievalHistory } from "./retrieval-history";
-import { CourseWorkspace } from "./course";
+import { CourseWorkspace, type Point, type Resource } from "./course";
 
 type Profile = { id: string; label: string; kind: string; available: boolean };
 type ModelInfo = {
@@ -70,6 +72,7 @@ type SourceDetail = {
 };
 type Evidence = { source_id: string; fragment_id: string; quote: string };
 export type Knowledge = {
+  origin: "source" | "teacher_example";
   id: string;
   title: string;
   body: string;
@@ -94,6 +97,7 @@ export type Hit = {
   locator: Record<string, unknown>;
   source_id?: string;
   knowledge_id?: string;
+  resource_id?: string;
   fragment_ids?: string[];
 };
 export type AssistAnswer = {
@@ -104,6 +108,8 @@ export type AssistAnswer = {
   citations?: { id: string; quote: string }[];
 };
 export function FrozenEvidence({ sources }: { sources?: Hit[] }) {
+  const {session} = useSession();
+  const teacher = session?.user.role === "teacher";
   if (!sources?.length) return null;
   return (
     <Collapse
@@ -118,7 +124,7 @@ export function FrozenEvidence({ sources }: { sources?: Hit[] }) {
                   <strong>{hit.title}</strong>
                   <small>{location(hit.locator)}</small>
                   <p className="live-prose">{hit.body}</p>
-                  {hit.source_id && (
+                  {teacher && hit.source_id && (
                     <Link
                       to={`/teacher/materials?source=${hit.source_id}&fragment=${hit.fragment_ids?.[0] || ""}`}
                     >
@@ -126,8 +132,9 @@ export function FrozenEvidence({ sources }: { sources?: Hit[] }) {
                     </Link>
                   )}
                   {hit.knowledge_id && (
-                    <Link to="/teacher/knowledge">查看知识库</Link>
+                    <Link to={`/${teacher?"teacher":"student"}/knowledge?knowledge=${hit.knowledge_id}`}>查看知识库</Link>
                   )}
+                  {hit.resource_id && <Link to={`/${teacher?"teacher/materials?tab=published":"student/course-content?"}&resource=${hit.resource_id}`}>返回学习资料</Link>}
                 </article>
               ))}
             </>
@@ -158,6 +165,7 @@ export function GroundedAnswer({ answer }: { answer: AssistAnswer }) {
                 查看原文
               </Link>
             )}
+            {hit?.resource_id && <Link to={`/${session?.user.role === "teacher"?"teacher/materials?tab=published":"student/course-content?"}&resource=${hit.resource_id}`}>查看引用学习资料</Link>}
           </blockquote>
         );
       })}
@@ -456,8 +464,12 @@ function DraftPreview({ output }: { output: Record<string, unknown> }) {
     </div>
   );
 }
-export function JobsPanel({ kinds }: { kinds?: string[] }) {
-  const query = useLiveQuery<Job[]>("/jobs");
+export function JobsPanel({ kinds, sourceID = "", expanded = false }: { kinds?: string[]; sourceID?: string; expanded?: boolean }) {
+  const [page, setPage] = useState(1);
+  const filter = new URLSearchParams({ size: "21", offset: String((page - 1) * 20) });
+  if (sourceID) filter.set("source_id", sourceID);
+  if (kinds?.length) filter.set("kind", kinds.join(","));
+  const query = useLiveQuery<Job[]>(`/jobs?${filter}`, true, true);
   const action = useAction();
   const { reload } = useLearning();
   const rows =
@@ -477,10 +489,11 @@ export function JobsPanel({ kinds }: { kinds?: string[] }) {
         await reload();
     }, 2000);
     return () => clearInterval(t);
-  }, [active]);
+  }, [active, page, sourceID, query.refetch, reload]);
   return (
     <Collapse
       className="card-panel rag-jobs"
+      defaultActiveKey={expanded ? ["content"] : []}
       items={[
         {
           key: "content",
@@ -493,7 +506,7 @@ export function JobsPanel({ kinds }: { kinds?: string[] }) {
                 failed={action.failed}
               />
               {!rows.length && <p>暂无处理任务。</p>}
-              {rows.slice(0, 15).map((j) => (
+              {rows.slice(0, 20).map((j) => (
                 <article key={j.id} className="rag-job">
                   <div>
                     <strong>{labels[j.kind]}</strong>
@@ -501,6 +514,9 @@ export function JobsPanel({ kinds }: { kinds?: string[] }) {
                       <StatusTag status={j.state} label={labels[j.state]} />
                       <span className="live-meta">{when(j.created_at)}</span>
                     </MetaTags>
+                    {typeof j.input.source_id === "string" && !sourceID && <Link to={`/teacher/materials?source=${j.input.source_id}&source_view=tasks`}>打开来源与本次处理</Link>}
+                    {j.state === "succeeded" && j.kind === "extract" && <Link to={`/teacher/materials?source=${j.input.source_id || ""}&source_view=knowledge&job=${j.id}`}>核对本次知识候选</Link>}
+                    {j.state === "succeeded" && j.kind === "parse" && <p className="live-meta">原文已落库，尚需核对、发布和确认知识。索引状态独立查看。</p>}
                     {j.error && <Alert type="error" showIcon role="alert" message={<>{j.error}</>} />}
                   </div>
                   {j.state === "running" && (
@@ -514,7 +530,8 @@ export function JobsPanel({ kinds }: { kinds?: string[] }) {
                       取消
                     </Button>
                   )}
-                  {j.state === "failed" && (
+                  {j.state === "failed" && !!Object.keys(j.output || {}).length && <Collapse items={[{key: "output", label: "查看失败时保留的输出（未采纳）", children: <pre className="job-raw-output">{JSON.stringify(j.output, null, 2)}</pre>}]} />}
+                  {j.state === "failed" && !["diagnosis","recommendation"].includes(j.kind) && (
                     <Button
                       disabled={action.busy}
                       onClick={() => action.run(`/jobs/${j.id}/retry`)}
@@ -524,6 +541,7 @@ export function JobsPanel({ kinds }: { kinds?: string[] }) {
                   )}
                 </article>
               ))}
+              <div className="live-inline"><Button disabled={page === 1} onClick={() => setPage(page - 1)}>上一页任务</Button><span>第 {page} 页</span><Button disabled={rows.length <= 20} onClick={() => setPage(page + 1)}>下一页任务</Button></div>
             </>
           ),
         },
@@ -543,10 +561,20 @@ export function MaterialsPage() {
     setParams(next);
   };
   const [upload, setUpload] = useState(false);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [sourceSearch, setSourceSearch] = useLocationValue("search");
+  const sourcePage = Math.max(1, Number(params.get("page")) || 1);
+  const sourceRows = (sources.data || []).filter(s => `${s.title} ${s.filename}`.toLocaleLowerCase().includes(sourceSearch.toLocaleLowerCase()));
+  const imported = (jobs: Job[]) => {
+    setUpload(false);
+    const id = jobs.find(j => typeof j.input.source_id === "string")?.input.source_id;
+    if (typeof id === "string") { const p = new URLSearchParams(params); p.set("source", id); p.set("source_view", "tasks"); p.delete("resource"); p.set("tab", "sources"); setParams(p); }
+    void sources.refetch();
+  };
   const action = useAction();
   const [embedding, setEmbedding] = useState("");
   const tab =
-    params.get("tab") === "published" || params.has("resource")
+    params.get("tab") === "published" || (params.has("resource") && !selected)
       ? "published"
       : "sources";
   return (
@@ -608,6 +636,8 @@ export function MaterialsPage() {
               },
             ]}
           />
+          <div className="material-task-workspace"><aside className="material-object-list" aria-label="原始资料列表">
+          <Input.Search aria-label="搜索原始资料" placeholder="搜索资料" value={sourceSearch} onChange={e => setSourceSearch(e.target.value)} />
           {sources.isPending ? (
             <LoadingState />
           ) : sources.error ? (
@@ -623,10 +653,11 @@ export function MaterialsPage() {
             </Card>
           ) : (
             <div className="rag-source-list">
-              {sources.data.map((s) => (
+              {sourceRows.slice((sourcePage - 1) * 10, sourcePage * 10).map((s) => (
                 <Button
                   key={s.id}
                   onClick={() => setSelected(s.id)}
+                  aria-pressed={s.id === selected}
                   className={"card-panel rag-source"}
                 >
                   <strong>{s.title}</strong>
@@ -645,16 +676,23 @@ export function MaterialsPage() {
               ))}
             </div>
           )}
-          <JobsPanel
+          <div className="live-inline"><Button disabled={sourcePage === 1} onClick={() => { const p = new URLSearchParams(params);p.set("page",String(sourcePage-1));setParams(p); }}>上一页</Button><Button disabled={sourcePage * 10 >= sourceRows.length} onClick={() => {const p=new URLSearchParams(params);p.set("page",String(sourcePage+1));setParams(p);}}>下一页</Button></div>
+          </aside><section className="material-current-object" aria-label="资料核对与发布">
+            {selected ? <SourceWorkspace key={`${selected}:${params.get("fragment") || ""}`} id={selected} fragmentID={params.get("fragment") || ""} /> : <EmptyState title="选择资料开始核对">导入后的对象和处理任务会在这里继续。</EmptyState>}
+          </section></div>
+          {!selected && <JobsPanel
             kinds={["parse", "index", "extract", "vision", "source_suggest"]}
-          />
+          />}
         </>
       )}
       <Drawer
         title="导入资料"
         aria-label="导入资料"
         open={upload}
-        onClose={() => setUpload(false)}
+        closable={!uploadBusy}
+        maskClosable={!uploadBusy}
+        keyboard={!uploadBusy}
+        onClose={() => { if (!uploadBusy) setUpload(false); }}
         width={600}
         destroyOnHidden
       >
@@ -663,45 +701,27 @@ export function MaterialsPage() {
             {
               key: "files",
               label: "文件",
+              disabled: uploadBusy,
               children: (
                 <UploadForm
-                  onDone={() => {
-                    setUpload(false);
-                    void sources.refetch();
-                  }}
+                  onDone={imported}
+                  onBusyChange={setUploadBusy}
                 />
               ),
             },
             {
               key: "url",
               label: "公开网址",
+              disabled: uploadBusy,
               children: (
                 <URLImport
-                  onDone={() => {
-                    setUpload(false);
-                    void sources.refetch();
-                  }}
+                  onDone={job => imported([job])}
+                  onBusyChange={setUploadBusy}
                 />
               ),
             },
           ]}
         />
-      </Drawer>
-      <Drawer
-        title="资料核对与发布"
-        aria-label="资料核对与发布"
-        open={!!selected}
-        onClose={() => setSelected("")}
-        width={1000}
-        destroyOnHidden
-      >
-        {selected && (
-          <SourceWorkspace
-            key={`${selected}:${params.get("fragment") || ""}`}
-            id={selected}
-            fragmentID={params.get("fragment") || ""}
-          />
-        )}
       </Drawer>
     </div>
   );
@@ -709,9 +729,11 @@ export function MaterialsPage() {
 function UploadForm({
   onDone,
   supersedesID = "",
+  onBusyChange,
 }: {
-  onDone: () => void;
+  onDone: (jobs: Job[]) => void;
   supersedesID?: string;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const { course, reload } = useLearning();
   const { session } = useSession();
@@ -720,6 +742,7 @@ function UploadForm({
   const [allow, setAllow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [receipts, setReceipts] = useState<{name:string; jobs:Job[]; error?:string}[]>([]);
   return (
     <Form
       className="live-form"
@@ -733,35 +756,33 @@ function UploadForm({
           return;
         }
         setBusy(true);
+        onBusyChange?.(true);
         setError("");
-        const form = new FormData();
-        files.forEach((f) => form.append("files", f));
-        form.append("source_note", note);
-        form.append("allow_derived", String(allow));
-        if (supersedesID) form.append("supersedes_id", supersedesID);
-        try {
-          await requestJSON(
-            `/learning/courses/${course!.id}/sources`,
-            { method: "POST", body: form },
-            session?.csrf_token,
-          );
-          await reload();
-          onDone();
-        } catch (err) {
-          setError(err instanceof Error ? err.message : "上传失败");
-        } finally {
-          setBusy(false);
+        const results: {name:string; jobs:Job[]; error?:string}[] = [];
+        for (const file of files) {
+          const form = new FormData(); form.append("files", file); form.append("source_note", note); form.append("allow_derived", String(allow));
+          if (supersedesID) form.append("supersedes_id", supersedesID);
+          try {
+            const response = await requestJSON<{data:Job[]}>(`/learning/courses/${course!.id}/sources`, {method:"POST",body:form}, session?.csrf_token);
+            results.push({name:file.name,jobs:response.data});
+          } catch (err) {
+            results.push({name:file.name,jobs:[],error:err instanceof Error?err.message:"上传结果未确认"});
+          }
+          setReceipts([...results]);
         }
+        try { await reload(); } catch { setError("上传回执已保留，列表刷新失败，请刷新后核对。"); } finally { setBusy(false); onBusyChange?.(false); }
+
       }}
       layout="vertical"
     >
       <Field className="ui-field" label={<>课程文件</>} required={true}>
         <FileUpload
           aria-label="课程文件"
+          disabled={busy}
           required
           multiple
           accept=".pdf,.docx,.pptx,.txt,.md,.html,.htm,.csv"
-          onChange={(e) => setFiles(e)}
+          onChange={(e) => {setFiles(e);setReceipts([]);}}
         />
       </Field>
       <small>
@@ -784,13 +805,28 @@ function UploadForm({
         允许从本资料提炼知识候选
       </Checkbox>
       <Feedback error={error ? new Error(error) : undefined} />
-      <Button disabled={busy} htmlType="submit" type="primary">
+      {receipts.map((r,i) => <Alert key={i} showIcon type={r.error?"warning":"success"} message={`${r.name}：${r.error?"未完成／结果待核对":"已接收，解析任务已登记"}`} description={r.error?`${r.error}。请先核对原件列表，勿重复上传已成功文件。`:r.jobs.map(j=>`任务 ${j.id} · ${labels[j.state] || j.state}`).join("；")} action={r.jobs.length ? <Button disabled={busy} onClick={()=>onDone(r.jobs)}>查看此文件处理</Button> : undefined} />)}
+      {receipts.some(r=>r.jobs.length) && <Button disabled={busy} onClick={() => onDone(receipts.flatMap(r=>r.jobs))}>继续核对已导入资料</Button>}
+      <Button disabled={busy || !!receipts.length} htmlType="submit" type="primary">
         {busy ? "上传中…" : "上传并解析"}
       </Button>
     </Form>
   );
 }
-function SourceWorkspace({
+export function SourceWorkspace({id, fragmentID}: {id:string; fragmentID:string}) {
+  const [params,setParams] = useSearchParams();
+  const tab = params.get("source_view") || "original";
+  const q = useLiveQuery<SourceDetail>(`/sources/${id}`);
+  return <div className="source-task-workspace">
+    <div className="workspace-heading"><Typography.Text strong className="item-title">{q.data?.source.title || "资料工作区"}</Typography.Text><ContextAgent context={{kind:"source",id,title:q.data?.source.title || "原件"}} /></div>
+    <Tabs activeKey={tab} onChange={v=>{const p=new URLSearchParams(params);p.set("source_view",v);setParams(p);}} items={[{key:"original",label:"原文核对"},{key:"knowledge",label:"知识候选"},{key:"tasks",label:"处理记录"},{key:"publication",label:"学习内容与发布"}]} />
+    {tab === "original" && <SourceDocument id={id} fragmentID={fragmentID} />}
+    {tab === "knowledge" && <KnowledgePage sourceID={id} embedded />}
+    {tab === "tasks" && <JobsPanel sourceID={id} expanded />}
+    {tab === "publication" && <CourseWorkspace sourceID={id} />}
+  </div>;
+}
+function SourceDocument({
   id,
   fragmentID,
 }: {
@@ -808,6 +844,13 @@ function SourceWorkspace({
   const [model, setModel] = useState("");
   const { course } = useLearning();
   const [replacing, setReplacing] = useState(false);
+  const [replacementBusy, setReplacementBusy] = useState(false);
+  const [point,setPoint] = useState("");
+  const [publication,setPublication] = useState<Resource | null>(null);
+  const [paperOpen,setPaperOpen] = useState(false);
+  const unsaved = useUnsavedChanges();
+  const points = useLiveQuery<{points:Point[]}>("");
+  const [params,setParams] = useSearchParams();
   if (query.isPending) return <LoadingState />;
   if (query.error || !query.data)
     return (
@@ -822,7 +865,7 @@ function SourceWorkspace({
   return (
     <div className="live-form">
       <div className="live-inline">
-        <Button onClick={() => setReplacing(!replacing)}>
+        <Button disabled={replacementBusy} onClick={() => setReplacing(!replacing)}>
           {replacing ? "取消上传新版本" : "上传原件新版本"}
         </Button>
         {editable && (
@@ -872,16 +915,14 @@ function SourceWorkspace({
         editable={editable}
       />
       {editable && fragments.length > 0 && (
-        <Link
-          className="ghost-btn"
-          to={`/teacher/question-bank?paper_source=${id}`}
-        >
-          到题库拆分试卷
-        </Link>
+        <Button onClick={()=>setPaperOpen(true)}>在此拆分试卷</Button>
       )}
       <DecisionHistory id={id} />
+      <Drawer title="当前原件 · 整卷拆题" open={paperOpen} width={1000} destroyOnHidden onClose={async()=>{if(!unsaved || await confirm("收起拆题工作区？未保存的校正保留在当前浏览器。")) setPaperOpen(false);}}>
+        {paperOpen && <PaperImport id={id} fragments={fragments}/>}
+      </Drawer>
       {replacing && (
-        <UploadForm supersedesID={id} onDone={() => setReplacing(false)} />
+        <UploadForm supersedesID={id} onBusyChange={setReplacementBusy} onDone={jobs => {setReplacing(false);const source=jobs[0]?.input.source_id;if (typeof source==="string") setParams(p=>{const next=new URLSearchParams(p);next.set("source",source);next.set("source_view","tasks");next.delete("fragment");return next;});}} />
       )}
       <Checkbox
         className="rag-check"
@@ -937,9 +978,9 @@ function SourceWorkspace({
         ))}
       </div>
       {fragments.length > 0 && editable && (
-        <Card className="card-panel" title={<h2>
+        <Card className="card-panel" title={<>
             选中片段 · {selected.length}/ {fragments.length}
-          </h2>}>
+          </>}>
 
           <div className="live-inline">
             <Button
@@ -963,6 +1004,7 @@ function SourceWorkspace({
               placeholder={source.title}
             />
           </Field>
+          <Field label="关联知识点"><Select aria-label="发布关联知识点" value={point} onChange={setPoint} options={[{value:"",label:"课程通用资料"},...(points.data?.points.filter(p=>p.kind==="point").map(p=>({value:p.id,label:p.title})) || [])]} /></Field>
           <Checkbox
             className="rag-check"
             checked={full}
@@ -972,17 +1014,21 @@ function SourceWorkspace({
           </Checkbox>
           <Button
             disabled={action.busy || !selected.length}
-            onClick={() =>
-              action.run(`/sources/${id}/publish`, {
+            onClick={async () => {
+              if (!(await confirm(`发布选中的 ${selected.length} 个片段给本课程学生？教师未选原文与私有候选不会开放。`))) return;
+              const r = await action.run<Resource>(`/sources/${id}/publish`, {
                 title: title || source.title,
                 fragment_ids: selected,
                 full_source: full,
-              })
-            }
+                knowledge_point_id: point,
+              });
+              if(r) setPublication(r);
+            }}
             type="primary"
           >
             确认并发布到课程学习
           </Button>
+          {publication && <Alert showIcon type="success" message={`已发布：${publication.title} · v${publication.version}`} description={<Link to={`/teacher/materials?source=${id}&source_view=publication&resource=${publication.id}`}>查看已发布学习内容与学生可见文本</Link>} />}
           <hr />
           <div className="live-inline">
             <ModelSelect kind="chat" value={model} onChange={setModel} />
@@ -1001,7 +1047,7 @@ function SourceWorkspace({
             >
               AI提炼知识候选
             </Button>
-            <Link to="/teacher/knowledge">审核知识候选</Link>
+            <Button onClick={()=>{const p=new URLSearchParams(params);p.set("source_view","knowledge");setParams(p);}}>审核当前来源候选</Button>
           </div>
         </Card>
       )}
@@ -1083,22 +1129,30 @@ function FragmentEditor({
     </article>
   );
 }
-export function KnowledgePage() {
+export function KnowledgePage({sourceID = "", embedded = false}: {sourceID?:string; embedded?:boolean} = {}) {
   const confirm = useConfirm();
   const { session } = useSession();
   const teacher = session?.user.role === "teacher";
-  const query = useLiveQuery<Knowledge[]>("/knowledge");
+  const query = useLiveQuery<Knowledge[]>("/knowledge", true, true);
   const [selected, setSelected] = useState<Knowledge | null>(null);
   const [creating, setCreating] = useState(false);
   const [reviewing, setReviewing] = useState<Knowledge | null>(null);
-  const [filter, setFilter] = useState("");
+  const [filter, setFilter] = useLocationValue("knowledge_state");
   const [params] = useSearchParams();
-  const [topic, setTopic] = useState("");
+  const sourceFilter = sourceID || params.get("source") || "";
+  const extraction = useLiveQuery<Job>(`/jobs/${params.get("job")}`, teacher && !!params.get("job"));
+  const candidateIDs = Array.isArray(extraction.data?.output.candidate_ids) ? extraction.data.output.candidate_ids : [];
+  const jobMatchesSource = !sourceFilter || extraction.data?.input.source_id === sourceFilter;
+  const [topic, setTopic] = useLocationValue("knowledge_topic");
+  const [search,setSearch] = useLocationValue("knowledge_search");
   const topics = useLiveQuery<TopicData>("/topics", teacher);
   const action = useAction();
   const rows = query.data?.filter(
     (k) =>
+      (!sourceFilter || k.evidence.some(e=>e.source_id === sourceFilter)) &&
+      (!params.get("job") || !jobMatchesSource || candidateIDs.includes(k.id)) &&
       (!filter || k.state === filter) &&
+      `${k.title} ${k.body}`.toLowerCase().includes(search.toLowerCase()) &&
       (!topic ||
         topics.data?.links.some(
           (l) => l.topic_id === topic && l.knowledge_id === k.id,
@@ -1107,8 +1161,6 @@ export function KnowledgePage() {
   const linkedID = params.get("knowledge");
   useEffect(() => {
     if (linkedID && query.data) {
-      setFilter("");
-      setTopic("");
       requestAnimationFrame(() =>
         document
           .getElementById(`knowledge-${linkedID}`)
@@ -1133,6 +1185,7 @@ export function KnowledgePage() {
       )}
       {teacher && (
         <div className="rag-toolbar card-panel">
+          <Input.Search aria-label="搜索知识" placeholder="搜索知识标题与正文" value={search} onChange={e=>setSearch(e.target.value)}/>
           <Select
             aria-label="知识状态"
             value={filter}
@@ -1159,7 +1212,7 @@ export function KnowledgePage() {
           <Link to="/teacher/retrieval">验证检索</Link>
         </div>
       )}
-      {teacher && <TopicManager />}
+      {teacher && !embedded && <TopicManager />}
       <Feedback
         error={query.error}
         message={action.message}
@@ -1183,7 +1236,7 @@ export function KnowledgePage() {
             className="card-panel rag-knowledge"
           >
             <div className="workspace-heading">
-              <h2>{k.title}</h2>
+              <Typography.Text strong className="item-title">{k.title}</Typography.Text>
               <MetaTags>
                 <StatusTag status={k.state} label={labels[k.state]} />
                 <MetaTag>v{k.version}</MetaTag>
@@ -1191,6 +1244,7 @@ export function KnowledgePage() {
             </div>
             <MetaTags>
               <MetaTag>{kinds.find((v) => v.value === k.content_kind)?.label}</MetaTag>
+              {k.origin === "teacher_example" && <MetaTag>教师自编示例</MetaTag>}
               {k.category && <MetaTag>{k.category}</MetaTag>}
               {teacher && <>
                 {k.use_for_learning && <MetaTag>用于学习</MetaTag>}
@@ -1205,7 +1259,7 @@ export function KnowledgePage() {
                 {k.conditions}
               </p>
             )}
-            <Collapse
+            {k.origin !== "teacher_example" && <Collapse
               items={[
                 {
                   key: "content",
@@ -1229,10 +1283,10 @@ export function KnowledgePage() {
                   ),
                 },
               ]}
-            />
+            />}
             {teacher && (
               <div className="live-inline">
-                {k.state === "draft" && (
+                {k.state === "draft" && k.origin !== "teacher_example" && (
                   <Button onClick={() => setReviewing(k)}>比较与处理</Button>
                 )}
                 {k.state === "confirmed" && k.use_for_grading && (
@@ -1243,6 +1297,7 @@ export function KnowledgePage() {
                     据此出题
                   </Link>
                 )}
+                <ContextAgent context={{kind:"knowledge",id:k.id,title:k.title}} />
                 <Button
                   onClick={() => {
                     setSelected(k);
@@ -1290,7 +1345,7 @@ export function KnowledgePage() {
           </Card>
         ))
       )}
-      {teacher && <JobsPanel kinds={["extract", "knowledge_compare"]} />}
+      {teacher && !embedded && <JobsPanel sourceID={sourceFilter} kinds={["extract", "knowledge_compare"]} />}
       <Drawer
         title="知识比较与决策"
         aria-label="知识比较与决策"
@@ -1325,7 +1380,7 @@ export function KnowledgePage() {
     </div>
   );
 }
-function KnowledgeEditor({
+export function KnowledgeEditor({
   initial,
   onDone,
 }: {
@@ -1344,6 +1399,7 @@ function KnowledgeEditor({
   const draft = useEditorDraft(
     `knowledge:${initial?.id || `${course!.id}:new`}`,
     initial || {
+      origin: "source" as Knowledge["origin"],
       title: "",
       body: "",
       category: "",
@@ -1386,6 +1442,9 @@ function KnowledgeEditor({
     >
       <DraftNotice {...draft} />
       <Feedback message={action.message} failed={action.failed} />
+      <Field label="内容来源">
+        <Select aria-label="内容来源" disabled={!!initial} value={v.origin || "source"} options={[{ value: "source", label: "资料提炼知识" }, { value: "teacher_example", label: "教师自编教学示例" }]} onChange={(origin: Knowledge["origin"]) => change({ origin, ...(origin === "teacher_example" ? { content_kind: "example", evidence: [], use_for_grading: false } : {}) })} />
+      </Field>
       <Field className="ui-field" label={<>标题</>} required={true}>
         <Input
           aria-label="标题"
@@ -1398,6 +1457,7 @@ function KnowledgeEditor({
         <Field className="ui-field" label={<>知识类型</>}>
           <Select
             aria-label="知识类型"
+            disabled={v.origin === "teacher_example"}
             value={v.content_kind}
             options={kinds}
             onChange={(content_kind) => change({ content_kind })}
@@ -1432,6 +1492,7 @@ function KnowledgeEditor({
         <Select
           aria-label="关联课程知识点"
           mode="multiple"
+          optionFilterProp="label"
           value={v.knowledge_point_ids}
           onChange={(knowledge_point_ids) => change({ knowledge_point_ids })}
           options={graph.data?.points.map((p) => ({
@@ -1444,6 +1505,7 @@ function KnowledgeEditor({
         <Select
           aria-label="相似或相关知识"
           mode="multiple"
+          optionFilterProp="label"
           value={v.related_ids}
           onChange={(related_ids) => change({ related_ids })}
           options={all.data
@@ -1451,7 +1513,7 @@ function KnowledgeEditor({
             .map((k) => ({ value: k.id, label: k.title }))}
         />
       </Field>
-      <Card size="small" title={<>原文依据</>}>
+      {v.origin !== "teacher_example" && <Card size="small" title={<>原文依据</>}>
         {v.evidence.map((ev, i) => (
           <div key={i}>
             <Field
@@ -1528,7 +1590,7 @@ function KnowledgeEditor({
               ]}
             />
           ))}
-      </Card>
+      </Card>}
       <div className="rag-checks">
         {(
           [
@@ -1541,6 +1603,7 @@ function KnowledgeEditor({
             className="rag-check"
             key={key}
             checked={v[key]}
+            disabled={key === "use_for_grading" && v.origin === "teacher_example"}
             onChange={(e) => change({ [key]: e.target.checked })}
           >
             {label}
@@ -1548,7 +1611,7 @@ function KnowledgeEditor({
         ))}
       </div>
       <Button
-        disabled={action.busy || !v.evidence.length}
+        disabled={action.busy || (v.origin !== "teacher_example" && !v.evidence.length)}
         htmlType="submit"
         type="primary"
       >
@@ -1557,10 +1620,15 @@ function KnowledgeEditor({
     </Form>
   );
 }
-export function RetrievalPage() {
+export function RetrievalPage({resourceID = "", embedded = false}: {resourceID?:string; embedded?:boolean} = {}) {
   const { session } = useSession();
   const teacher = session?.user.role === "teacher";
   const action = useAction();
+  const [params] = useSearchParams();
+  const targetResource = resourceID || params.get("resource") || "";
+  const [onlyCurrent,setOnlyCurrent] = useState(!!targetResource);
+  const readiness = useLiveQuery<{configured:boolean; indexed:boolean; object_index?:{keyword_chunks:number;vector_chunks:number}; latest_index_job?:{state:string;error:string;created_at:string}}>(`/retrieval/status${targetResource?`?resource_id=${encodeURIComponent(targetResource)}`:""}`);
+  const assistStatus = useLiveQuery<{configured:boolean}>("/assist");
   const [query, setQuery] = useState("");
   const [purpose, setPurpose] = useState("learning");
   const [model, setModel] = useState("");
@@ -1570,14 +1638,17 @@ export function RetrievalPage() {
   const [answer, setAnswer] = useState<AssistAnswer | null>(null);
   return (
     <div className="live-page">
-
+      {!embedded && params.get("task") && <Link to={`/student/intervention?task=${params.get("task")}`}>返回原学习任务</Link>}
+      {!embedded && targetResource && <Link to={`/${teacher?"teacher/materials?tab=published":"student/course-content?"}&resource=${targetResource}`}>返回当前学习资料</Link>}
+      <Alert showIcon type={readiness.error?"warning":"info"} message={readiness.error?"检索状态读取失败，可继续阅读原文":onlyCurrent?"仅在当前已发布学习文本中匹配依据（不依赖向量索引）":!readiness.data?.configured?"课程智能检索未启用，可选择当前资料进行文内检索":readiness.data?.indexed?"课程已有索引空间；不代表每份资料的最新修订已就绪":"课程向量索引尚未就绪；检索可使用已有关键词索引"} description={<>{readiness.data?.object_index && <p>已观察到本资料的关键词片段 {readiness.data.object_index.keyword_chunks} 个、当前空间向量 {readiness.data.object_index.vector_chunks} 个；此计数不表示所有片段均已处理。</p>}{readiness.data?.latest_index_job && <p>最近一次课程索引：{labels[readiness.data.latest_index_job.state] || readiness.data.latest_index_job.state}{readiness.data.latest_index_job.error ? ` · ${readiness.data.latest_index_job.error}` : ""}</p>}</>} />
+      {targetResource && <Select aria-label="问答资料范围" value={onlyCurrent?"current":"course"} onChange={v=>{setOnlyCurrent(v==="current");setResult(null);setAnswer(null);}} options={[{value:"current",label:"仅当前学习资料"},{value:"course",label:"全课程可见资料"}]} />}
       <Form
         className="card-panel live-form"
         onFinish={async () => {
           setAnswer(null);
           const r = await action.run<{ hits: Hit[]; mode: string }>(
             "/retrieval",
-            { query, purpose },
+            { query, purpose, resource_id:onlyCurrent?targetResource:"" },
           );
           if (r) setResult(r);
         }}
@@ -1613,10 +1684,11 @@ export function RetrievalPage() {
             检索依据
           </Button>
           <Button
-            disabled={action.busy || !query.trim() || purpose === "grading"}
+            disabled={action.busy || !query.trim() || purpose === "grading" || !assistStatus.data?.configured}
             onClick={async () => {
               const r = await action.run<AssistAnswer>("/assist", {
                 topic: query,
+                resource_id:onlyCurrent?targetResource:"",
                 profile_id: model,
                 request_id: crypto.randomUUID(),
               });
@@ -1630,10 +1702,11 @@ export function RetrievalPage() {
             {action.busy ? "处理中…" : "根据资料回答"}
           </Button>
         </div>
+        {!assistStatus.data?.configured && <p className="live-meta">生成模型未启用，不能生成回答；正文阅读不受影响。</p>}
         <Feedback message={action.message} failed={action.failed} />
       </Form>
       {answer && (
-        <Card className="card-panel" title={<h2>AI回答</h2>}>
+        <Card className="card-panel" title={<>AI回答</>}>
 
           <GroundedAnswer answer={answer} />
         </Card>
@@ -1641,16 +1714,16 @@ export function RetrievalPage() {
       {result && (
         <Card className="card-panel">
           <div className="workspace-heading">
-            <h2>检索依据 · {result.hits.length}</h2>
+            <Typography.Text strong className="item-title">检索依据 · {result.hits.length}</Typography.Text>
             <span className="live-meta">{result.mode}</span>
           </div>
           {!result.hits.length && <p>没有找到当前可见的依据。</p>}
           {result.hits.map((h) => (
             <article key={h.id} className="rag-hit">
-              <h3>
+              <Typography.Text strong className="item-title">
                 {h.title}
                 {h.heading ? ` · ${h.heading}` : ""}
-              </h3>
+              </Typography.Text>
               <small>{location(h.locator)}</small>
               <p className="live-prose">{h.body}</p>
               {teacher && h.source_id && (
@@ -1660,11 +1733,12 @@ export function RetrievalPage() {
                   查看原文
                 </Link>
               )}
+              {h.resource_id && <Link to={`/${teacher?"teacher/materials?tab=published":"student/course-content?"}&resource=${h.resource_id}`}>查看引用学习资料</Link>}
             </article>
           ))}
         </Card>
       )}
-      <RetrievalHistory renderAnswer={saved => <GroundedAnswer answer={saved} />} reuse={(text) => { setQuery(text); setAnswer(null); setResult(null); window.scrollTo({ top: 0, behavior: "auto" }); }} />
+      {!embedded && <RetrievalHistory renderAnswer={saved => <GroundedAnswer answer={saved} />} reuse={(text) => { setQuery(text); setAnswer(null); setResult(null); window.scrollTo({ top: 0, behavior: "auto" }); }} />}
     </div>
   );
 }

@@ -1,7 +1,6 @@
 import { Field } from "../shared/Field";
-import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Drawer, Input, Select, Pagination, Button, Card, Form } from "antd";
+import { Drawer, Input, Select, Pagination, Button, Card, Form, Typography } from "antd";
 import { useSession } from "../shared/session";
 import {
   Link,
@@ -16,6 +15,8 @@ import { useEditorDraft, DraftNotice } from "./editing";
 import { LoadingState, ErrorState, StatusTag, EmptyState, MetaTag, MetaTags } from "../shared/ui";
 import type { Resource } from "./course";
 import type { Assignment, Submission, Question } from "./assessment";
+import { ContextAgent } from "./context-agent";
+import { useLocationPage, useLocationValue } from "./location-state";
 interface Intervention {
   id: string;
   student_id: string;
@@ -27,6 +28,9 @@ interface Intervention {
   review_note: string;
   resource_id: string | null;
   assignment_id: string | null;
+  source_submission_id?: string | null;
+  diagnosis_report_id?: string | null;
+  diagnosis_label_id?: string | null;
 }
 interface Evidence {
   assigned_at: string | null;
@@ -46,10 +50,10 @@ export function InterventionPage() {
   const [params, setParams] = useSearchParams();
   const { course } = useLearning();
   const query = useLiveQuery<Intervention[]>("/interventions");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useLocationValue("search");
   const state = params.get("state") || "";
   const student = params.get("student") || "";
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useLocationPage();
   const creating = params.get("new") === "1";
   const setCreating = (value: boolean) => patch({ new: value ? "1" : "" });
   const selected = query.data?.find((i) => i.id === params.get("task"));
@@ -75,15 +79,13 @@ export function InterventionPage() {
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
-            setPage(1);
           }}
         />
         <Select
           aria-label="任务状态"
           value={state}
           onChange={(v) => {
-            patch({ state: v });
-            setPage(1);
+            patch({ state: v, page: "1" });
           }}
           options={[
             { value: "", label: "全部任务" },
@@ -117,7 +119,7 @@ export function InterventionPage() {
           {rows.slice((page - 1) * 10, page * 10).map((i) => (
             <article className="live-row" key={i.id}>
               <div>
-                <h2>{i.title}</h2>
+                <Typography.Text strong className="item-title">{i.title}</Typography.Text>
                 <MetaTags>
                   <StatusTag status={i.status} label={names[i.status]} />
                   {teacher && <MetaTag>{i.student_name}</MetaTag>}
@@ -177,16 +179,18 @@ export function InterventionPage() {
     </div>
   );
 }
-function TaskCreator({
+export function TaskCreator({
   student,
   source,
   point,
   onCreated,
+  diagnosis,
 }: {
   student: string;
   source: string;
   point: string;
   onCreated: (id: string) => void;
+  diagnosis?: {reportID:string; labelID:string; title:string; explanation:string};
 }) {
   const { course } = useLearning();
   const action = useAction();
@@ -199,16 +203,17 @@ function TaskCreator({
     !!source,
   );
   const draft = useEditorDraft(
-    `intervention:${course?.id}:${student}:${source}`,
+    `intervention:${course?.id}:${student}:${source}:${diagnosis?.reportID || ""}:${diagnosis?.labelID || ""}`,
     {
       student_id: student,
-      title: "",
-      description: "",
+      title: diagnosis ? `补学补练：${diagnosis.title}` : "",
+      description: diagnosis?.explanation || "",
       resource_id: "",
       assignment_id: "",
     },
   );
   const form = draft.value;
+  const studentID = source ? origin.data?.submission.student_id || "" : form.student_id;
   const change = (key: keyof typeof form, value: string) =>
     draft.change((v) => ({ ...v, [key]: value }));
   return (
@@ -218,7 +223,10 @@ function TaskCreator({
         const v = draft.value;
         const result = await action.run<Intervention>("/interventions", {
           ...v,
-          description: v.description + (source ? `\n关联作答：${source}` : ""),
+          student_id: studentID,
+          source_submission_id: source,
+          diagnosis_report_id: diagnosis?.reportID || "",
+          diagnosis_label_id: diagnosis?.labelID || "",
         });
         if (result) {
           draft.saved(v);
@@ -244,11 +252,11 @@ function TaskCreator({
           </Link>
         </aside>
       )}
-      <Field className="ui-field" label={<>指定学生</>} required name="student_id" getValueProps={() => ({ value: form.student_id })} rules={[{ validator: async () => { if (!form.student_id) throw Error("请选择学生"); } }]}>
+      <Field className="ui-field" label={<>指定学生</>} required name="student_id" getValueProps={() => ({ value: studentID })} rules={[{ validator: async () => { if (!studentID) throw Error("请选择学生或等候原始作答加载"); } }]}>
         <Select
           aria-label="指定学生"
           disabled={members.isPending || !!source}
-          value={form.student_id}
+          value={studentID}
           onChange={(e) => change("student_id", e)}
           showSearch
           optionFilterProp="children"
@@ -323,14 +331,16 @@ function TaskCreator({
             ))}
         </Select>
       </Field>
-      <p className="live-meta">
-        下发后，学生需要完成关联资料并为补练作业逐题产生新提交。
-      </p>
-      <Button disabled={action.busy} htmlType="submit" type="primary">
+      <Button disabled={action.busy || !studentID || !!origin.error} htmlType="submit" type="primary">
         保存任务草稿
       </Button>
     </Form>
   );
+}
+export function TaskWorkspace({id}: {id:string}) {
+  const q = useLiveQuery<Intervention[]>("/interventions");
+  const item = q.data?.find(i=>i.id===id);
+  return <><Feedback error={q.error}/>{q.isPending ? <LoadingState/> : item ? <TaskDetail item={item} teacher/> : <EmptyState title="任务不可访问"/>}</>;
 }
 function TaskDetail({
   item: i,
@@ -354,10 +364,11 @@ function TaskDetail({
     !evidence.error &&
     evidence.data?.learning_ready &&
     evidence.data?.practice_ready;
-  const source = i.description.match(/关联作答：([a-f0-9-]{36})/);
+  const sourceID = i.source_submission_id || i.description.match(/关联作答：([a-f0-9-]{36})/)?.[1];
   return (
     <div className="live-page">
-      <h2>{i.title}</h2>
+      <Typography.Text strong className="item-title">{i.title}</Typography.Text>
+      <ContextAgent context={{kind:"intervention",id:i.id,title:i.title}} />
       <p>
         {i.student_name} ·{" "}
         <StatusTag status={i.status} label={names[i.status]} />
@@ -365,15 +376,16 @@ function TaskDetail({
       <p className="live-prose">
         {i.description.replace(/\n关联作答：[a-f0-9-]{36}/, "")}
       </p>
-      {source && teacher && (
-        <Link to={`/teacher/homework/submissions/${source[1]}/grade`}>
+      {sourceID && teacher && (
+        <Link to={`/teacher/homework/submissions/${sourceID}/grade`}>
           查看任务原始依据
         </Link>
       )}
+      {teacher && i.diagnosis_report_id && <Link to={`/teacher/insight?view=gaps&diagnosis_report=${i.diagnosis_report_id}`}>查看任务关联的已确认诊断</Link>}
       <Feedback message={action.message} failed={action.failed} />
       {i.status !== "draft" && (
         <section className="evidence-checklist">
-          <h3>本次完成条件</h3>
+          <Typography.Text strong className="item-title">本次完成条件</Typography.Text>
           <Feedback error={evidence.error} />
           {evidence.isPending ? (
             <LoadingState />
@@ -434,13 +446,13 @@ function TaskDetail({
       </div>
       {i.answer_text && (
         <section>
-          <h3>学生执行结果</h3>
+          <Typography.Text strong className="item-title">学生执行结果</Typography.Text>
           <p className="live-prose">{i.answer_text}</p>
         </section>
       )}
       {i.review_note && (
         <section>
-          <h3>教师复查</h3>
+          <Typography.Text strong className="item-title">教师复查</Typography.Text>
           <p>{i.review_note}</p>
         </section>
       )}

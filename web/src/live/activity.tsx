@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pagination, Card, Collapse } from "antd";
+import { Pagination, Card, Collapse, Typography } from "antd";
 import { Link } from "./context";
 import { Feedback, useLiveQuery, when } from "./context";
 import { EmptyState, LoadingState, MetaTag, MetaTags, StatusTag } from "../shared/ui";
@@ -32,7 +32,7 @@ export function ActivityTimeline({
     `/activity${studentID ? `?student_id=${encodeURIComponent(studentID)}` : ""}`,
   );
   return (
-    <Card className="card-panel activity-section" title={<h2>{teacher ? "学生学习与提交记录" : "我的学习与提交记录"}</h2>}>
+    <Card className="card-panel activity-section" title={<>{teacher ? "学生学习与提交记录" : "我的学习与提交记录"}</>}>
 
       <Feedback error={query.error} />
       {query.isPending && <LoadingState label="正在读取记录…" />}
@@ -40,7 +40,7 @@ export function ActivityTimeline({
       {query.data?.slice((page - 1) * 10, page * 10).map((event) => (
         <article className="live-row" key={event.id}>
           <div>
-            <h3>{event.title}</h3>
+            <Typography.Text strong className="item-title">{event.title}</Typography.Text>
             <MetaTags>
               <StatusTag status={event.verb.startsWith("submission.") ? "submitted" : event.verb === "completed" ? "completed" : "opened"}
                 label={event.verb === "submission.imported" ? "教师导入作答" : event.verb === "submission.submitted"

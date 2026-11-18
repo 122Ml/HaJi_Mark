@@ -286,7 +286,7 @@ func (s *Service) conversation(c *gin.Context) {
 			var rt runtime
 			canResume = json.Unmarshal(checkpoint.Runtime, &rt) == nil && resumable(rt)
 		}
-		publicRuns = append(publicRuns, gin.H{"id": run.ID, "request_id": run.RequestID, "state": run.State, "error": run.Error, "cancel_requested": run.CancelRequested, "created_at": run.CreatedAt, "can_resume": canResume})
+		publicRuns = append(publicRuns, gin.H{"id": run.ID, "request_id": run.RequestID, "state": run.State, "error": run.Error, "cancel_requested": run.CancelRequested, "created_at": run.CreatedAt, "can_resume": canResume, "stream_text": run.StreamText, "stream_turn": run.StreamTurn})
 	}
 	data(c, gin.H{"conversation": conv, "messages": messages, "runs": publicRuns, "steps": publicSteps, "requests": publicRequests, "attachments": attachments, "has_more": hasMore, "next_cursor": nextCursor}, e)
 }
@@ -300,9 +300,10 @@ func resumable(rt runtime) bool {
 }
 func (s *Service) send(c *gin.Context) {
 	var in struct {
-		Content     string   `json:"content"`
-		Attachments []string `json:"attachment_ids"`
-		RequestID   string   `json:"request_id"`
+		Content     string           `json:"content"`
+		Attachments []string         `json:"attachment_ids"`
+		RequestID   string           `json:"request_id"`
+		Context     *businessContext `json:"context"`
 	}
 	if !bind(c, &in) {
 		return
@@ -350,6 +351,18 @@ func (s *Service) send(c *gin.Context) {
 		fail(c, 409, "当前对话已有运行，请先回答问题、审批或停止")
 		return
 	}
+	contextNote, learnerContext, contextErr := s.verifyContext(c, in.Context)
+	if contextErr != nil {
+		fail(c, 422, contextErr.Error())
+		return
+	}
+	if learnerContext {
+		if e = q.MarkAgentLearnerContext(ctx, conv.ID); e != nil {
+			data(c, nil, e)
+			return
+		}
+		conv.LearnerContext = true
+	}
 	if s.Profiles != nil {
 		if _, e = s.Profiles.Profile(conv.ProfileID, "chat"); e != nil {
 			fail(c, 422, e.Error())
@@ -392,7 +405,7 @@ func (s *Service) send(c *gin.Context) {
 		}
 		messages = append(messages, rag.AgentMessage{Role: m.Role, Content: content})
 	}
-	content := in.Content
+	content := in.Content + contextNote
 	if len(meta) > 0 {
 		content += "\n本次对话附件（服务端登记元数据）：" + string(raw(meta))
 	}
@@ -401,7 +414,7 @@ func (s *Service) send(c *gin.Context) {
 	if in.Attachments == nil {
 		in.Attachments = []string{}
 	}
-	if e = q.CreateAgentMessage(ctx, store.CreateAgentMessageParams{ID: uuid.NewString(), ConversationID: conv.ID, Role: "user", Content: in.Content, AttachmentIds: in.Attachments}); e != nil {
+	if e = q.CreateAgentMessage(ctx, store.CreateAgentMessageParams{ID: uuid.NewString(), ConversationID: conv.ID, Role: "user", Content: in.Content + contextNote, AttachmentIds: in.Attachments}); e != nil {
 		data(c, nil, e)
 		return
 	}
@@ -637,7 +650,27 @@ func (s *Service) respond(c *gin.Context) {
 		fail(c, 409, "运行已停止，不能再回答")
 		return
 	}
-	if req.Kind == "input" && in.Decision == "approve" {
+	var requestSnapshot map[string]any
+	_ = json.Unmarshal(req.Snapshot, &requestSnapshot)
+	if requestSnapshot["editor"] != nil && in.Decision == "approve" {
+		var t Tool
+		for _, tool := range Catalog() {
+			if tool.Name == requestSnapshot["tool"] && tool.Method == "EDITOR" {
+				t = tool
+			}
+		}
+		args, valid := requestSnapshot["arguments"].(map[string]any)
+		if t.Name == "" || !valid {
+			fail(c, 422, "编辑任务无效")
+			return
+		}
+		hash, current, err := s.snapshot(ctx, run, conv, t, args)
+		if err != nil {
+			fail(c, 409, "当前保存对象无法读取，请核对权限与对象状态")
+			return
+		}
+		in.Values = map[string]any{"editor": requestSnapshot["editor"], "changed": hash != requestSnapshot["business_hash"], "saved_snapshot": current, "snapshot_hash": hash}
+	} else if req.Kind == "input" && in.Decision == "approve" {
 		if e = validateAnswers(req.Fields, in.Values); e != nil {
 			fail(c, 422, e.Error())
 			return

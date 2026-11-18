@@ -33,7 +33,7 @@ export function CurriculumPage() {
       ) : (
         <>
           <div className="live-grid course-content-grid">
-            <Card className="card-panel" title={<h2>章节与知识点</h2>}>
+            <Card className="card-panel" title={<>章节与知识点</>}>
 
               {ctx.data?.points.length ? (
                 <Tree
@@ -50,7 +50,7 @@ export function CurriculumPage() {
                 管理学习资料
               </Link>
             </Card>
-            <Card className="card-panel" title={<h2>添加目录节点</h2>}>
+            <Card className="card-panel">
 
               <Form
                 className="live-form"

@@ -1,4 +1,4 @@
-import { Alert } from "antd";
+import { Alert, Typography } from "antd";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -19,7 +19,7 @@ export function RichContent({ text }: { text: string }) {
   return (
     <div className="live-prose rich-content">
       <Markdown skipHtml remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[[rehypeKatex, { trust: false, throwOnError: false, maxExpand: 1000, maxSize: 20 }]]}
-        components={{ img: () => null, a: ({ children, href }) => <a href={href} target="_blank" rel="noreferrer">{children}</a> }}>
+        components={{ img: () => null, a: ({ children, href }) => <Typography.Link href={href} target="_blank" rel="noreferrer">{children}</Typography.Link> }}>
         {content}
       </Markdown>
     </div>

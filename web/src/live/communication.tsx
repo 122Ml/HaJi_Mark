@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSession } from "../shared/session";
 import { useAction, useLiveQuery, Feedback, when } from "./context";
 import { EmptyState, LoadingState, MetaTag, MetaTags } from "../shared/ui";
+import { DraftNotice, useEditorDraft } from "./editing";
 interface Post {
   id: string;
   kind: string;
@@ -31,7 +32,7 @@ export function InteractionPage() {
         message={action.message}
         failed={action.failed}
       />
-      <Card className="card-panel" title={<h2>{form.parent_id ? "回复" : "发布内容"}</h2>}>
+      <Card className="card-panel" title={<>{form.parent_id ? "回复" : "发布内容"}</>}>
 
         <Form
           className="live-form"
@@ -101,14 +102,14 @@ export function InteractionPage() {
       {query.data
         ?.filter((p) => !p.parent_id)
         .map((p) => (
-          <Card className="card-panel" key={p.id} title={<h2>
+          <Card className="card-panel" key={p.id} title={<>
               {p.title ||
                 {
                   announcement: "课程公告",
                   question: "课程提问",
                   discussion: "课程讨论",
                 }[p.kind]}
-            </h2>}>
+            </>}>
 
             <MetaTags>
               <MetaTag>{{ announcement: "公告", question: "提问", discussion: "讨论" }[p.kind]}</MetaTag>
@@ -124,22 +125,31 @@ export function InteractionPage() {
                   <p>{r.content}</p>
                 </blockquote>
               ))}
-            <Button
-              onClick={() => {
-                setForm({
-                  kind: "reply",
-                  title: `回复：${p.title}`,
-                  content: "",
-                  parent_id: p.id,
-                });
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }}
-            >
-              回复
-            </Button>
+            <InlineReply post={p} />
           </Card>
         ))}
       {query.isPending ? <LoadingState /> : !query.error && !query.data?.length && <Card className="card-panel"><EmptyState title="还没有课程互动" /></Card>}
     </div>
   );
+}
+
+function InlineReply({ post }: { post: Post }) {
+  const [open, setOpen] = useState(false);
+  const draft = useEditorDraft(`discussion-reply:${post.id}`, "");
+  const action = useAction();
+  return <div className="discussion-reply">
+    <Button aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "收起回复" : "回复"}</Button>
+    {open && <Form layout="vertical" onFinish={async () => {
+      if (await action.run("/interactions", { kind: "reply", parent_id: post.id, title: `回复：${post.title}`, content: draft.value }, "POST", "回复已发布到当前讨论")) {
+        draft.reset(""); setOpen(false);
+      }
+    }}>
+      <DraftNotice {...draft} />
+      <Field className="ui-field" label={`回复：${post.title || "课程互动"}`} required>
+        <Input.TextArea aria-label="回复内容" autoFocus required rows={3} value={draft.value} onChange={e => draft.change(e.target.value)} />
+      </Field>
+      <Button type="primary" htmlType="submit" loading={action.busy} disabled={!draft.value.trim()}>发布回复</Button>
+    </Form>}
+    <Feedback message={action.message} failed={action.failed} />
+  </div>;
 }

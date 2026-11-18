@@ -101,7 +101,7 @@ const pass = message => { if (!report.checks.includes(message)) report.checks.pu
     const knowledge = await tc('GET', api + '/knowledge');
     const item = knowledge.find(k => k.id === report.knowledge_id) || knowledge.find(k => k.student_visible && k.use_for_grading) || knowledge[0];
     report.knowledge_id = item.id; save();
-    const candidate = t.locator('.rag-knowledge').filter({ has: t.getByRole('heading', { name: item.title, exact: true }) });
+    const candidate = t.locator('.rag-knowledge').filter({ has: t.getByText(item.title, { exact: true }) });
     if (item.state === 'draft') {
     await candidate.getByRole('button', { name: '编辑候选', exact: true }).click();
     const editor = t.getByRole('dialog');
@@ -116,7 +116,7 @@ const pass = message => { if (!report.checks.includes(message)) report.checks.pu
     assert(confirmed.student_visible && confirmed.use_for_grading, 'Knowledge settings lost');
     await screenshot('rag-knowledge-desktop');
     await s.goto(url('student', 'knowledge'));
-    await s.getByRole('heading', { name: confirmed.title, exact: true }).waitFor();
+    await s.getByText(confirmed.title, { exact: true }).waitFor();
     assert(await s.getByRole('button', { name: '编辑候选', exact: true }).count() === 0, 'Student got editor');
     pass('Genuine AI candidates can be edited, confirmed and opened to students through the UI');
 
@@ -130,13 +130,13 @@ const pass = message => { if (!report.checks.includes(message)) report.checks.pu
     await s.goto(url('student', 'retrieval'));
     await s.getByLabel('课程问题', { exact: true }).fill('ALPHA_PRIVATE_731');
     await s.getByRole('button', { name: '检索依据', exact: true }).click();
-    await s.getByRole('heading', { name: /检索依据 ·/ }).waitFor();
+    await s.getByText(/检索依据 ·/).waitFor();
     assert(!(await s.locator('.rag-hit').allTextContents()).some(v => v.includes('ALPHA_PRIVATE_731')), 'Private source leaked');
     if (!report.qa_checked) {
     await s.getByRole('textbox', { name: /^课程问题/ }).fill('年龄18到60，为什么要测17和61？');
     await s.getByRole('button', { name: '根据资料回答', exact: true }).click();
-    await s.getByRole('heading', { name: 'AI回答', exact: true }).waitFor({ timeout: 100000 });
-    assert(await s.locator('.card-panel').filter({ has: s.getByRole('heading', { name: 'AI回答', exact: true }) }).locator('blockquote').count() > 0, 'Grounded answer did not render citations');
+    await s.getByText('AI回答', { exact: true }).waitFor({ timeout: 100000 });
+    assert(await s.locator('.card-panel').filter({ has: s.getByText('AI回答', { exact: true }) }).locator('blockquote').count() > 0, 'Grounded answer did not render citations');
     await screenshot('rag-qa-desktop', s);
     report.qa_checked = true; save();
     }

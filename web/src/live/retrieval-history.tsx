@@ -32,7 +32,7 @@ export function RetrievalHistory({ reuse, renderAnswer }: { reuse: (question: st
       {detail.isPending ? <LoadingState /> : detail.error ? <ErrorState message={detail.error.message} onRetry={() => void detail.refetch()} /> : detail.data && <Space direction="vertical" size="middle" className="live-full-width">
         <Typography.Paragraph strong>{detail.data.question}</Typography.Paragraph>
         <Space wrap>{state(detail.data.state)}<Typography.Text type="secondary">{when(detail.data.created_at)}</Typography.Text></Space>
-        {detail.data.state === "succeeded" ? renderAnswer(detail.data.response) : <Alert type="warning" showIcon message="本次尚无已保存回答" description="可刷新核对。需要重新请求时，先将问题带回输入框；系统不会自动重复模型调用。" action={<Button onClick={() => void detail.refetch()}>刷新记录</Button>} />}
+        {detail.data.state === "succeeded" ? renderAnswer(detail.data.response) : <Alert type="warning" showIcon message="尚无已保存回答" action={<Button onClick={() => void detail.refetch()}>刷新记录</Button>} />}
         <Button onClick={() => { reuse(detail.data!.question); select(""); }}>带回输入框</Button>
       </Space>}
     </Drawer>

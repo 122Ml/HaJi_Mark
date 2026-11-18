@@ -9,7 +9,7 @@ export function LearningAssistant() {
   const [topic, setTopic] = useState("");
   const [output, setOutput] = useState<AssistAnswer | null>(null);
   return (
-    <Card className="card-panel" title={<h2>课程助教</h2>}>
+    <Card className="card-panel" title={<>课程助教</>}>
 
       {status.data?.configured ? (
         <>

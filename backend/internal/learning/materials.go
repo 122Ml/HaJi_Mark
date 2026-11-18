@@ -1,6 +1,7 @@
 package learning
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
@@ -18,6 +20,19 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
+
+func validateKnowledgeOrigin(s *rag.Service, ctx context.Context, course, origin, kind string, grading bool, refs []rag.Evidence, visible bool) error {
+	if origin == "teacher_example" {
+		if kind != "example" || grading || len(refs) != 0 {
+			return errors.New("教师自编示例只能用于学习，不附学生作答或来源引用，不用于评分")
+		}
+		return nil
+	}
+	if origin != "source" {
+		return errors.New("知识来源类型无效")
+	}
+	return s.ValidateEvidence(ctx, course, refs, visible)
+}
 
 func (h *Handler) registerRAG(g *gin.RouterGroup, auth *identity.Handler) {
 	r := g.Group("", func(c *gin.Context) {
@@ -47,8 +62,8 @@ func (h *Handler) registerRAG(g *gin.RouterGroup, auth *identity.Handler) {
 	t.GET("/jobs/:jobID", h.job)
 	t.POST("/jobs/:jobID/cancel", auth.RequireCSRF(), h.cancelJob)
 	t.POST("/jobs/:jobID/retry", auth.RequireCSRF(), h.retryJob)
-	r.POST("/retrieval", auth.RequireCSRF(), h.retrieval)
-	r.GET("/retrieval/status", h.retrievalStatus)
+	g.POST("/retrieval", auth.RequireCSRF(), h.retrieval)
+	g.GET("/retrieval/status", h.retrievalStatus)
 }
 func ragError(c *gin.Context, e error) { identity.Fail(c, 422, "rag_error", e.Error()) }
 func (h *Handler) models(c *gin.Context) {
@@ -390,6 +405,7 @@ func (h *Handler) saveKnowledge(c *gin.Context) {
 		UseForGrading  bool   `json:"use_for_grading"`
 		EditVersion    int32  `json:"edit_version"`
 		SupersedesID   string `json:"supersedes_id"`
+		Origin         string `json:"origin"`
 	}
 	if !bind(c, &in) {
 		return
@@ -398,7 +414,29 @@ func (h *Handler) saveKnowledge(c *gin.Context) {
 		invalid(c, "知识标题、正文或类型无效")
 		return
 	}
-	if e := h.rag.ValidateEvidence(c.Request.Context(), c.Param("courseID"), in.Evidence, in.StudentVisible); e != nil {
+	ctx := c.Request.Context()
+	if in.Origin == "" {
+		in.Origin = "source"
+	}
+	if in.Evidence == nil {
+		in.Evidence = []rag.Evidence{}
+	}
+	previous := c.Param("knowledgeID")
+	if previous == "" {
+		previous = in.SupersedesID
+	}
+	if previous != "" {
+		old, e := h.q.GetKnowledgeEntry(ctx, store.GetKnowledgeEntryParams{ID: previous, CourseID: c.Param("courseID")})
+		if e != nil {
+			result(c, nil, e)
+			return
+		}
+		if old.Origin != in.Origin {
+			invalid(c, "知识来源类型不能通过编辑或修订改变")
+			return
+		}
+	}
+	if e := validateKnowledgeOrigin(h.rag, ctx, c.Param("courseID"), in.Origin, in.ContentKind, in.UseForGrading, in.Evidence, in.StudentVisible); e != nil {
 		ragError(c, e)
 		return
 	}
@@ -407,7 +445,6 @@ func (h *Handler) saveKnowledge(c *gin.Context) {
 		return
 	}
 	refs, _ := json.Marshal(in.Evidence)
-	ctx := c.Request.Context()
 	if id := c.Param("knowledgeID"); id != "" {
 		v, e := h.q.EditKnowledgeEntry(ctx, store.EditKnowledgeEntryParams{ID: id, CourseID: c.Param("courseID"), Title: in.Title, Body: in.Body, Category: in.Category, ContentKind: in.ContentKind, Conditions: in.Conditions, KnowledgePointIds: nonNilStrings(in.KnowledgePointIDs), RelatedIds: nonNilStrings(in.RelatedIDs), Evidence: refs, StudentVisible: in.StudentVisible, UseForLearning: in.UseForLearning, UseForGrading: in.UseForGrading, EditVersion: in.EditVersion})
 		result(c, v, e)
@@ -426,7 +463,7 @@ func (h *Handler) saveKnowledge(c *gin.Context) {
 		}
 		version = old.Version + 1
 	}
-	v, e := h.q.CreateKnowledgeEntry(ctx, store.CreateKnowledgeEntryParams{ID: uuid.NewString(), CourseID: c.Param("courseID"), CreatedBy: identity.Current(c).ID, Title: in.Title, Body: in.Body, Category: in.Category, ContentKind: in.ContentKind, Conditions: in.Conditions, KnowledgePointIds: nonNilStrings(in.KnowledgePointIDs), RelatedIds: nonNilStrings(in.RelatedIDs), Evidence: refs, StudentVisible: in.StudentVisible, UseForLearning: in.UseForLearning, UseForGrading: in.UseForGrading, Version: version, SupersedesID: text(in.SupersedesID)})
+	v, e := h.q.CreateKnowledgeEntry(ctx, store.CreateKnowledgeEntryParams{ID: uuid.NewString(), CourseID: c.Param("courseID"), CreatedBy: identity.Current(c).ID, Title: in.Title, Body: in.Body, Category: in.Category, ContentKind: in.ContentKind, Conditions: in.Conditions, KnowledgePointIds: nonNilStrings(in.KnowledgePointIDs), RelatedIds: nonNilStrings(in.RelatedIDs), Evidence: refs, StudentVisible: in.StudentVisible, UseForLearning: in.UseForLearning, UseForGrading: in.UseForGrading, Version: version, SupersedesID: text(in.SupersedesID), Origin: in.Origin})
 	result(c, v, e)
 }
 func nonNilStrings(v []string) []string {
@@ -455,7 +492,7 @@ func (h *Handler) knowledgeState(c *gin.Context) {
 	if in.State == "confirmed" && k.State == "draft" {
 		var refs []rag.Evidence
 		_ = json.Unmarshal(k.Evidence, &refs)
-		if e = h.rag.ValidateEvidence(c.Request.Context(), k.CourseID, refs, k.StudentVisible); e != nil {
+		if e = validateKnowledgeOrigin(h.rag, c.Request.Context(), k.CourseID, k.Origin, k.ContentKind, k.UseForGrading, refs, k.StudentVisible); e != nil {
 			ragError(c, e)
 			return
 		}
@@ -563,7 +600,13 @@ func (h *Handler) createRAGJob(c *gin.Context) {
 	result(c, j, e)
 }
 func (h *Handler) jobs(c *gin.Context) {
-	v, e := h.q.ListProcessingJobs(c.Request.Context(), store.ListProcessingJobsParams{CourseID: c.Param("courseID"), Kind: c.Query("kind"), QuestionID: c.Query("question_id"), SubmissionID: c.Query("submission_id"), RubricID: c.Query("rubric_id"), SourceID: c.Query("source_id"), KnowledgeID: c.Query("knowledge_id"), AssetID: c.Query("asset_id")})
+	size, e := strconv.Atoi(c.DefaultQuery("size", "60"))
+	offset, e2 := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if e != nil || e2 != nil || size < 1 || size > 200 || offset < 0 || offset > 1000000 {
+		invalid(c, "任务分页参数无效")
+		return
+	}
+	v, e := h.q.ListProcessingJobPage(c.Request.Context(), store.ListProcessingJobPageParams{CourseID: c.Param("courseID"), Kind: c.Query("kind"), QuestionID: c.Query("question_id"), SubmissionID: c.Query("submission_id"), RubricID: c.Query("rubric_id"), SourceID: c.Query("source_id"), KnowledgeID: c.Query("knowledge_id"), AssetID: c.Query("asset_id"), PageSize: int32(size), PageOffset: int32(offset)})
 	result(c, v, e)
 }
 func (h *Handler) job(c *gin.Context) {
@@ -584,20 +627,66 @@ func (h *Handler) retryJob(c *gin.Context) {
 		invalid(c, "仅失败任务可重试")
 		return
 	}
+	if old.Kind == "diagnosis" || old.Kind == "recommendation" {
+		invalid(c, "请回到分析历史重新创建报告，保留原失败记录")
+		return
+	}
 	var in rag.JobInput
 	_ = json.Unmarshal(old.Input, &in)
 	v, e := h.rag.CreateJob(c.Request.Context(), old.CourseID, identity.Current(c).ID, old.Kind, in)
 	result(c, v, e)
 }
 func (h *Handler) retrievalStatus(c *gin.Context) {
-	course, e := h.q.GetBusinessCourse(c.Request.Context(), c.Param("courseID"))
+	ctx := c.Request.Context()
+	course, e := h.q.GetBusinessCourse(ctx, c.Param("courseID"))
+	if !resultIfError(c, e) {
+		return
+	}
 	data := gin.H{"configured": h.rag != nil, "indexed": course.EmbeddingSpaceID.Valid}
+	resourceID, sourceID := c.Query("resource_id"), c.Query("source_id")
+	if resourceID != "" {
+		r, err := h.q.GetBusinessResource(ctx, resourceID)
+		if !resultIfError(c, err) || !scope(c, r.CourseID) {
+			return
+		}
+		if r.Status != "published" {
+			invalid(c, "仅已发布学习资料可检查检索状态")
+			return
+		}
+	}
+	if sourceID != "" {
+		if !teacher(c) {
+			identity.Fail(c, 403, "forbidden", "原件索引状态仅教师可见")
+			return
+		}
+		_, err := h.q.GetMaterialSource(ctx, store.GetMaterialSourceParams{ID: sourceID, CourseID: course.ID})
+		if !resultIfError(c, err) {
+			return
+		}
+	}
+	if resourceID != "" || sourceID != "" {
+		counts, err := h.q.ObjectRetrievalStatus(ctx, store.ObjectRetrievalStatusParams{CourseID: course.ID, ResourceID: resourceID, SourceID: sourceID})
+		if !resultIfError(c, err) {
+			return
+		}
+		data["object_index"] = counts
+	}
+	if teacher(c) {
+		jobs, err := h.q.ListProcessingJobPage(ctx, store.ListProcessingJobPageParams{CourseID: course.ID, Kind: "index", PageSize: 1})
+		if !resultIfError(c, err) {
+			return
+		}
+		if len(jobs) > 0 {
+			data["latest_index_job"] = gin.H{"state": jobs[0].State, "error": jobs[0].Error, "created_at": jobs[0].CreatedAt}
+		}
+	}
 	result(c, data, e)
 }
 func (h *Handler) retrieval(c *gin.Context) {
 	var in struct {
-		Query   string `json:"query"`
-		Purpose string `json:"purpose"`
+		Query      string `json:"query"`
+		Purpose    string `json:"purpose"`
+		ResourceID string `json:"resource_id"`
 	}
 	if !bind(c, &in) {
 		return
@@ -610,7 +699,7 @@ func (h *Handler) retrieval(c *gin.Context) {
 		identity.Fail(c, 403, "forbidden", "学生不能检索评分内部依据")
 		return
 	}
-	hits, mode, e := h.rag.Search(c.Request.Context(), c.Param("courseID"), identity.Current(c).ID, in.Query, in.Purpose, teacher(c))
+	hits, mode, e := h.scopedSearch(c, in.Query, in.Purpose, in.ResourceID)
 	if e != nil {
 		ragError(c, e)
 		return

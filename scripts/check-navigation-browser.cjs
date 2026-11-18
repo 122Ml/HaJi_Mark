@@ -73,7 +73,7 @@ const checks = [], errors = [], serverErrors = [];
     await t.getByLabel('来源说明', { exact: true }).fill('自动化验收自编资料');
     await choose(t.getByRole('combobox', { name: '关联知识点', exact: true }), { label: '边界值分析' });
     await t.getByRole('button', { name: '保存资料草稿', exact: true }).click();
-    const row = t.locator('.live-row').filter({ has: t.getByRole('heading', { name: '路由验收资料', exact: true }) });
+    const row = t.locator('.live-row').filter({ has: t.getByText('路由验收资料', { exact: true }) });
     await row.getByRole('button', { name: '审核通过并发布', exact: true }).click();
     await row.getByRole('button', { name: '审核通过并发布', exact: true }).waitFor({ state: 'hidden' });
     const resources = (await (await t.request.get(base + '/api/v1' + prefix + '/resources')).json()).data;

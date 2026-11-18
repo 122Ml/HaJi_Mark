@@ -39,8 +39,8 @@ SELECT EXISTS(SELECT 1 FROM resources r WHERE r.course_id=$1 AND r.status='publi
 SELECT EXISTS(SELECT 1 FROM resources r JOIN material_sources s ON s.id=r.source_id WHERE s.id=$1 AND s.course_id=$2 AND s.state='active' AND r.status='published' AND r.full_source=true);
 
 -- name: CreateKnowledgeEntry :one
-INSERT INTO knowledge_entries(id,course_id,created_by,title,body,category,content_kind,conditions,knowledge_point_ids,evidence,related_ids,student_visible,use_for_learning,use_for_grading,version,supersedes_id)
-VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *;
+INSERT INTO knowledge_entries(id,course_id,created_by,title,body,category,content_kind,conditions,knowledge_point_ids,evidence,related_ids,student_visible,use_for_learning,use_for_grading,version,supersedes_id,origin)
+VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,COALESCE(NULLIF(sqlc.arg(origin)::text,''),'source')) RETURNING *;
 
 -- name: ListKnowledgeEntries :many
 SELECT k.* FROM knowledge_entries k WHERE k.course_id=$1 AND (sqlc.arg(teacher)::boolean OR (k.state='confirmed' AND k.student_visible AND k.use_for_learning
@@ -138,6 +138,17 @@ AND (sqlc.arg(knowledge_id)::text='' OR input->>'knowledge_id'=sqlc.arg(knowledg
 AND (sqlc.arg(asset_id)::text='' OR input->>'asset_id'=sqlc.arg(asset_id))
 ORDER BY created_at DESC,id LIMIT 60;
 
+-- name: ListProcessingJobPage :many
+SELECT * FROM processing_jobs WHERE course_id=$1
+AND (sqlc.arg(kind)::text='' OR kind=ANY(string_to_array(sqlc.arg(kind),',')))
+AND (sqlc.arg(source_id)::text='' OR input->>'source_id'=sqlc.arg(source_id))
+AND (sqlc.arg(knowledge_id)::text='' OR input->>'knowledge_id'=sqlc.arg(knowledge_id))
+AND (sqlc.arg(question_id)::text='' OR input->>'question_id'=sqlc.arg(question_id))
+AND (sqlc.arg(submission_id)::text='' OR input->>'submission_id'=sqlc.arg(submission_id))
+AND (sqlc.arg(rubric_id)::text='' OR input->>'rubric_id'=sqlc.arg(rubric_id))
+AND (sqlc.arg(asset_id)::text='' OR input->>'asset_id'=sqlc.arg(asset_id))
+ORDER BY created_at DESC,id DESC LIMIT sqlc.arg(page_size) OFFSET sqlc.arg(page_offset);
+
 -- name: PendingProcessingJobs :many
 SELECT * FROM processing_jobs WHERE state='queued' OR (state='running' AND kind IN ('parse','index') AND started_at<now()-interval '15 minutes') ORDER BY created_at LIMIT 20;
 
@@ -198,3 +209,13 @@ UPDATE material_sources SET allow_derived=$3 WHERE id=$1 AND course_id=$2 RETURN
 
 -- name: ListCourseModelCalls :many
 SELECT id,profile_id,purpose,state,input_tokens,output_tokens,charged_micro_cny,duration_ms,error_code,created_at FROM model_calls WHERE course_id=$1 ORDER BY created_at DESC LIMIT 50;
+
+-- name: ObjectRetrievalStatus :one
+SELECT count(c.id)::int AS keyword_chunks, count(e.chunk_id)::int AS vector_chunks
+FROM retrieval_chunks c JOIN courses course ON course.id=c.course_id
+LEFT JOIN chunk_embeddings e ON e.chunk_id=c.id AND e.space_id=course.embedding_space_id
+WHERE c.course_id=sqlc.arg(course_id) AND c.active AND (
+ (sqlc.arg(resource_id)::text<>'' AND EXISTS(SELECT 1 FROM resources r WHERE r.id=sqlc.arg(resource_id) AND r.course_id=c.course_id AND r.status='published' AND
+  (c.resource_id=r.id OR (c.source_id=r.source_id AND cardinality(c.fragment_ids)>0 AND c.fragment_ids <@ r.fragment_ids))))
+ OR (sqlc.arg(source_id)::text<>'' AND c.source_id=sqlc.arg(source_id) AND EXISTS(SELECT 1 FROM material_sources s JOIN material_fragments f ON f.source_id=s.id AND f.revision=s.parse_revision WHERE s.id=c.source_id AND f.id=ANY(c.fragment_ids)))
+);

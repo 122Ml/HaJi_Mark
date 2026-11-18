@@ -1,6 +1,6 @@
 import { Field } from "../shared/Field";
 import { useConfirm } from "../shared/confirm";
-import { Card, Form, Input, Button } from "antd";
+import { Card, Form, Input, Button, Typography } from "antd";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSession } from "../shared/session";
@@ -15,8 +15,11 @@ export function ProfilePage() {
   const [newPassword, setNewPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [failed, setFailed] = useState(false);
   async function save(password = false) {
     setBusy(true);
+    setFailed(false);
+    setMessage("");
     try {
       await requestJSON(
         `/learning/${password ? "password" : "profile"}`,
@@ -36,6 +39,7 @@ export function ProfilePage() {
       refresh();
       if (password) navigate("/login", { replace: true });
     } catch (e) {
+      setFailed(true);
       setMessage((e as Error).message);
     } finally {
       setBusy(false);
@@ -43,8 +47,8 @@ export function ProfilePage() {
   }
   return (
     <div className="live-page">
-      <Feedback message={message} />
-      <Card className="card-panel" title={<h2>个人资料</h2>}>
+      <Feedback message={message} failed={failed} />
+      <Card className="card-panel" title={<>个人资料</>}>
 
         <Form
           className="live-form"
@@ -66,7 +70,7 @@ export function ProfilePage() {
           </Button>
         </Form>
       </Card>
-      <Card className="card-panel" title={<h2>修改密码</h2>}>
+      <Card className="card-panel" title={<>修改密码</>}>
 
         <Form
           className="live-form"
@@ -94,7 +98,7 @@ export function ProfilePage() {
               onChange={(e) => setNewPassword(e.target.value)}
             />
           </Field>
-          <p>新密码至少12字节；修改后所有已登录设备都需重新登录。</p>
+          <p className="live-meta">至少12字节；修改后需重新登录。</p>
           <Button disabled={busy} htmlType="submit">
             修改密码
           </Button>
@@ -130,7 +134,7 @@ export function RecordsPage({ industry = false }: { industry?: boolean }) {
         message={action.message}
         failed={action.failed}
       />
-      <Card className="card-panel" title={<h2>{industry ? "录入岗位与技能" : "新增教研记录"}</h2>}>
+      <Card className="card-panel" title={<>{industry ? "录入岗位与技能" : "新增教研记录"}</>}>
 
         <Form
           className="live-form"
@@ -219,7 +223,7 @@ export function RecordsPage({ industry = false }: { industry?: boolean }) {
         </Form>
       </Card>
       {query.data?.map((r) => (
-        <Card className="card-panel" key={r.id} title={<h2>{r.title}</h2>}>
+        <Card className="card-panel" key={r.id} title={<>{r.title}</>}>
 
           <p className="live-meta">{when(r.created_at)}</p>
           <p className="live-prose">{r.content || r.skills}</p>
@@ -261,9 +265,9 @@ export function RecordsPage({ industry = false }: { industry?: boolean }) {
             </Button>
           </div>
           {r.source_url && (
-            <a href={r.source_url} target="_blank" rel="noreferrer">
+            <Typography.Link href={r.source_url} target="_blank" rel="noreferrer">
               查看原始来源
-            </a>
+            </Typography.Link>
           )}
         </Card>
       ))}

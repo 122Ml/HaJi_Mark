@@ -220,6 +220,7 @@ SELECT 'knowledge'::text AS kind,k.id,k.title,k.state,k.version,NULL::text AS pa
 UNION ALL SELECT 'question',v.id,v.title,v.state,v.version,v.bank_id FROM bank_question_versions v WHERE v.id IN(SELECT id FROM bq)
 UNION ALL SELECT 'rubric',r.id,'评分标准',r.state,r.version,COALESCE(r.bank_question_version_id,r.question_id) FROM rubric_versions r WHERE r.id IN(SELECT id FROM rb)
 UNION ALL SELECT 'assignment',a.id,a.title,a.status,a.version,NULL::text FROM assignments a WHERE a.id IN(SELECT assignment_id FROM aq)
+UNION ALL SELECT 'assignment_question',q.id,q.prompt,a.status,a.version,a.id FROM questions q JOIN assignments a ON a.id=q.assignment_id WHERE q.id IN(SELECT id FROM aq)
 UNION ALL SELECT 'resource',r.id,r.title,r.status,r.version,NULL::text FROM resources r WHERE r.course_id=$1 AND r.source_id=NULLIF($3::text,'')
 UNION ALL SELECT 'result',g.id,'正式评分',g.state,g.revision,s.assignment_id FROM grading_revisions g JOIN submissions s ON s.id=g.submission_id WHERE s.course_id=$1 AND g.state='released' AND (g.rubric_id IN(SELECT id FROM rb) OR s.question_id IN(SELECT id FROM aq))
 `
@@ -677,7 +678,7 @@ func (q *Queries) LinkBankAsset(ctx context.Context, arg LinkBankAssetParams) er
 }
 
 const linkKnowledgeRelations = `-- name: LinkKnowledgeRelations :one
-UPDATE knowledge_entries SET related_ids=(SELECT array_agg(DISTINCT v) FROM unnest(related_ids||$3::text[]) AS v),edit_version=edit_version+1 WHERE id=$1 AND course_id=$2 RETURNING id, course_id, created_by, title, body, category, content_kind, conditions, knowledge_point_ids, evidence, related_ids, student_visible, use_for_learning, use_for_grading, state, version, supersedes_id, edit_version, confirmed_at, created_at
+UPDATE knowledge_entries SET related_ids=(SELECT array_agg(DISTINCT v) FROM unnest(related_ids||$3::text[]) AS v),edit_version=edit_version+1 WHERE id=$1 AND course_id=$2 RETURNING id, course_id, created_by, title, body, category, content_kind, conditions, knowledge_point_ids, evidence, related_ids, student_visible, use_for_learning, use_for_grading, state, version, supersedes_id, edit_version, confirmed_at, created_at, origin
 `
 
 type LinkKnowledgeRelationsParams struct {
@@ -710,6 +711,7 @@ func (q *Queries) LinkKnowledgeRelations(ctx context.Context, arg LinkKnowledgeR
 		&i.EditVersion,
 		&i.ConfirmedAt,
 		&i.CreatedAt,
+		&i.Origin,
 	)
 	return i, err
 }
@@ -929,7 +931,7 @@ func (q *Queries) ListTopics(ctx context.Context, courseID string) ([]KnowledgeT
 }
 
 const lockKnowledgeEntry = `-- name: LockKnowledgeEntry :one
-SELECT id, course_id, created_by, title, body, category, content_kind, conditions, knowledge_point_ids, evidence, related_ids, student_visible, use_for_learning, use_for_grading, state, version, supersedes_id, edit_version, confirmed_at, created_at FROM knowledge_entries WHERE id=$1 AND course_id=$2 FOR UPDATE
+SELECT id, course_id, created_by, title, body, category, content_kind, conditions, knowledge_point_ids, evidence, related_ids, student_visible, use_for_learning, use_for_grading, state, version, supersedes_id, edit_version, confirmed_at, created_at, origin FROM knowledge_entries WHERE id=$1 AND course_id=$2 FOR UPDATE
 `
 
 type LockKnowledgeEntryParams struct {
@@ -961,6 +963,7 @@ func (q *Queries) LockKnowledgeEntry(ctx context.Context, arg LockKnowledgeEntry
 		&i.EditVersion,
 		&i.ConfirmedAt,
 		&i.CreatedAt,
+		&i.Origin,
 	)
 	return i, err
 }

@@ -153,17 +153,88 @@ func TestRAGIsolationAndBudget(t *testing.T) {
 	if _, e = m.Embed(ctx, "c", "t", p, []string{"first", "second"}); e == nil {
 		t.Fatal("duplicate vector index must fail")
 	}
+	t.Run("streaming_and_fallback_settle_once_without_retry", func(t *testing.T) {
+		for _, mode := range []string{"stream", "json", "disabled", "truncated", "invalid_usage"} {
+			t.Run(mode, func(t *testing.T) {
+				var requests atomic.Int32
+				provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					requests.Add(1)
+					var payload map[string]any
+					_ = json.NewDecoder(r.Body).Decode(&payload)
+					if payload["stream"] != (mode != "disabled") {
+						t.Error("profile streaming preference ignored")
+					}
+					if mode == "json" || mode == "disabled" {
+						w.Header().Set("Content-Type", "application/json")
+						fmt.Fprint(w, `{"choices":[{"message":{"content":"已核对"},"finish_reason":"stop"}],"usage":{"prompt_tokens":7,"completion_tokens":3}}`)
+						return
+					}
+					w.Header().Set("Content-Type", "text/event-stream")
+					fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"已核对\"},\"finish_reason\":\"stop\"}]}\n\n")
+					if mode == "truncated" {
+						return
+					}
+					prompt := 7
+					if mode == "invalid_usage" {
+						prompt = -1
+					}
+					fmt.Fprintf(w, "data: {\"choices\":[],\"usage\":{\"prompt_tokens\":%d,\"completion_tokens\":3}}\n\ndata: [DONE]\n\n", prompt)
+				}))
+				defer provider.Close()
+				t.Setenv("RAG_STREAM_BASE", provider.URL)
+				models := &Models{DB: db, Client: provider.Client(), Profiles: []Profile{{ID: "stream-test", Kind: "chat", Model: "fixture", KeyEnv: "RAG_TEST_KEY", BaseURLEnv: "RAG_STREAM_BASE", InputRate: 1, OutputRate: 1, DisableStreaming: mode == "disabled"}}}
+				before, _ := q.GetModelBudget(ctx)
+				msg, err := models.AgentChatStream(ctx, "c", "t", "stream-test", []AgentMessage{{Role: "user", Content: "核对"}}, nil, func(string) error { return nil })
+				if (err != nil) != (mode == "truncated") || err == nil && msg.Content != "已核对" {
+					t.Fatal(mode, msg, err)
+				}
+				after, _ := q.GetModelBudget(ctx)
+				want := int64(10)
+				if mode == "truncated" || mode == "invalid_usage" {
+					want = after.SpentMicroCny - before.SpentMicroCny
+					if want < 1000 {
+						t.Fatal("uncertain usage was not conservatively settled")
+					}
+				}
+				if requests.Load() != 1 || after.ReservedMicroCny != before.ReservedMicroCny || after.SpentMicroCny-before.SpentMicroCny != want {
+					t.Fatal("stream retried or settled incorrectly", requests.Load(), before, after)
+				}
+			})
+		}
+	})
 	must(`UPDATE material_sources SET state='active',allow_derived=true WHERE id='s'`)
 	var chatCalls atomic.Int32
 	cancelJob := ""
+	invalidReference := false
 	chat := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		chatCalls.Add(1)
+		var request struct {
+			Messages []struct {
+				Content string `json:"content"`
+			} `json:"messages"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Error(err)
+		}
+		var payload struct {
+			Fragments []struct {
+				SourceID   string `json:"source_id"`
+				FragmentID string `json:"fragment_id"`
+				Body       string `json:"body"`
+			} `json:"fragments"`
+		}
+		if len(request.Messages) < 2 || json.Unmarshal([]byte(request.Messages[1].Content), &payload) != nil || len(payload.Fragments) != 1 || payload.Fragments[0].SourceID != "s" || payload.Fragments[0].FragmentID != "public" || payload.Fragments[0].Body != "公开边界值分析" {
+			t.Error("extraction must name evidence IDs exactly as the output contract")
+		}
 		if cancelJob != "" {
 			if _, err := q.CancelProcessingJob(ctx, store.CancelProcessingJobParams{ID: cancelJob, CourseID: "c"}); err != nil {
 				t.Error(err)
 			}
 		}
-		content := `{"candidates":[{"title":"候选","body":"公开边界值分析","content_kind":"method","evidence":[{"source_id":"s","fragment_id":"public","quote":"公开边界值分析"}]}]}`
+		content := `{"candidates":[{"title":"候选","body":"公开边界值分析","content_kind":"method","evidence_fragment_ids":["public"]}]}`
+		if invalidReference {
+			content = strings.Replace(content, `"evidence_fragment_ids":["public"]`, `"evidence_fragment_ids":["private"]`, 1)
+		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]string{"content": content}, "finish_reason": "stop"}}, "usage": map[string]int{"prompt_tokens": 8, "completion_tokens": 8}})
 	}))
 	defer chat.Close()
@@ -192,9 +263,56 @@ func TestRAGIsolationAndBudget(t *testing.T) {
 		t.Fatal("candidate commit and completion must persist together", completed.State, e)
 	}
 	before, _ := q.ListKnowledgeEntries(ctx, store.ListKnowledgeEntriesParams{CourseID: "c", Teacher: true})
+	for _, candidate := range before {
+		if candidate.ID == output.CandidateIDs[0] {
+			var refs []Evidence
+			if json.Unmarshal(candidate.Evidence, &refs) != nil || len(refs) != 1 || refs[0].Quote != "公开边界值分析" || refs[0].FragmentID != "public" {
+				t.Fatal("extracted evidence must be resolved from the exact selected source fragment")
+			}
+		}
+	}
 	if e = service.Process(ctx, task); e != nil || chatCalls.Load() != 1 {
 		t.Fatal("redelivery repeated a completed model call", chatCalls.Load(), e)
 	}
+	t.Run("unselected_evidence_retains_raw_draft_without_knowledge_writes", func(t *testing.T) {
+		invalidReference = true
+		defer func() { invalidReference = false }()
+		failed := create("extract-unselected-evidence")
+		if err := service.Process(ctx, asynq.NewTask(taskType, []byte(failed.ID))); err != nil {
+			t.Fatal(err)
+		}
+		current, err := q.GetProcessingJob(ctx, store.GetProcessingJobParams{ID: failed.ID, CourseID: "c"})
+		after, listErr := q.ListKnowledgeEntries(ctx, store.ListKnowledgeEntriesParams{CourseID: "c", Teacher: true})
+		if err != nil || listErr != nil || current.State != "failed" || !strings.Contains(string(current.Output), "private") || len(after) != len(before) {
+			t.Fatal("invalid evidence must retain the raw draft but commit no candidates", current.State, err, listErr)
+		}
+	})
+	t.Run("grade_total_is_derived_from_validated_points", func(t *testing.T) {
+		provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			content := `{"points":[{"criterion_id":"D1","score":2,"feedback":"原文有据","quote":"公开边界值分析"}],"score":99,"feedback":"仅按本次作答评价","review_status":"pending_teacher_review"}`
+			_ = json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]string{"content": content}, "finish_reason": "stop"}}, "usage": map[string]int{"prompt_tokens": 8, "completion_tokens": 8}})
+		}))
+		defer provider.Close()
+		t.Setenv("RAG_GRADE_TEST_BASE", provider.URL)
+		grader := New(&Models{DB: db, Client: provider.Client(), Profiles: []Profile{{ID: "grade-test", Kind: "chat", Model: "test", KeyEnv: "RAG_TEST_KEY", BaseURLEnv: "RAG_GRADE_TEST_BASE", InputRate: 1, OutputRate: 1}}})
+		input, _ := json.Marshal(JobInput{Answer: "公开边界值分析", MaxScore: 2, Criteria: json.RawMessage(`[{"id":"D1","max_score":2}]`)})
+		j, err := q.CreateProcessingJob(ctx, store.CreateProcessingJobParams{ID: "grade-server-total", CourseID: "c", CreatedBy: "t", Kind: "grade", Input: input})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = grader.Process(ctx, asynq.NewTask(taskType, []byte(j.ID))); err != nil {
+			t.Fatal(err)
+		}
+		completed, err := q.GetProcessingJob(ctx, store.GetProcessingJobParams{ID: j.ID, CourseID: "c"})
+		var output struct {
+			Score    int    `json:"score"`
+			Reported int    `json:"model_reported_score"`
+			Source   string `json:"score_source"`
+		}
+		if err != nil || json.Unmarshal(completed.Output, &output) != nil || completed.State != "succeeded" || output.Score != 2 || output.Reported != 99 || output.Source != "server_sum" {
+			t.Fatal("the server must own arithmetic without changing the model's individual scores", completed.State, output, err)
+		}
+	})
 	canceled := create("extract-canceled")
 	cancelJob = canceled.ID
 	if e = service.Process(ctx, asynq.NewTask(taskType, []byte(canceled.ID))); e != nil {

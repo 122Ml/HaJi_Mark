@@ -21,20 +21,21 @@ import (
 )
 
 type Profile struct {
-	ID              string `json:"id"`
-	Label           string `json:"label"`
-	Kind            string `json:"kind"`
-	Protocol        string `json:"protocol"`
-	BaseURLEnv      string `json:"base_url_env"`
-	KeyEnv          string `json:"key_env"`
-	Model           string `json:"model"`
-	Dimensions      int    `json:"dimensions"`
-	SendDimensions  bool   `json:"send_dimensions"`
-	BatchSize       int    `json:"batch_size"`
-	InputRate       int64  `json:"input_micro_cny_per_token"`
-	OutputRate      int64  `json:"output_micro_cny_per_token"`
-	ImageTokenLimit int    `json:"image_token_limit,omitempty"`
-	Thinking        string `json:"thinking,omitempty"`
+	ID               string `json:"id"`
+	Label            string `json:"label"`
+	Kind             string `json:"kind"`
+	Protocol         string `json:"protocol"`
+	BaseURLEnv       string `json:"base_url_env"`
+	KeyEnv           string `json:"key_env"`
+	Model            string `json:"model"`
+	Dimensions       int    `json:"dimensions"`
+	SendDimensions   bool   `json:"send_dimensions"`
+	BatchSize        int    `json:"batch_size"`
+	InputRate        int64  `json:"input_micro_cny_per_token"`
+	OutputRate       int64  `json:"output_micro_cny_per_token"`
+	ImageTokenLimit  int    `json:"image_token_limit,omitempty"`
+	Thinking         string `json:"thinking,omitempty"`
+	DisableStreaming bool   `json:"disable_streaming,omitempty"`
 }
 type Models struct {
 	DB       *pgxpool.Pool
@@ -95,6 +96,23 @@ type usage struct {
 }
 
 func (m *Models) call(ctx context.Context, course, actor, purpose string, p Profile, path string, payload any, inputBytes, maxOutput int, out any) error {
+	return m.callDecoded(ctx, course, actor, purpose, p, path, payload, inputBytes, maxOutput, func(resp *http.Response) (usage, error) {
+		data, e := io.ReadAll(io.LimitReader(resp.Body, (8<<20)+1))
+		if e != nil || len(data) > 8<<20 {
+			return usage{}, errors.New("模型响应读取失败或超过大小限制")
+		}
+		var meta struct {
+			Usage usage `json:"usage"`
+		}
+		_ = json.Unmarshal(data, &meta)
+		if e = json.Unmarshal(data, out); e != nil {
+			return meta.Usage, errors.New("模型响应不是有效JSON")
+		}
+		return meta.Usage, nil
+	})
+}
+
+func (m *Models) callDecoded(ctx context.Context, course, actor, purpose string, p Profile, path string, payload any, inputBytes, maxOutput int, decode func(*http.Response) (usage, error)) error {
 	if !Enabled() {
 		return errors.New("本地RAG未启用")
 	}
@@ -158,15 +176,8 @@ func (m *Models) call(ctx context.Context, course, actor, purpose string, p Prof
 		code = fmt.Sprintf("http_%d", resp.StatusCode)
 		return fmt.Errorf("模型服务返回HTTP %d，请检查服务端配置及额度", resp.StatusCode)
 	}
-	data, e := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
-	if e != nil {
-		return errors.New("模型响应读取失败")
-	}
-	var meta struct {
-		Usage usage `json:"usage"`
-	}
-	if json.Unmarshal(data, &meta) == nil {
-		u = meta.Usage
+	u, e = decode(resp)
+	if u.Prompt >= 0 && u.Completion >= 0 && u.Total >= 0 && u.Prompt <= 10000000 && u.Completion <= 10000000 && u.Total <= 10000000 {
 		if u.Prompt == 0 && u.Total > 0 {
 			u.Prompt = u.Total
 		}
@@ -176,10 +187,13 @@ func (m *Models) call(ctx context.Context, course, actor, purpose string, p Prof
 				charge = reserve
 			}
 		}
+	} else {
+		// Invalid provider usage must not poison the ledger; retain the reservation.
+		u = usage{}
 	}
-	if e = json.Unmarshal(data, out); e != nil {
-		code = "invalid_json"
-		return errors.New("模型响应不是有效JSON")
+	if e != nil {
+		code = "invalid_response"
+		return e
 	}
 	state, code = "completed", ""
 	return nil
@@ -235,6 +249,9 @@ func (m *Models) Chat(ctx context.Context, course, actor, purpose, profile, syst
 	maxOutput := 2400
 	if purpose == "paper_split" {
 		maxOutput = 8000
+	}
+	if purpose == "diagnosis" || purpose == "recommendation" {
+		maxOutput = 6000
 	}
 	body := map[string]any{"model": p.Model, "messages": []map[string]string{{"role": "system", "content": system}, {"role": "user", "content": input}}, "max_tokens": maxOutput}
 	if p.Thinking != "" {

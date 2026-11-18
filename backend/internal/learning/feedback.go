@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
+	"github.com/122Ml/HaJi_Mark/backend/internal/rag"
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -215,11 +216,14 @@ func (h *Handler) interventions(c *gin.Context) {
 }
 func (h *Handler) createIntervention(c *gin.Context) {
 	var in struct {
-		StudentID    string `json:"student_id"`
-		Title        string `json:"title"`
-		Description  string `json:"description"`
-		ResourceID   string `json:"resource_id"`
-		AssignmentID string `json:"assignment_id"`
+		StudentID          string `json:"student_id"`
+		Title              string `json:"title"`
+		Description        string `json:"description"`
+		ResourceID         string `json:"resource_id"`
+		AssignmentID       string `json:"assignment_id"`
+		SourceSubmissionID string `json:"source_submission_id"`
+		DiagnosisReportID  string `json:"diagnosis_report_id"`
+		DiagnosisLabelID   string `json:"diagnosis_label_id"`
 	}
 	if !bind(c, &in) {
 		return
@@ -261,7 +265,77 @@ func (h *Handler) createIntervention(c *gin.Context) {
 			return
 		}
 	}
-	v, e := h.q.CreateBusinessIntervention(c.Request.Context(), store.CreateBusinessInterventionParams{ID: uuid.NewString(), CourseID: c.Param("courseID"), StudentID: in.StudentID, Title: in.Title, Description: in.Description, TeacherID: identity.Current(c).ID, ResourceID: text(in.ResourceID), AssignmentID: text(in.AssignmentID)})
+	ctx := c.Request.Context()
+	tx, e := h.db.Begin(ctx)
+	if !resultIfError(c, e) {
+		return
+	}
+	defer tx.Rollback(ctx)
+	q := h.q.WithTx(tx)
+	if in.SourceSubmissionID != "" {
+		submission, err := q.GetBusinessSubmission(ctx, in.SourceSubmissionID)
+		if !resultIfError(c, err) {
+			return
+		}
+		if !scope(c, submission.CourseID) {
+			return
+		}
+		if submission.StudentID != in.StudentID {
+			invalid(c, "关联作答与指定学生不一致")
+			return
+		}
+		if in.DiagnosisReportID != "" {
+			if _, err = q.GetAssignmentForUpdate(ctx, submission.AssignmentID); !resultIfError(c, err) {
+				return
+			}
+			r, err := q.IntelligenceReport(ctx, store.IntelligenceReportParams{ID: in.DiagnosisReportID, CourseID: c.Param("courseID")})
+			if !resultIfError(c, err) {
+				return
+			}
+			if r.OwnerID != identity.Current(c).ID || r.Kind != "diagnosis" || r.State != "confirmed" || r.JobState != "succeeded" || r.QuestionID.String != submission.QuestionID {
+				invalid(c, "请从已确认且匹配的诊断建立任务")
+				return
+			}
+			var snapshot rag.IntelligenceInput
+			var output rag.IntelligenceOutput
+			if json.Unmarshal(r.Input, &snapshot) != nil || json.Unmarshal(r.Output, &output) != nil {
+				invalid(c, "诊断快照无效")
+				return
+			}
+			local := *h
+			local.q = q
+			current, err := local.diagnosisSnapshot(ctx, r.CourseID, r.OwnerID, r.QuestionID.String, snapshot.RubricID)
+			if err != nil || !sameDiagnosisEvidence(snapshot, current) {
+				identity.Fail(c, 409, "stale_evidence", "正式结果已变化，请重新分析后安排任务")
+				return
+			}
+			found := false
+			for _, f := range output.Findings {
+				if f.LabelID == in.DiagnosisLabelID {
+					for _, evidence := range f.Evidence {
+						if evidence.SubmissionID == submission.ID {
+							found = true
+						}
+					}
+				}
+			}
+			if !found {
+				invalid(c, "所选作答不属于该已确认诊断问题")
+				return
+			}
+		}
+	} else if in.DiagnosisReportID != "" || in.DiagnosisLabelID != "" {
+		invalid(c, "诊断任务必须指定原始作答")
+		return
+	}
+	if in.DiagnosisReportID == "" && in.DiagnosisLabelID != "" {
+		invalid(c, "诊断标签缺少报告")
+		return
+	}
+	v, e := q.CreateBusinessIntervention(ctx, store.CreateBusinessInterventionParams{ID: uuid.NewString(), CourseID: c.Param("courseID"), StudentID: in.StudentID, Title: in.Title, Description: in.Description, TeacherID: identity.Current(c).ID, ResourceID: text(in.ResourceID), AssignmentID: text(in.AssignmentID), SourceSubmissionID: text(in.SourceSubmissionID), DiagnosisReportID: text(in.DiagnosisReportID), DiagnosisLabelID: text(in.DiagnosisLabelID)})
+	if e == nil {
+		e = tx.Commit(ctx)
+	}
 	result(c, v, e)
 }
 func (h *Handler) interventionState(c *gin.Context) {

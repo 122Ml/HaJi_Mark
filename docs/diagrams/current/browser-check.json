@@ -1,7 +1,7 @@
 {
   "scope": "diagrams-only",
   "date": "2026-11-17",
-  "code_baseline": "3938ffe",
+  "code_baseline": "4d82dbf + 方案B",
   "geometry": [
     {
       "file": "00_全景架构_实现状态",
@@ -24,7 +24,7 @@
       "text_bounds": "pass",
       "png_size": [
         2400,
-        1480
+        1740
       ]
     },
     {

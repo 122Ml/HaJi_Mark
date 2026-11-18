@@ -68,7 +68,7 @@ const pass = message => { report.checks.push(message); save(); console.log('PASS
     assert(rubricResponse.ok(), 'rubric save failed');
     report.rubric_id = (await rubricResponse.json()).data.id; save();
     await t.getByRole('button', { name: '确认标准 v1', exact: true }).click();
-    await t.locator('.live-revision').filter({has: t.getByRole('heading', { name: '标准 v1', exact: true })}).locator('.ui-status-tag').filter({hasText: /^已确认$/}).waitFor();
+    await t.locator('.live-revision').filter({has: t.getByText('标准 v1', { exact: true })}).locator('.ui-status-tag').filter({hasText: /^已确认$/}).waitFor();
     pass('teacher creates and confirms a versioned standard in the bank UI');
     await t.goto(url('teacher', 'homework/new'));
     await t.getByLabel('作业标题', { exact: true }).fill(title + ' 作业');
@@ -142,13 +142,13 @@ const pass = message => { report.checks.push(message); save(); console.log('PASS
       await t.getByRole('button', { name: '确认参考解答', exact: true }).click();
       await t.getByRole('tab', { name: '评分标准', exact: true }).click();
       await t.getByRole('button', { name: '确认标准 v1', exact: true }).click();
-      await t.locator('.live-revision').filter({has: t.getByRole('heading', { name: '标准 v1', exact: true })}).locator('.ui-status-tag').filter({hasText: /^已确认$/}).waitFor();
+      await t.locator('.live-revision').filter({has: t.getByText('标准 v1', { exact: true })}).locator('.ui-status-tag').filter({hasText: /^已确认$/}).waitFor();
       pass('source-to-bank deep link, real AI generation, adoption and separate confirmations work in the UI');
     }
     for (const width of [1440, 390]) {
       await t.setViewportSize({ width, height: 1000 });
       await t.goto(url('teacher', 'question-bank', '&bank=' + report.bank_id));
-      await t.getByRole('heading', { name: title, exact: true }).first().waitFor();
+      await t.getByText(title, { exact: true }).first().waitFor();
       assert(await t.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `overflow at ${width}px`);
       const file = `.local/question-bank-${width}.png`;
       await t.screenshot({ path: path.join(root, file), fullPage: true }); report.screenshots.push(file);

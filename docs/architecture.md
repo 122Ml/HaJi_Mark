@@ -1,5 +1,7 @@
 # 架构与实现边界
 
+本地[自动演示](auto-demo.md)在网站外使用 Tkinter 控制 Node／Playwright，页面沿用既有 API 与后台任务，数据库只读核对。知识提炼模型选择原文片段ID，由服务端附上原文，避免模型翻译或改写引用。
+
 2026-11-17，本地加入[对话助理与执行运行时](agent-harness.md)。`internal/agent`通过进程内`identity.Gateway`重走既有业务路由；协调 Agent 与四类专家共用服务端模型 Profiles、预算和任务。对话、运行、步骤、问题／审批、附件和事件使用00013新增表；资料、题库、作业、评分与学习数据继续由原领域负责。师生入口均为`assistant`，原检索问答保留独立页面。现有业务全景不改写为四个 Agent 的并列关系；新增[Agent 架构图](diagrams/agent/architecture.svg)展开编排、门禁、业务交接和持久运行关系。实际验收见[记录](research/agent-acceptance-2026-11-17.md)。
 
 2026-10-28 · 本地整个平台完善。当前实现以本页和 [接口契约](contracts.md) 为准；旧立项范围与历史复刻证据保留在 references 和 research。
@@ -31,7 +33,7 @@ flowchart LR
 
 `App.tsx` 装配角色路由、顶栏与分组侧栏；`app/navigation.ts` 管理导航分组，`app/Login.tsx` 提供活动登录页，`app/theme.ts` 与 `styles.css` 管理设计变量。主页面去掉重复分组与标题，统一使用 Ant Design 菜单、卡片、表单、树、表格、页签、抽屉和确认框；`shared/Field.tsx`、`FileUpload.tsx`、`confirm.ts`复用带标签控件与确认交互，`shared/ui.tsx`提供加载/空/错误状态。正文由`live/content-render.tsx`渲染Markdown/GFM与公式，原文和评分引用不改写。重复概览/课程地址通过 `live/routes.tsx` 重定向到角色规范入口，具体映射和截图见 [设计指南](../design.md)。
 
-`LearningProvider` 在角色工作台外层提供课程上下文，供顶栏唯一选择器和页面共用。教师课程管理在 `live/course-management.tsx`，目录在 `live/curriculum.tsx`，原件在 `live/knowledge.tsx` 的资料页，发布内容复用 `live/course.tsx` 的资料阅读／编辑组件；不再以同一个课程页承担全部入口。题库 `live/question-bank.tsx` 承接整卷拆题，资料只提供带来源的跳转。知识库、检索、内容影响和作业仍用各自页面。新模块边界只改变前端归属，不改变后端权限、对象版本与发布规则。
+`LearningProvider` 在角色工作台外层提供课程上下文，供顶栏唯一选择器和页面共用。教师课程管理在 `live/course-management.tsx`，目录在 `live/curriculum.tsx`，原件在 `live/knowledge.tsx` 的资料页，发布内容复用 `live/course.tsx` 的资料阅读／编辑组件；不再以同一个课程页承担全部入口。题库 `live/question-bank.tsx` 与原件工作区共用 `material-assist.tsx` 的整卷拆题组件；原件内可直接打开抽屉，旧题库入口保留。知识库、检索、内容影响和作业继续承担全局管理，对象内嵌工作区承接当前任务。前端归属不改变后端权限、对象版本与发布规则。
 
 `LearningProvider` 读取本人课程，URL 的 `course` 优先于浏览器记忆；对象深链、侧栏和跨模块返回保留课程。不存在或无权限的课程明确报错。Query 缓存来自 API，写入后只取消并刷新当前课程的关联查询。`editing.tsx` 将未保存编辑按账号和对象暂存在 sessionStorage，供失败或离页后恢复；正式草稿、提交、评分和状态仍以服务端为准。身份切换清空查询缓存，401 回到会话检查。页面异常边界允许重新加载。
 
@@ -41,7 +43,7 @@ flowchart LR
 | --- | --- |
 | backend/internal/identity | bcrypt、8小时数据库会话、角色/课程/本人权限、CSRF与登录频率限制 |
 | backend/internal/learning | 课程/目录/资料/成员，作业/提交/评分，学情/路径/干预，互动和账号、教研/行业记录 |
-| backend/internal/store；backend/db | sqlc类型查询，Goose迁移00001—00013；原文和修订的唯一事实源 |
+| backend/internal/store；backend/db | sqlc类型查询，Goose迁移00001—00016；原文和修订的唯一事实源 |
 | backend/internal/agent | 对话与附件、单层委派、工具策略、问题审批、检查点、取消恢复及业务SSE；不复制业务状态机 |
 | web/src/live | course/curriculum/graph/notes、assessment、insight/path、communication、account、assistant |
 | web/src/shared | API、会话与错误恢复；原课程示例保留但不作为活动主入口 |
@@ -87,7 +89,7 @@ CO-01/AS-01已按[贡献映射](../references/contributions/README.md)适配到l
 - `live/grading.tsx`：教师队列／原文／评分三栏，当前评分默认可见；修改复制当前版本，历史进抽屉。队列按学生与状态筛选、服务端分页、跨页上一份/下一份。切换有未保存编辑时提示，学生只读已发布结果。
 - `live/assessment.tsx`、`notes.tsx`：逐题自动保存（900ms）和笔记自动保存（1200ms），保留保存状态、失败重试、当前会话恢复；旧保存响应不能将后续编辑标成已保存。正式提交单独确认并显示attempt回执，历史折叠。
 - `live/course.tsx`：教师课程分为内容与目录、作业与标准、学生与进度、课程设置；目录树筛选，资料编辑/修订使用抽屉。资料深链定位具体版本。
-- `live/insight.tsx`、`interventions.tsx`：班级/个人/证据分区；从具体反馈携带学生、作答与知识点进入任务创建。任务说明保留可读的关联作答编号，界面将其呈现为原文链接；它是上下文线索，不参与权限或评分计算。完成条件及新证据由后端查询，浏览器禁用按钮只是提示，最终转换仍由事务验证。
+- `live/insight.tsx`、`interventions.tsx`：班级/个人/证据分区；从具体反馈携带学生、作答与知识点进入任务创建。历史任务仍兼容说明中的关联作答编号；2026-11-19起新任务使用00016正式来源字段，由后端核对学生、作答及诊断证据，不再仅依赖说明文本。完成条件及新证据由后端查询，浏览器禁用按钮只是提示，最终转换仍由事务验证。
 - `learning/workspace.go`、`db/queries/workspace.sql`：作业个人进度、提交队列的分页查询，以及干预下发后的学习/提交证据。沿既有课程和对象授权，学生无法查看他人任务、未下发任务或教师队列。无新迁移，未启用Redis评分任务或模型。
 
 ```mermaid
@@ -181,7 +183,7 @@ flowchart LR
 
 `workflow_jobs.go`查询实际引用影响，普通新版不替换旧引用；保存新版处理决定时留存前版消费者快照，与页面预览一致。`regrade.go`冻结单个关闭作业的一道题、每人最新正式提交、哈希和既有评分基线；新规则统一，题干／题型／选项／满分须不变。批次行锁、作业锁、提交锁与数据库事务防止部分发布；取消保留原结果，重复发布幂等，输入／基线冲突整体回滚。历史作业绑定不改；正式结果消费者继续按当前已发布修订去重。
 
-新增前端按职责分为`material-assets/material-assist/content-topics/knowledge-review/content-impact/regrades`，复用`context`查询失效和`editing`恢复；`content-render`用KaTeX显示核对公式，不执行HTML。E4错因、AI个性排序及补练生成、作答匿名沉淀仍未实现。
+新增前端按职责分为`material-assets/material-assist/content-topics/knowledge-review/content-impact/regrades`，复用`context`查询失效和`editing`恢复；`content-render`用KaTeX显示核对公式，不执行HTML。后续智能分析与工作台的当前范围见下文00015；不从真实学生作答自动沉淀知识。
 
 中断恢复：超过15分钟的生成类running任务转failed，须显式重试，避免后台自动重发付费生成；parse/index继续幂等恢复。调用结算返回实际更新行，恢复和后到结算不能重复扣账。该机制仍不提供供应商调用的严格exactly-once保证。
 
@@ -189,6 +191,26 @@ flowchart LR
 
 `learning/submission_import.go`与`live/submission-import.tsx`接通单题CSV导入：预览名单/重复行/次数→确认哈希→作业行锁下整批新增不可变提交、批次来源与教师操作事件。仅已发布未截止作业；失败整批回滚，相同请求重放回原回执。`submission.imported`不冒充学生动作，不满足干预下发后的新提交条件。
 
-`assist_turns`保存本人课程问答及当时引用快照，`retrieval-history.tsx`支持分页和深链；请求去重，失败/待核对不后台重发。`agent/http.go`对消息/执行记录进行游标分页，带出所属步骤、审批和附件，活跃及最近更新运行保留可操作；浏览器加载早期记录保留滚动位置。模型上下文策略与供应商非流式协议不变。
+`assist_turns`保存本人课程问答及当时引用快照，`retrieval-history.tsx`支持分页和深链；请求去重，失败/待核对不后台重发。`agent/http.go`对消息/执行记录进行游标分页，带出所属步骤、审批和附件，活跃及最近更新运行保留可操作；浏览器加载早期记录保留滚动位置。
 
 `path.tsx`从授权知识查询接入各知识点的精炼内容。`learning-gaps.tsx`用现有正式去重证据按题/标准/评分点统计并下钻，其他标准及无正式结果单列，不推断错因。新增00014；更多规则与验收入口见[收口记录](research/partial-completion-2026-11-17.md)。
+
+## 方案B：智能分析与业务工作台（00015）
+
+`learning/intelligence.go`冻结规则候选或同题同标准的正式失分作答，报告与处理任务同事务落库；`rag/intelligence.go`在既有worker中生成并校验结果。规则推荐限制在已授权候选和先修分组内，选择偏好持久化但不推断掌握。共性问题保留逐字引用、未归类记录、实际有效分母，教师维护标签和确认；确认与正式结果发布使用同一作业锁，证据变化拒绝旧诊断。AI解释不是学生整体能力或心理原因结论。
+
+教师自编示例是`knowledge_entries.origin=teacher_example`的独立来源，不能变成评分依据，也不从真实学生作答自动转换。来源知识继续要求逐字原文证据、提炼许可和用途过滤。
+
+`live/agent-editor.tsx`用Drawer嵌入七类原有业务编辑器；草稿恢复仍由`editing.tsx`按账号/对象隔离，保存继续走原业务API。Agent返回请求从服务端重读实际对象与关联记录，原运行据回执续行，不接受客户端声称保存；正式确认/发布仍按原审批门禁。`rag/agent_stream.go`接入兼容SSE并累积完整工具协议，`stream_text/stream_turn`保存协调者公开文本，前端业务SSE可重放。中断不执行未完成工具、不自动重发收费请求；可按profile关闭流式。新增`intelligence_reports/diagnosis_labels/recommendation_choices`，没有增加独立编排服务或第二套业务数据库。自动生成并发布新补练仍未纳入。
+
+## 2026-11-19 对象工作区与前后端协同（00016）
+
+导航采用教师六主域、学生五主域，主域内二级入口保留原路由。`knowledge.tsx`的原件工作区在原文、知识候选、处理记录、学习发布间承接同一对象；逐文件上传保留部分成功回执，上传中锁定导入抽屉。任务接口按对象、组合种类和size/offset读取；打开任务与候选面板重新读取服务端，避免快速任务完成后仍沿用空缓存。手工学习资料发布和持久索引排队在同一事务中完成。
+
+`live/context-agent.tsx`在八类业务对象内复用现有助理，不另建模型或工具运行时。`agent/context.go`经Gateway重新读取授权对象，只持久附加核验引用；作答、诊断、干预在执行前标记学生上下文。会话关联与输入草稿按账号／课程／对象隔离；结构化对象卡来自成功业务HTTP回执，不能把模型叙述或排队当成业务完成。
+
+`learning/scoped_search.go`的resource_id范围只使用已授权且已发布的学习文本，不展开完整私有原件；文内关键词检索不要求模型与向量就绪。问答仍走原有引用校验与本人历史。前端独立展示模型可用性、实际片段／向量计数及索引任务，计数不是完整性保证。`live/location-state.ts`维护可分享的过滤、页码与选择，编辑草稿继续由`editing.tsx`暂存。
+
+作业选题器嵌入原题目／解答／标准核对组件，保留作业草稿和固定版本规则。内容影响新增assignment_question精确引用，在原页打开重评并保留作业、题目和变更原因；切换标准会使预览失效，冻结与整组发布保持独立。诊断选项显示所属作业以区分同题干，确认且未过期报告才可按作答原位建单学生任务；迁移00016保存source_submission_id、diagnosis_report_id及diagnosis_label_id，后端锁定作业核验最新正式证据。正式结果改变后旧诊断不可继续安排任务。
+
+F01—F16实施、真实浏览器与私有schema回归范围见[协同修正记录](research/frontend-integration-2026-11-19.md)。构造模型只验证业务链路，不作为真实AI效果或生产部署证明。

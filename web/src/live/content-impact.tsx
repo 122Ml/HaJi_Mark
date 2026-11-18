@@ -1,9 +1,12 @@
 import { Field } from "../shared/Field";
-import { Card, Button, Select, Input } from "antd";
+import { Card, Button, Select, Input, Typography, Drawer } from "antd";
 import { useState } from "react";
-import { Feedback, Link, names as stateNames, useAction, useLiveQuery } from "./context";
+import { Feedback, Link, names as stateNames, useAction, useLiveQuery, useLearning } from "./context";
+import { DraftNotice, useEditorDraft } from "./editing";
 import { EmptyState, LoadingState, MetaTag, MetaTags, StatusTag } from "../shared/ui";
 import { DecisionHistory } from "./content-topics";
+import { useSearchParams } from "react-router-dom";
+import { CreateRegrade, RegradeDetail } from "./regrades";
 
 type Change = {
   kind: string;
@@ -31,12 +34,20 @@ const names: Record<string, string> = {
   assignment: "作业",
   resource: "资料",
   result: "正式结果",
+  assignment_question: "作业题目",
 };
 export function ContentImpactPage() {
-  const [selected, setSelected] = useState<Change | null>(null),
-    [decision, setDecision] = useState("no_action"),
-    [reason, setReason] = useState(""),
-    action = useAction();
+  const [params,setParams] = useSearchParams();
+  const changes = useLiveQuery<Impact>("/impact");
+  const selected = changes.data?.changes.find(c=>c.id===params.get("change") && c.kind===params.get("change_kind")) || null;
+  const { course } = useLearning();
+  const draft = useEditorDraft(`impact:${course?.id}:${params.get("change_kind") || ""}:${params.get("change") || ""}`, {decision:"no_action",reason:""}, !!selected);
+  const { decision, reason } = draft.value;
+  const setDecision = (decision:string) => draft.change(v=>({...v,decision}));
+  const setReason = (reason:string) => draft.change(v=>({...v,reason}));
+  const action = useAction();
+  const [regrade,setRegrade] = useState<{assignmentID:string;questionID:string;reason:string}|null>(null);
+  const [batch,setBatch] = useState("");
   const q = useLiveQuery<Impact>(
     `/impact?${new URLSearchParams(selected ? { [selected.kind === "source" ? "source_id" : "knowledge_id"]: selected.previous_id || selected.id } : {})}`,
   );
@@ -50,6 +61,8 @@ export function ContentImpactPage() {
         return `/teacher/question-bank?bank_version=${i.parent_id}`;
       case "assignment":
         return `/teacher/homework/${i.id}`;
+      case "assignment_question":
+        return `/teacher/homework/${i.parent_id}`;
       case "resource":
         return `/teacher/materials?resource=${i.id}`;
       case "result":
@@ -72,7 +85,7 @@ export function ContentImpactPage() {
           q.data.changes.map((c) => (
             <div key={c.id} className="live-row">
               <div>
-                <h2>{c.title}</h2>
+                <Typography.Text strong className="item-title">{c.title}</Typography.Text>
                 <MetaTags>
                   <StatusTag status={c.state} label={c.state === "archived" ? "已归档" : "版本／许可变更"} />
                   <MetaTag>v{c.version}</MetaTag>
@@ -80,8 +93,7 @@ export function ContentImpactPage() {
               </div>
               <Button
                 onClick={() => {
-                  setSelected(c);
-                  setReason("");
+                  setParams(p=>{const next=new URLSearchParams(p);next.set("change",c.id);next.set("change_kind",c.kind);return next;});
                 }}
               >
                 查看影响
@@ -92,20 +104,23 @@ export function ContentImpactPage() {
           <EmptyState title="暂无内容变更" />
         )}
       </Card>
-      {selected && (
-        <Card className="card-panel live-form" title={<h2>{selected.title} · 引用影响</h2>}>
+      {selected && draft.ready && (
+        <Card className="card-panel live-form" title={<>{selected.title} · 引用影响</>}>
+          <DraftNotice {...draft}/>
 
           {q.data?.items.map((i) => (
             <div className="live-row" key={`${i.kind}:${i.id}`}>
               <div>
-                <h3>{i.title}</h3>
+                <Typography.Text strong className="item-title">{i.title}</Typography.Text>
                 <MetaTags>
                   <StatusTag status={i.state} label={stateNames[i.state] || i.state} />
                   <MetaTag>{names[i.kind]}</MetaTag>
                   <MetaTag>v{i.version}</MetaTag>
                 </MetaTags>
               </div>
-              <Link to={path(i)}>查看</Link>
+              <div className="live-inline"><Link to={path(i)}>查看</Link>
+                {i.kind === "assignment_question" && i.state === "closed" && <Button disabled={!reason.trim()} onClick={()=>{setBatch("");setRegrade({assignmentID:i.parent_id!,questionID:i.id,reason:`${reason}\n内容变更：${selected.title} v${selected.version}（${selected.kind}:${selected.id}）`});}}>就此题建立整组重评</Button>}
+              </div>
             </div>
           ))}
           {!q.data?.items.length && <EmptyState title="未查到关联内容" />}
@@ -134,24 +149,28 @@ export function ContentImpactPage() {
           <Feedback message={action.message} failed={action.failed} />
           <Button
             disabled={action.busy || !reason.trim()}
-            onClick={() =>
-              action.run("/impact/decisions", {
+            onClick={async () => {
+              const snapshot = draft.value;
+              if (await action.run("/impact/decisions", {
                 kind: selected.kind,
                 id: selected.id,
                 action: decision,
                 reason,
-              })
-            }
+              })) draft.saved(snapshot);
+            }}
             type="primary"
           >
             保存处理决定
           </Button>
           {decision === "regrade" && (
-            <Link to="/teacher/regrades">选择关闭作业并建立批次</Link>
+            <p>填写原因后，在上方已关闭的作业题目旁建立批次；预览、冻结、逐份确认和统一发布均须分别执行。</p>
           )}
           <DecisionHistory id={selected.id} />
         </Card>
       )}
+      <Drawer title="内容变更 · 整组重评" open={!!regrade} width={900} destroyOnHidden onClose={()=>setRegrade(null)}>
+        {batch ? <RegradeDetail id={batch}/> : regrade && <CreateRegrade initial={regrade} onCreated={setBatch}/>}
+      </Drawer>
     </div>
   );
 }

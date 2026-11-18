@@ -8,7 +8,7 @@ import hashlib
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'docs'
 FILES = ['server/router.go', 'course/http.go', 'identity/session.go', 'identity/context.go',
-         'learning/http.go', 'learning/materials.go', 'learning/question_bank.go', 'learning/topics.go', 'agent/http.go']
+         'learning/http.go', 'learning/materials.go', 'learning/question_bank.go', 'learning/topics.go', 'learning/intelligence.go', 'agent/http.go']
 DESCRIPTIONS = {
     'login':'登录并创建数据库会话', 'myCourses':'列出本人可访问课程', 'logout':'注销当前会话',
     'courseContext':'角色路由下读取课程上下文', 'createCourse':'创建课程草稿', 'profile':'修改本人资料',
@@ -62,6 +62,10 @@ DESCRIPTIONS = {
     'regradeState':'整组发布等重评状态转换', 'regradeAI':'按冻结的重评输入排队生成评分草稿',
     'assetFile':'读取授权图像资产文件', 'resourceAssets':'读取学习资料关联资产',
     'questionAssets':'读取作业题目关联资产',
+    'intelligenceList':'读取本人的诊断或推荐历史', 'intelligenceCreate':'冻结正式作答/规则候选并排队分析，按请求号幂等',
+    'intelligenceRead':'读取本人报告，重查正式证据与推荐可见性', 'diagnosisEdit':'保存或确认诊断；校验原句、标签、编辑版本和正式证据',
+    'recommendationChoice':'保存本人推荐偏好；重新核验内容可用性', 'intelligenceCancel':'取消本人的分析任务',
+    'diagnosisLabels':'读取课程问题标签', 'diagnosisLabelSave':'教师维护问题标签及启停',
 }
 
 rows = []
@@ -122,6 +126,7 @@ for file in FILES:
             if handler == 'uploadSources': mode = 'multipart上传 → PG任务 → Asynq解析'
             if handler == 'importURL': mode = 'HTTP JSON → 同步公开网页抓取 → 异步解析'
             if handler in ['createRAGJob','createBankJob','regradeAI','retryJob']: mode = 'HTTP JSON返回任务ID → Asynq → 前端轮询'
+            if handler == 'intelligenceCreate': mode = 'HTTP JSON → 冻结输入/报告/任务同事务 → Asynq模型分析 → 校验落库 → 轮询'
             if handler in ['jobs','job']: mode = 'HTTP JSON；后台状态读取/轮询'
             if handler == 'assist': mode = 'HTTP同步；RAG＋非流式Chat；返回JSON'
             if handler == 'importSubmissions': mode = 'HTTP JSON；CSV预览哈希 → 显式确认 → 幂等整批事务'
@@ -129,28 +134,28 @@ for file in FILES:
             if file == 'agent/http.go':
                 mode = 'HTTP JSON；持久对话及权限门禁'
                 if handler == 'send': mode = 'HTTP JSON返回run_id → PostgreSQL检查点 → 多Agent工具循环'
-                if handler == 'stream': mode = '业务事件SSE；游标重放、心跳与重连；非模型token流'
+                if handler == 'stream': mode = '持久事件SSE；业务状态＋协调者文本快照；游标重放、心跳与重连'
                 if handler == 'upload': mode = 'multipart上传；私有文件卷＋数据库元数据'
                 if handler == 'download': mode = '授权HTTP文件响应'
                 if handler == 'respond': mode = 'HTTP JSON → 参数／业务快照核验 → 恢复原运行'
             csrf = method not in ['GET','HEAD','OPTIONS'] and handler != 'login'
             rows.append(dict(method=method, path=full, function=description, access=role,
                              invocation=mode, csrf=csrf, handler=handler, source='backend/internal/'+file,
-                             line=line_number, rag_gate=file == 'learning/materials.go'))
+                             line=line_number, rag_gate=file == 'learning/materials.go' and variable != 'g'))
 
 assert len(rows) == len({(r['method'],r['path']) for r in rows})
 source_hash=hashlib.sha256(''.join((ROOT/'backend/internal'/f).read_text(encoding='utf-8') for f in FILES).encode()).hexdigest()
 counts = dict(collections.Counter(r['method'] for r in rows))
-artifact = {'date':'2026-11-17','source_sha256':source_hash,'basis':'mounted source registrations; not runtime/network frequency',
+artifact = {'date':'2026-11-19','source_sha256':source_hash,'basis':'mounted source registrations; not runtime/network frequency',
             'route_count':len(rows),'method_counts':counts,'routes':rows}
 (OUT/'api-inventory.json').write_text(json.dumps(artifact,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-parts = ['# 当前 API 全量清单', '', f'盘点日期：2026-11-17；注册入口内容 SHA256：`{source_hash}`。', '',
+parts = ['# 当前 API 全量清单', '', f'盘点日期：2026-11-19；注册入口内容 SHA256：`{source_hash}`。', '',
          f'共 **{len(rows)} 个 method + path**，方法统计：`{json.dumps(counts)}`。', '',
          '依据 server.New 实际调用的注册入口展开角色循环；这是源码入口清单，不是线上调用量、生产启用证明或安全审计结论。', '',
          '所有路径已展开 `/api/v1` 前缀。认证写请求使用CSRF；登录是独立公开入口。',
          'learning课程路由还会核对课程授权；表中角色只概括路由层，业务处理器继续校验对象归属、发布状态、版本和所有权。',
-         'materials.go 中全部入口还经过 h.rag 非空门禁；其他AI入口在处理器内检查，不能把“路由已注册”理解为“模型已配置”。',
-         'Agent审批和业务状态转换分别执行；审批通过后仍走原业务路由。events为SSE，其余入口为HTTP JSON或文件；模型工具推理使用非流式chat/completions。',
+         'materials.go 中原件／知识／后台任务入口经过 h.rag 非空门禁；retrieval/status 可独立读取、已发布资料的 resource_id 文内检索不依赖模型。全课程智能检索与其他AI入口仍检查配置；路由注册不表示模型已配置。',
+         'Agent审批和业务状态转换分别执行；审批通过后仍走原业务路由。模型推理采用兼容SSE，events转发持久文本快照与业务事件；工具参数在完整流校验后执行。profile可禁用流式，同一次响应可兼容JSON，不自动重发收费请求。',
          '写入后部分路径会附带排队索引；“同步业务处理”描述主响应，不表示完全没有后台副作用。', '']
 for file in FILES:
     group=[r for r in rows if r['source']=='backend/internal/'+file]

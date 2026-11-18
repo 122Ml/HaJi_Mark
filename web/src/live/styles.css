@@ -1,6 +1,7 @@
 /* Business page templates. Tokens come from styles.css :root. */
 .live-page { display: grid; gap: var(--space-5); min-width: 0; }
 .live-page > * { min-width: 0; }
+.item-title.ant-typography { display: block; margin: 0 0 8px; font-size: inherit; line-height: 1.5; overflow-wrap: anywhere; }
 
 /* Main routes are named by navigation and document.title; keep only actions here. */
 .page-actions { display: flex; justify-content: flex-end; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
@@ -23,7 +24,7 @@
 .ui-field.ant-form-item { margin: 0; min-width: 0; }
 .ui-field .ant-form-item-label { white-space: normal; }
 .ui-field .ant-form-item-label > label { height: auto; font-weight: 500; }
-.ui-field .ant-select, .ui-field .ant-input-number { width: 100%; }
+.ui-field .ant-select, .ui-field .ant-input-number, .ui-field .ant-picker { width: 100%; }
 .live-form > .ant-btn { justify-self: start; }
 .live-inline { display: flex; gap: var(--space-3); align-items: flex-end; flex-wrap: wrap; }
 .live-inline > .ui-field { flex: 1 1 200px; min-width: 0; }
@@ -145,3 +146,7 @@ article.live-prose { padding: var(--space-4) var(--space-5); background: var(--s
 .ant-card.live-form > .ant-card-body { display: grid; gap: var(--space-4); }
 
 .live-metrics .ant-card.card-panel { padding: 0; }
+.workspace-subnav { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid var(--line); }
+.workspace-subnav a { padding:8px 14px; border-radius:6px; color:var(--muted); }
+.workspace-subnav a.active { background:var(--mint); color:var(--teal); font-weight:600; }
+.discussion-reply .ant-form { margin-top:12px; }

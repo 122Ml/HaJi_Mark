@@ -80,6 +80,36 @@ const fixtures = JSON.parse(fs.readFileSync(path.join(root, '.local/s1-accounts.
       await page.keyboard.press('Escape');
       await page.getByRole('button', {name: '打开导航', exact: true}).waitFor();
       await page.setViewportSize({width: 1440, height: 1000});
+      if (role === 'teacher') {
+        const editor = await context.newPage();
+        editor.on('dialog', dialog => dialog.type() === 'beforeunload' ? dialog.accept() : dialog.dismiss());
+        editor.on('pageerror', error => errors.push(error.message));
+        await editor.goto(`${base}/teacher/homework/new?course=${course.id}`);
+        const due = editor.getByLabel('截止时间', {exact: true});
+        await due.fill('2035-12-31 20:30');
+        await editor.locator('.ant-picker-dropdown:visible').getByRole('button', {name: '确定', exact: true}).click();
+        assert.equal(await due.inputValue(), '2035-12-31 20:30');
+        await editor.reload();
+        assert.equal(await due.inputValue(), '2035-12-31 20:30', 'Confirmed cutoff must survive browser draft recovery');
+        await due.hover();
+        await editor.locator('.ant-picker-clear').click();
+        assert.equal(await due.inputValue(), '');
+        await editor.reload();
+        assert.equal(await due.inputValue(), '', 'Clearing the cutoff must also update the recovered draft');
+        await editor.close();
+        console.log('PASS: Ant cutoff picker confirms, recovers and clears; no assignment was created');
+        await page.goto(base + '/teacher/profile');
+        await page.route('**/api/v1/learning/profile', route => route.fulfill({
+          status: 422, contentType: 'application/json',
+          body: JSON.stringify({error: {code: 'test_profile_rejected', message: '测试：资料保存被拒绝'}}),
+        }));
+        await page.getByRole('button', {name: '保存资料', exact: true}).click();
+        await page.locator('.ant-alert-error').getByText('测试：资料保存被拒绝', {exact: true}).waitFor();
+        assert.equal(await page.locator('.ant-alert-success').count(), 0, 'A rejected save must not appear as success');
+        await page.unroute('**/api/v1/learning/profile');
+        await capture('teacher-profile-error');
+        console.log('PASS: rejected profile save renders an error; no profile data was changed');
+      }
       await page.getByRole('button', {name: '退出登录', exact: true}).click();
       await page.waitForURL(base + '/login');
       console.log(`PASS: ${role} grouped navigation, keyboard focus, aliases, screenshots and responsive layout`);

@@ -12,7 +12,7 @@ uploads + switches the server. Server steps never prompt: they need HAJI_SSH_PAS
 param(
   [ValidateSet('build', 'verify', 'deploy', 'rollback')] [string]$Action = 'build',
   [string]$ReleaseId = '',
-  [string]$PreviousRelease = 'hajimark-s1-99168eb-20261028',
+  [string]$PreviousRelease = '',
   [string]$TargetHost = '154.201.71.22'
 )
 $ErrorActionPreference = 'Stop'
@@ -36,24 +36,35 @@ $RemoteDir = "/opt/hajimark/releases/$ReleaseId"
 $images = @(
   @{ name = 'postgres'; tag = "hajimark-postgres:$Tag"; context = 'backend/docker/postgres' },
   @{ name = 'backend'; tag = "hajimark-backend:$Tag"; context = 'backend' },
+  @{ name = 'worker'; tag = "hajimark-worker:$Tag"; context = 'backend'; target = 'rag-worker' },
   @{ name = 'web'; tag = "hajimark-web:$Tag"; context = 'web' }
 )
 function Build-Bundle {
-  if (git status --porcelain --untracked-files=no) { throw 'Tracked files have uncommitted changes; commit first so the release maps to one source commit.' }
+  if (git status --porcelain) { throw 'Commit source and artifacts before building a release.' }
+  if (-not $PreviousRelease) { throw 'Pass the directly observed -PreviousRelease.' }
+  $sourceTag = (git describe --exact-match --tags HEAD 2>$null)
+  $version = (Get-Content web/package.json -Raw | ConvertFrom-Json).version
+  if ($LASTEXITCODE -ne 0 -or $sourceTag -ne "v$version") { throw 'HEAD must have the exact immutable version tag matching web/package.json.' }
+  Run git @('fsck', '--no-dangling')
   if (Test-Path $Bundle) { throw "$Bundle already exists; pass a new -ReleaseId" }
-  $src = Join-Path $env:TEMP "hajimark-src-$short"
-  if (Test-Path $src) { Remove-Item -Recurse -Force $src }
+  $src = Join-Path $Bundle 'source'
   Step "Export clean source $commit"
-  New-Item -ItemType Directory $src | Out-Null
+  New-Item -ItemType Directory $src -Force | Out-Null
   try {
     Run git @('archive', '--format=tar', '-o', "$src.tar", $commit, 'backend', 'web')
     Run (Join-Path $env:SystemRoot 'System32/tar.exe') @('-xf', "$src.tar", '-C', $src)
     foreach ($img in $images) {
       Step "docker build $($img.tag)"
       $proxy = if ($env:HAJI_GOPROXY) { @('--build-arg', "GOPROXY=$env:HAJI_GOPROXY") } else { @() }
-      Run docker (@('build', '--label', "org.opencontainers.image.revision=$commit", '-t', $img.tag) + $proxy + @((Join-Path $src $img.context)))
+      $target = if ($img.target) { @('--target', $img.target) } else { @() }
+      Run docker (@('build', '--label', "org.opencontainers.image.revision=$commit", '-t', $img.tag) + $target + $proxy + @((Join-Path $src $img.context)))
     }
-  } finally { Remove-Item -Recurse -Force $src, "$src.tar" -ErrorAction SilentlyContinue }
+  } finally {
+    $resolved = [IO.Path]::GetFullPath($src)
+    if ($resolved -ne [IO.Path]::GetFullPath((Join-Path $Bundle 'source'))) { throw 'Unexpected source cleanup target' }
+    Remove-Item -LiteralPath $resolved -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath "$src.tar" -ErrorAction SilentlyContinue
+  }
   New-Item -ItemType Directory -Force $Bundle | Out-Null
   Step 'docker save | gzip'
   Run docker (@('save', '-o', "$Bundle/images.tar") + ($images | ForEach-Object { $_.tag }))
@@ -64,9 +75,9 @@ function Build-Bundle {
   if ($LASTEXITCODE -ne 0) { throw 'Could not read exported image config IDs' }
   $configIDs = $configJSON | ConvertFrom-Json
   Remove-Item "$Bundle/images.tar"
-  foreach ($f in 'compose.production.yaml', 'backup.sh', 'renew-certificate.sh', 'openresty-hajistudy.conf') { Copy-Item "deploy/$f" $Bundle }
+  foreach ($f in 'compose.production.yaml', 'backup.sh', 'renew-certificate.sh', 'openresty-hajistudy.conf', 'fingerprint-db.py', 'publish-diagrams.py') { Copy-Item "deploy/$f" $Bundle }
   $manifest = [ordered]@{
-    release_id = $ReleaseId; source_commit = $commit; source_branch = (git branch --show-current).Trim()
+    release_id = $ReleaseId; source_commit = $commit; source_tag = $sourceTag; source_branch = (git branch --show-current).Trim()
     images = @($images | ForEach-Object {
       $i = docker image inspect $_.tag | ConvertFrom-Json
       [ordered]@{ tag = $_.tag; local_image_id = $i[0].Id; config_id = $configIDs.PSObject.Properties[$_.tag].Value; revision = $commit }
@@ -85,71 +96,15 @@ function Write-EnvTemplate {
 POSTGRES_PASSWORD=<existing-random-password>
 POSTGRES_IMAGE=hajimark-postgres:$Tag
 BACKEND_IMAGE=hajimark-backend:$Tag
+WORKER_IMAGE=hajimark-worker:$Tag
 WEB_IMAGE=hajimark-web:$Tag
 "@ | Set-Content -Encoding utf8NoBOM "$Bundle/env.template"
 }
 function Write-ServerScripts {
   # Runs on the server inside the release dir. Preserves secrets and selects bundled images.
-  $switch = @'
-#!/bin/bash
-# usage: switch-release.sh <release-id>   (run as root on the server)
-set -euo pipefail
-umask 077
-target=/opt/hajimark/releases/$1
-test -f "$target/release.json" && test -f "$target/compose.production.yaml"
-cd "$target"
-python3 - "$target" <<'PY'
-import json,subprocess,sys
-from pathlib import Path
-release=Path(sys.argv[1]);manifest=json.loads((release/'release.json').read_text())
-tags={}
-for item in manifest['images']:
- actual=json.loads(subprocess.check_output(['docker','image','inspect',item['tag']],text=True))[0]
- assert actual['Id'] in (item['local_image_id'],item['config_id']),item['tag']
- assert actual['Config']['Labels']['org.opencontainers.image.revision']==manifest['source_commit'],item['tag']
- kind=next(k for k in ('backend','web','postgres') if item['tag'].startswith('hajimark-'+k+':'))
- tags[kind.upper()+'_IMAGE']=item['tag']
-env=Path('/opt/hajimark/shared/.env');lines=env.read_text().splitlines()
-(release/'.env.before-switch').write_text(env.read_text())
-out=[f"{k}={tags[k]}" if (k:=l.split('=',1)[0]) in tags else l for l in lines]
-existing={l.split('=',1)[0] for l in lines}
-out.extend(f'{k}={v}' for k,v in tags.items() if k not in existing)
-nxt=env.with_name('.env.next');nxt.write_text('\n'.join(out)+'\n');nxt.chmod(0o600);nxt.replace(env)
-link=Path('/opt/hajimark/.current-next')
-if link.is_symlink(): link.unlink()
-link.symlink_to(release);link.replace('/opt/hajimark/current')
-print('IMAGES_VERIFIED_AND_RELEASE_SELECTED',manifest['release_id'])
-PY
-docker compose --env-file /opt/hajimark/shared/.env -f /opt/hajimark/current/compose.production.yaml config -q
-if grep -q '^POSTGRES_IMAGE=' /opt/hajimark/shared/.env && grep -q 'POSTGRES_IMAGE' /opt/hajimark/current/compose.production.yaml; then
-  docker compose --env-file /opt/hajimark/shared/.env -f /opt/hajimark/current/compose.production.yaml up -d --no-build --no-deps --wait --wait-timeout 150 postgres
-fi
-docker compose --env-file /opt/hajimark/shared/.env -f /opt/hajimark/current/compose.production.yaml run --rm --no-deps migrate
-docker compose --env-file /opt/hajimark/shared/.env -f /opt/hajimark/current/compose.production.yaml up -d --no-build --no-deps --wait --wait-timeout 150 api worker web
-curl -fsS --max-time 10 -H 'Host: hajistudy.online' http://127.0.0.1:18080/api/v1/health/ready
-curl -fsS --max-time 10 -H 'Host: hajistudy.online' http://127.0.0.1:18080/login -o /dev/null
-printf '\nSWITCHED %s\n' "$1"
-'@
-  $update = @'
-#!/bin/bash
-# usage: update-release.sh   (run as root inside /opt/hajimark/releases/__RELEASE__)
-set -euo pipefail
-umask 077
-cd /opt/hajimark/releases/__RELEASE__
-sha256sum -c <<<"__SHA256__  images.tar.gz"
-readlink /opt/hajimark/current > .previous-current
-/bin/sh /opt/hajimark/current/backup.sh
-docker load -i images.tar.gz
-bash ./switch-release.sh __RELEASE__
-'@
-  $rollback = @'
-#!/bin/bash
-# usage: rollback.sh   (run as root). Switches images back; never restores the database.
-set -euo pipefail
-cd /opt/hajimark/releases/__RELEASE__
-previous=$(basename "$(cat .previous-current 2>/dev/null || echo /opt/hajimark/releases/__PREVIOUS__)")
-bash ./switch-release.sh "$previous"
-'@
+  $switch = Get-Content (Join-Path $PSScriptRoot 'switch-release.sh') -Raw
+  $update = Get-Content (Join-Path $PSScriptRoot 'update-release.sh') -Raw
+  $rollback = "#!/bin/bash`nset -euo pipefail`necho 'No automatic rollback across schema changes. Verify schema compatibility and preserve post-upgrade writes before selecting an older release.' >&2`nexit 1`n"
   $sha = (Get-Content "$Bundle/release.json" -Raw | ConvertFrom-Json).archive.sha256
   foreach ($pair in @(@('switch-release.sh', $switch), @('update-release.sh', $update), @('rollback.sh', $rollback))) {
     $text = $pair[1].Replace('__RELEASE__', $ReleaseId).Replace('__PREVIOUS__', $PreviousRelease).Replace('__SHA256__', $sha) -replace "`r`n", "`n"
@@ -170,10 +125,11 @@ function Verify-Bundle {
   Step 'Validate production compose with the release image tags'
   $env:POSTGRES_PASSWORD = 'compose-config-check-only'
   $env:BACKEND_IMAGE = ($m.images | Where-Object { $_.tag -like '*backend*' }).tag
+  $env:WORKER_IMAGE = ($m.images | Where-Object { $_.tag -like '*worker*' }).tag
   $env:WEB_IMAGE = ($m.images | Where-Object { $_.tag -like '*web*' }).tag
   $env:POSTGRES_IMAGE = ($m.images | Where-Object { $_.tag -like '*postgres*' }).tag
   try { Run docker @('compose', '-f', "$Bundle/compose.production.yaml", 'config', '-q') }
-  finally { Remove-Item Env:POSTGRES_PASSWORD, Env:BACKEND_IMAGE, Env:WEB_IMAGE, Env:POSTGRES_IMAGE }
+  finally { Remove-Item Env:POSTGRES_PASSWORD, Env:BACKEND_IMAGE, Env:WORKER_IMAGE, Env:WEB_IMAGE, Env:POSTGRES_IMAGE }
   Step 'Check server scripts are LF-only and parse with bash -n'
   foreach ($s in 'switch-release.sh', 'update-release.sh', 'rollback.sh', 'backup.sh') {
     if ((Get-Content -Raw "$Bundle/$s").Contains("`r")) { throw "$s has CRLF" }
@@ -188,7 +144,7 @@ function Verify-Bundle {
     $html = (Invoke-WebRequest -UseBasicParsing http://127.0.0.1:18089/teacher/dashboard).Content
     if ($html -notmatch 'assets/index-[^"]+\.js') { throw 'SPA fallback did not return index.html' }
     $css = [regex]::Match($html, 'assets/index-[^"]+\.css').Value
-    if ((Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:18089/$css").Content -notmatch 'sidebar-title') { throw 'release web image does not contain the UI refresh stylesheet' }
+    if ((Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:18089/$css").Content -notmatch 'ant-drawer|ant-layout|workspace') { throw 'release web image stylesheet check failed' }
   } finally { docker rm -f $name | Out-Null }
   Write-Host "LOCAL_VERIFIED $ReleaseId ($($m.archive.bytes) bytes, sha256 $($m.archive.sha256))" -ForegroundColor Green
 }
@@ -235,14 +191,11 @@ switch ($Action) {
   'deploy' {
     Verify-Bundle
     $script:KeyAccess = Get-Remote
-    $files = 'images.tar.gz', 'release.json', 'compose.production.yaml', 'backup.sh', 'renew-certificate.sh', 'openresty-hajistudy.conf', 'switch-release.sh', 'update-release.sh', 'rollback.sh' | ForEach-Object { Join-Path $Bundle $_ }
+    $files = 'images.tar.gz', 'release.json', 'compose.production.yaml', 'backup.sh', 'renew-certificate.sh', 'openresty-hajistudy.conf', 'switch-release.sh', 'update-release.sh', 'rollback.sh', 'fingerprint-db.py' | ForEach-Object { Join-Path $Bundle $_ }
     Step "Upload to $TargetHost`:$RemoteDir, backup, load, switch"
     Invoke-Remote "test ! -e $RemoteDir/images.tar.gz && echo NEW_RELEASE_DIR || (echo 'release dir already has images; refusing to overwrite' && exit 1)"
-    Invoke-Remote "chmod 700 $RemoteDir/*.sh && bash $RemoteDir/update-release.sh" $files
-    Step 'Public check'
-    $r = Invoke-WebRequest -UseBasicParsing https://hajistudy.online/login
-    if ($r.StatusCode -ne 200 -or $r.Content -notmatch 'assets/index-') { throw 'public /login check failed' }
-    Write-Host "DEPLOYED $ReleaseId" -ForegroundColor Green
+    Invoke-Remote "chmod 700 $RemoteDir/*.sh && nohup bash $RemoteDir/update-release.sh >$RemoteDir/deployment.log 2>&1 </dev/null &" $files
+    Write-Host "DEPLOYMENT_STARTED $ReleaseId. Inspect deployment.log and deployment.exit, then verify the public site before declaring success." -ForegroundColor Green
   }
   'rollback' { $script:KeyAccess = Get-Remote; Invoke-Remote "bash $RemoteDir/rollback.sh"; Write-Host 'ROLLED_BACK' }
 }

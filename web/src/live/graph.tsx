@@ -16,7 +16,7 @@ export function KnowledgeGraph() {
   const [to, setTo] = useState("");
   const nodes = query.data?.nodes.filter((p) => p.kind === "point") || [];
   return (
-    <Card className="card-panel" title={<h2>知识图谱与前置依赖</h2>}>
+    <Card className="card-panel">
 
       <Feedback
         error={query.error}

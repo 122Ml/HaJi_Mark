@@ -116,7 +116,7 @@ func (s *Service) execute(ctx context.Context, run store.AgentRun, conv store.Ag
 			risk = "human"
 		}
 	}
-	if tool.Method == "INPUT" || risk == "human" || risk == "approval" && rt.Mode != "full-access" {
+	if tool.Method == "INPUT" || tool.Method == "EDITOR" || risk == "human" || risk == "approval" && rt.Mode != "full-access" {
 		proceed, result, e := s.request(ctx, run, conv, rt, tool, step, args)
 		if e != nil {
 			return e
@@ -127,7 +127,7 @@ func (s *Service) execute(ctx context.Context, run store.AgentRun, conv store.Ag
 			}
 			return errWaiting
 		}
-		if tool.Method == "INPUT" {
+		if tool.Method == "INPUT" || tool.Method == "EDITOR" {
 			return complete("succeeded", result)
 		}
 	}
@@ -207,6 +207,10 @@ func trackPendingJobs(f *frame, value any) {
 		jobs = []any{one}
 	}
 	for _, value := range jobs {
+		if report, ok := value.(map[string]any); ok && (report["kind"] == "diagnosis" || report["kind"] == "recommendation") && getString(report, "job_id") != "" && !slices.Contains(f.PendingJobs, getString(report, "job_id")) {
+			f.PendingJobs = append(f.PendingJobs, getString(report, "job_id"))
+			continue
+		}
 		if job, ok := value.(map[string]any); ok && getString(job, "id") != "" && getString(job, "kind") != "" && (job["state"] == "queued" || job["state"] == "running") && !slices.Contains(f.PendingJobs, getString(job, "id")) {
 			f.PendingJobs = append(f.PendingJobs, getString(job, "id"))
 		}
@@ -225,7 +229,31 @@ func (s *Service) invoke(ctx context.Context, run store.AgentRun, conv store.Age
 		}
 	}
 	method := t.Method
-	if t.Name == "grade_save" {
+	if t.Name == "submission_import_preview" || t.Name == "submission_import_confirm" {
+		attachment := getString(args, "attachment_id")
+		csv := getString(args, "csv")
+		if (attachment == "") == (csv == "") {
+			return map[string]any{"error": "CSV文本和同对话附件必须二选一"}, nil
+		}
+		if attachment != "" {
+			a, err := s.Q.GetAgentAttachment(ctx, store.GetAgentAttachmentParams{ID: attachment, ConversationID: conv.ID})
+			if err != nil || a.Kind != "upload" || strings.ToLower(filepath.Ext(a.Filename)) != ".csv" || a.SizeBytes > 512<<10 {
+				return map[string]any{"error": "请选择本对话内不超过512KiB的CSV上传附件"}, nil
+			}
+			file, err := os.Open(filepath.Join(attachmentDir(), a.StoragePath))
+			if err != nil {
+				return nil, err
+			}
+			data, err := io.ReadAll(io.LimitReader(file, (512<<10)+1))
+			_ = file.Close()
+			if err != nil || len(data) > 512<<10 || rag.Hash(string(data)) != a.Sha256 {
+				return map[string]any{"error": "附件内容与上传记录不一致，未导入"}, nil
+			}
+			body["csv"] = string(data)
+			delete(body, "attachment_id")
+		}
+	}
+	if t.Name == "grade_save" || t.Name == "submission_import_confirm" || t.Name == "answer_submit" || t.Name == "intelligence_create" {
 		body["request_id"] = requestID
 	}
 	if method == "JOB" {
@@ -268,6 +296,31 @@ func (s *Service) request(ctx context.Context, run store.AgentRun, conv store.Ag
 			kind = "input"
 			prompt = getString(args, "prompt")
 			fields = args["fields"]
+		} else if t.Method == "EDITOR" {
+			hash, preview, err := s.snapshot(ctx, run, conv, t, args)
+			if err != nil {
+				return false, map[string]any{"error": err.Error()}, nil
+			}
+			if t.Path == "knowledge" {
+				var found bool
+				if wrapper, ok := preview.(map[string]any); ok {
+					wrapper, _ = wrapper["object"].(map[string]any)
+					if list, ok := wrapper["data"].([]any); ok {
+						for _, v := range list {
+							if k, ok := v.(map[string]any); ok && k["id"] == args["id"] {
+								found = true
+							}
+						}
+					}
+				}
+				if !found {
+					return false, map[string]any{"error": "知识不存在或无权编辑"}, nil
+				}
+			}
+			kind = "input"
+			prompt = getString(args, "goal")
+			snapshot["business_hash"] = hash
+			snapshot["editor"] = map[string]any{"kind": t.Path, "id": args["id"]}
 		} else if t.Snapshot != "" {
 			hash, preview, e := s.snapshot(ctx, run, conv, t, args)
 			if e != nil {
@@ -298,7 +351,7 @@ func (s *Service) request(ctx context.Context, run store.AgentRun, conv store.Ag
 	}
 	var response map[string]any
 	_ = json.Unmarshal(req.Response, &response)
-	if t.Method == "INPUT" {
+	if t.Method == "INPUT" || t.Method == "EDITOR" {
 		return true, response, nil
 	}
 	var snapshot map[string]any
@@ -358,7 +411,48 @@ func (s *Service) snapshot(ctx context.Context, run store.AgentRun, conv store.A
 	if json.Unmarshal(r.Body, &value) != nil {
 		return "", nil, errors.New("对象快照无效")
 	}
-	return rag.Hash(string(raw(value))), safeData(r.Body), nil
+	if t.Method == "EDITOR" {
+		read := func(path string) (any, error) {
+			r, err := s.Gateway.Invoke(ctx, run.SessionHash, "GET", "/api/v1/learning/courses/"+conv.CourseID+path, "application/json", nil)
+			if err != nil || r.Status != 200 {
+				return nil, errors.New("编辑关联对象无法读取，请核对后重试")
+			}
+			var v any
+			if json.Unmarshal(r.Body, &v) != nil {
+				return nil, errors.New("编辑关联对象响应无效")
+			}
+			return v, nil
+		}
+		related := map[string]any{"object": value}
+		id := getString(args, "id")
+		extra := map[string]string{"source": "/sources/" + id + "/assets", "paper": "/decisions?object_id=" + url.QueryEscape(id), "import": "/assignments/" + id + "/imports"}[t.Path]
+		if extra != "" {
+			if related["saved_records"], e = read(extra); e != nil {
+				return "", nil, e
+			}
+		}
+		if t.Path == "question" {
+			object, _ := value.(map[string]any)
+			data, _ := object["data"].(map[string]any)
+			versions, _ := data["versions"].([]any)
+			rubrics := map[string]any{}
+			for _, item := range versions {
+				version, _ := item.(map[string]any)
+				vid := getString(version, "id")
+				if !safeID.MatchString(vid) {
+					return "", nil, errors.New("题目版本无效")
+				}
+				if rubrics[vid], e = read("/question-bank/versions/" + vid + "/rubrics"); e != nil {
+					return "", nil, e
+				}
+			}
+			related["rubrics"] = rubrics
+		}
+		// Include the records the editor actually saves, not just its parent object.
+		value = related
+	}
+	data := raw(value)
+	return rag.Hash(string(data)), safeData(data), nil
 }
 func validFields(args map[string]any) error {
 	fields, ok := args["fields"].([]any)
@@ -391,6 +485,8 @@ func jobDomain(kind string) string {
 		return "questions"
 	case "grade":
 		return "assessment"
+	case "diagnosis", "recommendation":
+		return "learning"
 	default:
 		return "materials"
 	}
@@ -398,10 +494,13 @@ func jobDomain(kind string) string {
 func (s *Service) checkJobs(ctx context.Context, conv store.AgentConversation, rt *runtime, domain string, args map[string]any, name string) error {
 	if name == "jobs_list" {
 		kind := getString(args, "kind")
+		if rt.Tainted && kind == "paper_split" {
+			return errors.New("含作答上下文的会话不能读取整卷出题任务")
+		}
 		if kind == "" || jobDomain(kind) != domain {
 			return errors.New("请指定本专家领域的任务kind，禁止跨领域读取任务")
 		}
-		if kind == "grade" {
+		if kind == "grade" || kind == "diagnosis" || kind == "recommendation" {
 			rt.Tainted = true
 			return s.Q.MarkAgentLearnerContext(ctx, conv.ID)
 		}
@@ -414,7 +513,10 @@ func (s *Service) checkJobs(ctx context.Context, conv store.AgentConversation, r
 	if jobDomain(j.Kind) != domain {
 		return errors.New("该任务不属于当前专家领域")
 	}
-	if j.Kind == "grade" {
+	if rt.Tainted && j.Kind == "paper_split" {
+		return errors.New("含作答上下文的会话不能操作整卷出题任务")
+	}
+	if j.Kind == "grade" || j.Kind == "diagnosis" || j.Kind == "recommendation" {
 		rt.Tainted = true
 		return s.Q.MarkAgentLearnerContext(ctx, conv.ID)
 	}

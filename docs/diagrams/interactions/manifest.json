@@ -1,0 +1,3068 @@
+{
+  "date": "2026-11-17",
+  "scope": "local-current-working-tree",
+  "baseline": "4d82dbf + 方案B及当前前端",
+  "figures": [
+    {
+      "id": "I00",
+      "title": "全平台交互总览",
+      "width": 2600,
+      "height": 2516,
+      "nodes": [
+        {
+          "id": "course",
+          "title": "课程与教学组织",
+          "body": [
+            "课程 / 成员 / 目录 / 知识点"
+          ],
+          "role": "teacher",
+          "jump": "I01"
+        },
+        {
+          "id": "context",
+          "title": "登录 · 顶栏选课",
+          "body": [
+            "角色权限 / 课程隔离 / 编辑恢复"
+          ],
+          "role": "system",
+          "jump": "I01"
+        },
+        {
+          "id": "agent",
+          "title": "自然语言发起操作",
+          "body": [
+            "附件 / 选项 / 审批 / 页面工作台"
+          ],
+          "role": "ai",
+          "jump": "I08"
+        },
+        {
+          "id": "home",
+          "title": "进入我的课程",
+          "body": [
+            "概览 / 待办 / 学习路径"
+          ],
+          "role": "data",
+          "jump": "I06"
+        },
+        {
+          "id": "source",
+          "title": "导入与核对原件",
+          "body": [
+            "文件 / 网页 / 文本 / 解析校正"
+          ],
+          "role": "teacher",
+          "jump": "I02"
+        },
+        {
+          "id": "content",
+          "title": "发布学习内容",
+          "body": [
+            "目录关联 / 学生可见 / 原件权限"
+          ],
+          "role": "system",
+          "jump": "I02"
+        },
+        {
+          "id": "parse",
+          "title": "解析 · 提出加工建议",
+          "body": [
+            "本地解析 / AI分类 / 视觉与提炼"
+          ],
+          "role": "ai",
+          "jump": "I02"
+        },
+        {
+          "id": "read",
+          "title": "阅读 · 笔记 · 收藏",
+          "body": [
+            "课程学习 / 完成记录"
+          ],
+          "role": "data",
+          "jump": "I02"
+        },
+        {
+          "id": "reviewkb",
+          "title": "审定精炼知识",
+          "body": [
+            "编辑 / 用途 / 重复与冲突决定"
+          ],
+          "role": "teacher",
+          "jump": "I03"
+        },
+        {
+          "id": "rag",
+          "title": "权限检索与引用",
+          "body": [
+            "学习资料 + 确认知识 / 原句定位"
+          ],
+          "role": "system",
+          "jump": "I03"
+        },
+        {
+          "id": "qa",
+          "title": "提炼 · 带引用问答",
+          "body": [
+            "专题与关联候选 / 问答历史"
+          ],
+          "role": "ai",
+          "jump": "I03"
+        },
+        {
+          "id": "ask",
+          "title": "查知识 · 提问",
+          "body": [
+            "学习可见条目 / 引用回看"
+          ],
+          "role": "data",
+          "jump": "I03"
+        },
+        {
+          "id": "bank",
+          "title": "题目 / 解答 / 标准审定",
+          "body": [
+            "各自编辑确认 / 版本冻结"
+          ],
+          "role": "teacher",
+          "jump": "I04"
+        },
+        {
+          "id": "versions",
+          "title": "独立题库与固定依据",
+          "body": [
+            "题目版本 + 匹配标准 + 来源快照"
+          ],
+          "role": "system",
+          "jump": "I04"
+        },
+        {
+          "id": "author",
+          "title": "辅助出题 · 标准起草",
+          "body": [
+            "选依据与考查要求 / 不读作答"
+          ],
+          "role": "ai",
+          "jump": "I04"
+        },
+        {
+          "id": "assignment",
+          "title": "发布作业与测验",
+          "body": [
+            "引用确认版本 / 截止时间"
+          ],
+          "role": "teacher",
+          "jump": "I05"
+        },
+        {
+          "id": "attempt",
+          "title": "正式提交与规则判分",
+          "body": [
+            "原文 / 版本 / 哈希 / 提交历史"
+          ],
+          "role": "system",
+          "jump": "I05"
+        },
+        {
+          "id": "grading",
+          "title": "按固定标准评阅",
+          "body": [
+            "逐点评分草稿 / 证据核对"
+          ],
+          "role": "ai",
+          "jump": "I05"
+        },
+        {
+          "id": "submit",
+          "title": "草稿 · 作答 · 提交",
+          "body": [
+            "逐题提交 / 服务端回执"
+          ],
+          "role": "data",
+          "jump": "I05"
+        },
+        {
+          "id": "release",
+          "title": "逐份修改 / 确认 / 发布",
+          "body": [
+            "教师CSV导入 / 正式反馈导出"
+          ],
+          "role": "teacher",
+          "jump": "I05"
+        },
+        {
+          "id": "evidence",
+          "title": "正式结果与学习证据",
+          "body": [
+            "评分缺口 / 班级看板 / 证据溯源"
+          ],
+          "role": "system",
+          "jump": "I06"
+        },
+        {
+          "id": "diagnose",
+          "title": "共性诊断 · 路径排序",
+          "body": [
+            "同题同标准 / 规则候选内AI排序"
+          ],
+          "role": "ai",
+          "jump": "I06"
+        },
+        {
+          "id": "feedback",
+          "title": "反馈 · 路径 · 老师任务",
+          "body": [
+            "失分原句 / 学习与练习入口"
+          ],
+          "role": "data",
+          "jump": "I06"
+        },
+        {
+          "id": "intervene",
+          "title": "复核诊断 · 下发干预",
+          "body": [
+            "选已有学习 / 练习目标 / 复查"
+          ],
+          "role": "teacher",
+          "jump": "I06"
+        },
+        {
+          "id": "impact",
+          "title": "内容变更与整组重评",
+          "body": [
+            "保留历史 / 提示影响 / 统一发布"
+          ],
+          "role": "system",
+          "jump": "I07"
+        },
+        {
+          "id": "future",
+          "title": "未实现：自动发布新补练",
+          "body": [
+            "当前由教师选择已有练习"
+          ],
+          "role": "pending",
+          "jump": null
+        },
+        {
+          "id": "execute",
+          "title": "执行任务 · 提供新证据",
+          "body": [
+            "下发后学习 / 新作答 / 教师复查"
+          ],
+          "role": "data",
+          "jump": "I06"
+        },
+        {
+          "id": "research",
+          "title": "教研记录 · 行业能力",
+          "body": [
+            "人工维护 / 关联课程与知识点"
+          ],
+          "role": "teacher",
+          "jump": "I09"
+        },
+        {
+          "id": "discussion",
+          "title": "课程互动",
+          "body": [
+            "公告 / 提问 / 讨论 / 回复"
+          ],
+          "role": "system",
+          "jump": "I09"
+        },
+        {
+          "id": "communicate",
+          "title": "提问与回复",
+          "body": [
+            "查看公告 / 参与课程讨论"
+          ],
+          "role": "data",
+          "jump": "I09"
+        }
+      ],
+      "edges": [
+        {
+          "source": "course",
+          "target": "context",
+          "label": "配置"
+        },
+        {
+          "source": "context",
+          "target": "home",
+          "label": "选课"
+        },
+        {
+          "source": "context",
+          "target": "agent",
+          "label": "另一操作入口"
+        },
+        {
+          "source": "source",
+          "target": "parse",
+          "label": "解析"
+        },
+        {
+          "source": "parse",
+          "target": "source",
+          "label": "异常校正"
+        },
+        {
+          "source": "source",
+          "target": "content",
+          "label": "选片段发布"
+        },
+        {
+          "source": "content",
+          "target": "read",
+          "label": "阅读"
+        },
+        {
+          "source": "source",
+          "target": "reviewkb",
+          "label": "选择提炼范围"
+        },
+        {
+          "source": "reviewkb",
+          "target": "qa",
+          "label": "提炼候选"
+        },
+        {
+          "source": "qa",
+          "target": "reviewkb",
+          "label": "人工审定"
+        },
+        {
+          "source": "content",
+          "target": "rag",
+          "label": "学习索引"
+        },
+        {
+          "source": "reviewkb",
+          "target": "rag",
+          "label": "授权知识"
+        },
+        {
+          "source": "ask",
+          "target": "rag",
+          "label": "查询"
+        },
+        {
+          "source": "rag",
+          "target": "qa",
+          "label": "引用依据"
+        },
+        {
+          "source": "qa",
+          "target": "ask",
+          "label": "带引用回复"
+        },
+        {
+          "source": "rag",
+          "target": "author",
+          "label": "教师选依据"
+        },
+        {
+          "source": "bank",
+          "target": "author",
+          "label": "生成草稿"
+        },
+        {
+          "source": "author",
+          "target": "bank",
+          "label": "审定"
+        },
+        {
+          "source": "bank",
+          "target": "versions",
+          "label": "确认版本"
+        },
+        {
+          "source": "versions",
+          "target": "assignment",
+          "label": "引用"
+        },
+        {
+          "source": "assignment",
+          "target": "submit",
+          "label": "开放作答"
+        },
+        {
+          "source": "submit",
+          "target": "attempt",
+          "label": "正式提交"
+        },
+        {
+          "source": "attempt",
+          "target": "grading",
+          "label": "主观题草稿"
+        },
+        {
+          "source": "grading",
+          "target": "release",
+          "label": "复核"
+        },
+        {
+          "source": "release",
+          "target": "evidence",
+          "label": "发布后计入"
+        },
+        {
+          "source": "evidence",
+          "target": "feedback",
+          "label": "正式反馈"
+        },
+        {
+          "source": "evidence",
+          "target": "diagnose",
+          "label": "受限证据"
+        },
+        {
+          "source": "diagnose",
+          "target": "intervene",
+          "label": "复核并下发"
+        },
+        {
+          "source": "intervene",
+          "target": "feedback",
+          "label": "学习 / 练习目标"
+        },
+        {
+          "source": "feedback",
+          "target": "execute",
+          "label": "执行"
+        },
+        {
+          "source": "execute",
+          "target": "evidence",
+          "label": "新证据"
+        },
+        {
+          "source": "execute",
+          "target": "intervene",
+          "label": "复查"
+        },
+        {
+          "source": "reviewkb",
+          "target": "impact",
+          "label": "更新影响"
+        },
+        {
+          "source": "bank",
+          "target": "impact",
+          "label": "标准更正"
+        },
+        {
+          "source": "impact",
+          "target": "evidence",
+          "label": "整组统一发布"
+        },
+        {
+          "source": "research",
+          "target": "course",
+          "label": "教学调整"
+        },
+        {
+          "source": "course",
+          "target": "discussion",
+          "label": "发布公告"
+        },
+        {
+          "source": "communicate",
+          "target": "discussion",
+          "label": "提问 / 回复"
+        },
+        {
+          "source": "discussion",
+          "target": "communicate",
+          "label": "回看"
+        }
+      ]
+    },
+    {
+      "id": "I01",
+      "title": "登录、课程与编辑上下文",
+      "width": 2600,
+      "height": 1936,
+      "nodes": [
+        {
+          "id": "t",
+          "title": "登录教师账号",
+          "body": [
+            "进入教学看板"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "s",
+          "title": "登录学生账号",
+          "body": [
+            "进入本人概览"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "auth",
+          "title": "验证会话与身份",
+          "body": [
+            "失败保留输入 / 重试登录"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "select",
+          "title": "顶栏切换课程",
+          "body": [
+            "保持模块 / 清理旧对象参数"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "manage",
+          "title": "创建课程 · 维护成员",
+          "body": [
+            "课程管理中配置课程与成员"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "empty",
+          "title": "查看本人已加入课程",
+          "body": [
+            "无课程时联系教师"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "directory",
+          "title": "维护课程目录与依赖",
+          "body": [
+            "节点编辑 / 资料关联 / 知识点"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "permission",
+          "title": "核对对象与课程权限",
+          "body": [
+            "越权阻断 / 重新选择授权课程"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "learn",
+          "title": "按目录进入课程学习",
+          "body": [
+            "仅展示已授权发布内容"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "edit",
+          "title": "进入对象编辑器",
+          "body": [
+            "本地草稿与服务端版本分开"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "draft",
+          "title": "发现未保存改动",
+          "body": [
+            "切页 / 切课 / 返回均可取消"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "save",
+          "title": "保存或放弃后离开",
+          "body": [
+            "也可取消导航继续编辑"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "persist",
+          "title": "真实保存与版本校验",
+          "body": [
+            "失败保留编辑 / 冲突先刷新核对"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "profile",
+          "title": "个人设置",
+          "body": [
+            "修改本人资料 / 密码 / 退出"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "teacherprofile",
+          "title": "个人设置",
+          "body": [
+            "修改本人资料 / 密码 / 退出"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "logout",
+          "title": "会话结束或失效",
+          "body": [
+            "返回登录 / 私有数据不越账号恢复"
+          ],
+          "role": "system",
+          "jump": null
+        }
+      ],
+      "edges": [
+        {
+          "source": "t",
+          "target": "auth",
+          "label": "登录"
+        },
+        {
+          "source": "s",
+          "target": "auth",
+          "label": "登录"
+        },
+        {
+          "source": "auth",
+          "target": "select",
+          "label": "成功"
+        },
+        {
+          "source": "manage",
+          "target": "select",
+          "label": "选用课程"
+        },
+        {
+          "source": "select",
+          "target": "empty",
+          "label": "学生"
+        },
+        {
+          "source": "select",
+          "target": "permission",
+          "label": "打开对象"
+        },
+        {
+          "source": "manage",
+          "target": "directory",
+          "label": "配置"
+        },
+        {
+          "source": "directory",
+          "target": "permission",
+          "label": "保存"
+        },
+        {
+          "source": "permission",
+          "target": "learn",
+          "label": "学生可见"
+        },
+        {
+          "source": "permission",
+          "target": "edit",
+          "label": "教师可编辑"
+        },
+        {
+          "source": "edit",
+          "target": "draft",
+          "label": "离开"
+        },
+        {
+          "source": "draft",
+          "target": "save",
+          "label": "确认选择"
+        },
+        {
+          "source": "save",
+          "target": "edit",
+          "label": "取消离开"
+        },
+        {
+          "source": "save",
+          "target": "persist",
+          "label": "保存"
+        },
+        {
+          "source": "persist",
+          "target": "select",
+          "label": "切课 / 切页"
+        },
+        {
+          "source": "profile",
+          "target": "logout",
+          "label": "退出"
+        },
+        {
+          "source": "teacherprofile",
+          "target": "logout",
+          "label": "退出"
+        }
+      ]
+    },
+    {
+      "id": "I02",
+      "title": "学习资料：导入、加工与阅读",
+      "width": 2600,
+      "height": 2226,
+      "nodes": [
+        {
+          "id": "import",
+          "title": "导入文件 / 网页 / 文本",
+          "body": [
+            "PDF / DOCX / PPTX / 表格 / 扫描件"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "original",
+          "title": "保存原件与来源快照",
+          "body": [
+            "原网址 / 文件 / 版本 / 提炼许可"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "parse",
+          "title": "本地解析 · AI分类建议",
+          "body": [
+            "正文 / 表格 / 中文印刷OCR / 位置"
+          ],
+          "role": "ai",
+          "jump": null
+        },
+        {
+          "id": "correct",
+          "title": "核对解析 · 选择视觉区域",
+          "body": [
+            "修正文段 / 核对公式图表结果"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "reliable",
+          "title": "可靠原文与图像证据",
+          "body": [
+            "异常定位 / 修订不覆盖原件"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "vision",
+          "title": "按需识别印刷公式与图表",
+          "body": [
+            "保存原图 / 识别结果 / 待核对"
+          ],
+          "role": "ai",
+          "jump": null
+        },
+        {
+          "id": "publish",
+          "title": "选学习片段 · 关联目录",
+          "body": [
+            "设置可见性 / 确认发布"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "published",
+          "title": "学生可见学习内容",
+          "body": [
+            "部分发布不开放完整原件"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "read",
+          "title": "浏览目录 · 阅读资料",
+          "body": [
+            "查看已发布内容与允许的附件"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "index",
+          "title": "直接索引可靠原文",
+          "body": [
+            "检索权限不因索引扩大"
+          ],
+          "role": "system",
+          "jump": "I03"
+        },
+        {
+          "id": "extract",
+          "title": "选择知识提炼范围",
+          "body": [
+            "确认专题 / 标签建议 / 提炼许可"
+          ],
+          "role": "teacher",
+          "jump": "I03"
+        },
+        {
+          "id": "learn",
+          "title": "笔记 · 收藏 · 完成学习",
+          "body": [
+            "保留本人阅读与完成记录"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "job",
+          "title": "按所选范围提炼候选",
+          "body": [
+            "与学习发布 / 直接索引独立"
+          ],
+          "role": "ai",
+          "jump": "I03"
+        },
+        {
+          "id": "revision",
+          "title": "新增修订 / 归档 / 撤回许可",
+          "body": [
+            "明确操作后核对影响"
+          ],
+          "role": "teacher",
+          "jump": "I07"
+        },
+        {
+          "id": "history",
+          "title": "保存版本与历史引用",
+          "body": [
+            "普通新版不自动停用旧版"
+          ],
+          "role": "system",
+          "jump": "I07"
+        },
+        {
+          "id": "qa",
+          "title": "查引用 · 提问",
+          "body": [
+            "跳转资料问答或知识条目"
+          ],
+          "role": "data",
+          "jump": "I03"
+        },
+        {
+          "id": "failure",
+          "title": "解析或模型失败",
+          "body": [
+            "显示失败位置与任务状态"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "retry",
+          "title": "校正 / 换文件 / 显式重试",
+          "body": [
+            "未知生成不自动再次付费调用"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "receipt",
+          "title": "完成状态与保存回执",
+          "body": [
+            "排队中不显示为加工完成"
+          ],
+          "role": "system",
+          "jump": null
+        }
+      ],
+      "edges": [
+        {
+          "source": "import",
+          "target": "original",
+          "label": "保存"
+        },
+        {
+          "source": "original",
+          "target": "parse",
+          "label": "自动任务"
+        },
+        {
+          "source": "parse",
+          "target": "correct",
+          "label": "待核对"
+        },
+        {
+          "source": "correct",
+          "target": "vision",
+          "label": "按需调用"
+        },
+        {
+          "source": "vision",
+          "target": "correct",
+          "label": "回看图像"
+        },
+        {
+          "source": "correct",
+          "target": "reliable",
+          "label": "保存校正"
+        },
+        {
+          "source": "reliable",
+          "target": "publish",
+          "label": "学习发布分支"
+        },
+        {
+          "source": "publish",
+          "target": "published",
+          "label": "确认"
+        },
+        {
+          "source": "published",
+          "target": "read",
+          "label": "学生阅读"
+        },
+        {
+          "source": "read",
+          "target": "learn",
+          "label": "记录"
+        },
+        {
+          "source": "learn",
+          "target": "qa",
+          "label": "查资料"
+        },
+        {
+          "source": "reliable",
+          "target": "index",
+          "label": "直接索引分支"
+        },
+        {
+          "source": "reliable",
+          "target": "extract",
+          "label": "提炼分支"
+        },
+        {
+          "source": "extract",
+          "target": "job",
+          "label": "选择后执行"
+        },
+        {
+          "source": "revision",
+          "target": "history",
+          "label": "版本操作"
+        },
+        {
+          "source": "parse",
+          "target": "failure",
+          "label": "失败"
+        },
+        {
+          "source": "vision",
+          "target": "failure",
+          "label": "失败"
+        },
+        {
+          "source": "failure",
+          "target": "retry",
+          "label": "教师处理"
+        },
+        {
+          "source": "retry",
+          "target": "original",
+          "label": "替换文件"
+        },
+        {
+          "source": "job",
+          "target": "receipt",
+          "label": "终态"
+        },
+        {
+          "source": "index",
+          "target": "receipt",
+          "label": "完成"
+        }
+      ]
+    },
+    {
+      "id": "I03",
+      "title": "知识库、比较决策与资料问答",
+      "width": 2600,
+      "height": 2226,
+      "nodes": [
+        {
+          "id": "scope",
+          "title": "选原文范围与专题",
+          "body": [
+            "维护多专题 / 标签 / 知识点"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "candidate",
+          "title": "提炼知识 · 检索相似项",
+          "body": [
+            "概念 / 方法 / 规则 / 条件 / 来源"
+          ],
+          "role": "ai",
+          "jump": null
+        },
+        {
+          "id": "edit",
+          "title": "编辑候选与适用条件",
+          "body": [
+            "逐字来源 / 用途 / 学生可见性"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "compare",
+          "title": "比较重复或冲突知识",
+          "body": [
+            "双方原文 / 条件 / 差异 / 建议"
+          ],
+          "role": "ai",
+          "jump": null
+        },
+        {
+          "id": "decide",
+          "title": "逐项决定并填写理由",
+          "body": [
+            "暂缓 / 不采纳 / 合成 / 并存 / 替换"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "confirmed",
+          "title": "确认知识与版本关系",
+          "body": [
+            "替换只停用旧项未来使用"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "example",
+          "title": "教师自行编写教学示例",
+          "body": [
+            "独立来源 / 不用于评分"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "index",
+          "title": "构建授权检索空间",
+          "body": [
+            "已发布资料 + 确认知识"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "browse",
+          "title": "浏览知识与专题",
+          "body": [
+            "仅学习可见内容 / 关联资料"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "teacherask",
+          "title": "检索依据 / 提问",
+          "body": [
+            "可选学习或评分许可范围"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "search",
+          "title": "检索 · 权限与用途过滤",
+          "body": [
+            "向量 + 中文FTS + RRF"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "ask",
+          "title": "资料问答",
+          "body": [
+            "检索结果 / 提问 / 选择模型"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "response",
+          "title": "基于引用生成回复",
+          "body": [
+            "证据不足如实说明 / 不补造来源"
+          ],
+          "role": "ai",
+          "jump": null
+        },
+        {
+          "id": "history",
+          "title": "保存本人问答历史",
+          "body": [
+            "问题 / 回复 / 当时引用快照"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "reopen",
+          "title": "回看 / 刷新 / 复用问题",
+          "body": [
+            "回看不重新调用模型"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "author",
+          "title": "将所选依据用于出题",
+          "body": [
+            "仍需确认题目与评分标准"
+          ],
+          "role": "teacher",
+          "jump": "I04"
+        },
+        {
+          "id": "error",
+          "title": "失败 / 无授权结果",
+          "body": [
+            "保留问题 / 显式重试 / 调整范围"
+          ],
+          "role": "system",
+          "jump": null
+        }
+      ],
+      "edges": [
+        {
+          "source": "scope",
+          "target": "candidate",
+          "label": "执行提炼"
+        },
+        {
+          "source": "candidate",
+          "target": "edit",
+          "label": "候选"
+        },
+        {
+          "source": "edit",
+          "target": "compare",
+          "label": "比较"
+        },
+        {
+          "source": "compare",
+          "target": "decide",
+          "label": "人工决定"
+        },
+        {
+          "source": "decide",
+          "target": "confirmed",
+          "label": "确认"
+        },
+        {
+          "source": "decide",
+          "target": "edit",
+          "label": "暂缓继续改"
+        },
+        {
+          "source": "example",
+          "target": "confirmed",
+          "label": "保存示例"
+        },
+        {
+          "source": "confirmed",
+          "target": "index",
+          "label": "按用途索引"
+        },
+        {
+          "source": "confirmed",
+          "target": "browse",
+          "label": "学习可见"
+        },
+        {
+          "source": "browse",
+          "target": "ask",
+          "label": "提问"
+        },
+        {
+          "source": "teacherask",
+          "target": "search",
+          "label": "查询"
+        },
+        {
+          "source": "ask",
+          "target": "search",
+          "label": "查询"
+        },
+        {
+          "source": "index",
+          "target": "search",
+          "label": "召回"
+        },
+        {
+          "source": "search",
+          "target": "response",
+          "label": "可见证据"
+        },
+        {
+          "source": "response",
+          "target": "history",
+          "label": "保存"
+        },
+        {
+          "source": "history",
+          "target": "reopen",
+          "label": "回看引用"
+        },
+        {
+          "source": "reopen",
+          "target": "ask",
+          "label": "复用后主动发送"
+        },
+        {
+          "source": "search",
+          "target": "author",
+          "label": "选择依据"
+        },
+        {
+          "source": "response",
+          "target": "error",
+          "label": "失败"
+        },
+        {
+          "source": "search",
+          "target": "error",
+          "label": "无结果"
+        }
+      ]
+    },
+    {
+      "id": "I04",
+      "title": "题库、参考解答与评分标准",
+      "width": 2600,
+      "height": 2226,
+      "nodes": [
+        {
+          "id": "input",
+          "title": "手工录题 / JSON / 整卷导入",
+          "body": [
+            "单选 / 主观 / 代码文本"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "scope",
+          "title": "选择资料与知识依据",
+          "body": [
+            "考查要求 / 题型 / 满分"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "split",
+          "title": "整卷解析与拆题候选",
+          "body": [
+            "跨页 / 印刷公式 / 图表证据"
+          ],
+          "role": "ai",
+          "jump": null
+        },
+        {
+          "id": "draft",
+          "title": "生成题目 + 解答 + 标准",
+          "body": [
+            "三份草稿 / 不读取学生作答"
+          ],
+          "role": "ai",
+          "jump": null
+        },
+        {
+          "id": "correct",
+          "title": "拆分 / 合并 / 校正边界",
+          "body": [
+            "核对题干 / 选项 / 来源"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "bank",
+          "title": "独立题库与来源记录",
+          "body": [
+            "筛选 / 选用 / 采纳审计"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "question",
+          "title": "编辑并确认题目",
+          "body": [
+            "选项 / 题型 / 知识点 / 版本"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "answer",
+          "title": "编辑并确认参考解答",
+          "body": [
+            "与题目和标准分别确认"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "rubric",
+          "title": "按确定题目起草标准",
+          "body": [
+            "选定依据 / 评分点 / 部分分"
+          ],
+          "role": "ai",
+          "jump": null
+        },
+        {
+          "id": "standard",
+          "title": "编辑并确认评分标准",
+          "body": [
+            "维度 / 计分规则 / 满分加和"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "versions",
+          "title": "冻结题目与匹配标准版本",
+          "body": [
+            "草稿不可发布 / 引用精确版本"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "use",
+          "title": "建立作业 / 测验",
+          "body": [
+            "选择确认题目与匹配标准"
+          ],
+          "role": "teacher",
+          "jump": "I05"
+        },
+        {
+          "id": "change",
+          "title": "需要更正时新增版本",
+          "body": [
+            "改满分另建标准 / 不覆盖历史"
+          ],
+          "role": "system",
+          "jump": "I07"
+        }
+      ],
+      "edges": [
+        {
+          "source": "input",
+          "target": "split",
+          "label": "整卷"
+        },
+        {
+          "source": "split",
+          "target": "correct",
+          "label": "人工校正"
+        },
+        {
+          "source": "correct",
+          "target": "bank",
+          "label": "采纳"
+        },
+        {
+          "source": "input",
+          "target": "bank",
+          "label": "手工 / JSON"
+        },
+        {
+          "source": "scope",
+          "target": "draft",
+          "label": "AI辅助"
+        },
+        {
+          "source": "draft",
+          "target": "bank",
+          "label": "保存候选"
+        },
+        {
+          "source": "bank",
+          "target": "question",
+          "label": "选中编辑"
+        },
+        {
+          "source": "bank",
+          "target": "answer",
+          "label": "单独审定"
+        },
+        {
+          "source": "question",
+          "target": "rubric",
+          "label": "单独生成标准"
+        },
+        {
+          "source": "rubric",
+          "target": "standard",
+          "label": "草稿"
+        },
+        {
+          "source": "bank",
+          "target": "standard",
+          "label": "单独编辑标准"
+        },
+        {
+          "source": "question",
+          "target": "versions",
+          "label": "确认题目"
+        },
+        {
+          "source": "answer",
+          "target": "versions",
+          "label": "确认解答"
+        },
+        {
+          "source": "standard",
+          "target": "versions",
+          "label": "确认匹配标准"
+        },
+        {
+          "source": "versions",
+          "target": "use",
+          "label": "引用"
+        },
+        {
+          "source": "versions",
+          "target": "change",
+          "label": "更正"
+        }
+      ]
+    },
+    {
+      "id": "I05",
+      "title": "作业、测验、评阅与正式反馈",
+      "width": 2600,
+      "height": 2806,
+      "nodes": [
+        {
+          "id": "create",
+          "title": "创建作业 / 测验",
+          "body": [
+            "选题 / 标准版本 / 时间与要求"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "publish",
+          "title": "检查后发布",
+          "body": [
+            "确认版本 / 满分 / 课程归属"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "open",
+          "title": "查看任务与题目",
+          "body": [
+            "作答要求 / 截止 / 提交状态"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "csv",
+          "title": "CSV批量导入作答",
+          "body": [
+            "单题 ≤ 200份 / 选择对应学生"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "preview",
+          "title": "预览校验 · 尚未写入",
+          "body": [
+            "学生匹配 / 空值 / 重复 / 错误行"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "draft",
+          "title": "填写与保存草稿",
+          "body": [
+            "文本 / 代码文本 / 单选"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "confirmimport",
+          "title": "核对预览并确认导入",
+          "body": [
+            "取消不写入 / 失败修正后重传"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "attempt",
+          "title": "新增不可变提交记录",
+          "body": [
+            "原文 / 哈希 / 版本 / 操作者"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "submit",
+          "title": "逐题明确提交",
+          "body": [
+            "二次核对 / 查看服务端回执"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "reject",
+          "title": "逾期 / 关闭：拒绝提交",
+          "body": [
+            "学生提交与教师补录同样禁止"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "history",
+          "title": "回看提交历史",
+          "body": [
+            "草稿不等于提交 / 查看有效版本"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "manual",
+          "title": "查看原文 · 人工评阅",
+          "body": [
+            "也可选择生成主观题评分草稿"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "rules",
+          "title": "客观题规则判分",
+          "body": [
+            "固定正确选项 / 固定分值"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "ai",
+          "title": "生成主观题逐点草稿",
+          "body": [
+            "固定标准 / 逐字证据 / 问题建议"
+          ],
+          "role": "ai",
+          "jump": null
+        },
+        {
+          "id": "check",
+          "title": "核对结构、加和与引用",
+          "body": [
+            "标记异常 / 不代替语义复核"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "review",
+          "title": "逐份修改或确认",
+          "body": [
+            "核对原文 / 标准 / 评分依据"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "release",
+          "title": "另行发布正式结果",
+          "body": [
+            "未确认不发布 / 正式CSV导出"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "formal",
+          "title": "保存正式版本与证据",
+          "body": [
+            "未发布草稿学生不可见"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "feedback",
+          "title": "查看已发布反馈",
+          "body": [
+            "逐点分数 / 失分原句 / 改进建议"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "next",
+          "title": "进入关联学习与任务",
+          "body": [
+            "知识点缺口 / 学习路径"
+          ],
+          "role": "data",
+          "jump": "I06"
+        },
+        {
+          "id": "failure",
+          "title": "草稿任务失败或状态未知",
+          "body": [
+            "保留原文 / 人工评阅 / 显式重试"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "regrade",
+          "title": "关闭后更正标准",
+          "body": [
+            "另建整组重评 / 保留原成绩"
+          ],
+          "role": "teacher",
+          "jump": "I07"
+        }
+      ],
+      "edges": [
+        {
+          "source": "create",
+          "target": "publish",
+          "label": "发布"
+        },
+        {
+          "source": "publish",
+          "target": "open",
+          "label": "开放"
+        },
+        {
+          "source": "open",
+          "target": "draft",
+          "label": "作答"
+        },
+        {
+          "source": "draft",
+          "target": "submit",
+          "label": "正式提交"
+        },
+        {
+          "source": "submit",
+          "target": "attempt",
+          "label": "开放期内"
+        },
+        {
+          "source": "submit",
+          "target": "reject",
+          "label": "已截止 / 关闭"
+        },
+        {
+          "source": "csv",
+          "target": "preview",
+          "label": "读取文件"
+        },
+        {
+          "source": "preview",
+          "target": "confirmimport",
+          "label": "人工核对"
+        },
+        {
+          "source": "confirmimport",
+          "target": "attempt",
+          "label": "原子追加"
+        },
+        {
+          "source": "confirmimport",
+          "target": "reject",
+          "label": "已截止 / 关闭"
+        },
+        {
+          "source": "attempt",
+          "target": "history",
+          "label": "回执"
+        },
+        {
+          "source": "attempt",
+          "target": "manual",
+          "label": "查看"
+        },
+        {
+          "source": "attempt",
+          "target": "rules",
+          "label": "单选题"
+        },
+        {
+          "source": "manual",
+          "target": "ai",
+          "label": "按需生成"
+        },
+        {
+          "source": "ai",
+          "target": "check",
+          "label": "完成"
+        },
+        {
+          "source": "check",
+          "target": "review",
+          "label": "核对"
+        },
+        {
+          "source": "manual",
+          "target": "review",
+          "label": "人工打分"
+        },
+        {
+          "source": "review",
+          "target": "release",
+          "label": "确认后另行发布"
+        },
+        {
+          "source": "rules",
+          "target": "formal",
+          "label": "规则结果"
+        },
+        {
+          "source": "release",
+          "target": "formal",
+          "label": "正式结果"
+        },
+        {
+          "source": "formal",
+          "target": "feedback",
+          "label": "可见"
+        },
+        {
+          "source": "feedback",
+          "target": "next",
+          "label": "继续学习"
+        },
+        {
+          "source": "ai",
+          "target": "failure",
+          "label": "失败"
+        },
+        {
+          "source": "failure",
+          "target": "manual",
+          "label": "人工处理"
+        },
+        {
+          "source": "release",
+          "target": "regrade",
+          "label": "标准更正"
+        }
+      ]
+    },
+    {
+      "id": "I06",
+      "title": "正式证据、诊断、路径与干预闭环",
+      "width": 2600,
+      "height": 2516,
+      "nodes": [
+        {
+          "id": "dashboard",
+          "title": "教学看板 · 查看学情",
+          "body": [
+            "班级 / 学生 / 题目 / 标准维度"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "evidence",
+          "title": "汇总已发布有效结果",
+          "body": [
+            "去重 / 同题同标准 / 实际有效人数"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "home",
+          "title": "我的概览与评分缺口",
+          "body": [
+            "本人正式结果 / 原句与评分点"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "request",
+          "title": "选择题目与标准发起诊断",
+          "body": [
+            "查看原句证据 / 选择生成模型"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "diagnose",
+          "title": "生成共性问题诊断草稿",
+          "body": [
+            "只用正式失分答案 / 引用核对"
+          ],
+          "role": "ai",
+          "jump": null
+        },
+        {
+          "id": "review",
+          "title": "编辑 · 标签维护 · 确认诊断",
+          "body": [
+            "证据变化时禁止确认旧报告"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "snapshot",
+          "title": "保存诊断与输入快照",
+          "body": [
+            "保留任务 / 原句 / 教师确认"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "prefs",
+          "title": "设置学习偏好",
+          "body": [
+            "查看路径 / 保存偏好与历史"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "candidates",
+          "title": "规则生成授权学习候选",
+          "body": [
+            "知识 / 资料 / 已有练习目标"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "rank",
+          "title": "在规则候选内AI排序",
+          "body": [
+            "不新增无授权目标 / 保留排序依据"
+          ],
+          "role": "ai",
+          "jump": null
+        },
+        {
+          "id": "path",
+          "title": "选学习路径项",
+          "body": [
+            "阅读资料 / 知识 / 进入已有练习"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "create",
+          "title": "创建并下发干预任务",
+          "body": [
+            "选学生 / 目标 / 截止 / 验收要求"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "task",
+          "title": "查看老师任务",
+          "body": [
+            "开始学习或练习 / 查看要求"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "act",
+          "title": "学习 / 新作答 / 提交证据",
+          "body": [
+            "要求下发之后产生的新证据"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "verify",
+          "title": "验证证据归属与时间",
+          "body": [
+            "教师导入不冒充学生执行"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "assess",
+          "title": "复查执行结果",
+          "body": [
+            "通过 / 继续改进 / 查看关联证据"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "result",
+          "title": "查看复查结论",
+          "body": [
+            "继续学习并形成下一轮证据"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "future",
+          "title": "未实现：自动发布新补练",
+          "body": [
+            "当前由教师选择已有练习"
+          ],
+          "role": "pending",
+          "jump": null
+        }
+      ],
+      "edges": [
+        {
+          "source": "evidence",
+          "target": "dashboard",
+          "label": "班级"
+        },
+        {
+          "source": "evidence",
+          "target": "home",
+          "label": "本人"
+        },
+        {
+          "source": "dashboard",
+          "target": "request",
+          "label": "发起"
+        },
+        {
+          "source": "request",
+          "target": "diagnose",
+          "label": "受限输入"
+        },
+        {
+          "source": "diagnose",
+          "target": "review",
+          "label": "草稿"
+        },
+        {
+          "source": "review",
+          "target": "snapshot",
+          "label": "确认"
+        },
+        {
+          "source": "evidence",
+          "target": "candidates",
+          "label": "规则依据"
+        },
+        {
+          "source": "prefs",
+          "target": "candidates",
+          "label": "偏好"
+        },
+        {
+          "source": "candidates",
+          "target": "rank",
+          "label": "可选AI排序"
+        },
+        {
+          "source": "rank",
+          "target": "path",
+          "label": "推荐"
+        },
+        {
+          "source": "candidates",
+          "target": "path",
+          "label": "规则路径"
+        },
+        {
+          "source": "review",
+          "target": "create",
+          "label": "制定任务"
+        },
+        {
+          "source": "home",
+          "target": "path",
+          "label": "缺口关联"
+        },
+        {
+          "source": "path",
+          "target": "act",
+          "label": "自主学习"
+        },
+        {
+          "source": "create",
+          "target": "task",
+          "label": "下发"
+        },
+        {
+          "source": "task",
+          "target": "act",
+          "label": "执行"
+        },
+        {
+          "source": "act",
+          "target": "verify",
+          "label": "新证据"
+        },
+        {
+          "source": "verify",
+          "target": "assess",
+          "label": "可复查"
+        },
+        {
+          "source": "assess",
+          "target": "result",
+          "label": "反馈"
+        },
+        {
+          "source": "assess",
+          "target": "task",
+          "label": "继续改进"
+        },
+        {
+          "source": "act",
+          "target": "evidence",
+          "label": "正式结果后计入"
+        }
+      ]
+    },
+    {
+      "id": "I07",
+      "title": "内容变更与整组重评",
+      "width": 2600,
+      "height": 2226,
+      "nodes": [
+        {
+          "id": "change",
+          "title": "新增资料 / 知识 / 标准版本",
+          "body": [
+            "普通更新或明确归档 / 撤回"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "impact",
+          "title": "列出关联与影响",
+          "body": [
+            "来源 / 知识 / 题目 / 作业引用"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "decide",
+          "title": "核对影响 · 决定未来用途",
+          "body": [
+            "普通更新保留旧版可追溯使用"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "lifecycle",
+          "title": "落实明确生命周期操作",
+          "body": [
+            "归档 / 替换停用 / 撤回才限制使用"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "history",
+          "title": "保留发布与评分依据快照",
+          "body": [
+            "不改写历史 / 提示评估是否重评"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "start",
+          "title": "为关闭作业的单题建重评批次",
+          "body": [
+            "选择同满分、兼容题目的新版标准"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "reject",
+          "title": "题干 / 选项 / 满分已变更",
+          "body": [
+            "拒绝旧答案重评 / 另建任务"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "freeze",
+          "title": "冻结每人有效提交与基线",
+          "body": [
+            "同一新版标准 / 原文与哈希"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "grade",
+          "title": "按新版标准生成草稿",
+          "body": [
+            "逐份执行 / 固定同一依据"
+          ],
+          "role": "ai",
+          "jump": null
+        },
+        {
+          "id": "review",
+          "title": "逐份核对、修改并确认",
+          "body": [
+            "未全部确认不能发布"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "atomic",
+          "title": "整组原子发布",
+          "body": [
+            "核对基线 / 保留旧成绩与旧依据"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "student",
+          "title": "看到整组发布后的正式结果",
+          "body": [
+            "原反馈仍可追溯"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "error",
+          "title": "基线变化 / 草稿失败 / 未确认",
+          "body": [
+            "阻断发布 / 明确处理后继续"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "retry",
+          "title": "核对失败项或另建批次",
+          "body": [
+            "未知生成不自动付费重试"
+          ],
+          "role": "teacher",
+          "jump": null
+        }
+      ],
+      "edges": [
+        {
+          "source": "change",
+          "target": "impact",
+          "label": "保存新版本"
+        },
+        {
+          "source": "impact",
+          "target": "decide",
+          "label": "核对"
+        },
+        {
+          "source": "decide",
+          "target": "lifecycle",
+          "label": "明确确认"
+        },
+        {
+          "source": "lifecycle",
+          "target": "history",
+          "label": "历史保留"
+        },
+        {
+          "source": "decide",
+          "target": "start",
+          "label": "评估重评"
+        },
+        {
+          "source": "start",
+          "target": "reject",
+          "label": "不兼容"
+        },
+        {
+          "source": "start",
+          "target": "freeze",
+          "label": "符合条件"
+        },
+        {
+          "source": "freeze",
+          "target": "grade",
+          "label": "批次执行"
+        },
+        {
+          "source": "grade",
+          "target": "review",
+          "label": "草稿"
+        },
+        {
+          "source": "review",
+          "target": "atomic",
+          "label": "全部确认"
+        },
+        {
+          "source": "atomic",
+          "target": "student",
+          "label": "统一可见"
+        },
+        {
+          "source": "atomic",
+          "target": "error",
+          "label": "条件不满足"
+        },
+        {
+          "source": "grade",
+          "target": "error",
+          "label": "失败"
+        },
+        {
+          "source": "error",
+          "target": "retry",
+          "label": "人工处理"
+        },
+        {
+          "source": "retry",
+          "target": "review",
+          "label": "继续复核"
+        }
+      ]
+    },
+    {
+      "id": "I08",
+      "title": "对话助理、操作门禁与复杂编辑",
+      "width": 2600,
+      "height": 2806,
+      "nodes": [
+        {
+          "id": "teacher",
+          "title": "新建课程对话 · 发送要求",
+          "body": [
+            "选模型 / 权限模式 / 上传附件"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "session",
+          "title": "保存本人私有会话与附件",
+          "body": [
+            "附件需另行导入才成为业务原件"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "student",
+          "title": "向学习助理发起请求",
+          "body": [
+            "仅本人数据与课程授权内容"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "plan",
+          "title": "识别意图 · 顺序委派专家",
+          "body": [
+            "资料知识 / 出题标准 / 评阅 / 学习"
+          ],
+          "role": "ai",
+          "jump": null
+        },
+        {
+          "id": "gate",
+          "title": "逐工具校验权限与参数",
+          "body": [
+            "read-only / auto-review / full-access"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "answer",
+          "title": "填写输入 / 选择候选 / 审批",
+          "body": [
+            "精确参数下批准或拒绝本次操作"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "question",
+          "title": "需要信息或操作审批",
+          "body": [
+            "输入框 / 单选 / 多选 / 审批卡片"
+          ],
+          "role": "ai",
+          "jump": null
+        },
+        {
+          "id": "denied",
+          "title": "阻断未授权操作",
+          "body": [
+            "只读禁写 / 越权拒绝 / 审批未通过"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "studentinput",
+          "title": "补充输入 / 确认本人操作",
+          "body": [
+            "不扩大学生权限"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "editor",
+          "title": "在抽屉工作台复杂编辑",
+          "body": [
+            "原文 / 知识 / 题目标准 / 目录"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "more",
+          "title": "复用现有七类编辑器",
+          "body": [
+            "另含作答导入 / 诊断 / 整卷拆题"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "saved",
+          "title": "真实保存后返回对话",
+          "body": [
+            "未保存可暂时关闭 / 不可冒充完成"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "receipt",
+          "title": "服务端重读对象与保存回执",
+          "body": [
+            "核对版本与哈希 / 继续本次运行"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "tool",
+          "title": "执行已授权业务工具",
+          "body": [
+            "正式确认 / 发布始终逐操作审批"
+          ],
+          "role": "ai",
+          "jump": null
+        },
+        {
+          "id": "gateway",
+          "title": "通过既有业务权限路由执行",
+          "body": [
+            "无任意SQL / Shell / HTTP权限"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "wait",
+          "title": "等待长任务真实终态",
+          "body": [
+            "排队不算完成 / 展示步骤与结果"
+          ],
+          "role": "ai",
+          "jump": null
+        },
+        {
+          "id": "stream",
+          "title": "持久化公开文本与执行事件",
+          "body": [
+            "SSE / 刷新重连 / 历史分页"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "result",
+          "title": "查看结果 · 打开关联页面",
+          "body": [
+            "成功回执 / 异常处理 / 后续操作"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "studentresult",
+          "title": "查看本人结果与引用",
+          "body": [
+            "保留学习上下文 / 跳转授权页面"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "stop",
+          "title": "停止 / 拒绝 / 明确恢复",
+          "body": [
+            "已完成操作保留 / 未知写不重放"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "unknown",
+          "title": "失败与未知状态隔离",
+          "body": [
+            "不自动再次收费 / 检查点恢复"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "studentstop",
+          "title": "停止运行 / 拒绝操作",
+          "body": [
+            "保留已完成操作 / 查看运行状态"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "isolate",
+          "title": "读过作答或学情后隔离出题",
+          "body": [
+            "当前会话禁止出题与标准工具"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "new",
+          "title": "另建无作答上下文对话",
+          "body": [
+            "隔离后再起草题目与标准"
+          ],
+          "role": "teacher",
+          "jump": null
+        }
+      ],
+      "edges": [
+        {
+          "source": "teacher",
+          "target": "session",
+          "label": "发送"
+        },
+        {
+          "source": "student",
+          "target": "session",
+          "label": "发送"
+        },
+        {
+          "source": "session",
+          "target": "plan",
+          "label": "协调"
+        },
+        {
+          "source": "plan",
+          "target": "gate",
+          "label": "工具请求"
+        },
+        {
+          "source": "gate",
+          "target": "question",
+          "label": "缺信息 / 需审批"
+        },
+        {
+          "source": "question",
+          "target": "answer",
+          "label": "教师"
+        },
+        {
+          "source": "question",
+          "target": "studentinput",
+          "label": "学生"
+        },
+        {
+          "source": "answer",
+          "target": "gate",
+          "label": "提交选择"
+        },
+        {
+          "source": "studentinput",
+          "target": "gate",
+          "label": "提交输入"
+        },
+        {
+          "source": "gate",
+          "target": "editor",
+          "label": "复杂编辑"
+        },
+        {
+          "source": "editor",
+          "target": "more",
+          "label": "复用"
+        },
+        {
+          "source": "more",
+          "target": "saved",
+          "label": "保存"
+        },
+        {
+          "source": "saved",
+          "target": "receipt",
+          "label": "返回并继续"
+        },
+        {
+          "source": "receipt",
+          "target": "tool",
+          "label": "确认已保存"
+        },
+        {
+          "source": "gate",
+          "target": "tool",
+          "label": "获准"
+        },
+        {
+          "source": "tool",
+          "target": "gateway",
+          "label": "业务执行"
+        },
+        {
+          "source": "gateway",
+          "target": "wait",
+          "label": "异步任务"
+        },
+        {
+          "source": "wait",
+          "target": "stream",
+          "label": "终态回执"
+        },
+        {
+          "source": "gateway",
+          "target": "stream",
+          "label": "同步回执"
+        },
+        {
+          "source": "stream",
+          "target": "result",
+          "label": "教师"
+        },
+        {
+          "source": "stream",
+          "target": "studentresult",
+          "label": "学生"
+        },
+        {
+          "source": "gate",
+          "target": "denied",
+          "label": "禁止执行"
+        },
+        {
+          "source": "denied",
+          "target": "result",
+          "label": "显示原因"
+        },
+        {
+          "source": "teacher",
+          "target": "stop",
+          "label": "运行中停止"
+        },
+        {
+          "source": "question",
+          "target": "stop",
+          "label": "拒绝审批"
+        },
+        {
+          "source": "student",
+          "target": "studentstop",
+          "label": "运行中停止"
+        },
+        {
+          "source": "studentstop",
+          "target": "unknown",
+          "label": "中断处理"
+        },
+        {
+          "source": "stop",
+          "target": "unknown",
+          "label": "中断处理"
+        },
+        {
+          "source": "wait",
+          "target": "unknown",
+          "label": "失败 / 未知"
+        },
+        {
+          "source": "gateway",
+          "target": "isolate",
+          "label": "读取作答 / 学情"
+        },
+        {
+          "source": "isolate",
+          "target": "new",
+          "label": "隔离提示"
+        }
+      ]
+    },
+    {
+      "id": "I09",
+      "title": "课程互动、教研与行业能力",
+      "width": 2600,
+      "height": 1646,
+      "nodes": [
+        {
+          "id": "publish",
+          "title": "发布公告 / 讨论 / 课程提问",
+          "body": [
+            "输入标题与正文"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "save",
+          "title": "校验身份与课程并保存",
+          "body": [
+            "作者 / 类型 / 时间 / 回复关联"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "ask",
+          "title": "课程提问",
+          "body": [
+            "输入问题 / 提交"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "list",
+          "title": "课程帖子与回复列表",
+          "body": [
+            "只展示当前课程内容"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "answer",
+          "title": "查看帖子 · 回复",
+          "body": [
+            "取消回复可恢复发布状态"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "reply",
+          "title": "查看公告 · 参与回复",
+          "body": [
+            "查看提问与讨论历史"
+          ],
+          "role": "data",
+          "jump": null
+        },
+        {
+          "id": "research",
+          "title": "维护教研记录",
+          "body": [
+            "主题 / 结论 / 关联课程内容"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "record",
+          "title": "保存人工教研与能力记录",
+          "body": [
+            "可查询 / 关联教学调整"
+          ],
+          "role": "system",
+          "jump": null
+        },
+        {
+          "id": "industry",
+          "title": "维护行业能力与知识关联",
+          "body": [
+            "教师录入 / 不自动抓取行业信息"
+          ],
+          "role": "teacher",
+          "jump": null
+        },
+        {
+          "id": "error",
+          "title": "失败保留输入",
+          "body": [
+            "显示错误 / 修改后明确重试"
+          ],
+          "role": "system",
+          "jump": null
+        }
+      ],
+      "edges": [
+        {
+          "source": "publish",
+          "target": "save",
+          "label": "发布"
+        },
+        {
+          "source": "ask",
+          "target": "save",
+          "label": "提问"
+        },
+        {
+          "source": "save",
+          "target": "list",
+          "label": "刷新列表"
+        },
+        {
+          "source": "list",
+          "target": "answer",
+          "label": "教师"
+        },
+        {
+          "source": "list",
+          "target": "reply",
+          "label": "学生"
+        },
+        {
+          "source": "answer",
+          "target": "save",
+          "label": "回复"
+        },
+        {
+          "source": "reply",
+          "target": "save",
+          "label": "回复"
+        },
+        {
+          "source": "research",
+          "target": "record",
+          "label": "保存"
+        },
+        {
+          "source": "industry",
+          "target": "record",
+          "label": "保存"
+        },
+        {
+          "source": "save",
+          "target": "error",
+          "label": "失败"
+        },
+        {
+          "source": "record",
+          "target": "error",
+          "label": "失败"
+        }
+      ]
+    }
+  ],
+  "route_coverage": [
+    {
+      "role": "teacher",
+      "route": "dashboard",
+      "title": "教学看板",
+      "figure": "I06"
+    },
+    {
+      "role": "teacher",
+      "route": "assistant",
+      "title": "课程助理",
+      "figure": "I08"
+    },
+    {
+      "role": "teacher",
+      "route": "intervention",
+      "title": "干预任务",
+      "figure": "I06"
+    },
+    {
+      "role": "teacher",
+      "route": "courses",
+      "title": "课程管理",
+      "figure": "I01"
+    },
+    {
+      "role": "teacher",
+      "route": "curriculum",
+      "title": "课程目录",
+      "figure": "I01"
+    },
+    {
+      "role": "teacher",
+      "route": "materials",
+      "title": "学习资料",
+      "figure": "I02"
+    },
+    {
+      "role": "teacher",
+      "route": "knowledge",
+      "title": "知识库",
+      "figure": "I03"
+    },
+    {
+      "role": "teacher",
+      "route": "retrieval",
+      "title": "检索与问答",
+      "figure": "I03"
+    },
+    {
+      "role": "teacher",
+      "route": "content-impact",
+      "title": "内容变更",
+      "figure": "I07"
+    },
+    {
+      "role": "teacher",
+      "route": "question-bank",
+      "title": "题库",
+      "figure": "I04"
+    },
+    {
+      "role": "teacher",
+      "route": "homework",
+      "title": "作业中心",
+      "figure": "I05"
+    },
+    {
+      "role": "teacher",
+      "route": "quiz",
+      "title": "测验",
+      "figure": "I05"
+    },
+    {
+      "role": "teacher",
+      "route": "regrades",
+      "title": "整组重评",
+      "figure": "I07"
+    },
+    {
+      "role": "teacher",
+      "route": "interaction",
+      "title": "课程互动",
+      "figure": "I09"
+    },
+    {
+      "role": "teacher",
+      "route": "research",
+      "title": "教研记录",
+      "figure": "I09"
+    },
+    {
+      "role": "teacher",
+      "route": "industry-intelligence",
+      "title": "行业能力",
+      "figure": "I09"
+    },
+    {
+      "role": "teacher",
+      "route": "profile",
+      "title": "个人设置",
+      "figure": "I01"
+    },
+    {
+      "role": "student",
+      "route": "home",
+      "title": "我的概览",
+      "figure": "I06"
+    },
+    {
+      "role": "student",
+      "route": "assistant",
+      "title": "学习助理",
+      "figure": "I08"
+    },
+    {
+      "role": "student",
+      "route": "learning",
+      "title": "学习路径",
+      "figure": "I06"
+    },
+    {
+      "role": "student",
+      "route": "course-content",
+      "title": "课程学习",
+      "figure": "I02"
+    },
+    {
+      "role": "student",
+      "route": "knowledge",
+      "title": "知识库",
+      "figure": "I03"
+    },
+    {
+      "role": "student",
+      "route": "retrieval",
+      "title": "资料问答",
+      "figure": "I03"
+    },
+    {
+      "role": "student",
+      "route": "homework",
+      "title": "作业",
+      "figure": "I05"
+    },
+    {
+      "role": "student",
+      "route": "quiz",
+      "title": "测验",
+      "figure": "I05"
+    },
+    {
+      "role": "student",
+      "route": "intervention",
+      "title": "老师任务",
+      "figure": "I06"
+    },
+    {
+      "role": "student",
+      "route": "interaction",
+      "title": "课程互动",
+      "figure": "I09"
+    },
+    {
+      "role": "student",
+      "route": "profile",
+      "title": "个人设置",
+      "figure": "I01"
+    }
+  ],
+  "sources": {
+    "I00": [
+      "web/src/app/navigation.ts",
+      "web/src/live/routes.tsx",
+      "docs/architecture.md"
+    ],
+    "I01": [
+      "web/src/live/course-management.tsx",
+      "web/src/live/curriculum.tsx",
+      "web/src/live/editing.tsx",
+      "web/src/live/account.tsx"
+    ],
+    "I02": [
+      "web/src/live/knowledge.tsx",
+      "backend/internal/learning/materials.go",
+      "backend/internal/rag/vision.go"
+    ],
+    "I03": [
+      "web/src/live/knowledge-review.tsx",
+      "web/src/live/retrieval-history.tsx",
+      "backend/internal/learning/assist.go"
+    ],
+    "I04": [
+      "web/src/live/question-bank.tsx",
+      "backend/internal/learning/question_bank.go",
+      "backend/internal/rag/question_bank.go"
+    ],
+    "I05": [
+      "web/src/live/assessment.tsx",
+      "web/src/live/grading.tsx",
+      "web/src/live/submission-import.tsx",
+      "backend/internal/learning/submission_import.go"
+    ],
+    "I06": [
+      "web/src/live/intelligence.tsx",
+      "web/src/live/path.tsx",
+      "web/src/live/interventions.tsx",
+      "backend/internal/learning/intelligence.go"
+    ],
+    "I07": [
+      "web/src/live/content-impact.tsx",
+      "web/src/live/regrades.tsx",
+      "backend/internal/learning/regrade.go"
+    ],
+    "I08": [
+      "docs/agent-harness.md",
+      "web/src/live/agent.tsx",
+      "web/src/live/agent-editor.tsx",
+      "backend/internal/agent/catalog.go"
+    ],
+    "I09": [
+      "web/src/live/communication.tsx",
+      "web/src/live/activity.tsx"
+    ]
+  },
+  "not_implemented": [
+    "自动生成并发布新补练"
+  ],
+  "checks": [
+    "orthogonal-routing",
+    "no-edge-through-unrelated-node",
+    "no-node-overlap",
+    "navigation-coverage"
+  ]
+}

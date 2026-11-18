@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2600" height="1646" viewBox="0 0 2600 1646" role="img" aria-label="课程互动、教研与行业能力">
+<title>I09 课程互动、教研与行业能力</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 1 L9 5 L0 9Z" fill="#839097"/></marker></defs>
+<g font-family="Microsoft YaHei, sans-serif">
+<rect x="0" y="0" width="2600" height="1646" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="80" y="77" font-size="40" fill="#242424" font-weight="700" text-anchor="start" >I09　课程互动、教研与行业能力</text>
+<text x="2520" y="77" font-size="21" fill="#58616A" font-weight="400" text-anchor="end" >2026-11-17 · 本地实现</text>
+<rect x="62.0" y="125" width="541.0" height="1486" rx="10" fill="#EDECE6" stroke="none" />
+<text x="80.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >教师</text>
+<rect x="707.0" y="125" width="541.0" height="1486" rx="10" fill="#F1F0EB" stroke="none" />
+<text x="725.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >平台</text>
+<rect x="1352.0" y="125" width="541.0" height="1486" rx="10" fill="#EDECE6" stroke="none" />
+<text x="1370.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >AI / 对话助理</text>
+<rect x="1997.0" y="125" width="541.0" height="1486" rx="10" fill="#F1F0EB" stroke="none" />
+<text x="2015.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >学生</text>
+<g class="edges">
+<g class="edge" data-from="publish" data-to="save"><title>发布</title><path d="M585.0,323.0 L725.0,323.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="ask" data-to="save"><title>提问</title><path d="M2015.0,323.0 L1230.0,323.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="save" data-to="list"><title>刷新列表</title><path d="M977.5,411 L977.5,525" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="list" data-to="answer"><title>教师</title><path d="M725.0,613.0 L585.0,613.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="list" data-to="reply"><title>学生</title><path d="M1230.0,613.0 L2015.0,613.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="answer" data-to="save"><title>回复</title><path d="M585.0,642.0 L607.0,642.0 L607.0,352.0 L725.0,352.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="reply" data-to="save"><title>回复</title><path d="M2520.0,613.0 L2542.0,613.0 L2542.0,433 L703.0,433 L703.0,294.0 L725.0,294.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="research" data-to="record"><title>保存</title><path d="M585.0,903.0 L725.0,903.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="industry" data-to="record"><title>保存</title><path d="M585.0,1193.0 L607.0,1193.0 L607.0,932.0 L725.0,932.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="save" data-to="error"><title>失败</title><path d="M1006.5,411 L1006.5,503 L1252.0,503 L1252.0,1373 L977.5,1373 L977.5,1395" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="record" data-to="error"><title>失败</title><path d="M977.5,991 L977.5,1013 L1006.5,1013 L1006.5,1395" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+</g><g class="nodes">
+<g class="node" data-node="publish" tabindex="0" role="button" aria-label="发布公告 / 讨论 / 课程提问">
+<rect x="80.0" y="235" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="278" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >发布公告 / 讨论 / 课程提问</text>
+<text x="102.0" y="320" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >输入标题与正文</text>
+</g>
+<g class="node" data-node="save" tabindex="0" role="button" aria-label="校验身份与课程并保存">
+<rect x="725.0" y="235" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="278" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >校验身份与课程并保存</text>
+<text x="747.0" y="320" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >作者 / 类型 / 时间 / 回复关联</text>
+</g>
+<g class="node" data-node="ask" tabindex="0" role="button" aria-label="课程提问">
+<rect x="2015.0" y="235" width="505.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="2037.0" y="278" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >课程提问</text>
+<text x="2037.0" y="320" font-size="22" fill="#526575" font-weight="400" text-anchor="start" >输入问题 / 提交</text>
+</g>
+<g class="node" data-node="list" tabindex="0" role="button" aria-label="课程帖子与回复列表">
+<rect x="725.0" y="525" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="568" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >课程帖子与回复列表</text>
+<text x="747.0" y="610" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >只展示当前课程内容</text>
+</g>
+<g class="node" data-node="answer" tabindex="0" role="button" aria-label="查看帖子 · 回复">
+<rect x="80.0" y="525" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="568" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >查看帖子 · 回复</text>
+<text x="102.0" y="610" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >取消回复可恢复发布状态</text>
+</g>
+<g class="node" data-node="reply" tabindex="0" role="button" aria-label="查看公告 · 参与回复">
+<rect x="2015.0" y="525" width="505.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="2037.0" y="568" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >查看公告 · 参与回复</text>
+<text x="2037.0" y="610" font-size="22" fill="#526575" font-weight="400" text-anchor="start" >查看提问与讨论历史</text>
+</g>
+<g class="node" data-node="research" tabindex="0" role="button" aria-label="维护教研记录">
+<rect x="80.0" y="815" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="858" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >维护教研记录</text>
+<text x="102.0" y="900" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >主题 / 结论 / 关联课程内容</text>
+</g>
+<g class="node" data-node="record" tabindex="0" role="button" aria-label="保存人工教研与能力记录">
+<rect x="725.0" y="815" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="858" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >保存人工教研与能力记录</text>
+<text x="747.0" y="900" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >可查询 / 关联教学调整</text>
+</g>
+<g class="node" data-node="industry" tabindex="0" role="button" aria-label="维护行业能力与知识关联">
+<rect x="80.0" y="1105" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="1148" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >维护行业能力与知识关联</text>
+<text x="102.0" y="1190" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >教师录入 / 不自动抓取行业信息</text>
+</g>
+<g class="node" data-node="error" tabindex="0" role="button" aria-label="失败保留输入">
+<rect x="725.0" y="1395" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="1438" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >失败保留输入</text>
+<text x="747.0" y="1480" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >显示错误 / 修改后明确重试</text>
+</g>
+</g><g class="labels">
+<g class="edge-label" data-from="publish" data-to="save">
+<rect x="626.0" y="289.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="655.0" y="310.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >发布</text>
+</g>
+<g class="edge-label" data-from="ask" data-to="save">
+<rect x="1593.5" y="289.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1622.5" y="310.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >提问</text>
+</g>
+<g class="edge-label" data-from="save" data-to="list">
+<rect x="987.5" y="453.5" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1035.5" y="474.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >刷新列表</text>
+</g>
+<g class="edge-label" data-from="list" data-to="answer">
+<rect x="626.0" y="579.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="655.0" y="600.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >教师</text>
+</g>
+<g class="edge-label" data-from="list" data-to="reply">
+<rect x="1593.5" y="579.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1622.5" y="600.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >学生</text>
+</g>
+<g class="edge-label" data-from="answer" data-to="save">
+<rect x="617.0" y="482.5" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="646.0" y="503.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >回复</text>
+</g>
+<g class="edge-label" data-from="reply" data-to="save">
+<rect x="1593.5" y="399" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1622.5" y="420" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >回复</text>
+</g>
+<g class="edge-label" data-from="research" data-to="record">
+<rect x="626.0" y="869.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="655.0" y="890.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >保存</text>
+</g>
+<g class="edge-label" data-from="industry" data-to="record">
+<rect x="617.0" y="1048.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="646.0" y="1069.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >保存</text>
+</g>
+<g class="edge-label" data-from="save" data-to="error">
+<rect x="1100.25" y="469" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1129.25" y="490" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >失败</text>
+</g>
+<g class="edge-label" data-from="record" data-to="error">
+<rect x="1016.5" y="1189.5" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1045.5" y="1210.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >失败</text>
+</g>
+</g></g></svg>

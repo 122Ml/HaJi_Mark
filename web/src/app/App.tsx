@@ -154,10 +154,10 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
           className="sidebar"
           aria-label={teacher ? "教师导航" : "学生导航"}
         >
-          <Menu mode="inline" selectedKeys={[pathname.endsWith("/profile") ? `${root}/profile` : groups.flatMap(g => g.links).map(([path]) => `${root}/${path}`).find(path => pathname === path || pathname.startsWith(path + "/")) || ""]}
+          <Menu mode="inline" selectedKeys={[pathname.endsWith("/profile") ? "account" : current?.label || ""]}
             items={[
-              ...groups.map(group => ({ key: group.label, type: "group" as const, label: group.label, children: group.links.map(([path, label]) => ({ key: `${root}/${path}`, label: <Link to={withCourse(`${root}/${path}`)}>{label}</Link> })) })),
-              { key: "account", type: "group", label: "账户", children: [{ key: `${root}/profile`, label: <Link to={withCourse(`${root}/profile`)}>个人设置</Link> }] },
+              ...groups.map(group => ({ key: group.label, label: <Link to={withCourse(`${root}/${group.links[0][0]}`)}>{group.label}</Link> })),
+              { key: "account", label: <Link to={withCourse(`${root}/profile`)}>个人设置</Link> },
             ]}
           />
         </nav>
@@ -185,6 +185,9 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
                 onClose={() => setError("")}
               />
             )}
+            {current && current.links.length > 1 && <nav className="workspace-subnav" aria-label={`${current.label}功能`}>
+              {current.links.map(([path, label]) => <NavLink key={path} to={withCourse(`${root}/${path}`)}>{label}</NavLink>)}
+            </nav>}
             <LiveRoutes teacher={teacher} />
           </main>
           <footer className="workspace-footer">

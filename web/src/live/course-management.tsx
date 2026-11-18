@@ -1,6 +1,6 @@
 import { Field } from "../shared/Field";
 import { useState } from "react";
-import { Tabs, Input, Pagination, Card, Form, Button, Collapse, List, Alert } from "antd";
+import { Tabs, Input, Pagination, Card, Form, Button, Collapse, List, Alert, Typography } from "antd";
 import { useSearchParams } from "react-router-dom";
 import { useSession } from "../shared/session";
 import { requestJSON } from "../shared/api";
@@ -92,7 +92,7 @@ export function CourseManagement() {
         {filtered.slice((page - 1) * 8, page * 8).map((c) => (
           <article className="live-row" key={c.id}>
             <div>
-              <h2>{c.title}</h2>
+              <Typography.Text strong className="item-title">{c.title}</Typography.Text>
               <MetaTags>
                 <StatusTag status={c.status} label={names[c.status]} />
                 <MetaTag>{c.knowledge_point_count} 个知识点</MetaTag>
@@ -125,7 +125,7 @@ export function CourseManagement() {
         />
       </Card>
       {course && (
-        <Card className="card-panel" title={<h2>{course.title}</h2>}>
+        <Card className="card-panel" title={<>{course.title}</>}>
 
           <Tabs
             activeKey={tab}

@@ -1,13 +1,13 @@
 {
-  "date": "2026-11-17",
-  "source_sha256": "b0abefb41e313bcfedf12a74f8d262bb2b560beb8ee935961aa27f6221f36a63",
+  "date": "2026-11-19",
+  "source_sha256": "846f6dcdb02a03418522b30f58883da5d6c0f0fe5985da75eba05e19cda520a0",
   "basis": "mounted source registrations; not runtime/network frequency",
-  "route_count": 145,
+  "route_count": 155,
   "method_counts": {
-    "GET": 64,
-    "POST": 63,
+    "GET": 67,
+    "POST": 67,
     "DELETE": 3,
-    "PUT": 14,
+    "PUT": 17,
     "PATCH": 1
   },
   "routes": [
@@ -212,7 +212,7 @@
       "csrf": true,
       "handler": "publishCourse",
       "source": "backend/internal/learning/http.go",
-      "line": 38,
+      "line": 39,
       "rag_gate": false
     },
     {
@@ -224,7 +224,7 @@
       "csrf": true,
       "handler": "renameCourse",
       "source": "backend/internal/learning/http.go",
-      "line": 39,
+      "line": 40,
       "rag_gate": false
     },
     {
@@ -236,7 +236,7 @@
       "csrf": true,
       "handler": "importCurriculum",
       "source": "backend/internal/learning/http.go",
-      "line": 40,
+      "line": 41,
       "rag_gate": false
     },
     {
@@ -248,7 +248,7 @@
       "csrf": true,
       "handler": "createPoint",
       "source": "backend/internal/learning/http.go",
-      "line": 41,
+      "line": 42,
       "rag_gate": false
     },
     {
@@ -260,7 +260,7 @@
       "csrf": false,
       "handler": "graph",
       "source": "backend/internal/learning/http.go",
-      "line": 42,
+      "line": 43,
       "rag_gate": false
     },
     {
@@ -272,7 +272,7 @@
       "csrf": true,
       "handler": "edge",
       "source": "backend/internal/learning/http.go",
-      "line": 43,
+      "line": 44,
       "rag_gate": false
     },
     {
@@ -284,7 +284,7 @@
       "csrf": false,
       "handler": "path",
       "source": "backend/internal/learning/http.go",
-      "line": 44,
+      "line": 45,
       "rag_gate": false
     },
     {
@@ -296,7 +296,7 @@
       "csrf": true,
       "handler": "planPath",
       "source": "backend/internal/learning/http.go",
-      "line": 45,
+      "line": 46,
       "rag_gate": false
     },
     {
@@ -308,7 +308,7 @@
       "csrf": false,
       "handler": "members",
       "source": "backend/internal/learning/http.go",
-      "line": 46,
+      "line": 47,
       "rag_gate": false
     },
     {
@@ -320,7 +320,7 @@
       "csrf": true,
       "handler": "enroll",
       "source": "backend/internal/learning/http.go",
-      "line": 47,
+      "line": 48,
       "rag_gate": false
     },
     {
@@ -332,7 +332,7 @@
       "csrf": true,
       "handler": "createStudent",
       "source": "backend/internal/learning/http.go",
-      "line": 48,
+      "line": 49,
       "rag_gate": false
     },
     {
@@ -344,7 +344,7 @@
       "csrf": false,
       "handler": "resources",
       "source": "backend/internal/learning/http.go",
-      "line": 49,
+      "line": 50,
       "rag_gate": false
     },
     {
@@ -356,7 +356,7 @@
       "csrf": true,
       "handler": "createResource",
       "source": "backend/internal/learning/http.go",
-      "line": 50,
+      "line": 51,
       "rag_gate": false
     },
     {
@@ -368,7 +368,7 @@
       "csrf": true,
       "handler": "createResource",
       "source": "backend/internal/learning/http.go",
-      "line": 51,
+      "line": 52,
       "rag_gate": false
     },
     {
@@ -380,7 +380,7 @@
       "csrf": true,
       "handler": "publishResource",
       "source": "backend/internal/learning/http.go",
-      "line": 52,
+      "line": 53,
       "rag_gate": false
     },
     {
@@ -392,7 +392,7 @@
       "csrf": true,
       "handler": "event",
       "source": "backend/internal/learning/http.go",
-      "line": 53,
+      "line": 54,
       "rag_gate": false
     },
     {
@@ -404,7 +404,7 @@
       "csrf": false,
       "handler": "events",
       "source": "backend/internal/learning/http.go",
-      "line": 54,
+      "line": 55,
       "rag_gate": false
     },
     {
@@ -416,7 +416,7 @@
       "csrf": false,
       "handler": "activity",
       "source": "backend/internal/learning/http.go",
-      "line": 55,
+      "line": 56,
       "rag_gate": false
     },
     {
@@ -428,7 +428,7 @@
       "csrf": false,
       "handler": "notes",
       "source": "backend/internal/learning/http.go",
-      "line": 56,
+      "line": 57,
       "rag_gate": false
     },
     {
@@ -440,7 +440,7 @@
       "csrf": true,
       "handler": "note",
       "source": "backend/internal/learning/http.go",
-      "line": 57,
+      "line": 58,
       "rag_gate": false
     },
     {
@@ -452,7 +452,7 @@
       "csrf": false,
       "handler": "assignments",
       "source": "backend/internal/learning/http.go",
-      "line": 58,
+      "line": 59,
       "rag_gate": false
     },
     {
@@ -464,7 +464,7 @@
       "csrf": false,
       "handler": "assignmentWorklist",
       "source": "backend/internal/learning/http.go",
-      "line": 59,
+      "line": 60,
       "rag_gate": false
     },
     {
@@ -476,7 +476,7 @@
       "csrf": false,
       "handler": "submissionWorklist",
       "source": "backend/internal/learning/http.go",
-      "line": 60,
+      "line": 61,
       "rag_gate": false
     },
     {
@@ -488,7 +488,7 @@
       "csrf": false,
       "handler": "interventionEvidence",
       "source": "backend/internal/learning/http.go",
-      "line": 61,
+      "line": 62,
       "rag_gate": false
     },
     {
@@ -500,7 +500,7 @@
       "csrf": true,
       "handler": "createAssignment",
       "source": "backend/internal/learning/http.go",
-      "line": 62,
+      "line": 63,
       "rag_gate": false
     },
     {
@@ -512,7 +512,7 @@
       "csrf": true,
       "handler": "createAssignment",
       "source": "backend/internal/learning/http.go",
-      "line": 63,
+      "line": 64,
       "rag_gate": false
     },
     {
@@ -524,7 +524,7 @@
       "csrf": false,
       "handler": "assignment",
       "source": "backend/internal/learning/http.go",
-      "line": 64,
+      "line": 65,
       "rag_gate": false
     },
     {
@@ -536,7 +536,7 @@
       "csrf": true,
       "handler": "assignmentState",
       "source": "backend/internal/learning/http.go",
-      "line": 65,
+      "line": 66,
       "rag_gate": false
     },
     {
@@ -548,7 +548,7 @@
       "csrf": false,
       "handler": "submissions",
       "source": "backend/internal/learning/http.go",
-      "line": 66,
+      "line": 67,
       "rag_gate": false
     },
     {
@@ -560,7 +560,7 @@
       "csrf": false,
       "handler": "roster",
       "source": "backend/internal/learning/http.go",
-      "line": 67,
+      "line": 68,
       "rag_gate": false
     },
     {
@@ -572,7 +572,7 @@
       "csrf": true,
       "handler": "submit",
       "source": "backend/internal/learning/http.go",
-      "line": 68,
+      "line": 69,
       "rag_gate": false
     },
     {
@@ -584,7 +584,7 @@
       "csrf": false,
       "handler": "submissionImports",
       "source": "backend/internal/learning/http.go",
-      "line": 69,
+      "line": 70,
       "rag_gate": false
     },
     {
@@ -596,7 +596,7 @@
       "csrf": true,
       "handler": "importSubmissions",
       "source": "backend/internal/learning/http.go",
-      "line": 70,
+      "line": 71,
       "rag_gate": false
     },
     {
@@ -608,7 +608,7 @@
       "csrf": false,
       "handler": "draft",
       "source": "backend/internal/learning/http.go",
-      "line": 71,
+      "line": 72,
       "rag_gate": false
     },
     {
@@ -620,7 +620,7 @@
       "csrf": true,
       "handler": "saveDraft",
       "source": "backend/internal/learning/http.go",
-      "line": 72,
+      "line": 73,
       "rag_gate": false
     },
     {
@@ -632,7 +632,7 @@
       "csrf": false,
       "handler": "submission",
       "source": "backend/internal/learning/http.go",
-      "line": 73,
+      "line": 74,
       "rag_gate": false
     },
     {
@@ -644,7 +644,7 @@
       "csrf": false,
       "handler": "rubrics",
       "source": "backend/internal/learning/http.go",
-      "line": 74,
+      "line": 75,
       "rag_gate": false
     },
     {
@@ -656,7 +656,7 @@
       "csrf": true,
       "handler": "createRubric",
       "source": "backend/internal/learning/http.go",
-      "line": 75,
+      "line": 76,
       "rag_gate": false
     },
     {
@@ -668,7 +668,7 @@
       "csrf": true,
       "handler": "confirmRubric",
       "source": "backend/internal/learning/http.go",
-      "line": 76,
+      "line": 77,
       "rag_gate": false
     },
     {
@@ -680,7 +680,7 @@
       "csrf": true,
       "handler": "grade",
       "source": "backend/internal/learning/http.go",
-      "line": 77,
+      "line": 78,
       "rag_gate": false
     },
     {
@@ -692,7 +692,7 @@
       "csrf": true,
       "handler": "gradeState",
       "source": "backend/internal/learning/http.go",
-      "line": 78,
+      "line": 79,
       "rag_gate": false
     },
     {
@@ -704,7 +704,7 @@
       "csrf": false,
       "handler": "interventions",
       "source": "backend/internal/learning/http.go",
-      "line": 79,
+      "line": 80,
       "rag_gate": false
     },
     {
@@ -716,7 +716,7 @@
       "csrf": true,
       "handler": "createIntervention",
       "source": "backend/internal/learning/http.go",
-      "line": 80,
+      "line": 81,
       "rag_gate": false
     },
     {
@@ -728,7 +728,7 @@
       "csrf": true,
       "handler": "interventionState",
       "source": "backend/internal/learning/http.go",
-      "line": 81,
+      "line": 82,
       "rag_gate": false
     },
     {
@@ -740,7 +740,7 @@
       "csrf": false,
       "handler": "interactions",
       "source": "backend/internal/learning/http.go",
-      "line": 82,
+      "line": 83,
       "rag_gate": false
     },
     {
@@ -752,7 +752,7 @@
       "csrf": true,
       "handler": "createInteraction",
       "source": "backend/internal/learning/http.go",
-      "line": 83,
+      "line": 84,
       "rag_gate": false
     },
     {
@@ -764,7 +764,7 @@
       "csrf": false,
       "handler": "overview",
       "source": "backend/internal/learning/http.go",
-      "line": 84,
+      "line": 85,
       "rag_gate": false
     },
     {
@@ -776,7 +776,7 @@
       "csrf": false,
       "handler": "evidence",
       "source": "backend/internal/learning/http.go",
-      "line": 85,
+      "line": 86,
       "rag_gate": false
     },
     {
@@ -788,7 +788,7 @@
       "csrf": false,
       "handler": "assistStatus",
       "source": "backend/internal/learning/http.go",
-      "line": 86,
+      "line": 87,
       "rag_gate": false
     },
     {
@@ -800,7 +800,7 @@
       "csrf": true,
       "handler": "assist",
       "source": "backend/internal/learning/http.go",
-      "line": 87,
+      "line": 88,
       "rag_gate": false
     },
     {
@@ -812,7 +812,7 @@
       "csrf": false,
       "handler": "assistHistory",
       "source": "backend/internal/learning/http.go",
-      "line": 88,
+      "line": 89,
       "rag_gate": false
     },
     {
@@ -824,7 +824,7 @@
       "csrf": false,
       "handler": "assistTurn",
       "source": "backend/internal/learning/http.go",
-      "line": 89,
+      "line": 90,
       "rag_gate": false
     },
     {
@@ -836,7 +836,7 @@
       "csrf": false,
       "handler": "research",
       "source": "backend/internal/learning/http.go",
-      "line": 90,
+      "line": 91,
       "rag_gate": false
     },
     {
@@ -848,7 +848,7 @@
       "csrf": true,
       "handler": "createResearch",
       "source": "backend/internal/learning/http.go",
-      "line": 91,
+      "line": 92,
       "rag_gate": false
     },
     {
@@ -860,7 +860,7 @@
       "csrf": true,
       "handler": "createResearch",
       "source": "backend/internal/learning/http.go",
-      "line": 92,
+      "line": 93,
       "rag_gate": false
     },
     {
@@ -872,7 +872,7 @@
       "csrf": true,
       "handler": "deleteResearch",
       "source": "backend/internal/learning/http.go",
-      "line": 93,
+      "line": 94,
       "rag_gate": false
     },
     {
@@ -884,7 +884,7 @@
       "csrf": false,
       "handler": "industry",
       "source": "backend/internal/learning/http.go",
-      "line": 94,
+      "line": 95,
       "rag_gate": false
     },
     {
@@ -896,7 +896,7 @@
       "csrf": true,
       "handler": "createIndustry",
       "source": "backend/internal/learning/http.go",
-      "line": 95,
+      "line": 96,
       "rag_gate": false
     },
     {
@@ -908,7 +908,7 @@
       "csrf": true,
       "handler": "createIndustry",
       "source": "backend/internal/learning/http.go",
-      "line": 96,
+      "line": 97,
       "rag_gate": false
     },
     {
@@ -920,7 +920,7 @@
       "csrf": true,
       "handler": "deleteIndustry",
       "source": "backend/internal/learning/http.go",
-      "line": 97,
+      "line": 98,
       "rag_gate": false
     },
     {
@@ -932,7 +932,7 @@
       "csrf": false,
       "handler": "models",
       "source": "backend/internal/learning/materials.go",
-      "line": 32,
+      "line": 47,
       "rag_gate": true
     },
     {
@@ -944,7 +944,7 @@
       "csrf": false,
       "handler": "sources",
       "source": "backend/internal/learning/materials.go",
-      "line": 33,
+      "line": 48,
       "rag_gate": true
     },
     {
@@ -956,7 +956,7 @@
       "csrf": false,
       "handler": "sourceDetail",
       "source": "backend/internal/learning/materials.go",
-      "line": 34,
+      "line": 49,
       "rag_gate": true
     },
     {
@@ -968,7 +968,7 @@
       "csrf": true,
       "handler": "uploadSources",
       "source": "backend/internal/learning/materials.go",
-      "line": 35,
+      "line": 50,
       "rag_gate": true
     },
     {
@@ -980,7 +980,7 @@
       "csrf": true,
       "handler": "correctFragments",
       "source": "backend/internal/learning/materials.go",
-      "line": 36,
+      "line": 51,
       "rag_gate": true
     },
     {
@@ -992,7 +992,7 @@
       "csrf": true,
       "handler": "publishFragments",
       "source": "backend/internal/learning/materials.go",
-      "line": 37,
+      "line": 52,
       "rag_gate": true
     },
     {
@@ -1004,7 +1004,7 @@
       "csrf": true,
       "handler": "archiveSource",
       "source": "backend/internal/learning/materials.go",
-      "line": 38,
+      "line": 53,
       "rag_gate": true
     },
     {
@@ -1016,7 +1016,7 @@
       "csrf": true,
       "handler": "sourceDerivation",
       "source": "backend/internal/learning/materials.go",
-      "line": 39,
+      "line": 54,
       "rag_gate": true
     },
     {
@@ -1028,7 +1028,7 @@
       "csrf": false,
       "handler": "downloadSource",
       "source": "backend/internal/learning/materials.go",
-      "line": 40,
+      "line": 55,
       "rag_gate": true
     },
     {
@@ -1040,7 +1040,7 @@
       "csrf": false,
       "handler": "knowledge",
       "source": "backend/internal/learning/materials.go",
-      "line": 41,
+      "line": 56,
       "rag_gate": true
     },
     {
@@ -1052,7 +1052,7 @@
       "csrf": true,
       "handler": "saveKnowledge",
       "source": "backend/internal/learning/materials.go",
-      "line": 42,
+      "line": 57,
       "rag_gate": true
     },
     {
@@ -1064,7 +1064,7 @@
       "csrf": true,
       "handler": "saveKnowledge",
       "source": "backend/internal/learning/materials.go",
-      "line": 43,
+      "line": 58,
       "rag_gate": true
     },
     {
@@ -1076,7 +1076,7 @@
       "csrf": true,
       "handler": "knowledgeState",
       "source": "backend/internal/learning/materials.go",
-      "line": 44,
+      "line": 59,
       "rag_gate": true
     },
     {
@@ -1088,7 +1088,7 @@
       "csrf": true,
       "handler": "createRAGJob",
       "source": "backend/internal/learning/materials.go",
-      "line": 45,
+      "line": 60,
       "rag_gate": true
     },
     {
@@ -1100,7 +1100,7 @@
       "csrf": false,
       "handler": "jobs",
       "source": "backend/internal/learning/materials.go",
-      "line": 46,
+      "line": 61,
       "rag_gate": true
     },
     {
@@ -1112,7 +1112,7 @@
       "csrf": false,
       "handler": "job",
       "source": "backend/internal/learning/materials.go",
-      "line": 47,
+      "line": 62,
       "rag_gate": true
     },
     {
@@ -1124,7 +1124,7 @@
       "csrf": true,
       "handler": "cancelJob",
       "source": "backend/internal/learning/materials.go",
-      "line": 48,
+      "line": 63,
       "rag_gate": true
     },
     {
@@ -1136,7 +1136,7 @@
       "csrf": true,
       "handler": "retryJob",
       "source": "backend/internal/learning/materials.go",
-      "line": 49,
+      "line": 64,
       "rag_gate": true
     },
     {
@@ -1148,8 +1148,8 @@
       "csrf": true,
       "handler": "retrieval",
       "source": "backend/internal/learning/materials.go",
-      "line": 50,
-      "rag_gate": true
+      "line": 65,
+      "rag_gate": false
     },
     {
       "method": "GET",
@@ -1160,8 +1160,8 @@
       "csrf": false,
       "handler": "retrievalStatus",
       "source": "backend/internal/learning/materials.go",
-      "line": 51,
-      "rag_gate": true
+      "line": 66,
+      "rag_gate": false
     },
     {
       "method": "GET",
@@ -1609,6 +1609,126 @@
     },
     {
       "method": "GET",
+      "path": "/api/v1/learning/courses/:courseID/intelligence",
+      "function": "读取本人的诊断或推荐历史",
+      "access": "师生；本课程；按对象/可见性过滤",
+      "invocation": "HTTP JSON；同步读取",
+      "csrf": false,
+      "handler": "intelligenceList",
+      "source": "backend/internal/learning/intelligence.go",
+      "line": 19,
+      "rag_gate": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/learning/courses/:courseID/intelligence",
+      "function": "冻结正式作答/规则候选并排队分析，按请求号幂等",
+      "access": "师生；本课程；按对象/可见性过滤",
+      "invocation": "HTTP JSON → 冻结输入/报告/任务同事务 → Asynq模型分析 → 校验落库 → 轮询",
+      "csrf": true,
+      "handler": "intelligenceCreate",
+      "source": "backend/internal/learning/intelligence.go",
+      "line": 20,
+      "rag_gate": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/learning/courses/:courseID/intelligence/:reportID",
+      "function": "读取本人报告，重查正式证据与推荐可见性",
+      "access": "师生；本课程；按对象/可见性过滤",
+      "invocation": "HTTP JSON；同步读取",
+      "csrf": false,
+      "handler": "intelligenceRead",
+      "source": "backend/internal/learning/intelligence.go",
+      "line": 21,
+      "rag_gate": false
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/learning/courses/:courseID/intelligence/:reportID",
+      "function": "保存或确认诊断；校验原句、标签、编辑版本和正式证据",
+      "access": "教师；本课程",
+      "invocation": "HTTP JSON；同步业务处理",
+      "csrf": true,
+      "handler": "diagnosisEdit",
+      "source": "backend/internal/learning/intelligence.go",
+      "line": 22,
+      "rag_gate": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/learning/courses/:courseID/intelligence/:reportID/confirm",
+      "function": "保存或确认诊断；校验原句、标签、编辑版本和正式证据",
+      "access": "教师；本课程",
+      "invocation": "HTTP JSON；同步业务处理",
+      "csrf": true,
+      "handler": "diagnosisEdit",
+      "source": "backend/internal/learning/intelligence.go",
+      "line": 23,
+      "rag_gate": false
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/learning/courses/:courseID/intelligence/:reportID/choice",
+      "function": "保存本人推荐偏好；重新核验内容可用性",
+      "access": "学生；本人/本课程",
+      "invocation": "HTTP JSON；同步业务处理",
+      "csrf": true,
+      "handler": "recommendationChoice",
+      "source": "backend/internal/learning/intelligence.go",
+      "line": 24,
+      "rag_gate": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/learning/courses/:courseID/intelligence/:reportID/cancel",
+      "function": "取消本人的分析任务",
+      "access": "师生；本课程；按对象/可见性过滤",
+      "invocation": "HTTP JSON；同步业务处理",
+      "csrf": true,
+      "handler": "intelligenceCancel",
+      "source": "backend/internal/learning/intelligence.go",
+      "line": 25,
+      "rag_gate": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/learning/courses/:courseID/diagnosis-labels",
+      "function": "读取课程问题标签",
+      "access": "教师；本课程",
+      "invocation": "HTTP JSON；同步读取",
+      "csrf": false,
+      "handler": "diagnosisLabels",
+      "source": "backend/internal/learning/intelligence.go",
+      "line": 26,
+      "rag_gate": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/learning/courses/:courseID/diagnosis-labels",
+      "function": "教师维护问题标签及启停",
+      "access": "教师；本课程",
+      "invocation": "HTTP JSON；同步业务处理",
+      "csrf": true,
+      "handler": "diagnosisLabelSave",
+      "source": "backend/internal/learning/intelligence.go",
+      "line": 27,
+      "rag_gate": false
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/learning/courses/:courseID/diagnosis-labels/:labelID",
+      "function": "教师维护问题标签及启停",
+      "access": "教师；本课程",
+      "invocation": "HTTP JSON；同步业务处理",
+      "csrf": true,
+      "handler": "diagnosisLabelSave",
+      "source": "backend/internal/learning/intelligence.go",
+      "line": 28,
+      "rag_gate": false
+    },
+    {
+      "method": "GET",
       "path": "/api/v1/learning/courses/:courseID/agent/status",
       "function": "读取可用模型、工具及运行上限",
       "access": "师生；本人对话；本课程；写入仍按业务身份授权",
@@ -1708,7 +1828,7 @@
       "path": "/api/v1/learning/courses/:courseID/agent/conversations/:conversationID/events",
       "function": "按游标重放运行事件并保持SSE连接",
       "access": "师生；本人对话；本课程；写入仍按业务身份授权",
-      "invocation": "业务事件SSE；游标重放、心跳与重连；非模型token流",
+      "invocation": "持久事件SSE；业务状态＋协调者文本快照；游标重放、心跳与重连",
       "csrf": false,
       "handler": "stream",
       "source": "backend/internal/agent/http.go",

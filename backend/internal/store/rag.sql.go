@@ -145,8 +145,8 @@ func (q *Queries) ClaimProcessingJob(ctx context.Context, id string) (Processing
 }
 
 const createKnowledgeEntry = `-- name: CreateKnowledgeEntry :one
-INSERT INTO knowledge_entries(id,course_id,created_by,title,body,category,content_kind,conditions,knowledge_point_ids,evidence,related_ids,student_visible,use_for_learning,use_for_grading,version,supersedes_id)
-VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id, course_id, created_by, title, body, category, content_kind, conditions, knowledge_point_ids, evidence, related_ids, student_visible, use_for_learning, use_for_grading, state, version, supersedes_id, edit_version, confirmed_at, created_at
+INSERT INTO knowledge_entries(id,course_id,created_by,title,body,category,content_kind,conditions,knowledge_point_ids,evidence,related_ids,student_visible,use_for_learning,use_for_grading,version,supersedes_id,origin)
+VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,COALESCE(NULLIF($17::text,''),'source')) RETURNING id, course_id, created_by, title, body, category, content_kind, conditions, knowledge_point_ids, evidence, related_ids, student_visible, use_for_learning, use_for_grading, state, version, supersedes_id, edit_version, confirmed_at, created_at, origin
 `
 
 type CreateKnowledgeEntryParams struct {
@@ -166,6 +166,7 @@ type CreateKnowledgeEntryParams struct {
 	UseForGrading     bool            `json:"use_for_grading"`
 	Version           int32           `json:"version"`
 	SupersedesID      pgtype.Text     `json:"supersedes_id"`
+	Origin            string          `json:"origin"`
 }
 
 func (q *Queries) CreateKnowledgeEntry(ctx context.Context, arg CreateKnowledgeEntryParams) (KnowledgeEntry, error) {
@@ -186,6 +187,7 @@ func (q *Queries) CreateKnowledgeEntry(ctx context.Context, arg CreateKnowledgeE
 		arg.UseForGrading,
 		arg.Version,
 		arg.SupersedesID,
+		arg.Origin,
 	)
 	var i KnowledgeEntry
 	err := row.Scan(
@@ -209,6 +211,7 @@ func (q *Queries) CreateKnowledgeEntry(ctx context.Context, arg CreateKnowledgeE
 		&i.EditVersion,
 		&i.ConfirmedAt,
 		&i.CreatedAt,
+		&i.Origin,
 	)
 	return i, err
 }
@@ -340,7 +343,7 @@ func (q *Queries) CreateProcessingJob(ctx context.Context, arg CreateProcessingJ
 
 const editKnowledgeEntry = `-- name: EditKnowledgeEntry :one
 UPDATE knowledge_entries SET title=$3,body=$4,category=$5,content_kind=$6,conditions=$7,knowledge_point_ids=$8,evidence=$9,related_ids=$10,student_visible=$11,use_for_learning=$12,use_for_grading=$13,edit_version=edit_version+1
-WHERE id=$1 AND course_id=$2 AND state='draft' AND edit_version=$14 RETURNING id, course_id, created_by, title, body, category, content_kind, conditions, knowledge_point_ids, evidence, related_ids, student_visible, use_for_learning, use_for_grading, state, version, supersedes_id, edit_version, confirmed_at, created_at
+WHERE id=$1 AND course_id=$2 AND state='draft' AND edit_version=$14 RETURNING id, course_id, created_by, title, body, category, content_kind, conditions, knowledge_point_ids, evidence, related_ids, student_visible, use_for_learning, use_for_grading, state, version, supersedes_id, edit_version, confirmed_at, created_at, origin
 `
 
 type EditKnowledgeEntryParams struct {
@@ -399,6 +402,7 @@ func (q *Queries) EditKnowledgeEntry(ctx context.Context, arg EditKnowledgeEntry
 		&i.EditVersion,
 		&i.ConfirmedAt,
 		&i.CreatedAt,
+		&i.Origin,
 	)
 	return i, err
 }
@@ -483,7 +487,7 @@ func (q *Queries) GetEmbeddingSpace(ctx context.Context, id string) (EmbeddingSp
 }
 
 const getKnowledgeEntry = `-- name: GetKnowledgeEntry :one
-SELECT id, course_id, created_by, title, body, category, content_kind, conditions, knowledge_point_ids, evidence, related_ids, student_visible, use_for_learning, use_for_grading, state, version, supersedes_id, edit_version, confirmed_at, created_at FROM knowledge_entries WHERE id=$1 AND course_id=$2
+SELECT id, course_id, created_by, title, body, category, content_kind, conditions, knowledge_point_ids, evidence, related_ids, student_visible, use_for_learning, use_for_grading, state, version, supersedes_id, edit_version, confirmed_at, created_at, origin FROM knowledge_entries WHERE id=$1 AND course_id=$2
 `
 
 type GetKnowledgeEntryParams struct {
@@ -515,6 +519,7 @@ func (q *Queries) GetKnowledgeEntry(ctx context.Context, arg GetKnowledgeEntryPa
 		&i.EditVersion,
 		&i.ConfirmedAt,
 		&i.CreatedAt,
+		&i.Origin,
 	)
 	return i, err
 }
@@ -786,7 +791,7 @@ func (q *Queries) ListCourseModelCalls(ctx context.Context, courseID string) ([]
 }
 
 const listIndexKnowledge = `-- name: ListIndexKnowledge :many
-SELECT id, course_id, created_by, title, body, category, content_kind, conditions, knowledge_point_ids, evidence, related_ids, student_visible, use_for_learning, use_for_grading, state, version, supersedes_id, edit_version, confirmed_at, created_at FROM knowledge_entries WHERE course_id=$1 AND state='confirmed'
+SELECT id, course_id, created_by, title, body, category, content_kind, conditions, knowledge_point_ids, evidence, related_ids, student_visible, use_for_learning, use_for_grading, state, version, supersedes_id, edit_version, confirmed_at, created_at, origin FROM knowledge_entries WHERE course_id=$1 AND state='confirmed'
 `
 
 func (q *Queries) ListIndexKnowledge(ctx context.Context, courseID string) ([]KnowledgeEntry, error) {
@@ -819,6 +824,7 @@ func (q *Queries) ListIndexKnowledge(ctx context.Context, courseID string) ([]Kn
 			&i.EditVersion,
 			&i.ConfirmedAt,
 			&i.CreatedAt,
+			&i.Origin,
 		); err != nil {
 			return nil, err
 		}
@@ -831,7 +837,7 @@ func (q *Queries) ListIndexKnowledge(ctx context.Context, courseID string) ([]Kn
 }
 
 const listKnowledgeEntries = `-- name: ListKnowledgeEntries :many
-SELECT k.id, k.course_id, k.created_by, k.title, k.body, k.category, k.content_kind, k.conditions, k.knowledge_point_ids, k.evidence, k.related_ids, k.student_visible, k.use_for_learning, k.use_for_grading, k.state, k.version, k.supersedes_id, k.edit_version, k.confirmed_at, k.created_at FROM knowledge_entries k WHERE k.course_id=$1 AND ($2::boolean OR (k.state='confirmed' AND k.student_visible AND k.use_for_learning
+SELECT k.id, k.course_id, k.created_by, k.title, k.body, k.category, k.content_kind, k.conditions, k.knowledge_point_ids, k.evidence, k.related_ids, k.student_visible, k.use_for_learning, k.use_for_grading, k.state, k.version, k.supersedes_id, k.edit_version, k.confirmed_at, k.created_at, k.origin FROM knowledge_entries k WHERE k.course_id=$1 AND ($2::boolean OR (k.state='confirmed' AND k.student_visible AND k.use_for_learning
  AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev WHERE NOT EXISTS(SELECT 1 FROM resources pr JOIN material_sources ms ON ms.id=pr.source_id WHERE pr.status='published' AND ms.state='active' AND ms.allow_derived AND ev->>'fragment_id'=ANY(pr.fragment_ids))))) ORDER BY created_at DESC
 `
 
@@ -870,6 +876,7 @@ func (q *Queries) ListKnowledgeEntries(ctx context.Context, arg ListKnowledgeEnt
 			&i.EditVersion,
 			&i.ConfirmedAt,
 			&i.CreatedAt,
+			&i.Origin,
 		); err != nil {
 			return nil, err
 		}
@@ -1021,6 +1028,76 @@ func (q *Queries) ListMaterialSources(ctx context.Context, courseID string) ([]L
 			&i.CreatedAt,
 			&i.FragmentCount,
 			&i.ReviewCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProcessingJobPage = `-- name: ListProcessingJobPage :many
+SELECT id, course_id, created_by, kind, state, input, output, progress, error, attempt, created_at, started_at, finished_at FROM processing_jobs WHERE course_id=$1
+AND ($2::text='' OR kind=ANY(string_to_array($2,',')))
+AND ($3::text='' OR input->>'source_id'=$3)
+AND ($4::text='' OR input->>'knowledge_id'=$4)
+AND ($5::text='' OR input->>'question_id'=$5)
+AND ($6::text='' OR input->>'submission_id'=$6)
+AND ($7::text='' OR input->>'rubric_id'=$7)
+AND ($8::text='' OR input->>'asset_id'=$8)
+ORDER BY created_at DESC,id DESC LIMIT $10 OFFSET $9
+`
+
+type ListProcessingJobPageParams struct {
+	CourseID     string `json:"course_id"`
+	Kind         string `json:"kind"`
+	SourceID     string `json:"source_id"`
+	KnowledgeID  string `json:"knowledge_id"`
+	QuestionID   string `json:"question_id"`
+	SubmissionID string `json:"submission_id"`
+	RubricID     string `json:"rubric_id"`
+	AssetID      string `json:"asset_id"`
+	PageOffset   int32  `json:"page_offset"`
+	PageSize     int32  `json:"page_size"`
+}
+
+func (q *Queries) ListProcessingJobPage(ctx context.Context, arg ListProcessingJobPageParams) ([]ProcessingJob, error) {
+	rows, err := q.db.Query(ctx, listProcessingJobPage,
+		arg.CourseID,
+		arg.Kind,
+		arg.SourceID,
+		arg.KnowledgeID,
+		arg.QuestionID,
+		arg.SubmissionID,
+		arg.RubricID,
+		arg.AssetID,
+		arg.PageOffset,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProcessingJob{}
+	for rows.Next() {
+		var i ProcessingJob
+		if err := rows.Scan(
+			&i.ID,
+			&i.CourseID,
+			&i.CreatedBy,
+			&i.Kind,
+			&i.State,
+			&i.Input,
+			&i.Output,
+			&i.Progress,
+			&i.Error,
+			&i.Attempt,
+			&i.CreatedAt,
+			&i.StartedAt,
+			&i.FinishedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1197,6 +1274,35 @@ func (q *Queries) MissingChunkEmbeddings(ctx context.Context, arg MissingChunkEm
 		return nil, err
 	}
 	return items, nil
+}
+
+const objectRetrievalStatus = `-- name: ObjectRetrievalStatus :one
+SELECT count(c.id)::int AS keyword_chunks, count(e.chunk_id)::int AS vector_chunks
+FROM retrieval_chunks c JOIN courses course ON course.id=c.course_id
+LEFT JOIN chunk_embeddings e ON e.chunk_id=c.id AND e.space_id=course.embedding_space_id
+WHERE c.course_id=$1 AND c.active AND (
+ ($2::text<>'' AND EXISTS(SELECT 1 FROM resources r WHERE r.id=$2 AND r.course_id=c.course_id AND r.status='published' AND
+  (c.resource_id=r.id OR (c.source_id=r.source_id AND cardinality(c.fragment_ids)>0 AND c.fragment_ids <@ r.fragment_ids))))
+ OR ($3::text<>'' AND c.source_id=$3 AND EXISTS(SELECT 1 FROM material_sources s JOIN material_fragments f ON f.source_id=s.id AND f.revision=s.parse_revision WHERE s.id=c.source_id AND f.id=ANY(c.fragment_ids)))
+)
+`
+
+type ObjectRetrievalStatusParams struct {
+	CourseID   string `json:"course_id"`
+	ResourceID string `json:"resource_id"`
+	SourceID   string `json:"source_id"`
+}
+
+type ObjectRetrievalStatusRow struct {
+	KeywordChunks int32 `json:"keyword_chunks"`
+	VectorChunks  int32 `json:"vector_chunks"`
+}
+
+func (q *Queries) ObjectRetrievalStatus(ctx context.Context, arg ObjectRetrievalStatusParams) (ObjectRetrievalStatusRow, error) {
+	row := q.db.QueryRow(ctx, objectRetrievalStatus, arg.CourseID, arg.ResourceID, arg.SourceID)
+	var i ObjectRetrievalStatusRow
+	err := row.Scan(&i.KeywordChunks, &i.VectorChunks)
+	return i, err
 }
 
 const pendingCourseIndex = `-- name: PendingCourseIndex :one
@@ -1521,7 +1627,7 @@ func (q *Queries) StudentCanDownloadSource(ctx context.Context, arg StudentCanDo
 
 const transitionKnowledgeEntry = `-- name: TransitionKnowledgeEntry :one
 UPDATE knowledge_entries SET state=$3,confirmed_at=CASE WHEN $3='confirmed' THEN now() ELSE confirmed_at END
-WHERE id=$1 AND course_id=$2 AND state=$4 AND edit_version=$5 RETURNING id, course_id, created_by, title, body, category, content_kind, conditions, knowledge_point_ids, evidence, related_ids, student_visible, use_for_learning, use_for_grading, state, version, supersedes_id, edit_version, confirmed_at, created_at
+WHERE id=$1 AND course_id=$2 AND state=$4 AND edit_version=$5 RETURNING id, course_id, created_by, title, body, category, content_kind, conditions, knowledge_point_ids, evidence, related_ids, student_visible, use_for_learning, use_for_grading, state, version, supersedes_id, edit_version, confirmed_at, created_at, origin
 `
 
 type TransitionKnowledgeEntryParams struct {
@@ -1562,6 +1668,7 @@ func (q *Queries) TransitionKnowledgeEntry(ctx context.Context, arg TransitionKn
 		&i.EditVersion,
 		&i.ConfirmedAt,
 		&i.CreatedAt,
+		&i.Origin,
 	)
 	return i, err
 }

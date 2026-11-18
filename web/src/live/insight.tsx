@@ -1,5 +1,5 @@
 import { Field } from "../shared/Field";
-import { Table, Progress, Tabs, Input, Pagination, Button, Card, Select, Statistic } from "antd";
+import { Table, Progress, Tabs, Input, Pagination, Button, Card, Select, Statistic, Typography } from "antd";
 import { LoadingState, ErrorState, MetaTag, MetaTags, StatusTag } from "../shared/ui";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -13,7 +13,9 @@ import type { Assignment } from "./assessment";
 import type { Point } from "./course";
 import { RevisionPoints, PointFeedback } from "./rubrics";
 import { LearningGaps } from "./learning-gaps";
+import { DiagnosisPanel } from "./intelligence";
 interface Evidence {
+  assignment_title: string;
   rubric_version: number | null;
   rubric_id: string | null;
   point_scores: PointFeedback[];
@@ -38,7 +40,7 @@ interface Overview {
   submitted_assignments: number;
   pending_interventions: number;
 }
-export function OverviewPage() {
+export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
   const { session } = useSession();
   const teacher = session?.user.role === "teacher";
   const evidence = useLiveQuery<Evidence[]>("/evidence");
@@ -69,7 +71,7 @@ export function OverviewPage() {
     next.set("view", "students");
     setParams(next);
   };
-  const view = params.get("view") || (studentFilter ? "students" : "overview");
+  const view = params.get("view") || (studentFilter ? "students" : analysis ? "gaps" : "overview");
   const rows = (evidence.data || []).filter(
     (r) => !studentFilter || r.student_id === studentFilter,
   );
@@ -193,7 +195,7 @@ export function OverviewPage() {
       </nav>
       <Feedback error={evidence.error || overview.error} />
       {!teacher && resources.data && events.data && (
-        <Card className="card-panel" title={<h2>资料学习进度</h2>}>
+        <Card className="card-panel" title={<>资料学习进度</>}>
 
           <p>
             已完成{" "}
@@ -304,7 +306,7 @@ export function OverviewPage() {
           <Statistic title="需复习记录" value={low.length} />
         </Card>
       </div>
-      <Card className="card-panel knowledge-section" title={<h2>知识点表现</h2>}>
+      <Card className="card-panel knowledge-section" title={<>知识点表现</>}>
 
         <div className="live-performance">
           {points.data?.points
@@ -331,7 +333,7 @@ export function OverviewPage() {
         </div>
       </Card>
       {teacher ? (
-        <Card className="card-panel student-section" title={<h2>{studentFilter ? "该学生完成情况" : "班级完成与风险"}</h2>}>
+        <Card className="card-panel student-section" title={<>{studentFilter ? "该学生完成情况" : "班级完成与风险"}</>}>
 
           {!studentFilter && (
             <Input.Search
@@ -365,7 +367,7 @@ export function OverviewPage() {
           />
         </Card>
       ) : (
-        <Card className="card-panel" title={<h2>继续学习</h2>}>
+        <Card className="card-panel" title={<>继续学习</>}>
 
           <div className="live-inline">
             <Link className="primary-link" to="/student/course-content">
@@ -393,7 +395,7 @@ export function OverviewPage() {
         teacher={teacher}
         studentID={teacher ? studentFilter : ""}
       />
-      <Card className="card-panel evidence-section" title={<h2>正式评分证据</h2>}>
+      <Card className="card-panel evidence-section" title={<>正式评分证据</>}>
 
         {!rows.length ? (
           <EmptyState title="暂无已发布评分">
@@ -403,7 +405,7 @@ export function OverviewPage() {
           rows.slice((evidencePage - 1) * 10, evidencePage * 10).map((r) => (
             <article className="live-row" key={r.submission_id}>
               <div>
-                <h3>{r.prompt}</h3>
+                <Typography.Text strong className="item-title">{r.prompt}</Typography.Text>
                 <MetaTags>
                   <MetaTag>{r.score}/{r.max_score} 分</MetaTag>
                   <MetaTag>第 {r.attempt} 次作答</MetaTag>
@@ -436,8 +438,8 @@ export function OverviewPage() {
           showSizeChanger={false}
         />
       </Card>
-      {teacher && (
-        <LearningGaps evidence={evidence.data || []} members={overview.data || []} />
+      {teacher && view === "gaps" && (
+        <><DiagnosisPanel evidence={evidence.data || []} /><LearningGaps evidence={evidence.data || []} members={overview.data || []} /></>
       )}
     </div>
   );

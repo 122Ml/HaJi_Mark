@@ -1,0 +1,101 @@
+{
+  "date": "2026-11-17",
+  "scope": "interaction-diagrams-only",
+  "geometry": [
+    {
+      "id": "I00",
+      "text_bounds": "pass",
+      "size": [
+        2600,
+        2516
+      ]
+    },
+    {
+      "id": "I01",
+      "text_bounds": "pass",
+      "size": [
+        2600,
+        1936
+      ]
+    },
+    {
+      "id": "I02",
+      "text_bounds": "pass",
+      "size": [
+        2600,
+        2226
+      ]
+    },
+    {
+      "id": "I03",
+      "text_bounds": "pass",
+      "size": [
+        2600,
+        2226
+      ]
+    },
+    {
+      "id": "I04",
+      "text_bounds": "pass",
+      "size": [
+        2600,
+        2226
+      ]
+    },
+    {
+      "id": "I05",
+      "text_bounds": "pass",
+      "size": [
+        2600,
+        2806
+      ]
+    },
+    {
+      "id": "I06",
+      "text_bounds": "pass",
+      "size": [
+        2600,
+        2516
+      ]
+    },
+    {
+      "id": "I07",
+      "text_bounds": "pass",
+      "size": [
+        2600,
+        2226
+      ]
+    },
+    {
+      "id": "I08",
+      "text_bounds": "pass",
+      "size": [
+        2600,
+        2806
+      ]
+    },
+    {
+      "id": "I09",
+      "text_bounds": "pass",
+      "size": [
+        2600,
+        1646
+      ]
+    }
+  ],
+  "role_routes": 28,
+  "checks": [
+    "text-bounds",
+    "edge-node-obstacles",
+    "10-tabs",
+    "node-neighbors",
+    "cross-diagram-jump",
+    "downloads",
+    "keyboard",
+    "zoom-fit",
+    "hash-restore",
+    "unique-ids",
+    "390px-layout"
+  ],
+  "page_errors": []
+}

@@ -1,0 +1,22 @@
+{
+  "checkedAt": "2026-11-18T16:26:07.060Z",
+  "type": "standalone-product-prototype",
+  "checks": [
+    "Default opens document workspace and contextual assistant",
+    "Source search and selection update context",
+    "Candidate evidence, edit, confirmation and knowledge library",
+    "Publication requires preview and explicit confirmation",
+    "Grading saves, confirms and releases distinct states",
+    "Intervention preserves selected resource into student task",
+    "Student submission and published sample feedback stay separate",
+    "Discussion reply stays in current topic and escapes HTML",
+    "Assistant can inspect evidence, close, reopen and send safely",
+    "Import local text and preserve old published revision when editing",
+    "Every navigation domain renders its own working view",
+    "375px narrow and landscape layouts have no horizontal overflow"
+  ],
+  "consoleErrors": [],
+  "externalRequests": [],
+  "backendConnected": false,
+  "modelCalled": false
+}

@@ -1,4 +1,6 @@
 import { Field } from "../shared/Field";
+import { ContextAgent } from "./context-agent";
+import { useLocationValue } from "./location-state";
 import { useConfirm } from "../shared/confirm";
 import {
   Drawer,
@@ -9,6 +11,7 @@ import {
   Form,
   Select,
   Collapse,
+  Typography,
 } from "antd";
 import { Link } from "./context";
 import { useEditorDraft, DraftNotice } from "./editing";
@@ -16,6 +19,7 @@ import { KnowledgeGraph } from "./graph";
 import { EmptyState, ErrorState, LoadingState, StatusTag, MetaTag, MetaTags } from "../shared/ui";
 import { useSearchParams } from "react-router-dom";
 import { ResourceNotes } from "./notes";
+import { RetrievalPage, JobsPanel } from "./knowledge";
 import { RichContent, PublishedAssets } from "./content-render";
 import { useEffect, useState } from "react";
 import { useSession } from "../shared/session";
@@ -46,6 +50,7 @@ export interface Resource {
   version: number;
   knowledge_point_id?: string;
   published_at?: string;
+  source_id?: string | null;
 }
 interface Event {
   id: string;
@@ -53,7 +58,7 @@ interface Event {
   resource_id: string;
   occurred_at: string;
 }
-export function CourseWorkspace() {
+export function CourseWorkspace({sourceID = ""}: {sourceID?:string} = {}) {
   const confirm = useConfirm();
   const { session } = useSession();
   const teacher = session?.user.role === "teacher";
@@ -64,7 +69,7 @@ export function CourseWorkspace() {
   const action = useAction();
   const [params, setParams] = useSearchParams();
   const [editorOpen, setEditorOpen] = useState(false);
-  const [resourceSearch, setResourceSearch] = useState("");
+  const [resourceSearch, setResourceSearch] = useLocationValue("resource_search");
   function setParam(key: string, value: string) {
     const next = new URLSearchParams(params);
     if (value) next.set(key, value);
@@ -94,7 +99,7 @@ export function CourseWorkspace() {
   useEffect(() => {
     const id = params.get("resource");
     if (id && resources.data) {
-      const found = resources.data.find((r) => r.id === id);
+      const found = resources.data.find((r) => r.id === id && (!sourceID || r.source_id === sourceID));
       setView(found || null);
     } else if (!id) setView(null);
   }, [params, resources.data]);
@@ -115,6 +120,7 @@ export function CourseWorkspace() {
   }
   const list = (resources.data || []).filter(
     (r) =>
+      (!sourceID || r.source_id === sourceID) &&
       (!selected || selectedNodes.has(r.knowledge_point_id || "")) &&
       r.title.toLowerCase().includes(resourceSearch.toLowerCase()),
   );
@@ -141,7 +147,7 @@ export function CourseWorkspace() {
             }
           >
             {!teacher && (
-              <Card className="card-panel" title={<h2>课程目录</h2>}>
+              <Card className="card-panel" title={<>课程目录</>}>
 
                 <Button
                   onClick={() => {
@@ -165,7 +171,7 @@ export function CourseWorkspace() {
             )}
             <Card className="card-panel">
               <div className="section-head">
-                <h2>{view ? view.title : "学习资料"}</h2>
+                {view && <><Typography.Text strong className="item-title">{view.title}</Typography.Text><ContextAgent context={{kind:"resource",id:view.id,title:view.title}} /></>}
                 {teacher && (
                   <Button onClick={() => setEditorOpen(true)} type="primary">
                     新增资料
@@ -190,22 +196,23 @@ export function CourseWorkspace() {
                   </MetaTags>
                   <RichContent text={view.content} />
                   <PublishedAssets kind="resources" id={view.id} />
-                  {!teacher && (
-                    <ResourceNotes key={view.id} resourceId={view.id} />
-                  )}
+                  {!teacher && <ResourceNotes key={view.id} resourceId={view.id} />}
+                  {view.status === "published" && <Collapse items={[{key:"qa",label:"就本资料提问",children:<RetrievalPage key={view.id} resourceID={view.id} embedded />}]} />}
+                  {teacher && view.status === "draft" && <Button type="primary" disabled={action.busy} onClick={async()=>{if(await confirm("确认发布本修订给课程学生？索引由后台单独处理。")) await action.run(`/resources/${view.id}/publish`);}}>审核通过并发布</Button>}
+                  {teacher && <JobsPanel kinds={["index"]} />}
                   <p>
                     资料来源：
                     {view.source_note || view.source_url || "尚未登记来源"}
                   </p>
                   {view.source_url && (
                     <p>
-                      <a
+                      <Typography.Link
                         href={view.source_url}
                         target="_blank"
                         rel="noreferrer"
                       >
                         查看原始来源
-                      </a>
+                      </Typography.Link>
                     </p>
                   )}
                   <div className="live-inline">
@@ -249,7 +256,7 @@ export function CourseWorkspace() {
                     list.map((r) => (
                       <article className="live-row" key={r.id}>
                         <div>
-                          <h3>{r.title}</h3>
+                          <Typography.Text strong className="item-title">{r.title}</Typography.Text>
                           <MetaTags>
                             <StatusTag
                               status={r.status}
@@ -288,9 +295,7 @@ export function CourseWorkspace() {
                           {teacher && r.status === "draft" && (
                             <Button
                               disabled={action.busy}
-                              onClick={() =>
-                                action.run(`/resources/${r.id}/publish`)
-                              }
+                              onClick={async () => { if (await confirm("确认发布这份学习资料？发布后学生可见，索引由后台处理。")) await action.run(`/resources/${r.id}/publish`); }}
                               type="primary"
                             >
                               审核通过并发布
@@ -343,18 +348,17 @@ export function CourseWorkspace() {
               >
                 <section id="resource-editor">
                   <DraftNotice {...resourceDraft} />
-                  <h2>{revisionBase ? "创建资料新版本" : "添加资料草稿"}</h2>
+                  <Typography.Text strong className="item-title">{revisionBase ? "创建资料新版本" : "添加资料草稿"}</Typography.Text>
                   <Form
                     className="live-form"
                     onFinish={async () => {
-                      if (
-                        await action.run(
+                      const created = await action.run<Resource>(
                           revisionBase
                             ? `/resources/${revisionBase}/revisions`
                             : "/resources",
                           resource,
-                        )
-                      ) {
+                        );
+                      if (created) {
                         if (resourceDraft.saved(resource)) {
                           resourceDraft.reset({
                             revision_id: "",
@@ -366,6 +370,7 @@ export function CourseWorkspace() {
                             knowledge_point_id: "",
                           });
                           setEditorOpen(false);
+                          openResource(created);
                         }
                       }
                     }}
@@ -480,7 +485,7 @@ export function CourseWorkspace() {
             </>
           )}
           {!teacher && (
-            <Card className="card-panel" title={<h2>学习记录</h2>}>
+            <Card className="card-panel" title={<>学习记录</>}>
 
               {events.data
                 ?.filter((e) => e.resource_id)
@@ -521,7 +526,7 @@ export function CourseWorkspace() {
             />
           )}
           {!teacher && (
-            <Link className="ghost-btn" to="/student/retrieval">
+            <Link className="ghost-btn" to={`/student/retrieval${view?`?resource=${view.id}${params.get("task")?`&task=${params.get("task")}`:""}`:""}`}>
               资料问答
             </Link>
           )}

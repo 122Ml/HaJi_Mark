@@ -55,9 +55,9 @@ const fixtures = JSON.parse(fs.readFileSync(process.env.HAJI_ACCOUNTS || path.jo
       await page.getByRole('status').filter({hasText: '已保存'}).waitFor();
       if (await page.getByLabel('当前课程', {exact: true}).inputValue() !== course.id) throw new Error('Course changed during save');
       releaseSnapshot();
-      await page.getByRole('heading', {name: title, exact: true}).waitFor({timeout: 8000});
+      await page.getByText(title, { exact: true }).waitFor({timeout: 8000});
       await page.reload();
-      await page.getByRole('heading', {name: title, exact: true}).waitFor();
+      await page.getByText(title, { exact: true }).waitFor();
       await page.unroute('**' + endpoint);
       console.log(`PASS: ${industry ? 'industry' : 'research'} saved record survives pre-write snapshot and reload`);
     }

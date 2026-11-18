@@ -8,14 +8,36 @@ const fixtures = JSON.parse(fs.readFileSync(path.join(root, '.local/s1-accounts.
 const materialCourse = JSON.parse(fs.readFileSync(path.join(root, '.local/material-workflows-check.json'), 'utf8')).course_id;
 const output = path.join(root, '.local/ui-audit');
 const pages = {
-  teacher: ['dashboard', 'courses', 'curriculum', 'materials', 'knowledge', 'question-bank', 'retrieval', 'content-impact', 'regrades', 'intervention', 'homework', 'quiz', 'interaction', 'research', 'industry-intelligence', 'profile'],
-  student: ['home', 'learning', 'course-content', 'knowledge', 'retrieval', 'homework', 'quiz', 'intervention', 'interaction', 'profile'],
+  teacher: ['dashboard', 'assistant', 'courses', 'curriculum', 'materials', 'knowledge', 'question-bank', 'retrieval', 'content-impact', 'regrades', 'intervention', 'homework', 'quiz', 'interaction', 'research', 'industry-intelligence', 'profile'],
+  student: ['home', 'assistant', 'learning', 'course-content', 'knowledge', 'retrieval', 'homework', 'quiz', 'intervention', 'interaction', 'profile'],
 };
 (async () => {
   fs.mkdirSync(output, {recursive: true});
   const browser = await chromium.launch({channel: 'msedge', headless: true});
   const problems = [];
   const checked = [];
+  const controls = [];
+  async function inspectUI(page, label) {
+    const snapshot = await page.locator('main, .ant-drawer-content, .ant-modal-content').evaluateAll(roots => {
+      const all = selector => [...new Set(roots.flatMap(root => [...root.querySelectorAll(selector)]))];
+      const native = all('button, select, input, textarea, details, summary, table, form').filter(el => !el.closest('.rich-content'));
+      // ConfigProvider's .ant-app is NOT evidence that a child is an Ant control.
+      const component = '.ant-btn, .ant-input, .ant-input-affix-wrapper, .ant-input-group-wrapper, .ant-input-number, .ant-select, .ant-picker, .ant-radio, .ant-checkbox, .ant-switch, .ant-tabs, .ant-menu, .ant-pagination, .ant-upload, .ant-table, .ant-tree, .ant-segmented, .ant-drawer-close, .ant-modal-close';
+      const covered = el => el.matches('form') ? el.matches('.ant-form') : !!el.closest(component);
+      return {
+        total: native.length,
+        reused: native.filter(covered).length,
+        uncovered: native.filter(el => !covered(el)).map(el => el.outerHTML.slice(0, 160)),
+        headings: all('h2,h3,h4,h5,h6').filter(el => !el.closest('.rich-content')).map(el => el.textContent),
+        readmeCopy: roots.some(root => /使用题库确认版本，题目与标准固定|本作业绑定题库确认版本及标准|确认后的版本可用于评分|修改题干或保存新的知识关联|联调记账/.test(root.innerText)),
+      };
+    });
+    controls.push({page: label, total: snapshot.total, reused: snapshot.reused});
+    if(snapshot.uncovered.length) problems.push(`${label}: native controls ${snapshot.uncovered.join(',')}`);
+    if(snapshot.headings.length) problems.push(`${label}: secondary headings ${snapshot.headings.join(',')}`);
+    if(snapshot.readmeCopy) problems.push(`${label}: README-style copy returned`);
+    if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) problems.push(`${label}: horizontal overflow`);
+  }
   try {
     for (const role of ['teacher', 'student']) {
       const context = await browser.newContext({viewport: {width: 1440, height: 900}});
@@ -38,14 +60,12 @@ const pages = {
           const useMaterials = ['materials', 'knowledge', 'question-bank', 'retrieval', 'content-impact', 'regrades'].includes(p);
           await page.goto(`${base}/${role}/${p}?course=${useMaterials ? materialCourse : teachingCourse.id}`);
           await page.waitForLoadState('networkidle');
-          await page.locator('main .live-page').first().waitFor({timeout: 10000}).catch(() => problems.push(`${role}/${p}@${width}: missing page content`));
+          await page.locator('main .live-page, main .agent-workspace').first().waitFor({timeout: 10000}).catch(() => problems.push(`${role}/${p}@${width}: missing page content`));
           if (await page.locator('main .live-heading h1, main > .live-page > h1').count()) problems.push(`${role}/${p}@${width}: redundant page heading`);
-          const native = await page.locator('main').evaluate(main => [...main.querySelectorAll('button, select, input, textarea, details')].filter(el => !el.closest('[class*="ant-"]')).map(el => el.tagName));
-          if(native.length) problems.push(`${role}/${p}@${width}: native controls ${native.join(',')}`);
+          await inspectUI(page, `${role}/${p}@${width}`);
           if(await page.locator('main .workspace-course-select').count()) problems.push(`${role}/${p}@${width}: duplicate course selection`);
           const courseSelectors = await page.locator('.topbar #current-course').count();
           if(courseSelectors !== (p === 'profile' ? 0 : 1)) problems.push(`${role}/${p}@${width}: topbar course selection count ${courseSelectors}`);
-          if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) problems.push(`${role}/${p}@${width}: horizontal overflow`);
           const leaked = await page.locator('main').evaluate(main => {
             const walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT);
             let node;
@@ -76,10 +96,31 @@ const pages = {
         }
         console.log(`CHECKED: ${role}, ${pages[role].length} routes at ${width}px`);
       }
+      if (role === 'teacher') for (const width of [390, 1440]) {
+        await page.setViewportSize({width, height: 1000});
+        for (const [route, button] of [['materials', '导入资料'], ['knowledge', '新建知识'], ['question-bank', '新建题目'], ['question-bank', '整卷导入'], ['intervention', '新建补学补练任务']]) {
+          await page.goto(`${base}/teacher/${route}?course=${materialCourse}`);
+          await page.getByRole('button', {name: button, exact: true}).click();
+          await page.waitForLoadState('networkidle');
+          await inspectUI(page, `${button}@${width}`);
+          await page.screenshot({path: path.join(output, `editor-${route}-${button}-${width}.png`), fullPage: false});
+          checked.push(`${button}@${width}`);
+        }
+        for (const route of ['homework/new', 'quiz/new']) {
+          await page.goto(`${base}/teacher/${route}?course=${materialCourse}`);
+          await page.getByLabel(route.startsWith('quiz') ? '测验标题' : '作业标题', {exact: true}).waitFor();
+          await inspectUI(page, `${route}@${width}`);
+          checked.push(`${route}@${width}`);
+        }
+        console.log(`CHECKED: seven editors at ${width}px; no writes or model calls`);
+      }
       await context.close();
     }
   } finally { await browser.close(); }
-  fs.writeFileSync(path.join(output, 'report.json'), JSON.stringify({checked, problems}, null, 2));
+  const total = controls.reduce((n, row) => n + row.total, 0), reused = controls.reduce((n, row) => n + row.reused, 0);
+  const widgets = {total, reused, reusePercent: total ? reused / total * 100 : 0};
+  if (widgets.reusePercent < 99) problems.push('Rendered Ant Design widget reuse is below 99%');
+  fs.writeFileSync(path.join(output, 'report.json'), JSON.stringify({checked, widgets, controls, problems}, null, 2));
   if (problems.length) { console.error(problems.join('\n')); process.exitCode = 1; }
-  else console.log('PASS: 26 routes × 3 widths; semantic tags, role actions, no leaked JSX, no console errors or overflow');
+  else console.log(`PASS: ${Object.values(pages).flat().length} routes × 3 widths; ${reused}/${total} Ant controls; no secondary headings, README copy, console errors or overflow`);
 })().catch(e => { console.error(e.message); process.exitCode = 1; });

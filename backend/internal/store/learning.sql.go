@@ -260,8 +260,8 @@ func (q *Queries) BusinessOverview(ctx context.Context, courseID string) ([]Busi
 }
 
 const courseReleasedEvidence = `-- name: CourseReleasedEvidence :many
-SELECT DISTINCT ON (s.student_id,s.question_id) s.id AS submission_id,s.student_id,s.question_id,s.answer_text,s.attempt,r.id AS revision_id,r.score,r.feedback,q.max_score,q.prompt,q.knowledge_point_id,q.resource_id,r.released_at,r.rubric_id,r.point_scores,rv.version AS rubric_version
-FROM submissions s JOIN questions q ON q.id=s.question_id
+SELECT DISTINCT ON (s.student_id,s.question_id) s.id AS submission_id,s.student_id,s.question_id,s.assignment_id,a.title AS assignment_title,s.answer_text,s.attempt,r.id AS revision_id,r.score,r.feedback,q.max_score,q.prompt,q.knowledge_point_id,q.resource_id,r.released_at,r.rubric_id,r.point_scores,rv.version AS rubric_version
+FROM submissions s JOIN questions q ON q.id=s.question_id JOIN assignments a ON a.id=s.assignment_id
 JOIN LATERAL (SELECT id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id, regrade_batch_id FROM grading_revisions g WHERE g.submission_id=s.id AND g.state='released' ORDER BY g.revision DESC LIMIT 1) r ON true
 LEFT JOIN rubric_versions rv ON rv.id=r.rubric_id
 WHERE s.course_id=$1 AND ($2::boolean OR s.student_id=$3)
@@ -278,6 +278,8 @@ type CourseReleasedEvidenceRow struct {
 	SubmissionID     string             `json:"submission_id"`
 	StudentID        string             `json:"student_id"`
 	QuestionID       string             `json:"question_id"`
+	AssignmentID     string             `json:"assignment_id"`
+	AssignmentTitle  string             `json:"assignment_title"`
 	AnswerText       string             `json:"answer_text"`
 	Attempt          int32              `json:"attempt"`
 	RevisionID       string             `json:"revision_id"`
@@ -306,6 +308,8 @@ func (q *Queries) CourseReleasedEvidence(ctx context.Context, arg CourseReleased
 			&i.SubmissionID,
 			&i.StudentID,
 			&i.QuestionID,
+			&i.AssignmentID,
+			&i.AssignmentTitle,
 			&i.AnswerText,
 			&i.Attempt,
 			&i.RevisionID,
@@ -439,18 +443,21 @@ func (q *Queries) CreateBusinessInteraction(ctx context.Context, arg CreateBusin
 }
 
 const createBusinessIntervention = `-- name: CreateBusinessIntervention :one
-INSERT INTO interventions(id,course_id,student_id,title,description,teacher_id,resource_id,assignment_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, course_id, student_id, title, description, status, teacher_id, answer_text, review_note, created_at, assigned_at, submitted_at, reviewed_at, resource_id, assignment_id
+INSERT INTO interventions(id,course_id,student_id,title,description,teacher_id,resource_id,assignment_id,source_submission_id,diagnosis_report_id,diagnosis_label_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id, course_id, student_id, title, description, status, teacher_id, answer_text, review_note, created_at, assigned_at, submitted_at, reviewed_at, resource_id, assignment_id, source_submission_id, diagnosis_report_id, diagnosis_label_id
 `
 
 type CreateBusinessInterventionParams struct {
-	ID           string      `json:"id"`
-	CourseID     string      `json:"course_id"`
-	StudentID    string      `json:"student_id"`
-	Title        string      `json:"title"`
-	Description  string      `json:"description"`
-	TeacherID    string      `json:"teacher_id"`
-	ResourceID   pgtype.Text `json:"resource_id"`
-	AssignmentID pgtype.Text `json:"assignment_id"`
+	ID                 string      `json:"id"`
+	CourseID           string      `json:"course_id"`
+	StudentID          string      `json:"student_id"`
+	Title              string      `json:"title"`
+	Description        string      `json:"description"`
+	TeacherID          string      `json:"teacher_id"`
+	ResourceID         pgtype.Text `json:"resource_id"`
+	AssignmentID       pgtype.Text `json:"assignment_id"`
+	SourceSubmissionID pgtype.Text `json:"source_submission_id"`
+	DiagnosisReportID  pgtype.Text `json:"diagnosis_report_id"`
+	DiagnosisLabelID   pgtype.Text `json:"diagnosis_label_id"`
 }
 
 func (q *Queries) CreateBusinessIntervention(ctx context.Context, arg CreateBusinessInterventionParams) (Intervention, error) {
@@ -463,6 +470,9 @@ func (q *Queries) CreateBusinessIntervention(ctx context.Context, arg CreateBusi
 		arg.TeacherID,
 		arg.ResourceID,
 		arg.AssignmentID,
+		arg.SourceSubmissionID,
+		arg.DiagnosisReportID,
+		arg.DiagnosisLabelID,
 	)
 	var i Intervention
 	err := row.Scan(
@@ -481,6 +491,9 @@ func (q *Queries) CreateBusinessIntervention(ctx context.Context, arg CreateBusi
 		&i.ReviewedAt,
 		&i.ResourceID,
 		&i.AssignmentID,
+		&i.SourceSubmissionID,
+		&i.DiagnosisReportID,
+		&i.DiagnosisLabelID,
 	)
 	return i, err
 }
@@ -1101,7 +1114,7 @@ func (q *Queries) GetBusinessInteraction(ctx context.Context, id string) (Intera
 }
 
 const getBusinessIntervention = `-- name: GetBusinessIntervention :one
-SELECT id, course_id, student_id, title, description, status, teacher_id, answer_text, review_note, created_at, assigned_at, submitted_at, reviewed_at, resource_id, assignment_id FROM interventions WHERE id=$1
+SELECT id, course_id, student_id, title, description, status, teacher_id, answer_text, review_note, created_at, assigned_at, submitted_at, reviewed_at, resource_id, assignment_id, source_submission_id, diagnosis_report_id, diagnosis_label_id FROM interventions WHERE id=$1
 `
 
 func (q *Queries) GetBusinessIntervention(ctx context.Context, id string) (Intervention, error) {
@@ -1123,6 +1136,9 @@ func (q *Queries) GetBusinessIntervention(ctx context.Context, id string) (Inter
 		&i.ReviewedAt,
 		&i.ResourceID,
 		&i.AssignmentID,
+		&i.SourceSubmissionID,
+		&i.DiagnosisReportID,
+		&i.DiagnosisLabelID,
 	)
 	return i, err
 }
@@ -1506,7 +1522,7 @@ func (q *Queries) ListBusinessInteractions(ctx context.Context, courseID string)
 }
 
 const listBusinessInterventions = `-- name: ListBusinessInterventions :many
-SELECT i.id, i.course_id, i.student_id, i.title, i.description, i.status, i.teacher_id, i.answer_text, i.review_note, i.created_at, i.assigned_at, i.submitted_at, i.reviewed_at, i.resource_id, i.assignment_id,u.display_name AS student_name FROM interventions i JOIN users u ON u.id=i.student_id
+SELECT i.id, i.course_id, i.student_id, i.title, i.description, i.status, i.teacher_id, i.answer_text, i.review_note, i.created_at, i.assigned_at, i.submitted_at, i.reviewed_at, i.resource_id, i.assignment_id, i.source_submission_id, i.diagnosis_report_id, i.diagnosis_label_id,u.display_name AS student_name FROM interventions i JOIN users u ON u.id=i.student_id
 WHERE i.course_id=$1 AND ($2::boolean OR (i.student_id=$3 AND i.status<>'draft')) ORDER BY i.created_at DESC
 `
 
@@ -1517,22 +1533,25 @@ type ListBusinessInterventionsParams struct {
 }
 
 type ListBusinessInterventionsRow struct {
-	ID           string             `json:"id"`
-	CourseID     string             `json:"course_id"`
-	StudentID    string             `json:"student_id"`
-	Title        string             `json:"title"`
-	Description  string             `json:"description"`
-	Status       string             `json:"status"`
-	TeacherID    string             `json:"teacher_id"`
-	AnswerText   string             `json:"answer_text"`
-	ReviewNote   string             `json:"review_note"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	AssignedAt   pgtype.Timestamptz `json:"assigned_at"`
-	SubmittedAt  pgtype.Timestamptz `json:"submitted_at"`
-	ReviewedAt   pgtype.Timestamptz `json:"reviewed_at"`
-	ResourceID   pgtype.Text        `json:"resource_id"`
-	AssignmentID pgtype.Text        `json:"assignment_id"`
-	StudentName  string             `json:"student_name"`
+	ID                 string             `json:"id"`
+	CourseID           string             `json:"course_id"`
+	StudentID          string             `json:"student_id"`
+	Title              string             `json:"title"`
+	Description        string             `json:"description"`
+	Status             string             `json:"status"`
+	TeacherID          string             `json:"teacher_id"`
+	AnswerText         string             `json:"answer_text"`
+	ReviewNote         string             `json:"review_note"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	AssignedAt         pgtype.Timestamptz `json:"assigned_at"`
+	SubmittedAt        pgtype.Timestamptz `json:"submitted_at"`
+	ReviewedAt         pgtype.Timestamptz `json:"reviewed_at"`
+	ResourceID         pgtype.Text        `json:"resource_id"`
+	AssignmentID       pgtype.Text        `json:"assignment_id"`
+	SourceSubmissionID pgtype.Text        `json:"source_submission_id"`
+	DiagnosisReportID  pgtype.Text        `json:"diagnosis_report_id"`
+	DiagnosisLabelID   pgtype.Text        `json:"diagnosis_label_id"`
+	StudentName        string             `json:"student_name"`
 }
 
 func (q *Queries) ListBusinessInterventions(ctx context.Context, arg ListBusinessInterventionsParams) ([]ListBusinessInterventionsRow, error) {
@@ -1560,6 +1579,9 @@ func (q *Queries) ListBusinessInterventions(ctx context.Context, arg ListBusines
 			&i.ReviewedAt,
 			&i.ResourceID,
 			&i.AssignmentID,
+			&i.SourceSubmissionID,
+			&i.DiagnosisReportID,
+			&i.DiagnosisLabelID,
 			&i.StudentName,
 		); err != nil {
 			return nil, err
@@ -2308,7 +2330,7 @@ review_note=CASE WHEN $2='reviewed' THEN $4 ELSE review_note END,
 assigned_at=CASE WHEN $2='assigned' THEN now() ELSE assigned_at END,
 submitted_at=CASE WHEN $2='submitted' THEN now() ELSE submitted_at END,
 reviewed_at=CASE WHEN $2='reviewed' THEN now() ELSE reviewed_at END
-WHERE id=$1 AND status=$3 RETURNING id, course_id, student_id, title, description, status, teacher_id, answer_text, review_note, created_at, assigned_at, submitted_at, reviewed_at, resource_id, assignment_id
+WHERE id=$1 AND status=$3 RETURNING id, course_id, student_id, title, description, status, teacher_id, answer_text, review_note, created_at, assigned_at, submitted_at, reviewed_at, resource_id, assignment_id, source_submission_id, diagnosis_report_id, diagnosis_label_id
 `
 
 type TransitionBusinessInterventionParams struct {
@@ -2342,6 +2364,9 @@ func (q *Queries) TransitionBusinessIntervention(ctx context.Context, arg Transi
 		&i.ReviewedAt,
 		&i.ResourceID,
 		&i.AssignmentID,
+		&i.SourceSubmissionID,
+		&i.DiagnosisReportID,
+		&i.DiagnosisLabelID,
 	)
 	return i, err
 }

@@ -1,4 +1,5 @@
 import { Field } from "../shared/Field";
+import { ContextAgent } from "./context-agent";
 import {
   Table,
   Pagination,
@@ -11,7 +12,10 @@ import {
   InputNumber,
   Collapse,
   Radio,
+  DatePicker,
+  Typography,
 } from "antd";
+import dayjs from "dayjs";
 import { useEditorDraft, DraftNotice } from "./editing";
 import { requestJSON } from "../shared/api";
 import { useQueryClient } from "@tanstack/react-query";
@@ -170,13 +174,12 @@ export function AssignmentList({ quiz = false }: { quiz?: boolean }) {
       ) : (
         <Card className="card-panel">
           <div className="section-head">
-            <h2>{quiz ? "全部测验" : "全部作业"}</h2>
             <MetaTag>共 {query.data?.total || 0} 项</MetaTag>
           </div>
           {list.map((a) => (
             <article className="live-row" key={a.id}>
               <div>
-                <h3>{a.title}</h3>
+                <Typography.Text strong className="item-title">{a.title}</Typography.Text>
                 {a.description && <p>{a.description}</p>}
                 {!teacher && (
                   <MetaTags>
@@ -401,26 +404,22 @@ export function AssignmentEditor({
             />
           </Field>
           <Field className="ui-field" label={<>截止时间</>}>
-            <Input
+            <DatePicker
               aria-label="截止时间"
-              type="datetime-local"
-              value={due}
-              onChange={(e) => setDue(e.target.value)}
+              showTime={{ format: "HH:mm" }}
+              format="YYYY-MM-DD HH:mm"
+              value={due ? dayjs(due) : null}
+              onChange={(date) => setDue(date ? date.format("YYYY-MM-DDTHH:mm") : "")}
             />
           </Field>
           <div className="section-head">
-            <h2>题目列表</h2>
+            <Typography.Text strong className="item-title">题目列表</Typography.Text>
             <Button onClick={() => setPicking(true)} htmlType="button">
               从题库选题
             </Button>
           </div>
           {questions.map((q, i) => (
             <Card size="small" key={i} title={<>第{i + 1}题</>}>
-              {q.bank_question_version_id && (
-                <p className="live-meta">
-                  使用题库确认版本，题目与标准固定。修改请返回题库另建版本后重新选题。
-                </p>
-              )}
               <Field
                 className="ui-field"
                 label={<>题目要求</>}
@@ -689,6 +688,7 @@ export function AssignmentDetail() {
       {query.isPending && <LoadingState />}
       {query.data && (
         <section className="assignment-summary">
+          <ContextAgent context={{kind:"assignment",id:query.data.assignment.id,title:query.data.assignment.title}} />
           <StatusTag
             status={query.data.assignment.status}
             label={names[query.data.assignment.status]}
@@ -876,11 +876,10 @@ function QuestionAnswer({
       <p>满分 {q.max_score}</p>
       {teacher ? (
         <>
-          <h3>教师评分标准</h3>
+          <Typography.Text strong className="item-title">教师评分标准</Typography.Text>
           <p className="live-prose">{q.rubric}</p>
           {q.bank_question_version_id ? (
             <p className="live-meta">
-              本作业绑定题库确认版本及标准。
               <Link
                 to={`/teacher/question-bank?bank_version=${q.bank_question_version_id}`}
               >
@@ -903,22 +902,21 @@ function QuestionAnswer({
           />
           {q.type === "quiz" ? (
             <div role="radiogroup" aria-label="我的作答">
+            <Radio.Group name={q.id} value={answer} disabled={!draft.ready || closed} onChange={(e) => {
+              draft.change(e.target.value);
+              setRequestID(crypto.randomUUID());
+              setError("");
+            }}>
               {q.options.map((o, i) => (
                 <Radio
                   className="live-option"
                   key={i}
-                  name={q.id}
-                  disabled={!draft.ready || closed}
-                  checked={answer === o}
-                  onChange={() => {
-                    draft.change(o);
-                    setRequestID(crypto.randomUUID());
-                    setError("");
-                  }}
+                  value={o}
                 >
                   {o}
                 </Radio>
               ))}
+            </Radio.Group>
             </div>
           ) : (
             <Field className="ui-field" label={<>我的作答</>}>

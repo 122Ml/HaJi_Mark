@@ -25,6 +25,14 @@ import (
 )
 
 type modelFunc func([]rag.AgentMessage, []any) (rag.AgentMessage, error)
+type streamFunc func(func(string) error) (rag.AgentMessage, error)
+
+func (f streamFunc) AgentChat(_ context.Context, _, _, _ string, _ []rag.AgentMessage, _ []any) (rag.AgentMessage, error) {
+	return f(func(string) error { return nil })
+}
+func (f streamFunc) AgentChatStream(_ context.Context, _, _, _ string, _ []rag.AgentMessage, _ []any, emit func(string) error) (rag.AgentMessage, error) {
+	return f(emit)
+}
 
 func (f modelFunc) AgentChat(_ context.Context, _, _, _ string, m []rag.AgentMessage, t []any) (rag.AgentMessage, error) {
 	return f(m, t)
@@ -68,6 +76,8 @@ func TestPoliciesAndSchemas(t *testing.T) {
 		{"source_import", "materials", "teacher", false, true}, {"source_import", "materials", "student", false, false}, {"question_create", "questions", "teacher", true, false},
 		{"submission_read", "questions", "teacher", false, false}, {"submission_read", "assessment", "teacher", false, true}, {"delegate", "materials", "teacher", false, false},
 		{"source_import", "coordinator", "teacher", false, false}, {"delegate", "coordinator", "teacher", false, true}, {"path_plan", "learning", "teacher", false, false},
+		{"question_editor", "questions", "teacher", true, false}, {"knowledge_editor", "materials", "student", false, false}, {"answer_submit", "assessment", "teacher", false, false},
+		{"paper_editor", "materials", "teacher", true, false}, {"paper_split", "materials", "teacher", true, false},
 	} {
 		if got := allowed(find(tc.name), tc.domain, tc.role, tc.tainted); got != tc.want {
 			t.Errorf("%+v got %v", tc, got)
@@ -290,6 +300,39 @@ func TestHarnessBusinessLoop(t *testing.T) {
 		result, e = s.Gateway.Invoke(ctx, rag.Hash(tokens["teacher"]), "GET", "/api/v1/learning/courses/foreign/resources", "application/json", nil)
 		if e != nil || result.Status != 403 {
 			t.Fatal("gateway bypassed course", e, result.Status)
+		}
+	})
+	t.Run("workspace_context_is_authorized_persisted_and_tainted_before_runtime", func(t *testing.T) {
+		must(`INSERT INTO resources(id,course_id,title,content,source_note,locator,created_by,status) VALUES('context-public','course','public','visible','fixture','1','teacher','published'),('context-draft','course','private','secret','fixture','1','teacher','draft'),('context-foreign','foreign','foreign','secret','fixture','1','other','published')`)
+		cid := conversation("student", "read-only")
+		for _, id := range []string{"context-draft", "context-foreign", "missing"} {
+			request("student", "POST", base+"/conversations/"+cid+"/messages", map[string]any{"content": "解释当前资料", "request_id": uuid.NewString(), "context": map[string]string{"kind": "resource", "id": id}}, 422)
+		}
+		request("student", "POST", base+"/conversations/"+cid+"/messages", map[string]any{"content": "解释当前资料", "request_id": uuid.NewString(), "context": map[string]string{"kind": "unknown", "id": "context-public"}}, 422)
+		rid := objectID(request("student", "POST", base+"/conversations/"+cid+"/messages", map[string]any{"content": "解释当前资料", "request_id": uuid.NewString(), "context": map[string]string{"kind": "resource", "id": "context-public"}}, 200))
+		run, err := s.Q.GetAgentRun(ctx, rid)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(run.Runtime), "context-public") || strings.Contains(string(run.Runtime), "context-draft") {
+			t.Fatal("verified reference missing or untrusted data attached")
+		}
+		messages, err := s.Q.ListAgentMessages(ctx, cid)
+		if err != nil || len(messages) != 1 || !strings.Contains(messages[0].Content, "服务端已核验") {
+			t.Fatal("business reference not durable", err)
+		}
+		must(`INSERT INTO interventions(id,course_id,student_id,title,description,teacher_id) VALUES('context-task','course','student','task','fixture','teacher')`)
+		cid = conversation("teacher", "auto-review")
+		rid = objectID(request("teacher", "POST", base+"/conversations/"+cid+"/messages", map[string]any{"content": "检查任务", "request_id": uuid.NewString(), "context": map[string]string{"kind": "intervention", "id": "context-task"}}, 200))
+		run, err = s.Q.GetAgentRun(ctx, rid)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var rt runtime
+		_ = json.Unmarshal(run.Runtime, &rt)
+		conv, err := s.Q.GetAgentConversation(ctx, store.GetAgentConversationParams{ID: cid, CourseID: "course", OwnerID: "teacher"})
+		if err != nil || !rt.Tainted || !conv.LearnerContext {
+			t.Fatal("learner context must be marked before model or tools", err)
 		}
 	})
 	t.Run("delegated_durable_input_actual_draft_and_idempotence", func(t *testing.T) {
@@ -726,6 +769,182 @@ func TestHarnessBusinessLoop(t *testing.T) {
 		_ = json.Unmarshal(request("teacher", "GET", base+"/conversations?search=searchable-&size=10&offset=30", nil, 200), &conversations)
 		if len(conversations) != 5 {
 			t.Fatal("conversation search/paging", len(conversations))
+		}
+	})
+	t.Run("csv_attachment_preview_confirmation_and_conversation_scope", func(t *testing.T) {
+		business := "/api/v1/learning/courses/course"
+		must("UPDATE users SET username='csv-student',password_hash='test-fixture-no-login' WHERE id='student'")
+		assignment := objectID(request("teacher", "POST", business+"/assignments", map[string]any{"title": "CSV附件测试", "questions": []any{map[string]any{"prompt": "说明测试目的", "max_score": 10, "rubric": "说明拒绝超范围输入"}}}, 200))
+		var question string
+		if e := db.QueryRow(ctx, "SELECT id FROM questions WHERE assignment_id=$1", assignment).Scan(&question); e != nil {
+			t.Fatal(e)
+		}
+		standard := objectID(request("teacher", "POST", business+"/questions/"+question+"/rubrics", map[string]any{"criteria": []any{map[string]any{"id": "D1", "title": "目的", "max_score": 10, "rule": "检查系统是否拒绝超范围输入"}}}, 200))
+		request("teacher", "POST", business+"/rubrics/"+standard+"/confirm", map[string]any{}, 200)
+		request("teacher", "POST", business+"/assignments/"+assignment+"/state", map[string]any{"state": "published"}, 200)
+		cid := conversation("teacher", "full-access")
+		csv := "username,answer_text\r\ncsv-student,\"范围外输入应被拒绝\"\r\n"
+		if e := os.MkdirAll(attachmentDir(), 0700); e != nil {
+			t.Fatal(e)
+		}
+		if e := os.WriteFile(filepath.Join(attachmentDir(), "answers.csv"), []byte(csv), 0600); e != nil {
+			t.Fatal(e)
+		}
+		attachment, e := s.Q.CreateAgentAttachment(ctx, store.CreateAgentAttachmentParams{ID: uuid.NewString(), ConversationID: cid, Filename: "answers.csv", StoragePath: "answers.csv", Sha256: rag.Hash(csv), SizeBytes: int64(len(csv)), Kind: "upload"})
+		if e != nil {
+			t.Fatal(e)
+		}
+		calls := 0
+		s.Model = modelFunc(func(messages []rag.AgentMessage, _ []any) (rag.AgentMessage, error) {
+			calls++
+			args := map[string]any{"id": assignment, "question_id": question, "attachment_id": attachment.ID}
+			switch calls {
+			case 1:
+				return tool("delegate", map[string]any{"domain": "assessment", "goal": "预览附件并请求确认导入"}), nil
+			case 2:
+				return tool("submission_import_preview", args), nil
+			case 3:
+				last := messages[len(messages)-1]
+				var preview struct {
+					Response struct {
+						Data struct {
+							Hash string `json:"preview_hash"`
+						} `json:"data"`
+					} `json:"response"`
+				}
+				if e := json.Unmarshal([]byte(last.Content), &preview); e != nil || preview.Response.Data.Hash == "" {
+					t.Fatal("attachment preview failed", last.Content, e)
+				}
+				args["preview_hash"] = preview.Response.Data.Hash
+				return tool("submission_import_confirm", args), nil
+			default:
+				return final(), nil
+			}
+		})
+		rid := send("teacher", cid)
+		var editorTool Tool
+		for _, spec := range Catalog() {
+			if spec.Name == "import_editor" {
+				editorTool = spec
+			}
+		}
+		importRun, _ := s.Q.GetAgentRun(ctx, rid)
+		importConv, _ := s.Q.GetAgentConversation(ctx, store.GetAgentConversationParams{ID: cid, CourseID: "course", OwnerID: "teacher"})
+		beforeImport, _, err := s.snapshot(ctx, importRun, importConv, editorTool, map[string]any{"id": assignment})
+		if err != nil {
+			t.Fatal(err)
+		}
+		drive(rid, "waiting_approval")
+		if readCount("submissions", "assignment_id=$1", assignment) != 0 {
+			t.Fatal("attachment imported without confirmation")
+		}
+		req := pending(cid)
+		request("teacher", "POST", base+"/requests/"+req.ID+"/respond", map[string]any{"decision": "approve"}, 200)
+		drive(rid, "succeeded")
+		if readCount("submissions", "assignment_id=$1", assignment) != 1 || readCount("submission_imports", "assignment_id=$1 AND imported_by='teacher'", assignment) != 1 {
+			t.Fatal("approved attachment not imported exactly once")
+		}
+		afterImport, receipt, err := s.snapshot(ctx, importRun, importConv, editorTool, map[string]any{"id": assignment})
+		if err != nil || afterImport == beforeImport || !strings.Contains(string(raw(receipt)), "imported_by") {
+			t.Fatal("editor did not verify the saved import batch", err)
+		}
+		otherCID := conversation("teacher", "full-access")
+		conv, _ := s.Q.GetAgentConversation(ctx, store.GetAgentConversationParams{ID: otherCID, CourseID: "course", OwnerID: "teacher"})
+		run, _ := s.Q.GetAgentRun(ctx, rid)
+		for _, spec := range Catalog() {
+			if spec.Name == "submission_import_preview" {
+				v, err := s.invoke(ctx, run, conv, spec, map[string]any{"id": assignment, "question_id": question, "attachment_id": attachment.ID}, "scoped")
+				if err != nil || !strings.Contains(string(raw(v)), "本对话") {
+					t.Fatal("cross-conversation attachment accepted", v, err)
+				}
+			}
+		}
+	})
+	t.Run("editor_handoff_reuses_real_saved_objects_and_readonly_denies", func(t *testing.T) {
+		business := "/api/v1/learning/courses/course"
+		body := map[string]any{"origin": "teacher_example", "title": "工作台示例", "body": "教师编写的初稿", "content_kind": "example", "use_for_learning": true, "use_for_grading": false, "evidence": []any{}}
+		kid := objectID(request("teacher", "POST", business+"/knowledge", body, 200))
+		script := func() {
+			calls := 0
+			s.Model = modelFunc(func([]rag.AgentMessage, []any) (rag.AgentMessage, error) {
+				calls++
+				switch calls {
+				case 1:
+					return tool("delegate", map[string]any{"domain": "materials", "goal": "请教师在知识工作台完成编辑"}), nil
+				case 2:
+					return tool("knowledge_editor", map[string]any{"id": kid, "goal": "核对正文并保存后返回"}), nil
+				default:
+					return final(), nil
+				}
+			})
+		}
+		script()
+		cid := conversation("teacher", "full-access")
+		rid := send("teacher", cid)
+		drive(rid, "waiting_input")
+		req := pending(cid)
+		var snapshot map[string]any
+		_ = json.Unmarshal(req.Snapshot, &snapshot)
+		if snapshot["editor"] == nil || req.Kind != "input" {
+			t.Fatal("editor request missing", string(req.Snapshot))
+		}
+		body["body"] = "教师已保存的正文"
+		body["edit_version"] = 1
+		request("teacher", "PUT", business+"/knowledge/"+kid, body, 200)
+		request("student", "POST", base+"/requests/"+req.ID+"/respond", map[string]any{"decision": "approve"}, 404)
+		request("teacher", "POST", base+"/requests/"+req.ID+"/respond", map[string]any{"decision": "approve", "values": map[string]any{"saved_snapshot": "伪造的浏览器回执"}}, 200)
+		drive(rid, "succeeded")
+		answered, e := s.Q.GetAgentRequest(ctx, req.ID)
+		var receipt map[string]any
+		_ = json.Unmarshal(answered.Response, &receipt)
+		if e != nil || !strings.Contains(string(answered.Response), "教师已保存的正文") || strings.Contains(string(answered.Response), "伪造的浏览器回执") || receipt["changed"] != true {
+			t.Fatal("editor receipt not read from server", string(answered.Response), e)
+		}
+		script()
+		cid = conversation("teacher", "read-only")
+		rid = send("teacher", cid)
+		drive(rid, "succeeded")
+		if readCount("agent_requests", "run_id=$1", rid) != 0 {
+			t.Fatal("readonly opened writable editor")
+		}
+	})
+	t.Run("stream_text_is_persistent_and_cancel_does_not_execute_tools", func(t *testing.T) {
+		cid := conversation("teacher", "read-only")
+		rid := send("teacher", cid)
+		s.Model = streamFunc(func(emit func(string) error) (rag.AgentMessage, error) {
+			if e := emit("正在核对"); e != nil {
+				return rag.AgentMessage{}, e
+			}
+			if e := emit("正在核对当前资料"); e != nil {
+				return rag.AgentMessage{}, e
+			}
+			return rag.AgentMessage{Role: "assistant", Content: "正在核对当前资料"}, nil
+		})
+		drive(rid, "succeeded")
+		run, e := s.Q.GetAgentRun(ctx, rid)
+		if e != nil || run.StreamText != "正在核对当前资料" || run.StreamTurn != 1 {
+			t.Fatal("stream checkpoint missing", run.StreamText, e)
+		}
+		if readCount("agent_events", "run_id=$1 AND kind='text'", rid) < 1 {
+			t.Fatal("stream events missing")
+		}
+		if !strings.Contains(string(request("teacher", "GET", base+"/conversations/"+cid, nil, 200)), `"stream_text":"正在核对当前资料"`) {
+			t.Fatal("refresh loses stream")
+		}
+		cid = conversation("teacher", "auto-review")
+		rid = send("teacher", cid)
+		s.Model = streamFunc(func(emit func(string) error) (rag.AgentMessage, error) {
+			if e := s.Q.CancelAgentRun(ctx, rid); e != nil {
+				t.Fatal(e)
+			}
+			if e := emit("未完成片段"); e != nil {
+				return rag.AgentMessage{}, e
+			}
+			return tool("resource_create", map[string]any{"title": "不应执行"}), nil
+		})
+		drive(rid, "canceled")
+		if readCount("agent_steps", "run_id=$1", rid) != 0 {
+			t.Fatal("canceled generation executed a tool")
 		}
 	})
 	t.Run("expired_session_prevents_background_work", func(t *testing.T) {

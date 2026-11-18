@@ -1,5 +1,7 @@
 # HaJi Mark 界面设计与复刻指南
 
+2026-11-17前端自检：应用层不再添加二级标题及重复功能说明；业务对象名称使用紧凑的 `Typography.Text`，必要的表单分组使用 `Card.title`。交互控件复用率以活动导入图统计，并通过浏览器检查真实控件归属，见[本轮记录](docs/research/frontend-ui-audit-2026-11-17.md)。正文自身的标题、表格与公式保持原有内容语义。
+
 2026-11-17新增`live/agent.tsx`与`agent.css`：沿用深青／薄荷和Ant Design，课程选择继续在顶栏。对话工作区提供会话列表、模型／权限控件、附件、正文渲染、执行记录、输入／单选／多选问题卡及确切参数审批卡；已答问题刷新后显示持久回答，确认操作与模型摘要分开呈现。运行中禁改模式，未知写入和耗尽上限不提供误导性的恢复按钮。手机端会话列表横排，正文和输入区在可见范围内。
 
 2026-10-31 UI 重构 · React 19 / TypeScript / Vite / Ant Design 5.27.4。页面数据继续通过 learning API 读取 PostgreSQL。设计验收范围是本地 Docker；生产状态另见 [部署记录](deploy/README.md) 与仓库根 RESULT.md。改动清单与取舍见 [ui-refresh-2026-10-31](docs/ui-refresh-2026-10-31.md)。
@@ -89,11 +91,11 @@ CSS 变量在 `styles.css :root`，颜色同步到 `theme.ts palette`。修改�
 <div className="live-page">
   <div className="live-inline"><Link className="primary-link" to="…">新建作业</Link></div>
   <Feedback error={query.error} message={action.message} failed={action.failed} />
-  <Card className="card-panel" title="全部作业">
+  <Card className="card-panel">
     {query.isPending ? <LoadingState /> : !list.length ? <EmptyState title="当前没有作业">…</EmptyState> :
       list.map((a) => (
         <article className="live-row" key={a.id}>
-          <div><h3>{a.title}</h3><MetaTags><StatusTag status={a.status} label={names[a.status]} /><MetaTag>满分 {a.max_score}</MetaTag></MetaTags></div>
+          <div><Typography.Text strong className="item-title">{a.title}</Typography.Text><MetaTags><StatusTag status={a.status} label={names[a.status]} /><MetaTag>满分 {a.max_score}</MetaTag></MetaTags></div>
           <div className="live-inline">{/* ghost-btn / primary-link */}</div>
         </article>
       ))}
@@ -104,13 +106,13 @@ CSS 变量在 `styles.css :root`，颜色同步到 `theme.ts palette`。修改�
 - 主页面：不再重复侧栏中的分组名、页面名和账户身份说明；详情保留作业、资料等对象名称和返回操作。
 - 卡片：使用 Ant Design `Card` 承载一组任务；列表内容保留 `.live-row` 排列。
 - 两栏：`.live-grid`（窄侧栏 + 内容），`.live-grid.is-even`（等宽两栏）；1023px 以下单列。
-- 表单：使用 `Form`、共享 `Field`（`Form.Item`）、`Input`、`Select`、`InputNumber`、`Radio`、`Checkbox`、`Upload`；可见标签与实际控件关联。`.live-form` 纵向，`.live-inline` 横排。
+- 表单：使用 `Form`、共享 `Field`（`Form.Item`）、`Input`、`Select`、`InputNumber`、`DatePicker`、`Radio.Group`、`Checkbox`、`Upload`；可见标签与实际控件关联。`.live-form` 纵向，`.live-inline` 横排。
 - 状态：加载 `LoadingState`（`Spin`），空 `EmptyState`（`Empty`），加载失败 `ErrorState`（`Alert`），操作结果 `Feedback`。失败为 `role="alert"`，成功为 `role="status"`。
 - 元信息：状态用 `StatusTag`，数量、版本、类型、用途用中性 `MetaTag`，`MetaTags`负责间距与换行；均基于 Ant Design `Tag`。时间、出处和正文保留普通文字，不把整段说明塞进标签。状态同时有文字、颜色与圆点，长标签可换行。
 - 列表：标题、元信息、操作分层；工具栏承载筛选和主要动作，操作列可折行，手机端落到内容下方。看板数字使用 `Statistic`，目录和表单仍使用原有 Ant Design 组件；不通过全局原生 input/label 样式覆盖抽屉内部控件。
 - 角色动作：新建作业、测验和补学补练入口只向教师显示；界面权限不替代 API 授权。`ActionLink`保留布局类名和 React Router 行为，只将旧按钮样式标记转换为 Ant Design 的按钮类型。
 - 文案：只写标题、实际数据和操作名；不在页面重复功能说明。概览只用真实证据，无评分时显示“证据不足”。
-- Ant Design 统一菜单、按钮、表单、目录树、表格、分页、页签、折叠、抽屉和确认框。业务链接使用 `Button` 并保留 React Router 导航；正文中的表格和代码保持内容语义。两字按钮设 `autoInsertSpace={false}`。
+- Ant Design 统一菜单、按钮、表单、目录树、表格、分页、页签、折叠、抽屉和确认框。业务链接使用 `Typography.Link`，主要操作使用 `Button`，统一保留 React Router 导航；正文中的表格和代码保持内容语义。两字按钮设 `autoInsertSpace={false}`。
 - 资料、题干、参考解答、知识与问答正文用 `RichContent` 渲染 Markdown 和公式；编辑框与评分引用仍保留原文。减少动画通过主题 `motion` 控制，不全局覆盖下拉层动画或定位。
 
 ## 页面示例

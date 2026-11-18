@@ -1,8 +1,9 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Alert, Button, Drawer, Input, Select, Space, Steps, Table, Tag, Typography, Upload } from "antd";
 import type { Assignment, Question } from "./assessment";
 import { useAction, useLiveQuery, Feedback, when, Link } from "./context";
 import { Field } from "../shared/Field";
+import { DraftNotice, useEditorDraft } from "./editing";
 
 type Row = { row: number; username: string; answer_text: string; student_name: string; next_attempt: number; error: string };
 type Preview = { rows: Row[]; valid: boolean; preview_hash: string };
@@ -10,26 +11,29 @@ type Batch = { id: string; question_id: string; answer_count: number; created_at
 
 export function SubmissionImport({ assignment, questions }: { assignment: Assignment; questions: Question[] }) {
   const [open, setOpen] = useState(false);
-  const [question, setQuestion] = useState("");
-  const [csv, setCSV] = useState("");
+  const draft = useEditorDraft(`submission-import:${assignment.id}`, { question: "", csv: "", request_id: crypto.randomUUID() });
+  const { question, csv, request_id } = draft.value;
+  const setQuestion = (question: string) => draft.change(v => ({ ...v, question, request_id: crypto.randomUUID() }));
+  const setCSV = (csv: string) => draft.change(v => ({ ...v, csv, request_id: crypto.randomUUID() }));
   const [preview, setPreview] = useState<Preview | null>(null);
   const [receipt, setReceipt] = useState<{ batch: Batch; submissions: { id: string }[] } | null>(null);
   const [fileError, setFileError] = useState("");
   const [uploading, setUploading] = useState(false);
-  const request = useRef(crypto.randomUUID());
   const action = useAction();
   const batches = useLiveQuery<Batch[]>(`/assignments/${assignment.id}/imports`, open);
   const eligible = questions.filter(q => q.type !== "quiz");
   const available = assignment.status === "published" && (!assignment.due_at || Date.parse(assignment.due_at) >= Date.now());
-  function changed() { setPreview(null); setReceipt(null); request.current = crypto.randomUUID(); action.setMessage(""); }
-  const locked = action.busy || uploading;
+  function changed() { setPreview(null); setReceipt(null); action.setMessage(""); }
+  const locked = action.busy || uploading || !draft.ready;
   return <>
     <Button onClick={() => setOpen(true)}>导入文本作答</Button>
     <Drawer title="批量导入文本作答" open={open} width={960} onClose={() => { if (!locked) setOpen(false); }} maskClosable={!locked} closable={!locked}>
       <Space direction="vertical" size="middle" className="live-full-width">
+        <DraftNotice {...draft} />
+        {draft.dirty && <Button disabled={locked} onClick={() => { draft.reset({ question: "", csv: "", request_id: crypto.randomUUID() }); changed(); }}>清空导入草稿</Button>}
         <Steps size="small" current={receipt ? 2 : preview ? 1 : 0} items={[{ title: "选择题目与答案" }, { title: "核对并确认" }, { title: "查看导入结果" }]} />
         {!receipt && <>
-        <Alert type="info" showIcon message="每批对应一道题，最多200份答案" description="使用课程内已有学生用户名。导入追加新作答、保留原文并记录教师操作；不改写旧作答、成绩或学生草稿。" />
+        <Alert type="info" showIcon message="每批一道题，最多200份；使用课程内学生用户名" />
         {!available && <Alert type="warning" showIcon message="当前作业尚未发布、已关闭或已截止，不能导入" />}
         {!eligible.length && <Alert type="warning" showIcon message="本作业没有可导入文本的主观题或代码题" />}
         <Field label="导入到题目" required><Select aria-label="导入到题目" value={question || undefined} placeholder="选择一道主观题或代码题" disabled={locked || !available} options={eligible.map((q, i) => ({ value: q.id, label: `${i + 1}. ${q.prompt.slice(0, 80)}` }))} onChange={v => { setQuestion(v); changed(); }} /></Field>
@@ -67,8 +71,8 @@ export function SubmissionImport({ assignment, questions }: { assignment: Assign
             { title: "核对", width: 200, render: (_, r) => r.error ? <Tag color="error">{r.error}</Tag> : <Tag color={r.next_attempt > 1 ? "warning" : "success"}>追加第{r.next_attempt}次作答</Tag> },
           ]} />
           <Button type="primary" loading={action.busy} disabled={!preview.valid || locked || !available} onClick={async () => {
-            const r = await action.run<{ batch: Batch; submissions: { id: string }[] }>(`/assignments/${assignment.id}/import/confirm`, { question_id: question, csv, preview_hash: preview.preview_hash, request_id: request.current });
-            if (r) { setReceipt(r); await batches.refetch(); }
+            const r = await action.run<{ batch: Batch; submissions: { id: string }[] }>(`/assignments/${assignment.id}/import/confirm`, { question_id: question, csv, preview_hash: preview.preview_hash, request_id });
+            if (r) { draft.reset({ question, csv: "", request_id: crypto.randomUUID() }); setReceipt(r); await batches.refetch(); }
             else { setPreview(null); await batches.refetch(); }
           }}>确认导入 {preview.rows.length} 份答案</Button>
         </>}

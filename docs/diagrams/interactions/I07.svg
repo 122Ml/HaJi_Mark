@@ -1,0 +1,164 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2600" height="2226" viewBox="0 0 2600 2226" role="img" aria-label="内容变更与整组重评">
+<title>I07 内容变更与整组重评</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 1 L9 5 L0 9Z" fill="#839097"/></marker></defs>
+<g font-family="Microsoft YaHei, sans-serif">
+<rect x="0" y="0" width="2600" height="2226" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="80" y="77" font-size="40" fill="#242424" font-weight="700" text-anchor="start" >I07　内容变更与整组重评</text>
+<text x="2520" y="77" font-size="21" fill="#58616A" font-weight="400" text-anchor="end" >2026-11-17 · 本地实现</text>
+<rect x="62.0" y="125" width="541.0" height="2066" rx="10" fill="#EDECE6" stroke="none" />
+<text x="80.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >教师</text>
+<rect x="707.0" y="125" width="541.0" height="2066" rx="10" fill="#F1F0EB" stroke="none" />
+<text x="725.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >平台</text>
+<rect x="1352.0" y="125" width="541.0" height="2066" rx="10" fill="#EDECE6" stroke="none" />
+<text x="1370.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >AI / 对话助理</text>
+<rect x="1997.0" y="125" width="541.0" height="2066" rx="10" fill="#F1F0EB" stroke="none" />
+<text x="2015.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >学生</text>
+<g class="edges">
+<g class="edge" data-from="change" data-to="impact"><title>保存新版本</title><path d="M585.0,323.0 L725.0,323.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="impact" data-to="decide"><title>核对</title><path d="M1230.0,323.0 L1252.0,323.0 L1252.0,503 L58.0,503 L58.0,613.0 L80.0,613.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="decide" data-to="lifecycle"><title>明确确认</title><path d="M585.0,613.0 L725.0,613.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="lifecycle" data-to="history"><title>历史保留</title><path d="M977.5,701 L977.5,815" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="decide" data-to="start"><title>评估重评</title><path d="M332.5,701 L332.5,815" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="start" data-to="reject"><title>不兼容</title><path d="M585.0,903.0 L607.0,903.0 L607.0,1193.0 L725.0,1193.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="start" data-to="freeze"><title>符合条件</title><path d="M332.5,991 L332.5,1373 L977.5,1373 L977.5,1395" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="freeze" data-to="grade"><title>批次执行</title><path d="M1230.0,1483.0 L1370.0,1483.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="grade" data-to="review"><title>草稿</title><path d="M1875.0,1483.0 L1897.0,1483.0 L1897.0,1663 L58.0,1663 L58.0,1773.0 L80.0,1773.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="review" data-to="atomic"><title>全部确认</title><path d="M585.0,1773.0 L725.0,1773.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="atomic" data-to="student"><title>统一可见</title><path d="M1230.0,1773.0 L2015.0,1773.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="atomic" data-to="error"><title>条件不满足</title><path d="M977.5,1861 L977.5,1975" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="grade" data-to="error"><title>失败</title><path d="M1622.5,1571 L1622.5,1953 L1006.5,1953 L1006.5,1975" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="error" data-to="retry"><title>人工处理</title><path d="M725.0,2063.0 L585.0,2063.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="retry" data-to="review"><title>继续复核</title><path d="M332.5,1975 L332.5,1861" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+</g><g class="nodes">
+<g class="node" data-node="change" tabindex="0" role="button" aria-label="新增资料 / 知识 / 标准版本">
+<rect x="80.0" y="235" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="278" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >新增资料 / 知识 / 标准版本</text>
+<text x="102.0" y="320" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >普通更新或明确归档 / 撤回</text>
+</g>
+<g class="node" data-node="impact" tabindex="0" role="button" aria-label="列出关联与影响">
+<rect x="725.0" y="235" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="278" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >列出关联与影响</text>
+<text x="747.0" y="320" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >来源 / 知识 / 题目 / 作业引用</text>
+</g>
+<g class="node" data-node="decide" tabindex="0" role="button" aria-label="核对影响 · 决定未来用途">
+<rect x="80.0" y="525" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="568" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >核对影响 · 决定未来用途</text>
+<text x="102.0" y="610" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >普通更新保留旧版可追溯使用</text>
+</g>
+<g class="node" data-node="lifecycle" tabindex="0" role="button" aria-label="落实明确生命周期操作">
+<rect x="725.0" y="525" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="568" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >落实明确生命周期操作</text>
+<text x="747.0" y="610" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >归档 / 替换停用 / 撤回才限制使用</text>
+</g>
+<g class="node" data-node="history" tabindex="0" role="button" aria-label="保留发布与评分依据快照">
+<rect x="725.0" y="815" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="858" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >保留发布与评分依据快照</text>
+<text x="747.0" y="900" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >不改写历史 / 提示评估是否重评</text>
+</g>
+<g class="node" data-node="start" tabindex="0" role="button" aria-label="为关闭作业的单题建重评批次">
+<rect x="80.0" y="815" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="858" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >为关闭作业的单题建重评批次</text>
+<text x="102.0" y="900" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >选择同满分、兼容题目的新版标准</text>
+</g>
+<g class="node" data-node="reject" tabindex="0" role="button" aria-label="题干 / 选项 / 满分已变更">
+<rect x="725.0" y="1105" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="1148" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >题干 / 选项 / 满分已变更</text>
+<text x="747.0" y="1190" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >拒绝旧答案重评 / 另建任务</text>
+</g>
+<g class="node" data-node="freeze" tabindex="0" role="button" aria-label="冻结每人有效提交与基线">
+<rect x="725.0" y="1395" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="1438" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >冻结每人有效提交与基线</text>
+<text x="747.0" y="1480" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >同一新版标准 / 原文与哈希</text>
+</g>
+<g class="node" data-node="grade" tabindex="0" role="button" aria-label="按新版标准生成草稿">
+<rect x="1370.0" y="1395" width="505.0" height="176" rx="10" fill="#FFF1E5" stroke="#E3B89A" stroke-width="2"/>
+<text x="1392.0" y="1438" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >按新版标准生成草稿</text>
+<text x="1392.0" y="1480" font-size="22" fill="#775D4E" font-weight="400" text-anchor="start" >逐份执行 / 固定同一依据</text>
+</g>
+<g class="node" data-node="review" tabindex="0" role="button" aria-label="逐份核对、修改并确认">
+<rect x="80.0" y="1685" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="1728" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >逐份核对、修改并确认</text>
+<text x="102.0" y="1770" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >未全部确认不能发布</text>
+</g>
+<g class="node" data-node="atomic" tabindex="0" role="button" aria-label="整组原子发布">
+<rect x="725.0" y="1685" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="1728" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >整组原子发布</text>
+<text x="747.0" y="1770" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >核对基线 / 保留旧成绩与旧依据</text>
+</g>
+<g class="node" data-node="student" tabindex="0" role="button" aria-label="看到整组发布后的正式结果">
+<rect x="2015.0" y="1685" width="505.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="2037.0" y="1728" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >看到整组发布后的正式结果</text>
+<text x="2037.0" y="1770" font-size="22" fill="#526575" font-weight="400" text-anchor="start" >原反馈仍可追溯</text>
+</g>
+<g class="node" data-node="error" tabindex="0" role="button" aria-label="基线变化 / 草稿失败 / 未确认">
+<rect x="725.0" y="1975" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="2018" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >基线变化 / 草稿失败 / 未确认</text>
+<text x="747.0" y="2060" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >阻断发布 / 明确处理后继续</text>
+</g>
+<g class="node" data-node="retry" tabindex="0" role="button" aria-label="核对失败项或另建批次">
+<rect x="80.0" y="1975" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="2018" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >核对失败项或另建批次</text>
+<text x="102.0" y="2060" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >未知生成不自动付费重试</text>
+</g>
+</g><g class="labels">
+<g class="edge-label" data-from="change" data-to="impact">
+<rect x="597.5" y="289.0" width="115.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="655.0" y="310.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >保存新版本</text>
+</g>
+<g class="edge-label" data-from="impact" data-to="decide">
+<rect x="1262.0" y="398.5" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1291.0" y="419.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >核对</text>
+</g>
+<g class="edge-label" data-from="decide" data-to="lifecycle">
+<rect x="607.0" y="579.0" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="655.0" y="600.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >明确确认</text>
+</g>
+<g class="edge-label" data-from="lifecycle" data-to="history">
+<rect x="987.5" y="743.5" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1035.5" y="764.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >历史保留</text>
+</g>
+<g class="edge-label" data-from="decide" data-to="start">
+<rect x="342.5" y="743.5" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="390.5" y="764.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >评估重评</text>
+</g>
+<g class="edge-label" data-from="start" data-to="reject">
+<rect x="617.0" y="1033.5" width="77.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="655.5" y="1054.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >不兼容</text>
+</g>
+<g class="edge-label" data-from="start" data-to="freeze">
+<rect x="342.5" y="1167.5" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="390.5" y="1188.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >符合条件</text>
+</g>
+<g class="edge-label" data-from="freeze" data-to="grade">
+<rect x="1252.0" y="1449.0" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1300.0" y="1470.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >批次执行</text>
+</g>
+<g class="edge-label" data-from="grade" data-to="review">
+<rect x="1907.0" y="1558.5" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1936.0" y="1579.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >草稿</text>
+</g>
+<g class="edge-label" data-from="review" data-to="atomic">
+<rect x="607.0" y="1739.0" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="655.0" y="1760.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >全部确认</text>
+</g>
+<g class="edge-label" data-from="atomic" data-to="student">
+<rect x="1574.5" y="1739.0" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1622.5" y="1760.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >统一可见</text>
+</g>
+<g class="edge-label" data-from="atomic" data-to="error">
+<rect x="987.5" y="1903.5" width="115.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1045.0" y="1924.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >条件不满足</text>
+</g>
+<g class="edge-label" data-from="grade" data-to="error">
+<rect x="1285.5" y="1919" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1314.5" y="1940" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >失败</text>
+</g>
+<g class="edge-label" data-from="error" data-to="retry">
+<rect x="607.0" y="2029.0" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="655.0" y="2050.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >人工处理</text>
+</g>
+<g class="edge-label" data-from="retry" data-to="review">
+<rect x="342.5" y="1903.5" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="390.5" y="1924.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >继续复核</text>
+</g>
+</g></g></svg>

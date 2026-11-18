@@ -1,7 +1,7 @@
 import { Field } from "../shared/Field";
 import { useConfirm } from "../shared/confirm";
 import { useState } from "react";
-import { Select, Card, Collapse, Input, Button } from "antd";
+import { Select, Card, Collapse, Input, Button, Typography } from "antd";
 import { Feedback, useAction, useLiveQuery } from "./context";
 import { WorkflowJob } from "./workflow-job";
 import { type Knowledge } from "./knowledge";
@@ -52,7 +52,7 @@ export function KnowledgeReview({
   const [comparisons, setComparisons] = useState<Comparison[]>([]);
   return (
     <div className="live-form">
-      <h2>{candidate.title}</h2>
+      <Typography.Text strong className="item-title">{candidate.title}</Typography.Text>
       <RichContent text={candidate.body} />
       <p>{candidate.conditions}</p>
       <DraftNotice {...draft} />
@@ -82,10 +82,10 @@ export function KnowledgeReview({
       />
       {comparisons.map((c) => (
         <Card className="card-panel" key={c.knowledge_id}>
-          <h3>
+          <Typography.Text strong className="item-title">
             {known.find((k) => k.id === c.knowledge_id)?.title} ·{" "}
             {relations[c.relation]}
-          </h3>
+          </Typography.Text>
           <blockquote>{c.candidate_quote}</blockquote>
           <blockquote>{c.existing_quote}</blockquote>
           <p>{c.reason}</p>
@@ -105,7 +105,7 @@ export function KnowledgeReview({
                     return (
                       k && (
                         <article className="rag-hit" key={id}>
-                          <h3>{k.title}</h3>
+                          <Typography.Text strong className="item-title">{k.title}</Typography.Text>
                           <RichContent text={k.body} />
                           <p>条件：{k.conditions || "未单列"}</p>
                         </article>

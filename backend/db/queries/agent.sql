@@ -111,3 +111,6 @@ INSERT INTO agent_events(conversation_id,run_id,kind,payload) VALUES($1,$2,$3,$4
 
 -- name: ListAgentEvents :many
 SELECT * FROM agent_events WHERE conversation_id=$1 AND id>$2 ORDER BY id LIMIT 100;
+
+-- name: SetAgentStream :exec
+UPDATE agent_runs SET stream_text=$2,stream_turn=$3 WHERE id=$1 AND state='running' AND NOT cancel_requested;

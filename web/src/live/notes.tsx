@@ -42,7 +42,6 @@ export function ResourceNotes({ resourceId }: { resourceId: string }) {
       }}
       layout="vertical"
     >
-      <h3>学习笔记</h3>
       <DraftNotice {...draft} />
       <p role="status">
         {action.busy ? "正在保存…" : draft.dirty ? "待保存" : "已同步"}

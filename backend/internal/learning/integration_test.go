@@ -15,8 +15,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/122Ml/HaJi_Mark/backend/internal/rag"
 	"github.com/122Ml/HaJi_Mark/backend/internal/server"
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
+	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -110,6 +112,12 @@ func TestTeachingLoop(t *testing.T) {
 			t.Fatal(err)
 		}
 		return response.Data
+	}
+	decode := func(data json.RawMessage, target any) {
+		t.Helper()
+		if err := json.Unmarshal(data, target); err != nil {
+			t.Fatal(err)
+		}
 	}
 	id := func(raw json.RawMessage) string {
 		t.Helper()
@@ -262,6 +270,10 @@ INSERT INTO retrieval_chunks(id,course_id,source_id,title,body,locator,input_has
 		rid := id(call(teacher, "POST", base+"/resources", missing, 200))
 		path := base + "/resources/" + rid
 		call(teacher, "POST", path+"/publish", map[string]string{}, 200)
+		var queued int
+		if err := db.QueryRow(ctx, `SELECT count(*) FROM processing_jobs WHERE course_id='course' AND kind='index' AND state='queued'`).Scan(&queued); err != nil || queued != 1 {
+			t.Fatalf("manual publication must durably queue one course index: %d %v", queued, err)
+		}
 		call(teacher, "POST", path+"/publish", map[string]string{}, 409)
 		missing["content"] = "revised"
 		v2 := id(call(teacher, "POST", path+"/revisions", missing, 200))
@@ -367,7 +379,26 @@ INSERT INTO material_fragments(id,source_id,revision,position,body,locator,quali
 		path := base + "/sources/publication-source/publish"
 		call(teacher, "POST", path, map[string]any{"title": "duplicate", "fragment_ids": []string{"publication-public", "publication-public"}, "full_source": true}, 422)
 		call(teacher, "POST", path, map[string]any{"title": "unreviewed", "fragment_ids": []string{"publication-public", "publication-private"}, "full_source": true}, 422)
-		call(teacher, "POST", path, map[string]any{"title": "partial", "fragment_ids": []string{"publication-public"}, "full_source": false}, 200)
+		partialID := id(call(teacher, "POST", path, map[string]any{"title": "partial", "fragment_ids": []string{"publication-public"}, "full_source": false}, 200))
+		t.Run("resource_scope_never_expands_partial_publication", func(t *testing.T) {
+			var response struct {
+				Hits []rag.Hit `json:"hits"`
+				Mode string    `json:"mode"`
+			}
+			decode(call(student, "POST", base+"/retrieval", map[string]string{"query": "公开内容", "purpose": "learning", "resource_id": partialID}, 200), &response)
+			if response.Mode != "resource_keyword" || len(response.Hits) != 1 || response.Hits[0].ResourceID != partialID || strings.Contains(response.Hits[0].Body, "内部") {
+				t.Fatal("scoped search expanded into private source", response)
+			}
+			decode(call(student, "POST", base+"/retrieval", map[string]string{"query": "未核对的内部内容", "purpose": "learning", "resource_id": partialID}, 200), &response)
+			for _, hit := range response.Hits {
+				if strings.Contains(hit.Body, "内部") {
+					t.Fatal("private source fragment leaked")
+				}
+			}
+			draftID := id(call(teacher, "POST", base+"/resources", map[string]string{"title": "private draft", "content": "公开内容", "source_note": "fixture", "locator": "1"}, 200))
+			call(student, "POST", base+"/retrieval", map[string]string{"query": "公开", "resource_id": draftID}, 422)
+			call(teacher, "POST", "/learning/courses/foreign/retrieval", map[string]string{"query": "公开", "resource_id": partialID}, 403)
+		})
 		t.Run("answer_markers_must_match_verified_citations", func(t *testing.T) {
 			if _, err := db.Exec(ctx, `INSERT INTO retrieval_chunks(id,course_id,source_id,fragment_ids,title,body,locator,input_hash,search_tokens) VALUES('qa-public','course','publication-source',ARRAY['publication-public'],'公开内容','公开内容','{}','qa','公开 内容')`); err != nil {
 				t.Fatal(err)
@@ -444,6 +475,26 @@ INSERT INTO material_fragments(id,source_id,revision,position,body,locator,quali
 			t.Fatal("draft history did not filter by target", string(call(teacher, "GET", base+"/jobs", nil, 200)), err)
 		}
 		call(student, "GET", base+"/jobs?kind=rubric", nil, 403)
+		t.Run("processing_jobs_page_and_combined_kind_keep_object_scope", func(t *testing.T) {
+			if _, err := db.Exec(ctx, `INSERT INTO processing_jobs(id,course_id,created_by,kind,state,input) SELECT 'page-job-'||i,'course','teacher',CASE WHEN i%2=0 THEN 'extract' ELSE 'parse' END,'succeeded','{"source_id":"publication-source"}' FROM generate_series(1,65) i`); err != nil {
+				t.Fatal(err)
+			}
+			seen := map[string]bool{}
+			for offset := 0; offset < 65; offset += 20 {
+				var rows []store.ProcessingJob
+				decode(call(teacher, "GET", base+fmt.Sprintf("/jobs?kind=parse,extract&source_id=publication-source&size=20&offset=%d", offset), nil, 200), &rows)
+				for _, row := range rows {
+					if seen[row.ID] {
+						t.Fatal("job repeated across pages")
+					}
+					seen[row.ID] = true
+				}
+			}
+			if len(seen) != 65 {
+				t.Fatal("scoped history silently truncated", len(seen))
+			}
+			call(teacher, "GET", base+"/jobs?size=201", nil, 422)
+		})
 	})
 	t.Run("topic_scope_and_atomic_whole_group_regrade", func(t *testing.T) {
 		decode := func(raw json.RawMessage, into any) {
@@ -679,6 +730,173 @@ INSERT INTO material_fragments(id,source_id,revision,position,body,locator,quali
 		input["request_id"] = "import-request"
 		input["csv"] = "username,answer_text\r\nstudent,\"原文😀\r\n换行和\"\"引号\"\"\"\r\npeer,peer answer\r\n"
 		call(teacher, "POST", ap+"/import/confirm", input, 200)
+	})
+	t.Run("intelligence_reports_examples_and_frozen_evidence", func(t *testing.T) {
+		t.Setenv("RAG_ENABLED", "true")
+		var modelCalls atomic.Int32
+		provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			modelCalls.Add(1)
+			var body struct {
+				Messages []struct {
+					Content string `json:"content"`
+				} `json:"messages"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			var in struct {
+				rag.IntelligenceInput
+				EvidenceSpans []struct {
+					ID string `json:"id"`
+				} `json:"evidence_spans"`
+			}
+			_ = json.Unmarshal([]byte(body.Messages[1].Content), &in)
+			var out any
+			if len(in.Answers) > 0 {
+				if len(in.EvidenceSpans) == 0 {
+					t.Error("diagnosis model input has no selectable original evidence")
+					http.Error(w, "missing evidence spans", 500)
+					return
+				}
+				out = map[string]any{"findings": []any{map[string]any{"label_id": "concept", "title": "概念混淆", "explanation": "该次作答把范围内外混为一类", "evidence_ids": []string{in.EvidenceSpans[0].ID}}}}
+			} else {
+				ranking := []rag.RankedCandidate{}
+				for _, v := range in.Candidates {
+					ranking = append(ranking, rag.RankedCandidate{ID: v.ID, Reason: "按规则路径的前置关系学习"})
+				}
+				out = rag.IntelligenceOutput{Ranking: ranking}
+			}
+			content, _ := json.Marshal(out)
+			_ = json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]string{"content": string(content)}, "finish_reason": "stop"}}, "usage": map[string]int{"prompt_tokens": 50, "completion_tokens": 80}})
+		}))
+		defer provider.Close()
+		t.Setenv("INTEL_FIXTURE_KEY", "fixture-only")
+		t.Setenv("INTEL_FIXTURE_BASE", provider.URL)
+		profiles := filepath.Join(t.TempDir(), "models.json")
+		if e := os.WriteFile(profiles, []byte(`[{"id":"fixture","label":"fixture","kind":"chat","protocol":"openai","base_url_env":"INTEL_FIXTURE_BASE","key_env":"INTEL_FIXTURE_KEY","model":"fixture","input_micro_cny_per_token":1,"output_micro_cny_per_token":1,"batch_size":1}]`), 0600); e != nil {
+			t.Fatal(e)
+		}
+		t.Setenv("MODEL_PROFILES_PATH", profiles)
+		router = server.New(db, nil, false)
+		models, e := rag.LoadModels(db)
+		if e != nil {
+			t.Fatal(e)
+		}
+		worker := rag.New(models)
+		point := id(call(teacher, "POST", base+"/points", map[string]any{"title": "智能报告测试知识点", "kind": "point", "position": 99}, 200))
+		example := map[string]any{"title": "教师自编示例", "body": "独立编写的边界检查教学示例", "origin": "teacher_example", "content_kind": "example", "student_visible": true, "use_for_learning": true, "use_for_grading": false, "knowledge_point_ids": []string{point}}
+		kid := id(call(teacher, "POST", base+"/knowledge", example, 200))
+		example["use_for_grading"] = true
+		call(teacher, "POST", base+"/knowledge", example, 422)
+		example["use_for_grading"] = false
+		call(student, "GET", base+"/knowledge", nil, 200)
+		call(teacher, "POST", base+"/knowledge/"+kid+"/state", map[string]any{"state": "confirmed", "edit_version": 1}, 200)
+		if !strings.Contains(string(call(student, "GET", base+"/knowledge", nil, 200)), kid) {
+			t.Fatal("confirmed teacher example invisible")
+		}
+		example["origin"] = "source"
+		example["supersedes_id"] = kid
+		call(teacher, "POST", base+"/knowledge", example, 422)
+		aid := id(call(teacher, "POST", base+"/assignments", map[string]any{"title": "诊断正式结果", "questions": []any{map[string]any{"prompt": "18到60的整数年龄边界", "max_score": 10, "rubric": "判断内外合法性", "knowledge_point_id": point}}}, 200))
+		var detail struct {
+			Questions []struct {
+				ID string `json:"id"`
+			} `json:"questions"`
+		}
+		_ = json.Unmarshal(call(teacher, "GET", base+"/assignments/"+aid, nil, 200), &detail)
+		qid := detail.Questions[0].ID
+		rubric := id(call(teacher, "POST", base+"/questions/"+qid+"/rubrics", map[string]any{"criteria": []any{map[string]any{"id": "D1", "title": "合法分类", "max_score": 10, "rule": "区分内外"}}}, 200))
+		call(teacher, "POST", base+"/rubrics/"+rubric+"/confirm", map[string]any{}, 200)
+		call(teacher, "POST", base+"/assignments/"+aid+"/state", map[string]any{"state": "published"}, 200)
+		sid := id(call(student, "POST", base+"/assignments/"+aid+"/submissions", map[string]any{"question_id": qid, "answer_text": "这六个年龄都合法", "request_id": "intel-answer"}, 200))
+		rid := id(call(teacher, "POST", base+"/submissions/"+sid+"/revisions", map[string]any{"score": 3, "feedback": "范围外分类有误", "rubric_id": rubric, "request_id": "intel-grade", "points": []any{map[string]any{"criterion_id": "D1", "score": 3, "feedback": "范围外分类有误", "quote": "都合法"}}}, 200))
+		for _, state := range []string{"confirmed", "released"} {
+			call(teacher, "POST", base+"/revisions/"+rid+"/state", map[string]any{"state": state}, 200)
+		}
+		request := map[string]any{"kind": "diagnosis", "question_id": qid, "rubric_id": rubric, "request_id": "diagnosis-once"}
+		call(student, "POST", base+"/intelligence", request, 403)
+		var report struct {
+			ID    string `json:"id"`
+			JobID string `json:"job_id"`
+		}
+		_ = json.Unmarshal(call(teacher, "POST", base+"/intelligence", request, 200), &report)
+		if got := id(call(teacher, "POST", base+"/intelligence", request, 200)); got != report.ID {
+			t.Fatal("report retry duplicated")
+		}
+		request["rubric_id"] = "changed"
+		call(teacher, "POST", base+"/intelligence", request, 409)
+		for i := 0; i < 2; i++ {
+			if e = worker.Process(ctx, asynq.NewTask("materials:process", []byte(report.JobID))); e != nil {
+				t.Fatal(e)
+			}
+		}
+		if modelCalls.Load() != 1 {
+			t.Fatal("redelivery repeated model", modelCalls.Load())
+		}
+		var view struct {
+			Report struct {
+				Output      rag.IntelligenceOutput `json:"output"`
+				EditVersion int                    `json:"edit_version"`
+			} `json:"report"`
+			Stale bool `json:"stale"`
+		}
+		_ = json.Unmarshal(call(teacher, "GET", base+"/intelligence/"+report.ID, nil, 200), &view)
+		if view.Stale || len(view.Report.Output.Findings) != 1 || len(view.Report.Output.Findings[0].Evidence) != 1 || view.Report.Output.Findings[0].Evidence[0].Quote != "这六个年龄都合法" {
+			t.Fatal("diagnosis missing or incorrectly stale")
+		}
+		call(student, "GET", base+"/intelligence/"+report.ID, nil, 404)
+		call(other, "GET", base+"/intelligence/"+report.ID, nil, 403)
+		out := view.Report.Output
+		out.Findings[0].Evidence[0].Quote = "虚构引用"
+		call(teacher, "PUT", base+"/intelligence/"+report.ID, map[string]any{"output": out, "edit_version": 1}, 422)
+		out.Findings[0].Evidence[0].Quote = "这六个年龄都合法"
+		out.Findings[0].LabelID = ""
+		out.Findings[0].Title = "新问题标签"
+		call(teacher, "POST", base+"/intelligence/"+report.ID+"/confirm", map[string]any{"output": out, "edit_version": 1}, 422)
+		label := id(call(teacher, "POST", base+"/diagnosis-labels", map[string]any{"title": "新问题标签"}, 200))
+		out.Findings[0].LabelID = label
+		call(teacher, "PUT", base+"/intelligence/"+report.ID, map[string]any{"output": out, "edit_version": 1}, 200)
+		call(teacher, "POST", base+"/intelligence/"+report.ID+"/confirm", map[string]any{"output": out, "edit_version": 1}, 409)
+		taskInput := map[string]any{"student_id": "student", "title": "诊断后补学", "description": "核对范围内外分类", "source_submission_id": sid, "diagnosis_report_id": report.ID, "diagnosis_label_id": label}
+		call(teacher, "POST", base+"/interventions", taskInput, 422)
+		call(teacher, "POST", base+"/intelligence/"+report.ID+"/confirm", map[string]any{"output": out, "edit_version": 2}, 200)
+		taskInput["student_id"] = "peer"
+		call(teacher, "POST", base+"/interventions", taskInput, 422)
+		taskInput["student_id"] = "student"
+		var linkedTask store.Intervention
+		decode(call(teacher, "POST", base+"/interventions", taskInput, 200), &linkedTask)
+		if linkedTask.SourceSubmissionID.String != sid || linkedTask.DiagnosisReportID.String != report.ID || linkedTask.DiagnosisLabelID.String != label || linkedTask.Status != "draft" {
+			t.Fatal("diagnosis origin lost or task auto-assigned", linkedTask)
+		}
+		if _, e = db.Exec(ctx, "UPDATE grading_revisions SET feedback='更正后的反馈' WHERE id=$1", rid); e != nil {
+			t.Fatal(e)
+		}
+		call(teacher, "POST", base+"/intelligence/"+report.ID+"/confirm", map[string]any{"output": out, "edit_version": 2}, 409)
+		call(teacher, "POST", base+"/interventions", taskInput, 409)
+		call(student, "POST", base+"/path", map[string]any{}, 200)
+		_ = json.Unmarshal(call(student, "POST", base+"/intelligence", map[string]any{"kind": "recommendation", "request_id": "recommend-once"}, 200), &report)
+		if e = worker.Process(ctx, asynq.NewTask("materials:process", []byte(report.JobID))); e != nil {
+			t.Fatal(e)
+		}
+		var recommendation struct {
+			Report struct {
+				Output rag.IntelligenceOutput `json:"output"`
+			} `json:"report"`
+		}
+		_ = json.Unmarshal(call(student, "GET", base+"/intelligence/"+report.ID, nil, 200), &recommendation)
+		if len(recommendation.Report.Output.Ranking) == 0 {
+			t.Fatal("recommendation missing")
+		}
+		choice := recommendation.Report.Output.Ranking[0].ID
+		call(student, "PUT", base+"/intelligence/"+report.ID+"/choice", map[string]any{"candidate_id": choice, "choice": "saved"}, 200)
+		call(peer, "GET", base+"/intelligence/"+report.ID, nil, 404)
+		call(student, "PUT", base+"/intelligence/"+report.ID+"/choice", map[string]any{"candidate_id": "foreign", "choice": "saved"}, 409)
+		call(teacher, "POST", base+"/knowledge/"+kid+"/state", map[string]any{"state": "archived", "edit_version": 1}, 200)
+		_ = json.Unmarshal(call(student, "GET", base+"/intelligence/"+report.ID, nil, 200), &recommendation)
+		for _, rank := range recommendation.Report.Output.Ranking {
+			if rank.ID == "knowledge:"+kid && rank.Reason != "内容已不可用或已完成，请以当前学习路径为准。" {
+				t.Fatal("unavailable recommendation retained generated explanation", rank)
+			}
+		}
+		call(student, "PUT", base+"/intelligence/"+report.ID+"/choice", map[string]any{"candidate_id": "knowledge:" + kid, "choice": "later"}, 409)
 	})
 	t.Run("assist_history_is_private_paginated_and_durable", func(t *testing.T) {
 		var existing int

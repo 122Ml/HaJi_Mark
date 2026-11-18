@@ -1,4 +1,4 @@
-import { Select, Button, Alert } from "antd";
+import { Select, Button, Alert, Typography } from "antd";
 import {
   createContext,
   useContext,
@@ -7,7 +7,6 @@ import {
   type ReactNode,
 } from "react";
 import {
-  Link as RouterLink,
   useLocation,
   useNavigate,
   useLinkClickHandler,
@@ -17,6 +16,7 @@ import {
 } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { requestJSON, APIError } from "../shared/api";
+import { LoadingState } from "../shared/ui";
 import { useSession } from "../shared/session";
 import { teacherNavigation, studentNavigation } from "../app/navigation";
 export interface Course {
@@ -107,10 +107,7 @@ export function LearningProvider({ children }: { children: ReactNode }) {
   }
   if (query.isPending)
     return (
-      <div className="state-block" role="status">
-        <span className="state-spinner" aria-hidden="true" />
-        <span>正在读取课程…</span>
-      </div>
+      <LoadingState label="正在读取课程…" />
     );
   return (
     <Context.Provider value={{ course, courses, select, reload }}>
@@ -181,6 +178,7 @@ export function useAction() {
     path: string,
     body: unknown = {},
     method = "POST",
+    successMessage?: string,
   ): Promise<T | undefined> {
     setBusy(true);
     setMessage("");
@@ -209,6 +207,7 @@ export function useAction() {
         jobs: ["jobs", "sources", "knowledge", "models"],
         resources: [
           "resources",
+          "jobs",
           "events",
           "activity",
           "overview",
@@ -265,7 +264,25 @@ export function useAction() {
         await cache.invalidateQueries({
           queryKey: ["courses", session?.user.id],
         });
-      setMessage("已保存");
+      const saved = r.data && typeof r.data === "object" ? r.data as Record<string,unknown> : {};
+      const nextState = body && typeof body === "object" && "state" in body ? String(body.state) : String(saved.state || saved.status || "");
+      setMessage(successMessage || (
+        path.endsWith("/cancel") ? "已请求取消，请核对任务最终状态" :
+        path.endsWith("/retry") || path === "/jobs" || path.endsWith("/jobs") || (path === "/intelligence" && method === "POST") ? "已排队处理，请在当前对象的任务记录中核对结果" :
+        nextState === "released" ? "已正式发布，学生可查看反馈" :
+        nextState === "confirmed" ? (path.includes("/revisions/") ? "评分已确认，尚未发布给学生" : path.includes("/knowledge") ? "知识已确认；索引由后台处理" : "已确认当前版本") :
+        nextState === "assigned" ? "任务已下发给指定学生" :
+        nextState === "submitted" ? "执行结果已提交，等待教师复查" :
+        nextState === "reviewed" ? "教师复查已完成" :
+        nextState === "closed" ? "作业已关闭，停止接收新提交" :
+        nextState === "published" && path.includes("/assignments/") ? "作业已发布，题目与标准版本已冻结" :
+        path.includes("/publish") ? "已发布；检索是否就绪请核对索引任务状态" :
+        path === "/interactions" ? "内容已发布到当前课程" :
+        path === "/retrieval" ? "已返回当前权限范围的检索结果" :
+        path === "/assist" ? "已返回回答，请核对引用依据" :
+        nextState === "draft" ? "草稿已保存，尚未发布或下发" :
+        method === "DELETE" ? "已删除" : "已保存草稿或修改"
+      ));
       return r.data;
     } catch (e) {
       setFailed(true);
@@ -328,18 +345,19 @@ export function useCourseURL() {
 export function Link({ to, ...props }: LinkProps) {
   const url = useCourseURL();
   const resolved = typeof to === "string" ? url(to) : to;
-  if (typeof props.className === "string" && /primary-link|ghost-btn/.test(props.className)) return <ActionLink {...props} to={resolved} />;
-  return <RouterLink {...props} to={resolved} />;
+  return <ActionLink {...props} to={resolved} />;
 }
 
 function ActionLink({ to, className, replace, state, target, preventScrollReset, relative, reloadDocument, viewTransition, onClick, color: _color, type: _type, ...props }: LinkProps) {
   const href = useHref(to, { relative });
   const navigate = useLinkClickHandler(to, { replace, state, target, preventScrollReset, relative, viewTransition });
-  return <Button {...props} className={className?.split(/\s+/).filter(c => c !== "primary-link" && c !== "ghost-btn").join(" ")} href={href} target={target} type={String(className).includes("primary-link") ? "primary" : "default"} onClick={(event) => {
+  const onNavigate = (event: React.MouseEvent<HTMLElement>) => {
     const click = event as React.MouseEvent<HTMLAnchorElement>;
     onClick?.(click);
     if (!click.defaultPrevented && !reloadDocument) navigate(click);
-  }} />;
+  };
+  if (typeof className === "string" && /primary-link|ghost-btn/.test(className)) return <Button {...props} className={className.split(/\s+/).filter(c => c !== "primary-link" && c !== "ghost-btn").join(" ")} href={href} target={target} type={className.includes("primary-link") ? "primary" : "default"} onClick={onNavigate} />;
+  return <Typography.Link {...props} className={className} href={href} target={target} onClick={onNavigate} />;
 }
 export function useCourseNavigate() {
   const navigate = useNavigate();

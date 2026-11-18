@@ -103,6 +103,8 @@ HttpOnly、SameSiteStrict、Path=/api/v1、8小时cookie，DB仅存token哈希�
 
 任务状态为queued→running→succeeded/failed，queued/running可取消；知识候选、标准和评阅草稿带`pending_teacher_review`。标准任务不读取submission；评阅任务冻结answer/hash、question、confirmed criteria、rubric evidence_refs。评分点完整、范围、加和和逐字作答引用必须通过，非零分须有引用。此机械核对不证明给分语义正确。
 
+模型内部协议：知识提炼返回所选`evidence_fragment_ids`，服务端从本次选定原文附上引用并验证许可；AI评阅总分由逐点分值服务端相加，模型另报总分仅保留为`model_reported_score`。失败输出保留原稿，不写入未通过校验的知识候选或正式评分。
+
 原文校正、解析成功、知识确认/归档与对应索引请求同事务保存，由数据库恢复扫描补投。Redis短期不可用不丢任务；数据库claim失败返回错误，不冒充完成。解析/提炼/索引完成提交前锁定任务并核对attempt，已取消或旧尝试不能写入新修订、候选或激活向量空间。重新解析失败保留已有可用原文和错误说明；首次解析失败仍为failed。
 
 教师载入AI标准/评分到原编辑器后仍可修改，保存时传`ai_job_id`；后端检查任务、课程、对象与冻结版本，标准附带原任务检索依据，评分关联原AI任务。页面按课程和具体题目/作答/标准从数据库找回最近任务，刷新不自动重新生成；未保存编辑的浏览器恢复同时保留该关联。标准、历史版本和评分编辑区可展开冻结依据。标准确认与评分确认/发布保持原接口，AI任务成功不发布成绩。学生只得到released反馈，不读模型输入、内部标准或任务列表。
@@ -258,3 +260,16 @@ CO-01 发布 course demo-boundary 与资料版本 → AS-01 学生提交“测�
 - `GET /agent/conversations?size=&offset=&search=`仍返回本人对话数组；详情带`has_more,next_cursor`，用`?before=`取更早50个时间线条目。当前页消息/运行带完整步骤/问题卡，外加活跃和最近更新10次运行；前端按ID合并，不能累加当作总数。运行私有checkpoint/session/reasoning不返回。
 
 评分缺口以现有`/evidence`每人每题的最新有效正式结果为基础，按题/标准/评分点分组；只比较当前在课、该点有正式分值的记录，不把不同标准、未作答或无逐点反馈补成零分。规则路径使用现有`/knowledge`权限过滤，不输出不可见条目。
+
+## 智能分析与工作台（00015）
+
+- `POST /intelligence`接收`kind,request_id,profile_id`，诊断另需`question_id,rubric_id`。教师仅创建diagnosis，学生仅创建本人的recommendation；报告与任务同事务创建，请求号重放返回原记录，改变范围或模型返回409。异步失败/中断不自动重发模型，显式新建分析保留旧报告。
+- `GET /intelligence?kind=`及`GET /intelligence/:reportID`仅本人可读。诊断固定同题同标准、已去重正式失分作答与实际分母，最多40份/100KB；模型不得提供人数，归类人数按引用作答ID去重。每份作答须有逐字证据或明确列为未归类。
+- 诊断的模型内部输出选择`evidence_ids`，服务端将其解析为当前不可变作答原句；拒绝模型自写引用、未提供ID和同项重复计人。对外报告及教师编辑仍使用`evidence[{submission_id,quote}]`，核对规则不变。失败模型原稿保留。
+- `PUT /intelligence/:reportID`保存草稿，`POST .../confirm`确认；均带`output,edit_version`，核对标签、原句、引用归属及乐观版本。确认与正式发布使用同一作业事务锁，并复查正式结果快照。正式证据变化时409，原报告保留。`/diagnosis-labels`由教师维护，新标签建议先明确建立再确认，不从失分或空白推断学生整体能力。
+- 推荐候选来自既有规则路径中的可见已发布资料、已确认学习知识及有效来源；排除明确完成的资料。模型只能重排同一前置顺序组内的候选，不能创造内容或越过先修顺序。`PUT .../choice`接收`candidate_id,choice`（saved/later/dismissed），重查当前可用性；历史失效内容隐藏标题、禁用操作。阅读/偏好不表示掌握。
+- `POST .../cancel`取消本人分析任务。诊断草稿不进入学生反馈，不修改正式成绩；教师可从现有干预页面安排补学补练，未实现自动新题生成或自动发布。
+- 知识`origin=source`仍要求可靠来源逐字依据；`origin=teacher_example`限教师独立编写的example，无来源引用且禁止评分用途；来源类型创建后不可转换。AI工具不提供教师自编来源字段，不从真实作答沉淀示例。
+- Agent新增七类固定工作台（原文、知识、题目标准、目录、CSV导入、整卷拆题、诊断），使用既有编辑器。即使full-access也须用户操作工作台；read-only禁止打开写工作台。返回请求忽略客户端保存声明，通过同会话Gateway重读对象，记录`changed,saved_snapshot,snapshot_hash`，再恢复原运行。已有正式审批仍校验原快照，不能借编辑器绕过出题/标准的数据隔离。
+- Agent CSV工具可用`csv`或同对话`attachment_id`二选一；UTF-8/.csv/512KiB/原件哈希校验，实际导入仍走原预览与教师确认业务。学生草稿和正式提交工具只以本人身份执行，教师不可代学生正式提交。
+- Agent推理默认兼容SSE（`stream_options.include_usage`），协调者公开文本按约700ms合并存入`stream_text,stream_turn`，业务events发送可恢复文本快照。推理内容与工具参数不公开；完整finish、DONE、工具ID/参数校验后才执行。`disable_streaming`可关闭供应商流式，同一次HTTP响应可回退JSON，不自动发第二次付费请求；中断及缺少usage按原预留保守结算。

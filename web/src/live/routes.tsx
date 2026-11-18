@@ -151,7 +151,7 @@ export function LiveRoutes({ teacher }: { teacher: boolean }) {
         path="assignments"
         element={<Navigate replace to={`${root}/homework${location.search}`} />}
       />
-      <Route path="insight" element={overviewRedirect} />
+      <Route path="insight" element={teacher ? <OverviewPage analysis /> : overviewRedirect} />
       <Route
         path="grading"
         element={

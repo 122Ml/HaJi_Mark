@@ -1,9 +1,11 @@
 import { Field } from "../shared/Field";
+import { ContextAgent } from "./context-agent";
+import { useLocationPage, useLocationValue } from "./location-state";
 import { useConfirm } from "../shared/confirm";
 import { FileUpload } from "../shared/FileUpload";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Drawer, Pagination, Tabs, Collapse, Button, Form, Input, Select, Card, Checkbox, InputNumber, Alert } from "antd";
+import { Drawer, Pagination, Tabs, Collapse, Button, Form, Input, Select, Card, Checkbox, InputNumber, Alert, Typography } from "antd";
 import { LoadingState, EmptyState, ErrorState, StatusTag, MetaTag, MetaTags } from "../shared/ui";
 import {
   Link,
@@ -188,12 +190,12 @@ export function QuestionBankPage() {
   );
   const activeBank = bankID || linked.data?.bank_id || "";
   const [creating, setCreating] = useState(params.get("new") === "1");
-  const [search, setSearch] = useState("");
-  const [state, setState] = useState("");
-  const [page, setPage] = useState(1);
-  const [type, setType] = useState(""),
-    [pointID, setPoint] = useState(""),
-    [topicID, setTopic] = useState("");
+  const [search, setSearch] = useLocationValue("search");
+  const [state, setState] = useLocationValue("state");
+  const [page, setPage] = useLocationPage();
+  const [type, setType] = useLocationValue("type"),
+    [pointID, setPoint] = useLocationValue("point"),
+    [topicID, setTopic] = useLocationValue("topic");
   const topics = useLiveQuery<TopicData>("/topics"),
     points = useLiveQuery<{ points: Point[] }>("");
   const query = useLiveQuery<{ items: BankVersion[]; total: number }>(
@@ -271,7 +273,6 @@ export function QuestionBankPage() {
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
-                  setPage(1);
                 }}
               />
             </Field>
@@ -281,7 +282,6 @@ export function QuestionBankPage() {
                 value={state}
                 onChange={(e) => {
                   setState(e);
-                  setPage(1);
                 }}
                 showSearch
                 optionFilterProp="children"
@@ -298,7 +298,6 @@ export function QuestionBankPage() {
                 value={type}
                 onChange={(e) => {
                   setType(e);
-                  setPage(1);
                 }}
                 showSearch
                 optionFilterProp="children"
@@ -317,7 +316,6 @@ export function QuestionBankPage() {
                 value={pointID}
                 onChange={(e) => {
                   setPoint(e);
-                  setPage(1);
                 }}
                 showSearch
                 optionFilterProp="children"
@@ -338,7 +336,6 @@ export function QuestionBankPage() {
                 value={topicID}
                 onChange={(e) => {
                   setTopic(e);
-                  setPage(1);
                 }}
                 showSearch
                 optionFilterProp="children"
@@ -374,7 +371,7 @@ export function QuestionBankPage() {
               list.map((q) => (
                 <article className="live-row" key={q.bank_id}>
                   <div>
-                    <h2>{q.title}</h2>
+                    <Typography.Text strong className="item-title">{q.title}</Typography.Text>
                     <MetaTags>
                       <StatusTag
                         status={q.archived ? "closed" : q.state}
@@ -463,7 +460,7 @@ function PaperSource({
   );
 }
 
-function BankDetailView({ bankID }: { bankID: string }) {
+export function BankDetailView({ bankID }: { bankID: string }) {
   const confirm = useConfirm();
   const query = useLiveQuery<BankDetail>(`/question-bank/${bankID}`);
   const [params, setParams] = useSearchParams();
@@ -487,7 +484,8 @@ function BankDetailView({ bankID }: { bankID: string }) {
   return (
     <Card className="card-panel">
       <div className="section-head">
-        <h2>{v.title}</h2>
+        <Typography.Text strong className="item-title">{v.title}</Typography.Text>
+        <ContextAgent context={{kind:"question",id:v.id,title:v.title}} />
         <div className="live-inline">
           <Field className="ui-field" label={<>题目版本</>}>
             <Select
@@ -597,7 +595,7 @@ function BankDetailView({ bankID }: { bankID: string }) {
                   </div>
                   {v.reference_answer && (
                     <>
-                      <h3>参考解答</h3>
+                      <Typography.Text strong className="item-title">参考解答</Typography.Text>
                       <RichContent text={v.reference_answer} />
                       <div className="live-inline">
                         <StatusTag
@@ -1027,7 +1025,7 @@ function BankEditor({
     }
   }
   return (
-    <Card size="small" className="bank-editor" title={<h2>{initial ? "另建题目版本" : "新建题目"}</h2>}>
+    <Card size="small" className="bank-editor" title={<>{initial ? "另建题目版本" : "新建题目"}</>}>
 
       <DraftNotice {...draft} />
       <Collapse
@@ -1258,7 +1256,7 @@ function BankEditor({
         <FrozenEvidence sources={v.refs} />
         {v.criteria.length > 0 && (
           <>
-            <h3>随题保存的标准草稿</h3>
+            <Typography.Text strong className="item-title">随题保存的标准草稿</Typography.Text>
             <CriteriaEditor
               value={v.criteria}
               onChange={(criteria) => change({ criteria })}
@@ -1315,7 +1313,7 @@ function BankAnalysis({
       />
       {analysis && (
         <>
-          <h3>题目分析建议</h3>
+          <Typography.Text strong className="item-title">题目分析建议</Typography.Text>
           {(analysis.requirements as string[])?.map((s, i) => (
             <p key={`r${i}`}>{s}</p>
           ))}
@@ -1325,9 +1323,6 @@ function BankAnalysis({
           {(analysis.associations as { reason: string }[])?.map((s, i) => (
             <p key={`a${i}`}>关联：{s.reason}</p>
           ))}
-          <p className="live-meta">
-            修改题干或保存新的知识关联，请另建题目版本。
-          </p>
         </>
       )}
       <Button disabled={archived} onClick={() => onRevise(refs)}>
@@ -1428,7 +1423,7 @@ function BankStandards({
       {query.data?.map((r) => (
         <article className="live-revision" key={r.id}>
           <div className="section-head">
-            <h3>标准 v{r.version}</h3>
+            <Typography.Text strong className="item-title">标准 v{r.version}</Typography.Text>
             <StatusTag status={r.state} label={names[r.state]} />
           </div>
           {r.criteria.map((p) => (
@@ -1498,6 +1493,7 @@ export function BankQuestionPicker({
 }) {
   const list = useLiveQuery<BankVersion[]>("/question-bank", open);
   const [bank, setBank] = useState("");
+  const [repairing, setRepairing] = useState(false);
   const [version, setVersion] = useState("");
   const [rubric, setRubric] = useState("");
   const detail = useLiveQuery<BankDetail>(
@@ -1614,7 +1610,13 @@ export function BankQuestionPicker({
         {bank && !detail.isPending && !versions.length && (
           <p>此题尚无可用确认版本，请先在题库审定题目及参考解答。</p>
         )}
+        {bank && <Button onClick={() => setRepairing(true)}>就地核对题目、参考解答与标准</Button>}
       </div>
+      <Drawer title="核对题目与评分标准" open={repairing} width={900} destroyOnHidden onClose={() => {
+        setRepairing(false); void detail.refetch(); void rubrics.refetch(); void list.refetch();
+      }}>
+        {repairing && bank && <BankDetailView key={bank} bankID={bank} />}
+      </Drawer>
     </Drawer>
   );
 }

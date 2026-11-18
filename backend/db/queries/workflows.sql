@@ -148,6 +148,7 @@ SELECT 'knowledge'::text AS kind,k.id,k.title,k.state,k.version,NULL::text AS pa
 UNION ALL SELECT 'question',v.id,v.title,v.state,v.version,v.bank_id FROM bank_question_versions v WHERE v.id IN(SELECT id FROM bq)
 UNION ALL SELECT 'rubric',r.id,'评分标准',r.state,r.version,COALESCE(r.bank_question_version_id,r.question_id) FROM rubric_versions r WHERE r.id IN(SELECT id FROM rb)
 UNION ALL SELECT 'assignment',a.id,a.title,a.status,a.version,NULL::text FROM assignments a WHERE a.id IN(SELECT assignment_id FROM aq)
+UNION ALL SELECT 'assignment_question',q.id,q.prompt,a.status,a.version,a.id FROM questions q JOIN assignments a ON a.id=q.assignment_id WHERE q.id IN(SELECT id FROM aq)
 UNION ALL SELECT 'resource',r.id,r.title,r.status,r.version,NULL::text FROM resources r WHERE r.course_id=sqlc.arg(course_id) AND r.source_id=NULLIF(sqlc.arg(source_id)::text,'')
 UNION ALL SELECT 'result',g.id,'正式评分',g.state,g.revision,s.assignment_id FROM grading_revisions g JOIN submissions s ON s.id=g.submission_id WHERE s.course_id=sqlc.arg(course_id) AND g.state='released' AND (g.rubric_id IN(SELECT id FROM rb) OR s.question_id IN(SELECT id FROM aq));
 

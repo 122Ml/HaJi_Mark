@@ -1,8 +1,14 @@
 # 本地开发与验证
 
+[自动演示](auto-demo.md)入口为`scripts/start-auto-demo.ps1`，`-Check`核对本地服务、依赖、原生窗口及快捷键；`scripts/auto-demo/core.test.cjs`验证暂停／停止和写入回执规则。真实逐条执行入口为`runner.cjs --flow <id>`，保留已完成结果，不自动重复收费任务。
+
+## 前端自检
+
+从仓库根串行执行 `node scripts/check-frontend-ui.cjs`、`node scripts/check-ui-console.cjs` 和 `node scripts/check-design-browser.cjs`。第一项使用 `web` 的TypeScript依赖扫描活动导入图；后两项使用本地Docker服务、Playwright及已有的S1与资料验收数据，按下文环境配置设置 `NODE_PATH`。静态检查统计交互组件复用，浏览器检查真实控件归属、精简文案、路由与抽屉、日期草稿恢复和错误反馈；不是代码行覆盖率。原始报告在忽略目录 `.local/ui-audit/`，本轮范围与结果见[前端自检](research/frontend-ui-audit-2026-11-17.md)。
+
 ## 对话助理（2026-11-17，本地）
 
-先执行到迁移00014；既有00001—00013不修改，新迁移从00015开始。默认Compose仍可运行人工业务；`compose.rag.yaml`显式启用RAG和`AGENT_ENABLED=true`，沿用忽略的模型密钥文件与共享50元账本。助理由API进程的关闭上下文管理，不另起Agent服务。运行时、模型／工具协议和三种模式见[助理说明](agent-harness.md)。
+当前代码执行迁移到00016；既有迁移不修改，新迁移从00017开始。默认Compose仍可运行人工业务；`compose.rag.yaml`显式启用RAG和`AGENT_ENABLED=true`，沿用忽略的模型密钥文件与共享50元账本。助理由API进程的关闭上下文管理，不另起Agent服务。运行时、模型／工具协议和三种模式见[助理说明](agent-harness.md)。
 
 ```powershell
 docker compose -f compose.yaml -f compose.rag.yaml build api
@@ -281,3 +287,26 @@ worker每15秒检查恢复；执行超时11分钟、失联判定15分钟。中�
 本次实际覆盖、模型失败、预算和未验场景见[验收记录](research/three-module-acceptance-2026-11-12.md)。
 
 仅复查已载入内容的布局时：`node scripts/check-material-workflows-browser.cjs --layout-only`，不确认新修订、不发模型请求，结果另存material-workflows-layout.json。
+
+## 前后端协同隔离验收（2026-11-19）
+
+当前同页工作区、助理上下文、诊断来源、重评交接及实际结果见[F01—F16修正记录](research/frontend-integration-2026-11-19.md)。新增`context-agent.tsx`复用助理，`location-state.ts`维护过滤和对象选择；后端`agent/context.go`核对业务引用、`learning/scoped_search.go`限制当前发布文本，迁移00016保存正式诊断／作答来源。
+
+`scripts/check-frontend-integration.cjs`只允许本机18082，依赖已经准备好的独立Compose项目`hajimark-frontend-check`、隔离S1账号和18083构造模型服务。配置与账号保存在忽略的`.local/frontend-integration-2026-11-19/`；该目录的`compose.verify.yaml`覆盖独立镜像、材料卷和模型配置，不读取真实模型密钥。本轮脚本不是对任意环境自动建库的一键入口，缺少隔离配置时不要改指18080或生产来绕过。
+
+```powershell
+# 在已准备的隔离环境中，按依赖顺序运行；每一阶段失败先诊断再继续。
+node scripts/check-frontend-integration.cjs materials
+node scripts/check-frontend-integration.cjs agent
+node scripts/check-frontend-integration.cjs assessment
+node scripts/check-frontend-integration.cjs impact
+node scripts/check-frontend-integration.cjs interaction
+node scripts/check-frontend-integration.cjs navigation
+npm.cmd --prefix web run typecheck
+node scripts/check-frontend-ui.cjs
+python -B scripts/api-inventory.py
+python -B scripts/check_docs.py
+git diff --check
+```
+
+脚本保存逐阶段JSON、确切业务对象ID和截图，不清理构造课程。重跑会新增带标签的资料、作业和回复；assessment重建作业后清除依赖旧作业的重评准备ID，impact改变该构造作业正式分数，不能当只读检查。API/worker的Go集成在独立schema中运行；outbox恢复子用例必须另设`TEST_REDIS_ADDR`到专用测试Redis，不得与运行worker共享队列。构造模型只证明业务协议和状态流转，不替代真实模型评测，也不绕过正式确认／下发／发布。

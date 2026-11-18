@@ -14,9 +14,10 @@ import { useSession } from "../shared/session";
 const EditContext = createContext<(id: string, dirty: boolean) => void>(
   () => {},
 );
-const DirtyContext = createContext(false);
-export function useUnsavedChanges() {
-  return useContext(DirtyContext);
+const DirtyContext = createContext<Record<string, boolean>>({});
+export function useUnsavedChanges(ignoreEditor?: string) {
+  const dirty = useContext(DirtyContext);
+  return Object.keys(dirty).some(key => !ignoreEditor || !key.endsWith(`:${ignoreEditor}`));
 }
 export function EditingProvider({ children }: { children: ReactNode }) {
   const [dirty, setDirty] = useState<Record<string, boolean>>({});
@@ -35,7 +36,7 @@ export function EditingProvider({ children }: { children: ReactNode }) {
     ({ currentLocation, nextLocation }) =>
       Object.keys(dirtyRef.current).length > 0 &&
       (currentLocation.pathname !== nextLocation.pathname ||
-        ["course", "task", "resource", "source", "fragment", "paper_source", "tab"].some(
+        ["course", "task", "resource", "source", "fragment", "paper_source", "tab", "source_view", "knowledge", "bank", "version", "diagnosis_report", "recommendation_report", "change", "batch"].some(
           (key) =>
             new URLSearchParams(currentLocation.search).get(key) !==
             new URLSearchParams(nextLocation.search).get(key),
@@ -53,7 +54,7 @@ export function EditingProvider({ children }: { children: ReactNode }) {
   }, [hasChanges]);
   return (
     <EditContext.Provider value={register}>
-      <DirtyContext.Provider value={hasChanges}>
+      <DirtyContext.Provider value={dirty}>
         {children}
         <Modal
           title="还有未保存的内容"

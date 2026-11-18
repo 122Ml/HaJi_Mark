@@ -49,6 +49,7 @@ func ValidContentKind(kind string) bool {
 }
 
 type JobInput struct {
+	ReportID        string          `json:"report_id,omitempty"`
 	SourceID        string          `json:"source_id,omitempty"`
 	ProfileID       string          `json:"profile_id,omitempty"`
 	FragmentIDs     []string        `json:"fragment_ids,omitempty"`
@@ -215,6 +216,8 @@ func (s *Service) Process(ctx context.Context, t *asynq.Task) error {
 			output, e = s.WorkflowDraft(jobCtx, j, in)
 		case "vision":
 			output, e = s.Vision(jobCtx, j, in)
+		case "diagnosis", "recommendation":
+			output, e = s.Intelligence(jobCtx, j, in)
 		default:
 			e = errors.New("任务类型无效")
 		}
@@ -449,16 +452,24 @@ func (s *Service) Extract(ctx context.Context, j store.ProcessingJob, in JobInpu
 			pointIDs = append(pointIDs, point.ID)
 		}
 	}
-	input, _ := json.Marshal(map[string]any{"source_id": src.ID, "fragments": selected, "course_points": points, "allowed_knowledge_point_ids": pointIDs, "existing_knowledge": known})
-	text, e := s.Models.Chat(ctx, j.CourseID, j.CreatedBy, "extract", in.ProfileID, safeSystem+`提炼最多6条知识候选。返回 {"candidates":[{"title":"","body":"","category":"建议知识分类","content_kind":"concept|method|rule|example|misconception","conditions":"适用前提与限制","knowledge_point_ids":[],"related_ids":[],"evidence":[{"source_id":"","fragment_id":"","quote":"逐字连续原文"}]}]}。分类与关联仅建议，不创建知识点。不与已有条目强行合并，发现相似条目写related_ids，保留条件差异。knowledge_point_ids只能取allowed_knowledge_point_ids，related_ids只能取existing_knowledge中的id。对应列表为空时必须返回[]，不可将原件ID、片段ID、标题或推测的ID充当关联。没有关联不妨碍知识提炼。`, string(input), true)
+	fragments := make([]map[string]string, 0, len(selected))
+	for _, f := range selected {
+		fragments = append(fragments, map[string]string{"source_id": src.ID, "fragment_id": f.ID, "heading": f.Heading, "body": f.Body})
+	}
+	input, _ := json.Marshal(map[string]any{"source_id": src.ID, "fragments": fragments, "course_points": points, "allowed_knowledge_point_ids": pointIDs, "existing_knowledge": known})
+	text, e := s.Models.Chat(ctx, j.CourseID, j.CreatedBy, "extract", in.ProfileID, safeSystem+`提炼最多6条知识候选。返回 {"candidates":[{"title":"","body":"","category":"建议知识分类","content_kind":"concept|method|rule|example|misconception","conditions":"适用前提与限制","knowledge_point_ids":[],"related_ids":[],"evidence_fragment_ids":["输入fragments中的fragment_id"]}]}。每条候选必须选择至少一个输入片段ID作为依据，不重复。原文引用由服务端从所选片段直接附上，不要生成evidence或quote字段，不得选择未提供的片段。正文和适用条件不得增加所选原文未支持的结论。分类与关联仅建议，不创建知识点。不与已有条目强行合并，发现相似条目写related_ids，保留条件差异。knowledge_point_ids只能取allowed_knowledge_point_ids，related_ids只能取existing_knowledge中的id。对应列表为空时必须返回[]，不可将原件ID、片段ID、标题或推测的ID充当关联。没有关联不妨碍知识提炼。`, string(input), true)
 	if e != nil {
 		return nil, e
 	}
+	failedDraft := map[string]any{"raw_response": text, "review_status": "pending_teacher_review"}
 	var out struct {
-		Candidates []Candidate `json:"candidates"`
+		Candidates []struct {
+			Candidate
+			EvidenceFragmentIDs []string `json:"evidence_fragment_ids"`
+		} `json:"candidates"`
 	}
 	if json.Unmarshal([]byte(text), &out) != nil || len(out.Candidates) == 0 || len(out.Candidates) > 6 {
-		return nil, errors.New("知识候选结构无效")
+		return failedDraft, errors.New("知识候选结构无效")
 	}
 	tx, e := s.Models.DB.Begin(ctx)
 	if e != nil {
@@ -472,24 +483,34 @@ func (s *Service) Extract(ctx context.Context, j store.ProcessingJob, in JobInpu
 	ids := []string{}
 	for _, v := range out.Candidates {
 		if strings.TrimSpace(v.Title) == "" || strings.TrimSpace(v.Body) == "" || !ValidContentKind(v.ContentKind) {
-			return nil, errors.New("知识候选字段无效")
+			return failedDraft, errors.New("知识候选字段无效")
 		}
-		if e = s.ValidateEvidence(ctx, j.CourseID, v.Evidence, false); e != nil {
-			return nil, e
+		if len(v.Evidence) != 0 || len(v.EvidenceFragmentIDs) == 0 || len(v.EvidenceFragmentIDs) > len(selected) {
+			return failedDraft, errors.New("知识候选须选择输入片段ID，原文引用由服务端附上")
 		}
-		for _, ev := range v.Evidence {
-			valid := false
+		seen := map[string]bool{}
+		for _, fragmentID := range v.EvidenceFragmentIDs {
+			if seen[fragmentID] {
+				return failedDraft, errors.New("知识候选依据片段不能重复")
+			}
+			seen[fragmentID] = true
+			found := false
 			for _, f := range selected {
-				if ev.FragmentID == f.ID {
-					valid = true
+				if fragmentID == f.ID {
+					v.Evidence = append(v.Evidence, Evidence{SourceID: src.ID, FragmentID: f.ID, Quote: f.Body})
+					found = true
+					break
 				}
 			}
-			if !valid {
-				return nil, errors.New("AI引用了未提供的片段")
+			if !found {
+				return failedDraft, errors.New("AI引用了未提供的片段")
 			}
 		}
+		if e = s.ValidateEvidence(ctx, j.CourseID, v.Evidence, false); e != nil {
+			return failedDraft, e
+		}
 		if e = s.ValidateLinks(ctx, j.CourseID, v.KnowledgePointIDs, v.RelatedIDs); e != nil {
-			return nil, e
+			return failedDraft, e
 		}
 		ev, _ := json.Marshal(v.Evidence)
 		id := uuid.NewString()
@@ -555,21 +576,22 @@ func (s *Service) Draft(ctx context.Context, j store.ProcessingJob, in JobInput)
 		payload["confirmed_criteria"] = in.Criteria
 		payload["frozen_evidence"] = in.EvidenceRefs
 		refs = in.EvidenceRefs
-		instruction = `仅按已确认标准评分，不从额外资料增加扣分点。返回 {"points":[{"criterion_id":"D1","score":0,"feedback":"具体依据与缺口","quote":"学生答案的逐字连续引用，未写则空字符串"}],"score":0,"feedback":"整体反馈","review_status":"pending_teacher_review"}。逐点评分完整且总分加和正确。空白答案不得编造引用，不推断整体能力。`
+		instruction = `仅按已确认标准评分，不从额外资料增加扣分点。返回 {"points":[{"criterion_id":"D1","score":0,"feedback":"具体依据与缺口","quote":"学生答案的逐字连续引用，未写则空字符串"}],"feedback":"整体反馈","review_status":"pending_teacher_review"}。每个评分点必须提供一次，得分为该点满分范围内的整数。总分由服务端逐点求和，不要生成总分score字段。空白答案不得编造引用，不推断整体能力。`
 	}
 	raw, _ := json.Marshal(payload)
 	text, e := s.Models.Chat(ctx, j.CourseID, j.CreatedBy, j.Kind, in.ProfileID, safeSystem+instruction, string(raw), true)
 	if e != nil {
 		return nil, e
 	}
+	failedDraft := map[string]any{"raw_response": text, "review_status": "pending_teacher_review"}
 	var out map[string]json.RawMessage
 	if json.Unmarshal([]byte(text), &out) != nil {
-		return nil, errors.New("AI草稿不是有效JSON")
+		return failedDraft, errors.New("AI草稿不是有效JSON")
 	}
 	var status string
 	_ = json.Unmarshal(out["review_status"], &status)
 	if status != "pending_teacher_review" {
-		return nil, errors.New("AI草稿缺少待教师审核状态")
+		return failedDraft, errors.New("AI草稿缺少待教师审核状态")
 	}
 	if j.Kind == "rubric" {
 		var criteria []struct {
@@ -594,8 +616,23 @@ func (s *Service) Draft(ctx context.Context, j store.ProcessingJob, in JobInput)
 			return nil, errors.New("AI标准满分加和不一致")
 		}
 	} else {
+		var points []struct {
+			Score int32 `json:"score"`
+		}
+		if json.Unmarshal(out["points"], &points) != nil {
+			return failedDraft, errors.New("AI评分字段不完整")
+		}
+		var sum int64
+		for _, p := range points {
+			sum += int64(p.Score)
+		}
+		if reported, ok := out["score"]; ok {
+			out["model_reported_score"] = reported
+		}
+		out["score"], _ = json.Marshal(sum)
+		out["score_source"] = json.RawMessage(`"server_sum"`)
 		if e = ValidateGrade(out, in); e != nil {
-			return nil, e
+			return failedDraft, e
 		}
 	}
 	out["evidence_refs"] = refs

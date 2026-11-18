@@ -12,6 +12,10 @@ x-backend: &backend
     SESSION_COOKIE_SECURE: 'true'
     PUBLIC_ORIGIN: https://hajistudy.online
     AI_ENABLED: 'false'
+    # Parsing and keyword retrieval work without model credentials.
+    RAG_ENABLED: 'true'
+    AGENT_ENABLED: 'true'
+    MATERIALS_DIR: /data/materials
     GOMAXPROCS: '2'
     GOMEMLIMIT: 128MiB
   logging: *logging
@@ -63,6 +67,7 @@ services:
     <<: *backend
     restart: unless-stopped
     command: [./api]
+    volumes: [materials-data:/data/materials]
     healthcheck:
       test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:8080/api/v1/health/ready]
       interval: 5s
@@ -74,12 +79,17 @@ services:
       redis: {condition: service_healthy}
   worker:
     <<: *backend
+    image: ${WORKER_IMAGE:?Set the immutable parser worker image tag}
     restart: unless-stopped
     command: [./worker]
-    mem_limit: 96m
+    mem_limit: 640m
+    volumes: [materials-data:/data/materials]
     environment:
       <<: *environment
-      GOMEMLIMIT: 64MiB
+      GOMEMLIMIT: 128MiB
+      PARSER_SCRIPT: /app/tools/parser/parse.py
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
     depends_on:
       migrate: {condition: service_completed_successfully}
       redis: {condition: service_healthy}
@@ -101,5 +111,6 @@ services:
 volumes:
   postgres-data:
   redis-data:
+  materials-data:
 networks:
   private:

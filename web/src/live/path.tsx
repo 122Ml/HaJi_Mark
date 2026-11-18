@@ -4,6 +4,7 @@ import { Link } from "./context";
 import { useLiveQuery, useAction, Feedback, when } from "./context";
 import type { Resource } from "./course";
 import type { Knowledge } from "./knowledge";
+import { RecommendationPanel } from "./intelligence";
 interface PathData {
   path: { id: string; created_at: string; rule_version: string };
   items: {
@@ -51,9 +52,10 @@ export function StudyPath() {
         message={action.message}
         failed={action.failed}
       />
+      <RecommendationPanel pathReady={!!query.data?.items.length} pathExists={!!query.data} />
       {query.data ? (
         <>
-          <Card className="card-panel" title={<h2>当前路径</h2>}>
+          <Card className="card-panel" title={<>当前路径</>}>
 
             <p>规划于 {when(query.data.path.created_at)}</p>
             <Collapse
@@ -66,7 +68,6 @@ export function StudyPath() {
                       <p>
                         优先学习尚无评分或表现低于60%的知识点，并补齐前置知识。
                       </p>
-                      <p>{query.data.path.rule_version}</p>
                     </>
                   ),
                 },
@@ -85,15 +86,15 @@ export function StudyPath() {
               ) || [];
             const relatedKnowledge = (knowledge.data || []).filter(k => k.knowledge_point_ids.includes(p.knowledge_point_id));
             return (
-              <Card className="card-panel" key={p.knowledge_point_id} title={<h2>
+              <Card className="card-panel" key={p.knowledge_point_id} title={<>
                   {i + 1}. {p.title}
-                </h2>}>
+                </>}>
 
                 <p>{p.reason}</p>
                 <p>{p.description}</p>
                 <Collapse items={[{ key: "knowledge", label: `关联精炼知识（${relatedKnowledge.length}）`, children: relatedKnowledge.length ?
-                  <List dataSource={relatedKnowledge} pagination={{ pageSize: 5, size: "small" }} renderItem={k => <List.Item actions={[<Link key="read" to={`/student/knowledge?knowledge=${k.id}`}>阅读知识</Link>]}><List.Item.Meta title={<>{k.title} <Tag>v{k.version}</Tag></>} description={k.conditions || "按教师确认的知识点关联推荐"} /></List.Item>} /> :
-                  <EmptyState title="暂无可见的关联知识">教师确认并关联知识点后会显示在这里，现有资料学习不受影响。</EmptyState> }]} />
+                  <List dataSource={relatedKnowledge} pagination={{ pageSize: 5, size: "small" }} renderItem={k => <List.Item actions={[<Link key="read" to={`/student/knowledge?knowledge=${k.id}`}>阅读知识</Link>]}><List.Item.Meta title={<>{k.title} <Tag>v{k.version}</Tag></>} description={k.conditions || undefined} /></List.Item>} /> :
+                  <EmptyState title="暂无关联知识" /> }]} />
                 {linked.length ? (
                   linked.map((r) => (
                     <div className="live-row" key={r.id}>

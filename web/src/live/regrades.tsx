@@ -1,7 +1,7 @@
 import { Field } from "../shared/Field";
 import { useConfirm } from "../shared/confirm";
-import { Button, Card, Select, Input, InputNumber, Alert } from "antd";
-import { useState } from "react";
+import { Button, Card, Select, Input, InputNumber, Alert, Typography } from "antd";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Feedback, Link, useAction, useLiveQuery } from "./context";
 import { LoadingState, EmptyState, MetaTag, MetaTags, StatusTag } from "../shared/ui";
@@ -54,8 +54,9 @@ const stateNames: Record<string, string> = {
 };
 export function RegradesPage() {
   const q = useLiveQuery<Batch[]>("/regrades"),
-    [params, setParams] = useSearchParams(),
-    [creating, setCreating] = useState(false);
+    [params, setParams] = useSearchParams();
+  const creating = params.get("new") === "1";
+  const setCreating = (v:boolean) => setParams(p=>{ const next=new URLSearchParams(p); v ? next.set("new","1") : next.delete("new"); return next; });
   const id = params.get("batch") || "";
   return (
     <div className="live-page">
@@ -68,9 +69,9 @@ export function RegradesPage() {
       {creating && (
         <CreateRegrade
           onCreated={(id) => {
-            setCreating(false);
             const p = new URLSearchParams(params);
             p.set("batch", id);
+            p.delete("new");
             setParams(p);
           }}
         />
@@ -80,7 +81,7 @@ export function RegradesPage() {
           q.data.map((b) => (
             <div className="live-row" key={b.id}>
               <div>
-                <h3>{b.question_snapshot.prompt.slice(0, 100)}</h3>
+                <Typography.Text strong className="item-title">{b.question_snapshot.prompt.slice(0, 100)}</Typography.Text>
                 <p>{b.reason}</p>
                 <StatusTag status={b.state} label={stateNames[b.state]} />
               </div>
@@ -103,18 +104,18 @@ export function RegradesPage() {
     </div>
   );
 }
-function CreateRegrade({ onCreated }: { onCreated: (id: string) => void }) {
+export function CreateRegrade({ onCreated, initial }: { onCreated: (id: string) => void; initial?: {assignmentID:string;questionID:string;reason:string} }) {
   const [params] = useSearchParams();
   const assignments =
     useLiveQuery<{ id: string; title: string; status: string }[]>(
       "/assignments",
     );
-  const [assignment, setAssignment] = useState(params.get("assignment") || ""),
-    [question, setQuestion] = useState(""),
+  const [assignment, setAssignment] = useState(initial?.assignmentID || params.get("assignment") || ""),
+    [question, setQuestion] = useState(initial?.questionID || params.get("question") || ""),
     [version, setVersion] = useState(""),
     [rubric, setRubric] = useState(""),
     [answer, setAnswer] = useState(""),
-    [reason, setReason] = useState("");
+    [reason, setReason] = useState(initial?.reason || params.get("reason") || "");
   const [preview, setPreview] = useState<{ count: number } | null>(null),
     action = useAction();
   const detail = useLiveQuery<{ questions: Question[] }>(
@@ -142,8 +143,10 @@ function CreateRegrade({ onCreated }: { onCreated: (id: string) => void }) {
     correct_answer: answer,
     reason,
   };
+  const previewKey = JSON.stringify(payload);
+  useEffect(()=>setPreview(null),[previewKey]);
   return (
-    <Card className="card-panel live-form" onChange={() => setPreview(null)} title={<h2>冻结本题有效提交</h2>}>
+    <Card className="card-panel live-form" onChange={() => setPreview(null)} title={<>冻结本题有效提交</>}>
 
       <Field className="ui-field" label={<>已关闭作业</>}>
         <Select
@@ -303,7 +306,7 @@ function CreateRegrade({ onCreated }: { onCreated: (id: string) => void }) {
     </Card>
   );
 }
-function RegradeDetail({ id }: { id: string }) {
+export function RegradeDetail({ id }: { id: string }) {
   const confirm = useConfirm();
   const q = useLiveQuery<Detail>(`/regrades/${id}`),
     action = useAction(),
@@ -425,7 +428,7 @@ function RegradeEditor({
   return (
     <div className="regrade-editor">
       <article>
-        <h3>{item.display_name} · 作答原文</h3>
+        <Typography.Text strong className="item-title">{item.display_name} · 作答原文</Typography.Text>
         <pre className="live-prose">{item.answer_text || "（空白）"}</pre>
         <Link to={`/teacher/homework/submissions/${item.submission_id}/grade`}>
           查看原有评分历史

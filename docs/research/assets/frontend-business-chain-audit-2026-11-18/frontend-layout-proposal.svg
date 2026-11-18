@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1240" viewBox="0 0 1440 1240" role="img" aria-labelledby="title desc">
+  <title id="title">HaJi Mark 建议前端排布：一个任务一个工作区</title>
+  <desc id="desc">教师端用六个业务导航组织功能，示例资料工作区内包含资料列表、原文核对、知识候选、题目准备、发布记录和上下文助理。学生端以任务为入口，阅读、问答、笔记和完成证据围绕同一任务展开。这是设计方案，所有内容和状态均为示意，不代表已实现或已上线。</desc>
+  <defs>
+    <style>
+      text { font-family: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', sans-serif; fill: #173d3c; }
+      .title { font-size: 32px; font-weight: 700; }
+      .heading { font-size: 23px; font-weight: 700; }
+      .body { font-size: 20px; }
+      .small { font-size: 17px; }
+      .muted { fill: #526c6a; }
+      .accent { fill: #006b65; }
+      .bold { font-weight: 700; }
+      .light { fill: #ffffff; }
+      .line { stroke: #d7e3e0; stroke-width: 1.5; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9" fill="none" stroke="#6c8581" stroke-width="1.7"/>
+    </marker>
+  </defs>
+  <rect width="1440" height="1240" fill="#f3f7f6"/>
+  <text x="32" y="47" class="title">一个任务，一个工作区</text>
+  <text x="32" y="81" class="body muted">左侧找任务 · 中间完成业务 · 右侧调用助理与依据 · 原位接收结果</text>
+  <rect x="1127" y="25" width="281" height="39" rx="7" fill="#e6eeec"/>
+  <text x="1267" y="51" class="small muted" text-anchor="middle">布局建议 / 非已上线页面</text>
+
+  <!-- Teacher application shell -->
+  <rect x="32" y="112" width="1376" height="702" rx="12" fill="#ffffff" stroke="#cbdcd7" stroke-width="1.5"/>
+  <path d="M44 112 H1396 Q1408 112 1408 124 V169 H32 V124 Q32 112 44 112" fill="#ffffff"/>
+  <line x1="32" y1="169" x2="1408" y2="169" class="line"/>
+  <rect x="48" y="125" width="30" height="30" rx="6" fill="#006b65"/>
+  <text x="63" y="148" class="body light bold" text-anchor="middle">H</text>
+  <text x="89" y="148" class="body bold">HaJi Mark</text>
+  <text x="248" y="148" class="body accent bold">教师端</text>
+  <text x="354" y="148" class="body">当前课程：软件工程 ▾</text>
+  <text x="1047" y="148" class="small muted">全局任务中心</text>
+  <text x="1222" y="148" class="small muted">通知 · 个人设置</text>
+
+  <!-- Global teacher navigation -->
+  <path d="M32 170 H225 V814 H44 Q32 814 32 802 Z" fill="#f5f9f7"/>
+  <text x="52" y="207" class="small muted">按教学任务组织</text>
+  <text x="55" y="254" class="body">教学概览</text>
+  <rect x="44" y="277" width="169" height="48" rx="7" fill="#dff4ed"/>
+  <rect x="44" y="287" width="4" height="28" rx="2" fill="#006b65"/>
+  <text x="55" y="309" class="body accent bold">备课与内容</text>
+  <text x="55" y="366" class="body">作业与评价</text>
+  <text x="55" y="422" class="body">学情与干预</text>
+  <text x="55" y="478" class="body">课程管理</text>
+  <text x="55" y="534" class="body">交流与记录</text>
+  <line x1="52" y1="584" x2="201" y2="584" class="line"/>
+  <text x="55" y="619" class="small muted">助理会话历史</text>
+  <text x="55" y="661" class="small muted">业务内随时打开</text>
+  <text x="55" y="754" class="small accent bold">入口减少，能力保留</text>
+  <text x="55" y="782" class="small muted">仍可独立全局查找</text>
+
+  <!-- Task identity and subdomains -->
+  <text x="245" y="207" class="small muted">备课与内容 / 资料工作区</text>
+  <text x="245" y="242" class="heading">边界值分析讲义</text>
+  <text x="704" y="240" class="small muted">当前对象、版本、来源始终可见</text>
+  <rect x="1130" y="207" width="258" height="36" rx="6" fill="#fff4dd"/>
+  <text x="1259" y="231" class="small" text-anchor="middle" fill="#77500a">示意状态：已解析，未发布</text>
+  <line x1="245" y1="296" x2="1388" y2="296" class="line"/>
+  <text x="245" y="281" class="body accent bold">资料</text>
+  <text x="367" y="281" class="body muted">知识库</text>
+  <text x="513" y="281" class="body muted">题库</text>
+  <text x="635" y="281" class="body muted">内容影响</text>
+  <line x1="245" y1="296" x2="299" y2="296" stroke="#006b65" stroke-width="3"/>
+  <text x="927" y="281" class="small muted">各库仍可全局查找，当前任务就地完成</text>
+
+  <!-- Local task progression -->
+  <rect x="245" y="311" width="1143" height="53" rx="7" fill="#f0f7f4"/>
+  <text x="266" y="344" class="small accent">已接收</text>
+  <path d="M350 338 H398" stroke="#6c8581" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="417" y="344" class="small accent">已解析</text>
+  <path d="M500 338 H548" stroke="#6c8581" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="568" y="344" class="small accent bold">原文核对 · 当前步骤</text>
+  <path d="M758 338 H806" stroke="#6c8581" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="825" y="344" class="small muted">发布学习内容</text>
+  <text x="1076" y="344" class="small muted">索引状态独立反馈</text>
+
+  <!-- Three areas inside one task -->
+  <rect x="245" y="382" width="205" height="320" rx="8" fill="#fafcfb" stroke="#d7e3e0"/>
+  <text x="260" y="414" class="body bold">本批资料</text>
+  <text x="260" y="445" class="small muted">导入后自动定位本批次</text>
+  <rect x="256" y="462" width="183" height="91" rx="6" fill="#dff4ed"/>
+  <text x="267" y="493" class="small accent bold">边界值分析讲义</text>
+  <text x="267" y="524" class="small accent">当前：待核对</text>
+  <text x="260" y="588" class="small muted">逐文件显示处理结果</text>
+  <text x="260" y="621" class="small muted">失败项单独恢复</text>
+  <text x="260" y="674" class="small accent">＋ 导入其他资料</text>
+
+  <rect x="466" y="382" width="594" height="320" rx="8" fill="#ffffff" stroke="#d7e3e0"/>
+  <text x="484" y="415" class="small accent bold">原文核对</text>
+  <text x="600" y="415" class="small muted">知识候选</text>
+  <text x="715" y="415" class="small muted">据此出题</text>
+  <text x="831" y="415" class="small muted">发布记录</text>
+  <line x1="467" y1="431" x2="1059" y2="431" class="line"/>
+  <text x="488" y="468" class="body bold">第 2 节 · 年龄输入的边界测试</text>
+  <rect x="487" y="487" width="551" height="44" rx="4" fill="#e4f4ed"/>
+  <text x="500" y="516" class="body">系统仅接受 18–60 岁（含）的整数。</text>
+  <text x="488" y="565" class="body">选中原文，可就地校正、提问或作为依据。</text>
+  <text x="488" y="604" class="small muted">关联知识点：边界值分析 ▾</text>
+  <line x1="488" y1="625" x2="1038" y2="625" class="line"/>
+  <text x="488" y="659" class="small muted">原文、图像与候选结果在当前对象下切换</text>
+  <text x="488" y="685" class="small muted">无需去全课程列表重新寻找本次产物</text>
+
+  <rect x="1076" y="382" width="312" height="320" rx="8" fill="#f7fbf9" stroke="#cbded7"/>
+  <text x="1094" y="415" class="small accent bold">助理</text>
+  <text x="1190" y="415" class="small muted">依据</text>
+  <text x="1288" y="415" class="small muted">任务</text>
+  <line x1="1077" y1="431" x2="1387" y2="431" class="line"/>
+  <text x="1094" y="468" class="small bold">自动携带当前原件与选段</text>
+  <text x="1094" y="506" class="small muted">核对建议 / 提炼候选 / 出题</text>
+  <rect x="1093" y="532" width="278" height="89" rx="6" fill="#ffffff" stroke="#d7e3e0"/>
+  <text x="1108" y="562" class="small bold">结果以业务对象卡返回</text>
+  <text x="1108" y="594" class="small accent">查看候选 → 在主区继续审核</text>
+  <text x="1094" y="657" class="small muted">涉及发布或正式确认时</text>
+  <text x="1094" y="684" class="small bold">仍需教师明确操作</text>
+
+  <!-- Local actions and honest state feedback -->
+  <text x="245" y="740" class="small muted">同一页面完成：导入 → 处理 → 核对 → 发布 → 反馈</text>
+  <rect x="1034" y="716" width="145" height="43" rx="6" fill="#006b65"/>
+  <text x="1106" y="744" class="small light bold" text-anchor="middle">保存核对</text>
+  <rect x="1191" y="716" width="197" height="43" rx="6" fill="#ffffff" stroke="#7b9690"/>
+  <text x="1289" y="744" class="small accent" text-anchor="middle">下一步：发布预览</text>
+  <text x="245" y="791" class="small muted">固定反馈：本次保存结果 · 当前处理阶段 · 学生可见范围 · 后续产物入口</text>
+
+  <!-- Student information architecture and one-task workspace -->
+  <text x="32" y="863" class="heading">学生端：从“我接下来做什么”进入</text>
+  <text x="706" y="863" class="small muted">问答、笔记和完成记录跟随当前任务</text>
+  <rect x="32" y="885" width="1376" height="282" rx="12" fill="#ffffff" stroke="#cbdcd7" stroke-width="1.5"/>
+  <text x="54" y="924" class="body accent bold">学生端</text>
+  <text x="198" y="924" class="body">我的任务</text>
+  <rect x="337" y="895" width="130" height="42" rx="6" fill="#dff4ed"/>
+  <text x="402" y="924" class="body accent bold" text-anchor="middle">课程学习</text>
+  <text x="507" y="924" class="body">作业与反馈</text>
+  <text x="707" y="924" class="body">学习路径</text>
+  <text x="887" y="924" class="body">课程交流</text>
+  <text x="1160" y="924" class="small muted">课程切换 / 个人设置</text>
+  <line x1="32" y1="950" x2="1408" y2="950" class="line"/>
+
+  <text x="54" y="987" class="small muted">当前任务</text>
+  <text x="54" y="1023" class="body bold">边界值分析补学</text>
+  <text x="54" y="1060" class="small muted">本次资料与练习</text>
+  <text x="54" y="1093" class="small muted">来自哪次反馈</text>
+  <text x="54" y="1134" class="small accent">始终保留任务身份</text>
+  <line x1="299" y1="969" x2="299" y2="1145" class="line"/>
+
+  <text x="324" y="987" class="small muted">中央主要内容</text>
+  <text x="324" y="1023" class="body bold">阅读资料 / 完成当前题目</text>
+  <text x="324" y="1060" class="small muted">正式反馈可回到原题与原文</text>
+  <text x="324" y="1093" class="small muted">打开问答时保留阅读位置与草稿</text>
+  <text x="324" y="1134" class="small accent">无需反复复制题目、资料和失分原因</text>
+  <line x1="798" y1="969" x2="798" y2="1145" class="line"/>
+
+  <text x="823" y="987" class="small muted">右侧按需展开</text>
+  <text x="823" y="1023" class="body bold">本段问答 / 笔记 / 引用依据</text>
+  <text x="823" y="1060" class="small muted">助理知道当前可见资料与选段</text>
+  <text x="823" y="1093" class="small muted">底部反馈：学习记录、提交结果、任务条件</text>
+  <text x="823" y="1134" class="small accent">阅读／作答结束后，回到同一任务</text>
+
+  <text x="32" y="1210" class="small muted">示意说明：页面、正文与状态用于解释建议排布，不代表相关整合功能已经实现或发布。</text>
+</svg>

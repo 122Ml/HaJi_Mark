@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Button, Card, Checkbox, Drawer, Space, Table, Tag, Typography } from "antd";
+import { Button, Card, Checkbox, Drawer, Space, Table, Tag, Tooltip, Typography } from "antd";
 import { Link } from "./context";
 import type { PointFeedback } from "./rubrics";
 
@@ -32,11 +32,10 @@ export function LearningGaps({ evidence, members }: { evidence: Evidence[]; memb
   }, [evidence, members]);
   const detail = groups.find(g => g.key === selected);
   return <Card className="card-panel diagnosis-section" title="评分点缺口" extra={<Checkbox checked={onlyGaps} onChange={e => setOnlyGaps(e.target.checked)}>仅看失分项</Checkbox>}>
-    <Typography.Paragraph type="secondary">按同一道题、同一标准的正式结果统计。失分表示该次作答存在评分缺口，不能据此断定错因或整体掌握程度。</Typography.Paragraph>
     <Table<Gap> rowKey="key" dataSource={groups.filter(g => !onlyGaps || g.affected.length)} scroll={{ x: 640 }} pagination={{ pageSize: 8, showSizeChanger: false }} locale={{ emptyText: groups.length ? "当前逐点正式结果没有失分项" : "尚无可比较的逐点正式结果；整题评分、待评及未提交不补算" }} columns={[
       { title: "题目", dataIndex: "prompt", ellipsis: true },
       { title: "评分点", render: (_, g) => <Space direction="vertical" size={0}><span>{g.title}</span><Typography.Text type="secondary">{g.rubric}</Typography.Text></Space> },
-      { title: "失分 / 有效人数", render: (_, g) => <Space><Tag color={g.affected.length ? "warning" : "success"}>{g.affected.length} / {g.compared} 人</Tag><Button type="link" disabled={!g.affected.length} onClick={() => setSelected(g.key)}>查看证据</Button></Space> },
+      { title: <Tooltip title="同题、同标准的正式结果；失分不代表整体掌握程度" trigger={["hover", "focus"]}><Typography.Text tabIndex={0}>失分 / 有效人数</Typography.Text></Tooltip>, render: (_, g) => <Space><Tag color={g.affected.length ? "warning" : "success"}>{g.affected.length} / {g.compared} 人</Tag><Button type="link" disabled={!g.affected.length} onClick={() => setSelected(g.key)}>查看证据</Button></Space> },
     ]} />
     <Drawer title={detail?.title || "评分点证据"} width={900} open={!!detail} onClose={() => setSelected("")} destroyOnHidden>
       {detail && <Space direction="vertical" size="middle" className="live-full-width">

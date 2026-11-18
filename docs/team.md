@@ -21,7 +21,7 @@
 - `backend/internal/learning` 的http.go注册公共路由；course/curriculum/notes、assessment/drafts、feedback、path等文件按职责领取，SQL集中learning.sql时按查询名小段修改，不整文件覆盖。
 - `go.mod/go.sum`、锁文件、store生成物、全局路由、Compose、CI和迁移编号由李然协调。
 - 一张卡一个小分支/PR，不使用A/B/C/D源码副本人工覆盖。
-- 00001—00014已分配使用，后续从00015预约；旧周表编号只是历史计划，不得重复或修改已执行迁移。
+- 00001—00015已分配使用，后续从00016预约；旧周表编号只是历史计划，不得重复或修改已执行迁移。
 - 跨模块调用先依据 contracts；需要新字段先在卡片中列变更，再由上下游确认。别人未合并时可用明确标记的测试 fixture，合并前必须替换为真实数据。
 
 ## 项目角色

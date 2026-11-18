@@ -174,7 +174,7 @@ function pass(message) { checks.push(message); console.log('PASS:', message); }
     const task = new URL(t.url()).searchParams.get('task');
     await ac('GET', prefix + '/interventions/' + task + '/evidence', undefined, 403);
     await t.getByRole('button', { name: '确认下发', exact: true }).click();
-    await t.getByRole('heading', { name: '本次完成条件', exact: true }).waitFor();
+    await t.getByText('本次完成条件', { exact: true }).waitFor();
     await otherStudent.call('GET', prefix + '/interventions/' + task + '/evidence', undefined, 403);
     await a.goto(url('student', 'intervention', '&task=' + task));
     const submitTask = a.getByRole('button', { name: '提交执行结果', exact: true });
@@ -215,7 +215,7 @@ function pass(message) { checks.push(message); console.log('PASS:', message); }
       }
     }
     await t.setViewportSize({ width: 1440, height: 1000 }); await t.goto(url('teacher', 'curriculum'));
-    await t.getByRole('heading', { name: '章节与知识点', exact: true }).waitFor();
+    await t.getByText('章节与知识点', { exact: true }).waitFor();
     await t.screenshot({ path: path.join(root, '.local/workspace-course.png'), fullPage: true });
     await t.goto(url('teacher', 'courses')); await t.getByLabel('新课程名称', { exact: true }).waitFor();
     await t.getByRole('tab', { name: '课程成员', exact: true }).click(); await t.getByLabel('学生用户名', { exact: true }).waitFor();

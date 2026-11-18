@@ -1,5 +1,7 @@
 # hajistudy.online Docker部署
 
+2026-11-19：用户已授权最新主体、全部图册及GitHub同步。本轮发布计划与随后直接观测结果统一见 [同步记录](sync-2026-11-19.md)；下列带日期的旧发布状态保留为历史。新版本不带模型密钥。
+
 部署目标为154.201.71.22，Ubuntu22.04/2核2GB，既有1Panel/OpenResty。AI保持关闭。本目录的Compose只有固定镜像引用，没有服务器构建入口，不与本地开发Compose混用。
 
 2026-11-11的资料/RAG开发仅在本地启用，本次未更新公网。迁移00010要求pgvector：今后发布包需同时携带基于原PostgreSQL 18.1构建的扩展镜像及`POSTGRES_IMAGE`，保留`/var/lib/postgresql`原卷。部署脚本已增加镜像打包/标签选择与迁移前数据库就绪检查，尚未执行新生产发布。现网旧release与旧Compose保留；本地OCR worker和密钥配置不自动进入生产。小内存服务器运行OCR的资源门槛须另验，不直接套用原96MiB worker限制。

@@ -1,4 +1,5 @@
 import { Field } from "../shared/Field";
+import { ContextAgent } from "./context-agent";
 import { useConfirm } from "../shared/confirm";
 import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -12,6 +13,7 @@ import {
   Form,
   Collapse,
   InputNumber,
+  Typography,
 } from "antd";
 import { requestJSON } from "../shared/api";
 import { useSession } from "../shared/session";
@@ -201,6 +203,7 @@ export function GradePage() {
         </div>
         <div className="live-inline">
           <MetaTag>{data.import_origin ? "教师导入" : "学生提交"}</MetaTag>
+          <ContextAgent context={{kind:"submission",id:data.submission.id,title:"当前作答与反馈"}} />
           <StatusTag
             status={latest?.state || "pending"}
             label={latest ? names[latest.state] : "待批阅"}
@@ -213,7 +216,7 @@ export function GradePage() {
       <Feedback error={action.failed ? new Error(action.message) : undefined} />
       <div className={`grading-columns ${teacher ? "" : "student-feedback"}`}>
         {teacher && (
-          <Card className="grading-queue card-panel" title={<h2>提交队列</h2>}>
+          <Card className="grading-queue card-panel" title={<>提交队列</>}>
 
             <Input.Search
               aria-label="搜索学生"
@@ -271,7 +274,7 @@ export function GradePage() {
             )}
           </Card>
         )}
-        <Card className="card-panel grading-original" title={<h2>题目与原始作答</h2>}>
+        <Card className="card-panel grading-original" title={<>题目与原始作答</>}>
 
           <p>{data.question.prompt}</p>
           <MetaTags><MetaTag>满分 {data.question.max_score}</MetaTag></MetaTags>
@@ -373,9 +376,9 @@ export function GradePage() {
             ]}
           />
         </Card>
-        <Card className="card-panel grading-editor" title={<h2>
+        <Card className="card-panel grading-editor" title={<>
             {teacher ? (showEditor ? "填写评分" : "当前评分") : "已发布反馈"}
-          </h2>}>
+          </>}>
 
           {showEditor ? (
             <>
@@ -526,7 +529,7 @@ export function GradePage() {
         {data.revisions.map((r) => (
           <article className="live-revision" key={r.id}>
             <div className="section-head">
-              <h3>修订 {r.revision}</h3>
+              <Typography.Text strong className="item-title">修订 {r.revision}</Typography.Text>
               <MetaTags>
                 <StatusTag status={r.state} label={names[r.state]} />
                 <MetaTag>{r.score}/{data.question.max_score} 分</MetaTag>

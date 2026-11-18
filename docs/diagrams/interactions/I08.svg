@@ -1,0 +1,294 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2600" height="2806" viewBox="0 0 2600 2806" role="img" aria-label="对话助理、操作门禁与复杂编辑">
+<title>I08 对话助理、操作门禁与复杂编辑</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 1 L9 5 L0 9Z" fill="#839097"/></marker></defs>
+<g font-family="Microsoft YaHei, sans-serif">
+<rect x="0" y="0" width="2600" height="2806" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="80" y="77" font-size="40" fill="#242424" font-weight="700" text-anchor="start" >I08　对话助理、操作门禁与复杂编辑</text>
+<text x="2520" y="77" font-size="21" fill="#58616A" font-weight="400" text-anchor="end" >2026-11-17 · 本地实现</text>
+<rect x="62.0" y="125" width="541.0" height="2646" rx="10" fill="#EDECE6" stroke="none" />
+<text x="80.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >教师</text>
+<rect x="707.0" y="125" width="541.0" height="2646" rx="10" fill="#F1F0EB" stroke="none" />
+<text x="725.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >平台</text>
+<rect x="1352.0" y="125" width="541.0" height="2646" rx="10" fill="#EDECE6" stroke="none" />
+<text x="1370.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >AI / 对话助理</text>
+<rect x="1997.0" y="125" width="541.0" height="2646" rx="10" fill="#F1F0EB" stroke="none" />
+<text x="2015.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >学生</text>
+<g class="edges">
+<g class="edge" data-from="teacher" data-to="session"><title>发送</title><path d="M585.0,323.0 L725.0,323.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="student" data-to="session"><title>发送</title><path d="M2015.0,323.0 L1230.0,323.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="session" data-to="plan"><title>协调</title><path d="M1230.0,352.0 L1252.0,352.0 L1252.0,613.0 L1370.0,613.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="plan" data-to="gate"><title>工具请求</title><path d="M1370.0,642.0 L1252.0,642.0 L1252.0,613.0 L1230.0,613.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="gate" data-to="question"><title>缺信息 / 需审批</title><path d="M1230.0,642.0 L1252.0,642.0 L1252.0,903.0 L1370.0,903.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="question" data-to="answer"><title>教师</title><path d="M1370.0,932.0 L1348.0,932.0 L1348.0,1013 L607.0,1013 L607.0,903.0 L585.0,903.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="question" data-to="studentinput"><title>学生</title><path d="M1875.0,903.0 L2015.0,903.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="answer" data-to="gate"><title>提交选择</title><path d="M585.0,932.0 L703.0,932.0 L703.0,613.0 L725.0,613.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="studentinput" data-to="gate"><title>提交输入</title><path d="M2520.0,903.0 L2542.0,903.0 L2542.0,723 L703.0,723 L703.0,642.0 L725.0,642.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="gate" data-to="editor"><title>复杂编辑</title><path d="M977.5,701 L977.5,793 L630.0,793 L630.0,1083 L332.5,1083 L332.5,1105" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="editor" data-to="more"><title>复用</title><path d="M585.0,1193.0 L725.0,1193.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="more" data-to="saved"><title>保存</title><path d="M1230.0,1193.0 L1252.0,1193.0 L1252.0,1373 L58.0,1373 L58.0,1483.0 L80.0,1483.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="saved" data-to="receipt"><title>返回并继续</title><path d="M585.0,1483.0 L725.0,1483.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="receipt" data-to="tool"><title>确认已保存</title><path d="M1230.0,1483.0 L1370.0,1483.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="gate" data-to="tool"><title>获准</title><path d="M1006.5,701 L1006.5,793 L1325.0,793 L1325.0,1373 L1622.5,1373 L1622.5,1395" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="tool" data-to="gateway"><title>业务执行</title><path d="M1875.0,1483.0 L1897.0,1483.0 L1897.0,1663 L703.0,1663 L703.0,1773.0 L725.0,1773.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="gateway" data-to="wait"><title>异步任务</title><path d="M1230.0,1773.0 L1370.0,1773.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="wait" data-to="stream"><title>终态回执</title><path d="M1875.0,1773.0 L1897.0,1773.0 L1897.0,1953 L703.0,1953 L703.0,2063.0 L725.0,2063.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="gateway" data-to="stream"><title>同步回执</title><path d="M977.5,1861 L977.5,1975" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="stream" data-to="result"><title>教师</title><path d="M725.0,2092.0 L703.0,2092.0 L703.0,2063.0 L585.0,2063.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="stream" data-to="studentresult"><title>学生</title><path d="M1230.0,2063.0 L2015.0,2063.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="gate" data-to="denied"><title>禁止执行</title><path d="M948.5,701 L948.5,793 L977.5,793 L977.5,815" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="denied" data-to="result"><title>显示原因</title><path d="M977.5,991 L977.5,1060 L607.0,1060 L607.0,1953 L332.5,1953 L332.5,1975" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="teacher" data-to="stop"><title>运行中停止</title><path d="M332.5,411 L332.5,433 L38.0,433 L38.0,2243 L332.5,2243 L332.5,2265" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="question" data-to="stop"><title>拒绝审批</title><path d="M1622.5,991 L1622.5,1013 L1348.0,1013 L1348.0,2243 L361.5,2243 L361.5,2265" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="student" data-to="studentstop"><title>运行中停止</title><path d="M2267.5,411 L2267.5,433 L1993.0,433 L1993.0,2243 L2267.5,2243 L2267.5,2265" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="studentstop" data-to="unknown"><title>中断处理</title><path d="M2015.0,2353.0 L1230.0,2353.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="stop" data-to="unknown"><title>中断处理</title><path d="M585.0,2353.0 L725.0,2353.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="wait" data-to="unknown"><title>失败 / 未知</title><path d="M1622.5,1861 L1622.5,2220 L977.5,2220 L977.5,2265" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="gateway" data-to="isolate"><title>读取作答 / 学情</title><path d="M1006.5,1861 L1006.5,1883 L1252.0,1883 L1252.0,2533 L977.5,2533 L977.5,2555" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="isolate" data-to="new"><title>隔离提示</title><path d="M725.0,2643.0 L585.0,2643.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+</g><g class="nodes">
+<g class="node" data-node="teacher" tabindex="0" role="button" aria-label="新建课程对话 · 发送要求">
+<rect x="80.0" y="235" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="278" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >新建课程对话 · 发送要求</text>
+<text x="102.0" y="320" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >选模型 / 权限模式 / 上传附件</text>
+</g>
+<g class="node" data-node="session" tabindex="0" role="button" aria-label="保存本人私有会话与附件">
+<rect x="725.0" y="235" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="278" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >保存本人私有会话与附件</text>
+<text x="747.0" y="320" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >附件需另行导入才成为业务原件</text>
+</g>
+<g class="node" data-node="student" tabindex="0" role="button" aria-label="向学习助理发起请求">
+<rect x="2015.0" y="235" width="505.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="2037.0" y="278" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >向学习助理发起请求</text>
+<text x="2037.0" y="320" font-size="22" fill="#526575" font-weight="400" text-anchor="start" >仅本人数据与课程授权内容</text>
+</g>
+<g class="node" data-node="plan" tabindex="0" role="button" aria-label="识别意图 · 顺序委派专家">
+<rect x="1370.0" y="525" width="505.0" height="176" rx="10" fill="#FFF1E5" stroke="#E3B89A" stroke-width="2"/>
+<text x="1392.0" y="568" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >识别意图 · 顺序委派专家</text>
+<text x="1392.0" y="610" font-size="22" fill="#775D4E" font-weight="400" text-anchor="start" >资料知识 / 出题标准 / 评阅 / 学习</text>
+</g>
+<g class="node" data-node="gate" tabindex="0" role="button" aria-label="逐工具校验权限与参数">
+<rect x="725.0" y="525" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="568" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >逐工具校验权限与参数</text>
+<text x="747.0" y="610" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >read-only / auto-review / full-access</text>
+</g>
+<g class="node" data-node="answer" tabindex="0" role="button" aria-label="填写输入 / 选择候选 / 审批">
+<rect x="80.0" y="815" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="858" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >填写输入 / 选择候选 / 审批</text>
+<text x="102.0" y="900" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >精确参数下批准或拒绝本次操作</text>
+</g>
+<g class="node" data-node="question" tabindex="0" role="button" aria-label="需要信息或操作审批">
+<rect x="1370.0" y="815" width="505.0" height="176" rx="10" fill="#FFF1E5" stroke="#E3B89A" stroke-width="2"/>
+<text x="1392.0" y="858" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >需要信息或操作审批</text>
+<text x="1392.0" y="900" font-size="22" fill="#775D4E" font-weight="400" text-anchor="start" >输入框 / 单选 / 多选 / 审批卡片</text>
+</g>
+<g class="node" data-node="denied" tabindex="0" role="button" aria-label="阻断未授权操作">
+<rect x="725.0" y="815" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="858" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >阻断未授权操作</text>
+<text x="747.0" y="900" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >只读禁写 / 越权拒绝 / 审批未通过</text>
+</g>
+<g class="node" data-node="studentinput" tabindex="0" role="button" aria-label="补充输入 / 确认本人操作">
+<rect x="2015.0" y="815" width="505.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="2037.0" y="858" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >补充输入 / 确认本人操作</text>
+<text x="2037.0" y="900" font-size="22" fill="#526575" font-weight="400" text-anchor="start" >不扩大学生权限</text>
+</g>
+<g class="node" data-node="editor" tabindex="0" role="button" aria-label="在抽屉工作台复杂编辑">
+<rect x="80.0" y="1105" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="1148" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >在抽屉工作台复杂编辑</text>
+<text x="102.0" y="1190" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >原文 / 知识 / 题目标准 / 目录</text>
+</g>
+<g class="node" data-node="more" tabindex="0" role="button" aria-label="复用现有七类编辑器">
+<rect x="725.0" y="1105" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="1148" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >复用现有七类编辑器</text>
+<text x="747.0" y="1190" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >另含作答导入 / 诊断 / 整卷拆题</text>
+</g>
+<g class="node" data-node="saved" tabindex="0" role="button" aria-label="真实保存后返回对话">
+<rect x="80.0" y="1395" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="1438" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >真实保存后返回对话</text>
+<text x="102.0" y="1480" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >未保存可暂时关闭 / 不可冒充完成</text>
+</g>
+<g class="node" data-node="receipt" tabindex="0" role="button" aria-label="服务端重读对象与保存回执">
+<rect x="725.0" y="1395" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="1438" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >服务端重读对象与保存回执</text>
+<text x="747.0" y="1480" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >核对版本与哈希 / 继续本次运行</text>
+</g>
+<g class="node" data-node="tool" tabindex="0" role="button" aria-label="执行已授权业务工具">
+<rect x="1370.0" y="1395" width="505.0" height="176" rx="10" fill="#FFF1E5" stroke="#E3B89A" stroke-width="2"/>
+<text x="1392.0" y="1438" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >执行已授权业务工具</text>
+<text x="1392.0" y="1480" font-size="22" fill="#775D4E" font-weight="400" text-anchor="start" >正式确认 / 发布始终逐操作审批</text>
+</g>
+<g class="node" data-node="gateway" tabindex="0" role="button" aria-label="通过既有业务权限路由执行">
+<rect x="725.0" y="1685" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="1728" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >通过既有业务权限路由执行</text>
+<text x="747.0" y="1770" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >无任意SQL / Shell / HTTP权限</text>
+</g>
+<g class="node" data-node="wait" tabindex="0" role="button" aria-label="等待长任务真实终态">
+<rect x="1370.0" y="1685" width="505.0" height="176" rx="10" fill="#FFF1E5" stroke="#E3B89A" stroke-width="2"/>
+<text x="1392.0" y="1728" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >等待长任务真实终态</text>
+<text x="1392.0" y="1770" font-size="22" fill="#775D4E" font-weight="400" text-anchor="start" >排队不算完成 / 展示步骤与结果</text>
+</g>
+<g class="node" data-node="stream" tabindex="0" role="button" aria-label="持久化公开文本与执行事件">
+<rect x="725.0" y="1975" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="2018" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >持久化公开文本与执行事件</text>
+<text x="747.0" y="2060" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >SSE / 刷新重连 / 历史分页</text>
+</g>
+<g class="node" data-node="result" tabindex="0" role="button" aria-label="查看结果 · 打开关联页面">
+<rect x="80.0" y="1975" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="2018" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >查看结果 · 打开关联页面</text>
+<text x="102.0" y="2060" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >成功回执 / 异常处理 / 后续操作</text>
+</g>
+<g class="node" data-node="studentresult" tabindex="0" role="button" aria-label="查看本人结果与引用">
+<rect x="2015.0" y="1975" width="505.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="2037.0" y="2018" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >查看本人结果与引用</text>
+<text x="2037.0" y="2060" font-size="22" fill="#526575" font-weight="400" text-anchor="start" >保留学习上下文 / 跳转授权页面</text>
+</g>
+<g class="node" data-node="stop" tabindex="0" role="button" aria-label="停止 / 拒绝 / 明确恢复">
+<rect x="80.0" y="2265" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="2308" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >停止 / 拒绝 / 明确恢复</text>
+<text x="102.0" y="2350" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >已完成操作保留 / 未知写不重放</text>
+</g>
+<g class="node" data-node="unknown" tabindex="0" role="button" aria-label="失败与未知状态隔离">
+<rect x="725.0" y="2265" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="2308" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >失败与未知状态隔离</text>
+<text x="747.0" y="2350" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >不自动再次收费 / 检查点恢复</text>
+</g>
+<g class="node" data-node="studentstop" tabindex="0" role="button" aria-label="停止运行 / 拒绝操作">
+<rect x="2015.0" y="2265" width="505.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="2037.0" y="2308" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >停止运行 / 拒绝操作</text>
+<text x="2037.0" y="2350" font-size="22" fill="#526575" font-weight="400" text-anchor="start" >保留已完成操作 / 查看运行状态</text>
+</g>
+<g class="node" data-node="isolate" tabindex="0" role="button" aria-label="读过作答或学情后隔离出题">
+<rect x="725.0" y="2555" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="2598" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >读过作答或学情后隔离出题</text>
+<text x="747.0" y="2640" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >当前会话禁止出题与标准工具</text>
+</g>
+<g class="node" data-node="new" tabindex="0" role="button" aria-label="另建无作答上下文对话">
+<rect x="80.0" y="2555" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="2598" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >另建无作答上下文对话</text>
+<text x="102.0" y="2640" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >隔离后再起草题目与标准</text>
+</g>
+</g><g class="labels">
+<g class="edge-label" data-from="teacher" data-to="session">
+<rect x="626.0" y="289.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="655.0" y="310.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >发送</text>
+</g>
+<g class="edge-label" data-from="student" data-to="session">
+<rect x="1593.5" y="289.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1622.5" y="310.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >发送</text>
+</g>
+<g class="edge-label" data-from="session" data-to="plan">
+<rect x="1262.0" y="468.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1291.0" y="489.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >协调</text>
+</g>
+<g class="edge-label" data-from="plan" data-to="gate">
+<rect x="1263.0" y="608.0" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1311.0" y="629.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >工具请求</text>
+</g>
+<g class="edge-label" data-from="gate" data-to="question">
+<rect x="1262.0" y="758.0" width="154.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1339.0" y="779.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >缺信息 / 需审批</text>
+</g>
+<g class="edge-label" data-from="question" data-to="answer">
+<rect x="1280.0" y="958.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1309.0" y="979.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >教师</text>
+</g>
+<g class="edge-label" data-from="question" data-to="studentinput">
+<rect x="1916.0" y="869.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1945.0" y="890.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >学生</text>
+</g>
+<g class="edge-label" data-from="answer" data-to="gate">
+<rect x="596.0" y="898.0" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="644.0" y="919.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >提交选择</text>
+</g>
+<g class="edge-label" data-from="studentinput" data-to="gate">
+<rect x="597.0" y="668.0" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="645.0" y="689.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >提交输入</text>
+</g>
+<g class="edge-label" data-from="gate" data-to="editor">
+<rect x="987.5" y="732.5" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1035.5" y="753.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >复杂编辑</text>
+</g>
+<g class="edge-label" data-from="editor" data-to="more">
+<rect x="626.0" y="1159.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="655.0" y="1180.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >复用</text>
+</g>
+<g class="edge-label" data-from="more" data-to="saved">
+<rect x="1262.0" y="1268.5" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1291.0" y="1289.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >保存</text>
+</g>
+<g class="edge-label" data-from="saved" data-to="receipt">
+<rect x="597.5" y="1449.0" width="115.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="655.0" y="1470.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >返回并继续</text>
+</g>
+<g class="edge-label" data-from="receipt" data-to="tool">
+<rect x="1242.5" y="1449.0" width="115.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1300.0" y="1470.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >确认已保存</text>
+</g>
+<g class="edge-label" data-from="gate" data-to="tool">
+<rect x="1136.75" y="759" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1165.75" y="780" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >获准</text>
+</g>
+<g class="edge-label" data-from="tool" data-to="gateway">
+<rect x="1907.0" y="1558.5" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1955.0" y="1579.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >业务执行</text>
+</g>
+<g class="edge-label" data-from="gateway" data-to="wait">
+<rect x="1252.0" y="1739.0" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1300.0" y="1760.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >异步任务</text>
+</g>
+<g class="edge-label" data-from="wait" data-to="stream">
+<rect x="1907.0" y="1848.5" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1955.0" y="1869.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >终态回执</text>
+</g>
+<g class="edge-label" data-from="gateway" data-to="stream">
+<rect x="987.5" y="1903.5" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1035.5" y="1924.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >同步回执</text>
+</g>
+<g class="edge-label" data-from="stream" data-to="result">
+<rect x="615.0" y="2029.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="644.0" y="2050.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >教师</text>
+</g>
+<g class="edge-label" data-from="stream" data-to="studentresult">
+<rect x="1593.5" y="2029.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1622.5" y="2050.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >学生</text>
+</g>
+<g class="edge-label" data-from="gate" data-to="denied">
+<rect x="842.5" y="732.5" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="890.5" y="753.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >禁止执行</text>
+</g>
+<g class="edge-label" data-from="denied" data-to="result">
+<rect x="987.5" y="1011.0" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1035.5" y="1032.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >显示原因</text>
+</g>
+<g class="edge-label" data-from="teacher" data-to="stop">
+<rect x="48.0" y="1323.5" width="115.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="105.5" y="1344.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >运行中停止</text>
+</g>
+<g class="edge-label" data-from="question" data-to="stop">
+<rect x="1358.0" y="1613.5" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1406.0" y="1634.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >拒绝审批</text>
+</g>
+<g class="edge-label" data-from="student" data-to="studentstop">
+<rect x="2003.0" y="1323.5" width="115.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2060.5" y="1344.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >运行中停止</text>
+</g>
+<g class="edge-label" data-from="studentstop" data-to="unknown">
+<rect x="1574.5" y="2319.0" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1622.5" y="2340.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >中断处理</text>
+</g>
+<g class="edge-label" data-from="stop" data-to="unknown">
+<rect x="607.0" y="2319.0" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="655.0" y="2340.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >中断处理</text>
+</g>
+<g class="edge-label" data-from="wait" data-to="unknown">
+<rect x="1242.0" y="2186" width="116.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1300.0" y="2207" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >失败 / 未知</text>
+</g>
+<g class="edge-label" data-from="gateway" data-to="isolate">
+<rect x="1037.75" y="2499" width="154.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1114.75" y="2520" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >读取作答 / 学情</text>
+</g>
+<g class="edge-label" data-from="isolate" data-to="new">
+<rect x="607.0" y="2609.0" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="655.0" y="2630.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >隔离提示</text>
+</g>
+</g></g></svg>

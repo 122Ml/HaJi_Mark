@@ -1,0 +1,221 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2600" height="2226" viewBox="0 0 2600 2226" role="img" aria-label="学习资料：导入、加工与阅读">
+<title>I02 学习资料：导入、加工与阅读</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 1 L9 5 L0 9Z" fill="#839097"/></marker></defs>
+<g font-family="Microsoft YaHei, sans-serif">
+<rect x="0" y="0" width="2600" height="2226" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="80" y="77" font-size="40" fill="#242424" font-weight="700" text-anchor="start" >I02　学习资料：导入、加工与阅读</text>
+<text x="2520" y="77" font-size="21" fill="#58616A" font-weight="400" text-anchor="end" >2026-11-17 · 本地实现</text>
+<rect x="62.0" y="125" width="541.0" height="2066" rx="10" fill="#EDECE6" stroke="none" />
+<text x="80.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >教师</text>
+<rect x="707.0" y="125" width="541.0" height="2066" rx="10" fill="#F1F0EB" stroke="none" />
+<text x="725.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >平台</text>
+<rect x="1352.0" y="125" width="541.0" height="2066" rx="10" fill="#EDECE6" stroke="none" />
+<text x="1370.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >AI / 对话助理</text>
+<rect x="1997.0" y="125" width="541.0" height="2066" rx="10" fill="#F1F0EB" stroke="none" />
+<text x="2015.0" y="175" font-size="27" fill="#58616A" font-weight="600" text-anchor="start" >学生</text>
+<g class="edges">
+<g class="edge" data-from="import" data-to="original"><title>保存</title><path d="M585.0,323.0 L725.0,323.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="original" data-to="parse"><title>自动任务</title><path d="M1230.0,323.0 L1370.0,323.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="parse" data-to="correct"><title>待核对</title><path d="M1875.0,323.0 L1897.0,323.0 L1897.0,503 L58.0,503 L58.0,613.0 L80.0,613.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="correct" data-to="vision"><title>按需调用</title><path d="M585.0,613.0 L607.0,613.0 L607.0,723 L1348.0,723 L1348.0,613.0 L1370.0,613.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="vision" data-to="correct"><title>回看图像</title><path d="M1370.0,642.0 L1252.0,642.0 L1252.0,746 L630.0,746 L630.0,642.0 L585.0,642.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="correct" data-to="reliable"><title>保存校正</title><path d="M585.0,584.0 L607.0,584.0 L607.0,613.0 L725.0,613.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="reliable" data-to="publish"><title>学习发布分支</title><path d="M1230.0,613.0 L1275.0,613.0 L1275.0,793 L58.0,793 L58.0,903.0 L80.0,903.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="publish" data-to="published"><title>确认</title><path d="M585.0,903.0 L725.0,903.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="published" data-to="read"><title>学生阅读</title><path d="M1230.0,903.0 L2015.0,903.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="read" data-to="learn"><title>记录</title><path d="M2267.5,991 L2267.5,1105" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="learn" data-to="qa"><title>查资料</title><path d="M2267.5,1281 L2267.5,1395" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="reliable" data-to="index"><title>直接索引分支</title><path d="M977.5,701 L977.5,770 L703.0,770 L703.0,1083 L977.5,1083 L977.5,1105" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="reliable" data-to="extract"><title>提炼分支</title><path d="M1006.5,701 L1006.5,770 L607.0,770 L607.0,1083 L332.5,1083 L332.5,1105" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="extract" data-to="job"><title>选择后执行</title><path d="M585.0,1193.0 L607.0,1193.0 L607.0,1303 L1348.0,1303 L1348.0,1193.0 L1370.0,1193.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="revision" data-to="history"><title>版本操作</title><path d="M585.0,1483.0 L725.0,1483.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="parse" data-to="failure"><title>失败</title><path d="M1622.5,411 L1622.5,433 L1325.0,433 L1325.0,1663 L977.5,1663 L977.5,1685" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="vision" data-to="failure"><title>失败</title><path d="M1622.5,701 L1622.5,1083 L1252.0,1083 L1252.0,1640 L1006.5,1640 L1006.5,1685" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="failure" data-to="retry"><title>教师处理</title><path d="M725.0,1773.0 L585.0,1773.0" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="retry" data-to="original"><title>替换文件</title><path d="M332.5,1685 L332.5,1663 L680.0,1663 L680.0,433 L977.5,433 L977.5,411" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="job" data-to="receipt"><title>终态</title><path d="M1622.5,1281 L1622.5,1953 L977.5,1953 L977.5,1975" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+<g class="edge" data-from="index" data-to="receipt"><title>完成</title><path d="M977.5,1281 L977.5,1373 L703.0,1373 L703.0,1953 L1006.5,1953 L1006.5,1975" stroke="#839097" stroke-width="3" fill="none" stroke-linejoin="round" marker-end="url(#arrow)"/></g>
+</g><g class="nodes">
+<g class="node" data-node="import" tabindex="0" role="button" aria-label="导入文件 / 网页 / 文本">
+<rect x="80.0" y="235" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="278" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >导入文件 / 网页 / 文本</text>
+<text x="102.0" y="320" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >PDF / DOCX / PPTX / 表格 / 扫描件</text>
+</g>
+<g class="node" data-node="original" tabindex="0" role="button" aria-label="保存原件与来源快照">
+<rect x="725.0" y="235" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="278" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >保存原件与来源快照</text>
+<text x="747.0" y="320" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >原网址 / 文件 / 版本 / 提炼许可</text>
+</g>
+<g class="node" data-node="parse" tabindex="0" role="button" aria-label="本地解析 · AI分类建议">
+<rect x="1370.0" y="235" width="505.0" height="176" rx="10" fill="#FFF1E5" stroke="#E3B89A" stroke-width="2"/>
+<text x="1392.0" y="278" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >本地解析 · AI分类建议</text>
+<text x="1392.0" y="320" font-size="22" fill="#775D4E" font-weight="400" text-anchor="start" >正文 / 表格 / 中文印刷OCR / 位置</text>
+</g>
+<g class="node" data-node="correct" tabindex="0" role="button" aria-label="核对解析 · 选择视觉区域">
+<rect x="80.0" y="525" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="568" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >核对解析 · 选择视觉区域</text>
+<text x="102.0" y="610" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >修正文段 / 核对公式图表结果</text>
+</g>
+<g class="node" data-node="reliable" tabindex="0" role="button" aria-label="可靠原文与图像证据">
+<rect x="725.0" y="525" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="568" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >可靠原文与图像证据</text>
+<text x="747.0" y="610" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >异常定位 / 修订不覆盖原件</text>
+</g>
+<g class="node" data-node="vision" tabindex="0" role="button" aria-label="按需识别印刷公式与图表">
+<rect x="1370.0" y="525" width="505.0" height="176" rx="10" fill="#FFF1E5" stroke="#E3B89A" stroke-width="2"/>
+<text x="1392.0" y="568" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >按需识别印刷公式与图表</text>
+<text x="1392.0" y="610" font-size="22" fill="#775D4E" font-weight="400" text-anchor="start" >保存原图 / 识别结果 / 待核对</text>
+</g>
+<g class="node" data-node="publish" tabindex="0" role="button" aria-label="选学习片段 · 关联目录">
+<rect x="80.0" y="815" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="858" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >选学习片段 · 关联目录</text>
+<text x="102.0" y="900" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >设置可见性 / 确认发布</text>
+</g>
+<g class="node" data-node="published" tabindex="0" role="button" aria-label="学生可见学习内容">
+<rect x="725.0" y="815" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="858" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >学生可见学习内容</text>
+<text x="747.0" y="900" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >部分发布不开放完整原件</text>
+</g>
+<g class="node" data-node="read" tabindex="0" role="button" aria-label="浏览目录 · 阅读资料">
+<rect x="2015.0" y="815" width="505.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="2037.0" y="858" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >浏览目录 · 阅读资料</text>
+<text x="2037.0" y="900" font-size="22" fill="#526575" font-weight="400" text-anchor="start" >查看已发布内容与允许的附件</text>
+</g>
+<g class="node" data-node="index" tabindex="0" role="button" aria-label="直接索引可靠原文">
+<rect x="725.0" y="1105" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="1148" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >直接索引可靠原文</text>
+<text x="747.0" y="1190" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >检索权限不因索引扩大</text>
+<text x="1210.0" y="1265" font-size="17" fill="#58616A" font-weight="400" text-anchor="end" >↗ I03</text>
+</g>
+<g class="node" data-node="extract" tabindex="0" role="button" aria-label="选择知识提炼范围">
+<rect x="80.0" y="1105" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="1148" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >选择知识提炼范围</text>
+<text x="102.0" y="1190" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >确认专题 / 标签建议 / 提炼许可</text>
+<text x="565.0" y="1265" font-size="17" fill="#E1E5E8" font-weight="400" text-anchor="end" >↗ I03</text>
+</g>
+<g class="node" data-node="learn" tabindex="0" role="button" aria-label="笔记 · 收藏 · 完成学习">
+<rect x="2015.0" y="1105" width="505.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="2037.0" y="1148" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >笔记 · 收藏 · 完成学习</text>
+<text x="2037.0" y="1190" font-size="22" fill="#526575" font-weight="400" text-anchor="start" >保留本人阅读与完成记录</text>
+</g>
+<g class="node" data-node="job" tabindex="0" role="button" aria-label="按所选范围提炼候选">
+<rect x="1370.0" y="1105" width="505.0" height="176" rx="10" fill="#FFF1E5" stroke="#E3B89A" stroke-width="2"/>
+<text x="1392.0" y="1148" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >按所选范围提炼候选</text>
+<text x="1392.0" y="1190" font-size="22" fill="#775D4E" font-weight="400" text-anchor="start" >与学习发布 / 直接索引独立</text>
+<text x="1855.0" y="1265" font-size="17" fill="#775D4E" font-weight="400" text-anchor="end" >↗ I03</text>
+</g>
+<g class="node" data-node="revision" tabindex="0" role="button" aria-label="新增修订 / 归档 / 撤回许可">
+<rect x="80.0" y="1395" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="1438" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >新增修订 / 归档 / 撤回许可</text>
+<text x="102.0" y="1480" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >明确操作后核对影响</text>
+<text x="565.0" y="1555" font-size="17" fill="#E1E5E8" font-weight="400" text-anchor="end" >↗ I07</text>
+</g>
+<g class="node" data-node="history" tabindex="0" role="button" aria-label="保存版本与历史引用">
+<rect x="725.0" y="1395" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="1438" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >保存版本与历史引用</text>
+<text x="747.0" y="1480" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >普通新版不自动停用旧版</text>
+<text x="1210.0" y="1555" font-size="17" fill="#58616A" font-weight="400" text-anchor="end" >↗ I07</text>
+</g>
+<g class="node" data-node="qa" tabindex="0" role="button" aria-label="查引用 · 提问">
+<rect x="2015.0" y="1395" width="505.0" height="176" rx="10" fill="#EAF1F5" stroke="#AFC9DA" stroke-width="2"/>
+<text x="2037.0" y="1438" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >查引用 · 提问</text>
+<text x="2037.0" y="1480" font-size="22" fill="#526575" font-weight="400" text-anchor="start" >跳转资料问答或知识条目</text>
+<text x="2500.0" y="1555" font-size="17" fill="#526575" font-weight="400" text-anchor="end" >↗ I03</text>
+</g>
+<g class="node" data-node="failure" tabindex="0" role="button" aria-label="解析或模型失败">
+<rect x="725.0" y="1685" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="1728" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >解析或模型失败</text>
+<text x="747.0" y="1770" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >显示失败位置与任务状态</text>
+</g>
+<g class="node" data-node="retry" tabindex="0" role="button" aria-label="校正 / 换文件 / 显式重试">
+<rect x="80.0" y="1685" width="505.0" height="176" rx="10" fill="#303235" stroke="#303235" stroke-width="2"/>
+<text x="102.0" y="1728" font-size="27" fill="#FFFFFF" font-weight="650" text-anchor="start" >校正 / 换文件 / 显式重试</text>
+<text x="102.0" y="1770" font-size="22" fill="#E1E5E8" font-weight="400" text-anchor="start" >未知生成不自动再次付费调用</text>
+</g>
+<g class="node" data-node="receipt" tabindex="0" role="button" aria-label="完成状态与保存回执">
+<rect x="725.0" y="1975" width="505.0" height="176" rx="10" fill="#FFFFFF" stroke="#BFCACB" stroke-width="2"/>
+<text x="747.0" y="2018" font-size="27" fill="#242424" font-weight="650" text-anchor="start" >完成状态与保存回执</text>
+<text x="747.0" y="2060" font-size="22" fill="#58616A" font-weight="400" text-anchor="start" >排队中不显示为加工完成</text>
+</g>
+</g><g class="labels">
+<g class="edge-label" data-from="import" data-to="original">
+<rect x="626.0" y="289.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="655.0" y="310.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >保存</text>
+</g>
+<g class="edge-label" data-from="original" data-to="parse">
+<rect x="1252.0" y="289.0" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1300.0" y="310.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >自动任务</text>
+</g>
+<g class="edge-label" data-from="parse" data-to="correct">
+<rect x="1907.0" y="398.5" width="77.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1945.5" y="419.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >待核对</text>
+</g>
+<g class="edge-label" data-from="correct" data-to="vision">
+<rect x="617.0" y="653.5" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="665.0" y="674.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >按需调用</text>
+</g>
+<g class="edge-label" data-from="vision" data-to="correct">
+<rect x="1263.0" y="608.0" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1311.0" y="629.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >回看图像</text>
+</g>
+<g class="edge-label" data-from="correct" data-to="reliable">
+<rect x="618.0" y="579.0" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="666.0" y="600.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >保存校正</text>
+</g>
+<g class="edge-label" data-from="reliable" data-to="publish">
+<rect x="599.5" y="759" width="134.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="666.5" y="780" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >学习发布分支</text>
+</g>
+<g class="edge-label" data-from="publish" data-to="published">
+<rect x="626.0" y="869.0" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="655.0" y="890.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >确认</text>
+</g>
+<g class="edge-label" data-from="published" data-to="read">
+<rect x="1574.5" y="869.0" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1622.5" y="890.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >学生阅读</text>
+</g>
+<g class="edge-label" data-from="read" data-to="learn">
+<rect x="2277.5" y="1033.5" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2306.5" y="1054.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >记录</text>
+</g>
+<g class="edge-label" data-from="learn" data-to="qa">
+<rect x="2277.5" y="1323.5" width="77.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="2316.0" y="1344.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >查资料</text>
+</g>
+<g class="edge-label" data-from="reliable" data-to="index">
+<rect x="987.5" y="721.0" width="134.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1054.5" y="742.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >直接索引分支</text>
+</g>
+<g class="edge-label" data-from="reliable" data-to="extract">
+<rect x="758.75" y="736" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="806.75" y="757" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >提炼分支</text>
+</g>
+<g class="edge-label" data-from="revision" data-to="history">
+<rect x="607.0" y="1449.0" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="655.0" y="1470.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >版本操作</text>
+</g>
+<g class="edge-label" data-from="parse" data-to="failure">
+<rect x="1335.0" y="1033.5" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1364.0" y="1054.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >失败</text>
+</g>
+<g class="edge-label" data-from="vision" data-to="failure">
+<rect x="1408.25" y="1049" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1437.25" y="1070" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >失败</text>
+</g>
+<g class="edge-label" data-from="failure" data-to="retry">
+<rect x="607.0" y="1739.0" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="655.0" y="1760.0" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >教师处理</text>
+</g>
+<g class="edge-label" data-from="retry" data-to="original">
+<rect x="458.25" y="1629" width="96.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="506.25" y="1650" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >替换文件</text>
+</g>
+<g class="edge-label" data-from="job" data-to="receipt">
+<rect x="1632.5" y="1602.5" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1661.5" y="1623.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >终态</text>
+</g>
+<g class="edge-label" data-from="index" data-to="receipt">
+<rect x="987.5" y="1312.5" width="58.0" height="29" rx="10" fill="#F7F6F2" stroke="none" />
+<text x="1016.5" y="1333.5" font-size="19" fill="#526575" font-weight="400" text-anchor="middle" >完成</text>
+</g>
+</g></g></svg>

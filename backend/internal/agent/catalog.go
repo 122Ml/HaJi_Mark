@@ -135,6 +135,26 @@ func Catalog() []Tool {
 	read("submission_read", "查看授权作答和评阅", "assessment", "/submissions/{id}", true, true, withID)
 	read("assignment_roster", "查看作业提交名单", "assessment", "/assignments/{id}/roster", false, true, withID)
 	read("submission_imports", "核对作业的教师导入批次", "assessment", "/assignments/{id}/imports", false, true, withID)
+	add("submission_import_preview", "预览核对CSV文本或同对话CSV附件答案，尚不写入", "assessment", "read", "POST", "/assignments/{id}/import/preview", "", false, true, object(props("id", id, "question_id", id, "csv", str("UTF-8 CSV全文，和attachment_id二选一"), "attachment_id", id), "id", "question_id"))
+	add("submission_import_confirm", "教师确认并追加整批作答；逾期或关闭禁止导入", "assessment", "human", "POST", "/assignments/{id}/import/confirm", "/assignments/{id}/imports", false, true, object(props("id", id, "question_id", id, "csv", str("与预览完全相同的CSV，和attachment_id二选一"), "attachment_id", id, "preview_hash", str("预览返回的hash")), "id", "question_id", "preview_hash"))
+	add("answer_draft_save", "保存本人作答草稿", "assessment", "approval", "PUT", "/assignments/{id}/questions/{question_id}/draft", "/assignments/{id}", true, true, object(props("id", id, "question_id", id, "answer_text", str("本人作答")), "id", "question_id", "answer_text"))
+	add("answer_submit", "学生确认正式提交本人答案", "assessment", "human", "POST", "/assignments/{id}/submissions", "/assignments/{id}", true, true, object(props("id", id, "question_id", id, "answer_text", str("正式提交的本人原文")), "id", "question_id", "answer_text"))
+	add("curriculum_point_create", "新增章节小节或知识点", "materials", "create", "POST", "/points", "/graph", false, false, object(props("title", str("名称"), "kind", enum("chapter", "section", "point"), "parent_id", id, "position", integer("排序"), "description", str("说明")), "title", "kind", "position"))
+	add("curriculum_edge_create", "维护知识点前置依赖", "materials", "approval", "POST", "/edges", "/graph", false, false, object(props("from_id", id, "to_id", id), "from_id", "to_id"))
+	for _, ed := range []struct {
+		name, label, domain, path, snapshot string
+		learner                             bool
+	}{
+		{"source_editor", "打开原文与公式图表核对工作台", "materials", "source", "/sources/{id}", false},
+		{"paper_editor", "打开整卷拆题校正与采纳工作台", "materials", "paper", "/sources/{id}", false},
+		{"knowledge_editor", "打开知识版本编辑器", "materials", "knowledge", "/knowledge", false},
+		{"question_editor", "打开题目参考答案与标准工作台", "questions", "question", "/question-bank/{id}", false},
+		{"curriculum_editor", "打开课程目录工作台", "materials", "curriculum", "/graph", false},
+		{"import_editor", "打开文本作答导入工作台", "assessment", "import", "/assignments/{id}", true},
+		{"diagnosis_editor", "打开诊断草稿复核工作台", "learning", "diagnosis", "/intelligence/{id}", true},
+	} {
+		add(ed.name, ed.label, ed.domain, "approval", "EDITOR", ed.path, ed.snapshot, false, ed.learner, object(props("id", id, "goal", str("需教师在工作台完成的具体编辑")), "id", "goal"))
+	}
 	question := object(props("bank_question_version_id", id, "bound_rubric_id", id, "prompt", str("旧题题干"), "max_score", integer("满分"), "rubric", str("旧题标准"), "options", array(str("选项")), "correct_answer", str("客观题规则"), "knowledge_point_id", id, "resource_id", id))
 	add("assignment_create", "创建作业草稿", "assessment", "create", "POST", "/assignments", "", false, false, object(props("title", str("作业名"), "description", str("要求"), "type", enum("subjective", "quiz", "code"), "due_at", str("RFC3339截止时间"), "questions", array(question)), "title", "type", "questions"))
 	add("assignment_state", "教师发布或关闭作业", "assessment", "human", "POST", "/assignments/{id}/state", "/assignments/{id}", false, false, object(props("id", id, "state", enum("published", "closed")), "id", "state"))
@@ -154,6 +174,10 @@ func Catalog() []Tool {
 	read("intervention_evidence", "核对补学补练完成证据", "learning", "/interventions/{id}/evidence", true, true, withID)
 	read("path_read", "查看本人学习路径", "learning", "/path", true, true, empty)
 	add("path_plan", "生成本人规则学习路径", "learning", "create", "POST", "/path", "", true, true, empty)
+	read("intelligence_list", "查看本人诊断或推荐历史", "learning", "/intelligence", true, true, object(props("kind", enum("diagnosis", "recommendation")), "kind"))
+	read("intelligence_read", "查看本人分析报告和证据", "learning", "/intelligence/{id}", true, true, withID)
+	add("intelligence_create", "生成诊断或规则候选推荐草稿", "learning", "create", "POST", "/intelligence", "", true, true, object(props("kind", enum("diagnosis", "recommendation"), "question_id", id, "rubric_id", id, "profile_id", str("生成模型profile")), "kind"))
+	read("diagnosis_labels", "查看问题标签", "learning", "/diagnosis-labels", false, true, empty)
 	add("note_save", "保存本人的学习笔记", "learning", "approval", "PUT", "/resources/{id}/note", "/notes", true, true, object(props("id", id, "note", str("笔记内容"), "favorite", boolean("收藏")), "id", "note", "favorite"))
 	add("intervention_create", "创建补学补练任务草稿", "learning", "create", "POST", "/interventions", "", false, true, object(props("student_id", id, "title", str("任务标题"), "description", str("任务说明"), "resource_id", id, "assignment_id", id), "student_id", "title", "description"))
 	add("intervention_state", "下发或复核补学补练任务", "learning", "human", "POST", "/interventions/{id}/state", "/interventions", false, true, object(props("id", id, "state", enum("assigned", "reviewed"), "content", str("复核说明")), "id", "state"))
@@ -175,7 +199,10 @@ func allowed(t Tool, domain, role string, tainted bool) bool {
 	if role == "teacher" && (t.Name == "path_read" || t.Name == "path_plan" || t.Name == "note_save") {
 		return false
 	}
-	if tainted && t.Domain == "questions" {
+	if role == "teacher" && (t.Name == "answer_draft_save" || t.Name == "answer_submit") {
+		return false
+	}
+	if tainted && (t.Domain == "questions" || t.Name == "paper_editor" || t.Name == "paper_split") {
 		return false
 	}
 	if domain == "coordinator" {

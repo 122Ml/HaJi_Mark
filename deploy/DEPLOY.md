@@ -1,29 +1,28 @@
-# 发布 UI 重构版本到 hajistudy.online
+# 发布 HaJi Mark 到 hajistudy.online
 
-2026-11-19：用户已授权最新主体、全部图册及GitHub同步。本轮发布计划与随后直接观测结果统一见 [同步记录](sync-2026-11-19.md)；下列带日期的旧发布状态保留为历史。新版本不带模型密钥。
+2026-11-19 已发布 `v0.2.0`，生产迁移到 00016。实际发布和核验见[同步记录](sync-2026-11-19.md)。
 
 目标：154.201.71.22（root，OpenResty 反代 127.0.0.1:18080，2GB）。更新 api / worker / web 镜像前先执行镜像内的数据库迁移；保留 PostgreSQL、Redis、数据卷、OpenResty 配置和证书。不在服务器上编译。
 
-2026-11-05最新发布为 `hajimark-workspace-f40872a-20261105`，应用源码 `f40872ad231735d56608158de108e9ddc72d58cc`，数据库迁移保持00009。升级前已备份，数据卷与旧release保留；公网账号沿用既有配置。上一版本为 `hajimark-platform-dcc1474-20261105`。
+`v0.2.0` 的上一版为 `hajimark-workspace-f40872a-20261105`，迁移 00009。升级前已备份，数据卷、旧 release 和公网账号均保留。
 
 ## 1. 本地构建与验证（不需要服务器）
 
 ```powershell
-# 仓库根，工作区已提交
-pwsh -File deploy/deploy.ps1 -Action build
+# 工作区干净，HEAD 对应版本标签，PreviousRelease 填服务器实测值
+pwsh -File deploy/deploy.ps1 -Action build -ReleaseId <新版本目录名> -PreviousRelease <服务器当前版本目录名>
 ```
 
-脚本做的事：从 HEAD 的干净 worktree 构建 `hajimark-postgres:<tag>`、`hajimark-backend:<tag>`、`hajimark-web:<tag>`（带 `org.opencontainers.image.revision=<commit>` 标签），然后 `docker save` 并 gzip，写出 `.local/deployment/<release-id>/`。2026-11-11起迁移00010依赖pgvector镜像；本次仅修改发布入口，尚未执行新生产发布。RAG/OCR worker默认不进入公网配置。
+从精确 Git 标签导出源码，构建 PostgreSQL/pgvector、API、解析 worker 和 Web 四个镜像，并写入源码 revision。`docker save` 后压缩到 `.local/deployment/<release-id>/`。模型凭据由服务端单独配置。
 
 | 文件 | 用途 |
 | --- | --- |
-| `images.tar.gz` | 三个镜像：数据库扩展基座/API与基础worker/Web |
+| `images.tar.gz` | 数据库扩展基座、API、解析 worker 和 Web 四个镜像 |
 | `release.json` | 源提交、镜像 ID、归档 SHA256、上一个 release |
 | `compose.production.yaml` 等 | 与 `deploy/` 相同的生产 Compose 与运维脚本 |
-| `env.template` | `shared/.env` 中需要的变量；升级选择三个镜像tag，保留原数据库密码和数据卷 |
-| `switch-release.sh` | 服务器上校验镜像 ID/revision，改写 `.env` 中的镜像 tag，切换 `current` 链接，运行一次性 migrate，逐服务 `up --no-deps --wait`，检查健康 |
-| `update-release.sh` | 校验 SHA256 → 记录旧 `current` → `backup.sh` → `docker load` → `switch-release.sh` |
-| `rollback.sh` | 切回 `.previous-current`（默认为 release.json 中的 previous_release）；只切镜像，不恢复数据库 |
+| `env.template` | `shared/.env` 所需变量。保留原数据库密码和数据卷 |
+| `switch-release.sh` | 核对镜像 ID 和 revision，执行迁移，校验旧数据指纹并启动服务。健康检查后更新 `current` |
+| `update-release.sh` | 加锁、核对归档哈希、加载镜像、暂停写服务、完成最终备份并切换 |
 
 发布清单分别记录本地镜像ID与归档manifest中的config ID，兼容Docker Desktop的OCI index和服务器经典镜像存储；服务器接受两种ID之一，并继续核对源码revision标签。
 
@@ -44,14 +43,14 @@ pwsh -File deploy/deploy.ps1 -Action deploy -ReleaseId <release-id>
 Remove-Item Env:HAJI_SSH_PASSWORD
 ```
 
-凭据缺失时脚本输出 `DEPLOY_PENDING`，直接退出，服务器不会有任何改动。如果远端 release 目录里已经有镜像归档，脚本拒绝覆盖。上传使用 SFTP 直传，约 70MB，不经过 R2；需要 R2 中转时沿用 `scripts/stage-release.py`。
+凭据缺失时脚本输出 `DEPLOY_PENDING`。已有镜像归档的远端目录保留。SFTP 直传后，服务器后台执行更新，查看 `deployment.log` 和 `deployment.exit` 确认结果。`v0.2.0` 的镜像归档约为 478 MB。
 
 手动等价步骤（在服务器上执行）：
 
 ```sh
 cd /opt/hajimark/releases/<release-id>
 chmod 700 *.sh
-bash update-release.sh          # 备份 → load → 切换 → 健康检查，输出 SWITCHED <release-id>
+nohup bash ./update-release.sh >deployment.log 2>&1 </dev/null &
 ```
 
 ## 3. 线上验证
@@ -68,9 +67,4 @@ python scripts/check-platform.py --allow-remote ...    # 见 deploy/README.md
 
 ## 4. 回滚
 
-```powershell
-pwsh -File deploy/deploy.ps1 -Action rollback -ReleaseId <release-id>
-# 或服务器上：bash /opt/hajimark/releases/<release-id>/rollback.sh
-```
-
-回滚只切换应用镜像，不恢复数据库，保留新增作答。本周00009为增量表和可空字段，不自动降级数据库；回退前仍需核对目标旧镜像与当前schema兼容，旧镜像不具备逐点评分能力。不要用旧数据库备份覆盖升级后的新增记录。
+应用回退前先确认目标旧镜像与当前 schema 兼容，并保护升级后新增的写入。旧 release、镜像及最终备份保留。若需验证数据恢复，在独立数据库恢复备份。

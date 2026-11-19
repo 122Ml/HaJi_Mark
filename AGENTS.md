@@ -19,7 +19,7 @@
 - .env/.local/账号/备份不提交。历史 references 副本和三个原 SVG 保留。代码、文档、工作区 navigation 与实际状态随本轮结构同步维护。
 - 不宣称生产就绪、90%视觉复刻或AI效果，除非有对应当前版本的证据；历史截图与旧SSIM不证明当前真实平台视觉。
 
-- 2026-11-05交互改进先完成本地验收，随后用户明确要求发布公网；现网release为hajimark-workspace-f40872a-20261105（应用f40872a），AI仍关闭。URL course为课程上下文；editing.tsx提供账号/对象隔离的未保存编辑恢复，不能冒充服务端保存。workspace.go/workspace.sql承载分页队列与干预完成证据；学生草稿、评分草稿与未下发任务继续私有。
+- 2026-11-05交互改进先完成本地验收，随后用户明确要求发布公网；当时发布release为hajimark-workspace-f40872a-20261105（应用f40872a），AI仍关闭。URL course为课程上下文；editing.tsx提供账号/对象隔离的未保存编辑恢复，不能冒充服务端保存。workspace.go/workspace.sql承载分页队列与干预完成证据；学生草稿、评分草稿与未下发任务继续私有。
 
 - 2026-11-05用户要求整理公网demo：旧13门测试课与4个辅助测试账号已清理；现为一门软件工程演示课程，保留jiaoshi/xuesheng及7个demo-student账号。docs/demo-walkthrough.md为当前展示入口，私密账号/备份/对象ID在忽略目录。复查优先只读，不将旧种子或写入式公网回归自动重跑到干净demo中；模拟成绩不代表真实教学效果。
 
@@ -37,3 +37,5 @@
 - 2026-11-17方案B：learning/intelligence.go与rag/intelligence.go承载规则候选AI排序、同题同标准的正式失分作答诊断；输入快照、任务、报告及偏好持久化。引用逐字核对、提议标签先维护再确认、正式证据变化禁止确认旧诊断。教师自编示例使用origin=teacher_example，无学生作答转换、无评分用途。agent-editor.tsx复用七类既有编辑器，返回回执由服务端重读，浏览器草稿不等于保存；学生上下文隔离仍适用。rag/agent_stream.go兼容SSE，完整校验后才执行工具，profile可禁流且不自动收费重试。迁移00015，验收check-intelligence-browser.cjs；自动生成并发布新补练仍未纳入。
 
 - 2026-11-19工作区协同：context-agent.tsx在八类对象内复用助理，agent/context.go经Gateway校验引用并预先标记学生上下文；location-state.ts承接URL筛选。scoped_search.go只检索授权的已发布学习文本，不展开私有原件；手工发布与索引排队同事务。00016保存干预的正式诊断／作答来源，feedback.go验证当前证据。验收入口scripts/check-frontend-integration.cjs仅连接隔离18082；构造模型验证链路，不证明AI效果。逐项状态见docs/research/frontend-integration-2026-11-19.md。
+
+- 2026-11-19已按用户要求同步GitHub和原服务器：应用v0.2.0/0e54881，release为hajimark-v0_2_0-20261119-r2，迁移00016。/diagrams/包含全景、交互、助理、历史设计图册和标注示例的原型，/design-atlas/旧链接保留。生产RAG业务入口启用但无模型密钥，不自动开启收费；人工业务、解析与发布资料文内检索可用。数据指纹、只读公网验收与版本收据见deploy/sync-2026-11-19.md；后续检查继续保留现有演示数据，不重跑旧种子或擅自恢复旧库。

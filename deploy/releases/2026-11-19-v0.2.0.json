@@ -1,0 +1,80 @@
+{
+  "observed_date": "2026-11-19",
+  "release_id": "hajimark-v0_2_0-20261119-r2",
+  "source_tag": "v0.2.0",
+  "source_commit": "0e548811f1cb35b027774c7f0c9e7a01207bc48a",
+  "github_branch": "codex/platform-completion",
+  "previous_release": "hajimark-workspace-f40872a-20261105",
+  "images": [
+    {
+      "tag": "hajimark-postgres:v0_2_0-20261119-r2",
+      "local_image_id": "sha256:16e252703634bd76dbec018ed66287dbde2ca2d0294e0c04bacc000787c19c58",
+      "config_id": "sha256:dec82131936669438b7a257908d2a53b2d552677c57a5ff436049a45ac2e53dc",
+      "revision": "0e548811f1cb35b027774c7f0c9e7a01207bc48a"
+    },
+    {
+      "tag": "hajimark-backend:v0_2_0-20261119-r2",
+      "local_image_id": "sha256:9ad1be8a7764d0dd163625291b02f98516dc98fa0f7968a862976684a6b1be3b",
+      "config_id": "sha256:96b9d4ef08b29bf61f21bfed17e3d793e252e604053c2323fc60e775b12efabf",
+      "revision": "0e548811f1cb35b027774c7f0c9e7a01207bc48a"
+    },
+    {
+      "tag": "hajimark-worker:v0_2_0-20261119-r2",
+      "local_image_id": "sha256:01f9edbe4ba340a835f2f80f01a0bb4890f7ef0922d8f77b5fb8242662a8b100",
+      "config_id": "sha256:68df5035e298c5d183e5d203d9868c1a0e186c65ea70550083aa616e1eaf28ee",
+      "revision": "0e548811f1cb35b027774c7f0c9e7a01207bc48a"
+    },
+    {
+      "tag": "hajimark-web:v0_2_0-20261119-r2",
+      "local_image_id": "sha256:6a897ebee16c9be18d5ef5fba12935ee0d790ad17d47e0a241ff73a8198f4ce5",
+      "config_id": "sha256:77e3053415f9ec474c801a4247cc7e28e807f81e8595ecba2babb7c5ee49dd85",
+      "revision": "0e548811f1cb35b027774c7f0c9e7a01207bc48a"
+    }
+  ],
+  "images_archive_sha256": "68b59be76b0dc7d0d87a66fafced17925858fe3a80c6eb3f35e61b4180acd2ff",
+  "source_archive_sha256": "a24d1db12eaabda89d4defba0b47753d214a5e30ae74d3e546eb16d9a5b5b654",
+  "migration": 16,
+  "pgvector_version": "0.8.7",
+  "database_preservation": {
+    "tables_with_existing_column_fingerprints": 21,
+    "mismatches": 0,
+    "users": 9,
+    "courses": 1,
+    "submissions": 27,
+    "grading_revisions": 25
+  },
+  "pre_switch_backup": "/opt/hajimark/backups/hajimark-20261119T021529Z.dump",
+  "models_configured": false,
+  "rag_business_routes_enabled": true,
+  "paid_calls_enabled": false,
+  "materials_volume": "hajimark-production_materials-data",
+  "diagram_archive_sha256": "4d891299ce206a7e82eea277b1ece0e4ffc556bbbc6ae0e575c36dabe6b3df07",
+  "public_static_files": 94,
+  "public_hash_checks_including_legacy_routes": 149,
+  "read_only_browser_routes": 29,
+  "browser_page_errors": 0,
+  "browser_api_errors": 0,
+  "public_web_assets_match_container": true,
+  "session_cookie": [
+    {
+      "name": "haji_session",
+      "secure": true,
+      "httpOnly": true,
+      "sameSite": "Strict"
+    }
+  ],
+  "container_oom": false,
+  "container_restarts": 0,
+  "urls": {
+    "application": "https://hajistudy.online/login",
+    "diagrams": "https://hajistudy.online/diagrams/",
+    "legacy_atlas": "https://hajistudy.online/design-atlas/",
+    "er_diagram": "https://hajistudy.online/design-atlas/#F02"
+  },
+  "scope_limits": [
+    "No production seeds or business write regression was run.",
+    "Local constructed models do not establish production model quality.",
+    "The detailed atlas retains its 41-table/103-FK historical design baseline.",
+    "OCR smoke uses a constructed two-page sample and requires teacher review."
+  ]
+}

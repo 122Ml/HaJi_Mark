@@ -12,8 +12,8 @@ import (
 )
 
 const createContentSection = `-- name: CreateContentSection :one
-INSERT INTO content_sections(id,course_id,source_id,revision,position,title,relation,fragment_ids,knowledge_point_id,reason)
-VALUES($1,$2,$3,$4,$5,$6,$7,$8,$10,$9) RETURNING id, course_id, source_id, revision, position, title, relation, fragment_ids, knowledge_point_id, time_start_ms, time_end_ms, reason, state, edit_version, created_at
+INSERT INTO content_sections(id,course_id,source_id,revision,position,title,relation,fragment_ids,knowledge_point_id,reason,state)
+VALUES($1,$2,$3,$4,$5,$6,$7,$8,$11,$9,$10) RETURNING id, course_id, source_id, revision, position, title, relation, fragment_ids, knowledge_point_id, time_start_ms, time_end_ms, reason, state, edit_version, created_at
 `
 
 type CreateContentSectionParams struct {
@@ -26,6 +26,7 @@ type CreateContentSectionParams struct {
 	Relation         string      `json:"relation"`
 	FragmentIds      []string    `json:"fragment_ids"`
 	Reason           string      `json:"reason"`
+	State            string      `json:"state"`
 	KnowledgePointID pgtype.Text `json:"knowledge_point_id"`
 }
 
@@ -40,6 +41,7 @@ func (q *Queries) CreateContentSection(ctx context.Context, arg CreateContentSec
 		arg.Relation,
 		arg.FragmentIds,
 		arg.Reason,
+		arg.State,
 		arg.KnowledgePointID,
 	)
 	var i ContentSection
@@ -64,30 +66,32 @@ func (q *Queries) CreateContentSection(ctx context.Context, arg CreateContentSec
 }
 
 const deleteContentSections = `-- name: DeleteContentSections :exec
-DELETE FROM content_sections WHERE source_id=$1 AND revision=$2
+DELETE FROM content_sections WHERE course_id=$1 AND source_id=$2 AND revision=$3
 `
 
 type DeleteContentSectionsParams struct {
+	CourseID string `json:"course_id"`
 	SourceID string `json:"source_id"`
 	Revision int32  `json:"revision"`
 }
 
 func (q *Queries) DeleteContentSections(ctx context.Context, arg DeleteContentSectionsParams) error {
-	_, err := q.db.Exec(ctx, deleteContentSections, arg.SourceID, arg.Revision)
+	_, err := q.db.Exec(ctx, deleteContentSections, arg.CourseID, arg.SourceID, arg.Revision)
 	return err
 }
 
 const listContentSections = `-- name: ListContentSections :many
-SELECT id, course_id, source_id, revision, position, title, relation, fragment_ids, knowledge_point_id, time_start_ms, time_end_ms, reason, state, edit_version, created_at FROM content_sections WHERE source_id=$1 AND revision=$2 ORDER BY position
+SELECT id, course_id, source_id, revision, position, title, relation, fragment_ids, knowledge_point_id, time_start_ms, time_end_ms, reason, state, edit_version, created_at FROM content_sections WHERE course_id=$1 AND source_id=$2 AND revision=$3 ORDER BY position
 `
 
 type ListContentSectionsParams struct {
+	CourseID string `json:"course_id"`
 	SourceID string `json:"source_id"`
 	Revision int32  `json:"revision"`
 }
 
 func (q *Queries) ListContentSections(ctx context.Context, arg ListContentSectionsParams) ([]ContentSection, error) {
-	rows, err := q.db.Query(ctx, listContentSections, arg.SourceID, arg.Revision)
+	rows, err := q.db.Query(ctx, listContentSections, arg.CourseID, arg.SourceID, arg.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -122,17 +126,30 @@ func (q *Queries) ListContentSections(ctx context.Context, arg ListContentSectio
 	return items, nil
 }
 
-const setContentSectionsState = `-- name: SetContentSectionsState :exec
-UPDATE content_sections SET state=$3, edit_version=edit_version+1 WHERE source_id=$1 AND revision=$2
+const setContentSectionsState = `-- name: SetContentSectionsState :execrows
+UPDATE content_sections SET state=$4, edit_version=edit_version+1
+ WHERE course_id=$1 AND source_id=$2 AND revision=$3
+   AND (($4='accepted' AND state='proposed')
+     OR ($4='rejected' AND state IN ('proposed','accepted'))
+     OR ($4='proposed' AND state='rejected'))
 `
 
 type SetContentSectionsStateParams struct {
+	CourseID string `json:"course_id"`
 	SourceID string `json:"source_id"`
 	Revision int32  `json:"revision"`
 	State    string `json:"state"`
 }
 
-func (q *Queries) SetContentSectionsState(ctx context.Context, arg SetContentSectionsStateParams) error {
-	_, err := q.db.Exec(ctx, setContentSectionsState, arg.SourceID, arg.Revision, arg.State)
-	return err
+func (q *Queries) SetContentSectionsState(ctx context.Context, arg SetContentSectionsStateParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setContentSectionsState,
+		arg.CourseID,
+		arg.SourceID,
+		arg.Revision,
+		arg.State,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

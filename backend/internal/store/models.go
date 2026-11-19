@@ -295,14 +295,15 @@ type IntelligenceReport struct {
 }
 
 type Interaction struct {
-	ID        string             `json:"id"`
-	CourseID  string             `json:"course_id"`
-	ActorID   string             `json:"actor_id"`
-	Kind      string             `json:"kind"`
-	Title     string             `json:"title"`
-	Content   string             `json:"content"`
-	ParentID  pgtype.Text        `json:"parent_id"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ID           string             `json:"id"`
+	CourseID     string             `json:"course_id"`
+	ActorID      string             `json:"actor_id"`
+	Kind         string             `json:"kind"`
+	Title        string             `json:"title"`
+	Content      string             `json:"content"`
+	ParentID     pgtype.Text        `json:"parent_id"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	EvidenceRefs json.RawMessage    `json:"evidence_refs"`
 }
 
 type Intervention struct {

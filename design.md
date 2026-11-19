@@ -151,18 +151,18 @@ CSS 变量在 `styles.css :root`，颜色同步到 `theme.ts palette`。修改�
 cd web; npm run typecheck; npm run build; cd ..
 docker compose build web
 docker compose up -d --no-build
-$taskNode = 'C:/Users/23396/.cache/codex-runtimes/codex-primary-runtime/dependencies/node'
-$env:NODE_PATH = "$taskNode/node_modules"
-& "$taskNode/bin/node.exe" scripts/check-platform-browser.cjs   # 业务回归，创建带标签课程并保留
-& "$taskNode/bin/node.exe" scripts/check-design-browser.cjs     # 分组导航、别名、焦点、截图 → .local/design
-& "$taskNode/bin/node.exe" scripts/check-ui-console.cjs         # 控制台错误、静态资源 4xx、390/768/1440 横向溢出
+$env:NODE_PATH = (npm root -g)
+node scripts/check-platform-browser.cjs   # 业务回归，创建带标签课程并保留
+node scripts/check-design-browser.cjs     # 分组导航、别名、焦点、截图 → .local/design
+node scripts/check-ui-console.cjs         # 控制台错误、静态资源 4xx、390/768/1440 横向溢出
+node scripts/check-frontend-ui.cjs        # Ant Design 复用率与未使用声明静态检查
 python scripts/check_docs.py
 git diff --check
 ```
 
 设计检查依赖前一个脚本生成的“浏览器验收”课程。人工核对后，把 `.local/design/*.png` 复制到 `docs/screenshots/`，并把上面六张示例复制到 `docs/design-examples/`。不要 `down -v`，不要删卷。
 
-未覆盖：像素相似度、完整无障碍认证、暗色模式、大规模负载。2026-11-12组件统一后Vite主JS包约1.91MB（gzip约586KB），仍有大chunk提示，未完成首屏性能优化。
+注：2026-11-19 已移除 `vite.config.ts` 中全量打包 `antd-vendor` 的规则，改由懒加载路由按需拆包（主入口控制在 ~746 KB 未压缩）；同步新增同源 `/theme-init.js` 避免首屏暗色闪烁并满足 `script-src 'self'` CSP；仍未做像素相似度与完整无障碍认证。
 
 
 ## 2026-11-05 操作工作台

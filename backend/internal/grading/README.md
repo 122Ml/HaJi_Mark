@@ -4,4 +4,4 @@
 
 - **后端代码**：`learning/`（`feedback.go` 评分/发布/导出段、`regrade.go`、`account.go`、`workspace.go`、`http.go` 公共路由）及 `agent/*`、`identity/*`、`platform/*`、`server/*`、`rag/`（`models.go`、`jobs.go`、`agent.go`、`agent_stream.go`）；SQL 位于 `backend/db/queries/`（`agent.sql`、`identity.sql`、`workspace.sql`、`workflows.sql` 重评影响段）。
 - **前端代码**：`web/src/live/`（`grading.tsx`、`assessment.tsx` 的 `GradePage`、`content-impact.tsx`、`regrades.tsx`、`agent.tsx`、`agent-editor.tsx`、`context*.tsx`、`account.tsx`、`ai-jobs.tsx`、`workflow-job.tsx`、`routes.tsx`）及 `web/src/{app,shared,styles}/*`。
-- **迁移与边界**：迁移 `00001—00018` 已使用，后续从 `00019` 起统一预约编号；完整边界与自查清单见 [docs/team.md](../../../docs/team.md)、[docs/handoffs/grading.md](../../../docs/handoffs/grading.md) 与 [docs/contracts.md](../../../docs/contracts.md)。
+- **迁移与边界**：迁移 `00001—00019` 已使用，后续从 `00020` 起统一预约编号；完整边界与自查清单见 [docs/team.md](../../../docs/team.md)、[docs/handoffs/grading.md](../../../docs/handoffs/grading.md) 与 [docs/contracts.md](../../../docs/contracts.md)。

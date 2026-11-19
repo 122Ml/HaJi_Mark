@@ -73,6 +73,17 @@ export const pointKindLabels: Record<string, string> = {
   point: "知识点",
 };
 
+export const ASSET_KIND_LABELS: Record<string, string> = {
+  page: "原页预览",
+  image: "图片",
+  figure: "图表",
+  chart: "数据图表",
+  diagram: "结构／流程图",
+  table: "表格",
+  formula: "公式",
+  crop: "裁剪图像",
+};
+
 export const locatorKeyLabels: Record<string, string> = {
   page: "页",
   slide: "幻灯片",
@@ -94,4 +105,35 @@ export function formatLocator(locator?: Record<string, unknown> | null): string 
     .filter(([k, v]) => k in locatorKeyLabels && v !== null && v !== undefined && String(v).trim() !== "")
     .map(([k, v]) => `${locatorKeyLabels[k]} ${String(v)}`)
     .join(" · ");
+}
+
+export function formatHitLocator(locator?: Record<string, unknown> | null): string {
+  if (!locator || typeof locator !== "object") return "";
+  const parts: string[] = [];
+  const base = formatLocator(locator);
+  if (base) parts.push(base);
+  const extra: [string, string][] = [
+    ["location", "位置"],
+    ["locator", "位置"],
+    ["knowledge_version", "知识版本"],
+    ["resource_version", "资料版本"],
+  ];
+  for (const [key, label] of extra) {
+    const val = locator[key];
+    if (val !== null && val !== undefined && String(val).trim() !== "") {
+      const text =
+        key.endsWith("_version") ? `v${String(val)}` : String(val).trim();
+      parts.push(`${label} ${text}`);
+    }
+  }
+  if (!parts.length) {
+    const sec =
+      typeof locator.section === "string" && locator.section.trim()
+        ? locator.section.trim()
+        : typeof locator.heading === "string" && locator.heading.trim()
+          ? locator.heading.trim()
+          : "";
+    if (sec) parts.push(sec);
+  }
+  return parts.join(" · ");
 }

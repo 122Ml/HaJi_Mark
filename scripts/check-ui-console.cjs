@@ -5,12 +5,16 @@ const {chromium} = require('playwright');
 const root = path.resolve(__dirname, '..');
 const base = 'http://127.0.0.1:18080';
 const fixtures = JSON.parse(fs.readFileSync(path.join(root, '.local/s1-accounts.json'), 'utf8'));
-const materialCourse = JSON.parse(fs.readFileSync(path.join(root, '.local/material-workflows-check.json'), 'utf8')).course_id;
+const materialFile = path.join(root, '.local/material-workflows-check.json');
+const materialCourse = (fs.existsSync(materialFile) ? JSON.parse(fs.readFileSync(materialFile, 'utf8')) : {}).course_id || '';
 const output = path.join(root, '.local/ui-audit');
 const pages = {
   teacher: ['dashboard', 'assistant', 'courses', 'curriculum', 'materials', 'knowledge', 'question-bank', 'retrieval', 'content-impact', 'regrades', 'intervention', 'homework', 'quiz', 'interaction', 'research', 'industry-intelligence', 'profile'],
   student: ['home', 'assistant', 'learning', 'course-content', 'knowledge', 'retrieval', 'homework', 'quiz', 'intervention', 'interaction', 'profile'],
 };
+const watchdog = setTimeout(() => { console.error('HARD TIMEOUT: check-ui-console.cjs exceeded 180s'); process.exit(124); }, 180000);
+watchdog.unref();
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
 (async () => {
   fs.mkdirSync(output, {recursive: true});
   const browser = await chromium.launch({channel: 'msedge', headless: true});
@@ -54,18 +58,21 @@ const pages = {
       const courses = (await (await page.request.get(base + '/api/v1/me/courses')).json()).data;
       const teachingCourse = courses.filter(c => /^浏览器验收 \d+$/.test(c.title)).sort((a,b) => b.title.localeCompare(a.title))[0];
       if (!teachingCourse) throw Error('Run check-platform-browser.cjs first to create the teaching fixture');
+      const activeMaterialCourse = materialCourse || teachingCourse.id;
       for (const width of [390, 768, 1440]) {
         await page.setViewportSize({width, height: 900});
         for (const p of pages[role]) {
           const useMaterials = ['materials', 'knowledge', 'question-bank', 'retrieval', 'content-impact', 'regrades'].includes(p);
-          await page.goto(`${base}/${role}/${p}?course=${useMaterials ? materialCourse : teachingCourse.id}`);
+          await page.goto(`${base}/${role}/${p}?course=${useMaterials ? activeMaterialCourse : teachingCourse.id}`);
           await page.waitForLoadState('networkidle');
           await page.locator('main .live-page, main .agent-workspace').first().waitFor({timeout: 10000}).catch(() => problems.push(`${role}/${p}@${width}: missing page content`));
           if (await page.locator('main .live-heading h1, main > .live-page > h1').count()) problems.push(`${role}/${p}@${width}: redundant page heading`);
           await inspectUI(page, `${role}/${p}@${width}`);
           if(await page.locator('main .workspace-course-select').count()) problems.push(`${role}/${p}@${width}: duplicate course selection`);
-          const courseSelectors = await page.locator('.topbar #current-course').count();
-          if(courseSelectors !== (p === 'profile' ? 0 : 1)) problems.push(`${role}/${p}@${width}: topbar course selection count ${courseSelectors}`);
+          const slotSelector = width >= 960 ? '.lab-workspace #current-course' : '.topbar #current-course';
+          const courseSelectors = await page.locator(slotSelector).count();
+          const totalSelectors = await page.locator('#current-course').count();
+          if(courseSelectors !== (p === 'profile' ? 0 : 1) || totalSelectors !== courseSelectors) problems.push(`${role}/${p}@${width}: course selection count ${courseSelectors}/${totalSelectors}`);
           const leaked = await page.locator('main').evaluate(main => {
             const walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT);
             let node;
@@ -99,7 +106,7 @@ const pages = {
       if (role === 'teacher') for (const width of [390, 1440]) {
         await page.setViewportSize({width, height: 1000});
         for (const [route, button] of [['materials', '导入资料'], ['knowledge', '新建知识'], ['question-bank', '新建题目'], ['question-bank', '整卷导入'], ['intervention', '新建补学补练任务']]) {
-          await page.goto(`${base}/teacher/${route}?course=${materialCourse}`);
+          await page.goto(`${base}/teacher/${route}?course=${activeMaterialCourse}`);
           await page.getByRole('button', {name: button, exact: true}).click();
           await page.waitForLoadState('networkidle');
           await inspectUI(page, `${button}@${width}`);
@@ -107,7 +114,7 @@ const pages = {
           checked.push(`${button}@${width}`);
         }
         for (const route of ['homework/new', 'quiz/new']) {
-          await page.goto(`${base}/teacher/${route}?course=${materialCourse}`);
+          await page.goto(`${base}/teacher/${route}?course=${activeMaterialCourse}`);
           await page.getByLabel(route.startsWith('quiz') ? '测验标题' : '作业标题', {exact: true}).waitFor();
           await inspectUI(page, `${route}@${width}`);
           checked.push(`${route}@${width}`);
@@ -116,11 +123,11 @@ const pages = {
       }
       await context.close();
     }
-  } finally { await browser.close(); }
+  } finally { await withTimeout(browser.close(), 5000).catch(() => {}); }
   const total = controls.reduce((n, row) => n + row.total, 0), reused = controls.reduce((n, row) => n + row.reused, 0);
   const widgets = {total, reused, reusePercent: total ? reused / total * 100 : 0};
   if (widgets.reusePercent < 99) problems.push('Rendered Ant Design widget reuse is below 99%');
   fs.writeFileSync(path.join(output, 'report.json'), JSON.stringify({checked, widgets, controls, problems}, null, 2));
   if (problems.length) { console.error(problems.join('\n')); process.exitCode = 1; }
   else console.log(`PASS: ${Object.values(pages).flat().length} routes × 3 widths; ${reused}/${total} Ant controls; no secondary headings, README copy, console errors or overflow`);
-})().catch(e => { console.error(e.message); process.exitCode = 1; });
+})().catch(e => { console.error(e.message); process.exitCode = 1; }).finally(() => { clearTimeout(watchdog); process.exit(process.exitCode || 0); });

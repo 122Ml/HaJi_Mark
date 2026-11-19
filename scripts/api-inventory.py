@@ -1,6 +1,8 @@
 """Generate the current HTTP route inventory from mounted registration files; no network or secrets."""
 from pathlib import Path
+import argparse
 import collections
+import datetime
 import json
 import re
 import hashlib
@@ -13,11 +15,16 @@ DESCRIPTIONS = {
     'login':'登录并创建数据库会话', 'myCourses':'列出本人可访问课程', 'logout':'注销当前会话',
     'courseContext':'角色路由下读取课程上下文', 'createCourse':'创建课程草稿', 'profile':'修改本人资料',
     'password':'修改本人密码', 'context':'读取当前课程及成员上下文', 'publishCourse':'发布课程',
+    'courseState':'转换课程状态（草稿/发布/归档）',
     'renameCourse':'修改课程名称', 'importCurriculum':'导入课程目录', 'createPoint':'创建目录节点/知识点',
-    'graph':'读取目录与知识点依赖图', 'edge':'维护知识点依赖', 'path':'读取本人学习路径',
+    'updatePoint':'修改目录节点/知识点名称与说明', 'deletePoint':'删除无业务引用的目录节点/知识点',
+    'graph':'读取目录与知识点依赖图', 'edge':'维护知识点依赖', 'deleteEdge':'删除知识点前置依赖关系', 'path':'读取本人学习路径',
     'planPath':'按已发布证据与前置关系生成规则学习路径（非模型调用）', 'members':'查询选课成员',
-    'enroll':'添加选课关系', 'createStudent':'创建学生并加入课程', 'resources':'读取可见学习资料',
-    'createResource':'创建学习资料/新增资料修订', 'publishResource':'发布学习资料版本',
+    'enroll':'添加选课关系', 'removeMember':'将指定学生移出当前课程', 'createStudent':'创建学生并加入课程', 'resources':'读取可见学习资料',
+    'createResource':'创建学习资料/新增资料修订', 'updateDraftResource':'修改草稿学习资料内容与定位',
+    'publishResource':'发布学习资料版本', 'archiveResource':'归档学习资料版本',
+    'sections':'查询原件当前解析版本的内容切分方案', 'adoptSegments':'采纳 AI 生成的资料内容切分方案',
+    'sectionsState':'批量接受或驳回资料内容切分方案', 'sectionsPublish':'按已接受的内容切分方案批量发布学习资料',
     'event':'记录本人的资料学习事件', 'events':'读取可授权学习事件', 'activity':'读取学习活动时间线',
     'notes':'读取本人笔记', 'note':'保存本人资料笔记', 'assignments':'读取可见作业',
     'assignmentWorklist':'读取作业工作清单', 'submissionWorklist':'分页查询教师批阅队列',
@@ -51,7 +58,7 @@ DESCRIPTIONS = {
     'confirmBankQuestion':'确认题目版本', 'confirmBankReference':'单独确认参考解答',
     'bankRubrics':'读取题目版本的标准', 'createBankRubric':'保存题库标准草稿/采纳AI候选',
     'createBankJob':'提交出题/题目分析/题库标准草稿任务', 'bankEvidence':'检索题目可用的评分依据',
-    'topics':'读取专题库', 'saveTopic':'新增/修改专题库', 'contentLinks':'维护专题、标签及知识点关联',
+    'topics':'读取专题库', 'saveTopic':'新增/修改专题库', 'deleteTopic':'永久删除未被引用的专题', 'contentLinks':'维护专题、标签及知识点关联',
     'decisions':'读取知识加工决定', 'searchBank':'搜索题库', 'importURL':'抓取公开单页或直链文档后排队解析',
     'sourceAssets':'读取来源图片/公式/图表资产', 'saveAssetRevision':'保存人工识别校正或确认版本',
     'cropAsset':'裁剪所选图像资产', 'knowledgeDecision':'采纳/合并/条件并存/替换等知识决定',
@@ -146,10 +153,24 @@ for file in FILES:
 assert len(rows) == len({(r['method'],r['path']) for r in rows})
 source_hash=hashlib.sha256(''.join((ROOT/'backend/internal'/f).read_text(encoding='utf-8') for f in FILES).encode()).hexdigest()
 counts = dict(collections.Counter(r['method'] for r in rows))
-artifact = {'date':'2026-11-19','source_sha256':source_hash,'basis':'mounted source registrations; not runtime/network frequency',
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--check', action='store_true', help='Verify generated output matches committed docs/api-inventory.{json,md}')
+cli_args = parser.parse_args()
+
+inv_json_path = OUT / 'api-inventory.json'
+inv_md_path = OUT / 'api-inventory.md'
+date_str = datetime.date.today().isoformat()
+if cli_args.check and inv_json_path.exists():
+    try:
+        date_str = json.loads(inv_json_path.read_text(encoding='utf-8')).get('date', date_str)
+    except (json.JSONDecodeError, OSError):
+        pass
+
+artifact = {'date':date_str,'source_sha256':source_hash,'basis':'mounted source registrations; not runtime/network frequency',
             'route_count':len(rows),'method_counts':counts,'routes':rows}
-(OUT/'api-inventory.json').write_text(json.dumps(artifact,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-parts = ['# 当前 API 全量清单', '', f'盘点日期：2026-11-19；注册入口内容 SHA256：`{source_hash}`。', '',
+json_text = json.dumps(artifact,ensure_ascii=False,indent=2)+'\n'
+parts = ['# 当前 API 全量清单', '', f'盘点日期：{date_str}；注册入口内容 SHA256：`{source_hash}`。', '',
          f'共 **{len(rows)} 个 method + path**，方法统计：`{json.dumps(counts)}`。', '',
          '依据 server.New 实际调用的注册入口展开角色循环；这是源码入口清单，不是线上调用量、生产启用证明或安全审计结论。', '',
          '所有路径已展开 `/api/v1` 前缀。认证写请求使用CSRF；登录是独立公开入口。',
@@ -165,5 +186,18 @@ for file in FILES:
         link=f"[{r['handler']}:{r['line']}](../{r['source']})"
         parts.append(f"| {r['method']} | `{r['path']}` | {r['function']} | {r['access']} | {r['invocation']} | {'是' if r['csrf'] else '—'} | {link} |")
     parts.append('')
-(OUT/'api-inventory.md').write_text('\n'.join(parts).rstrip()+'\n',encoding='utf-8')
-print(json.dumps({'routes':len(rows),'methods':counts,'source_sha256':source_hash,'outputs':['api-inventory.md','api-inventory.json']},ensure_ascii=False))
+md_text = '\n'.join(parts).rstrip()+'\n'
+
+if cli_args.check:
+    errors = []
+    if not inv_json_path.exists() or inv_json_path.read_text(encoding='utf-8').replace('\r\n', '\n') != json_text:
+        errors.append('docs/api-inventory.json is out of date')
+    if not inv_md_path.exists() or inv_md_path.read_text(encoding='utf-8').replace('\r\n', '\n') != md_text:
+        errors.append('docs/api-inventory.md is out of date')
+    if errors:
+        raise SystemExit('\n'.join(errors) + '\nRun: python scripts/api-inventory.py')
+    print(f'PASS: api-inventory matches {len(rows)} routes (source_sha256={source_hash[:12]}...)')
+else:
+    inv_json_path.write_text(json_text, encoding='utf-8')
+    inv_md_path.write_text(md_text, encoding='utf-8')
+    print(json.dumps({'routes':len(rows),'methods':counts,'source_sha256':source_hash,'outputs':['api-inventory.md','api-inventory.json']},ensure_ascii=False))

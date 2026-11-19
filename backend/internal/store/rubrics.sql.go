@@ -142,18 +142,34 @@ func (q *Queries) GetRubricVersion(ctx context.Context, id string) (RubricVersio
 }
 
 const listRubricVersions = `-- name: ListRubricVersions :many
-SELECT id, question_id, version, criteria, state, created_by, created_at, confirmed_at, evidence_refs, bank_question_version_id FROM rubric_versions WHERE question_id=$1 OR id=(SELECT bound_rubric_id FROM questions WHERE id=$1) ORDER BY version DESC
+SELECT id,question_id,version,criteria,state,created_by,created_at,confirmed_at,bank_question_version_id,evidence_refs,
+ CASE WHEN bank_question_version_id IS NOT NULL THEN 'bank'::text ELSE 'assignment'::text END AS origin
+FROM rubric_versions WHERE question_id=$1 OR id=(SELECT bound_rubric_id FROM questions WHERE id=$1) ORDER BY version DESC
 `
 
-func (q *Queries) ListRubricVersions(ctx context.Context, questionID pgtype.Text) ([]RubricVersion, error) {
+type ListRubricVersionsRow struct {
+	ID                    string             `json:"id"`
+	QuestionID            pgtype.Text        `json:"question_id"`
+	Version               int32              `json:"version"`
+	Criteria              json.RawMessage    `json:"criteria"`
+	State                 string             `json:"state"`
+	CreatedBy             string             `json:"created_by"`
+	CreatedAt             pgtype.Timestamptz `json:"created_at"`
+	ConfirmedAt           pgtype.Timestamptz `json:"confirmed_at"`
+	BankQuestionVersionID pgtype.Text        `json:"bank_question_version_id"`
+	EvidenceRefs          json.RawMessage    `json:"evidence_refs"`
+	Origin                string             `json:"origin"`
+}
+
+func (q *Queries) ListRubricVersions(ctx context.Context, questionID pgtype.Text) ([]ListRubricVersionsRow, error) {
 	rows, err := q.db.Query(ctx, listRubricVersions, questionID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []RubricVersion{}
+	items := []ListRubricVersionsRow{}
 	for rows.Next() {
-		var i RubricVersion
+		var i ListRubricVersionsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.QuestionID,
@@ -163,8 +179,9 @@ func (q *Queries) ListRubricVersions(ctx context.Context, questionID pgtype.Text
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.ConfirmedAt,
-			&i.EvidenceRefs,
 			&i.BankQuestionVersionID,
+			&i.EvidenceRefs,
+			&i.Origin,
 		); err != nil {
 			return nil, err
 		}

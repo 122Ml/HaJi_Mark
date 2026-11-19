@@ -9,6 +9,7 @@ import {
   Input,
   List,
   Pagination,
+  Popconfirm,
   Space,
   Tabs,
   Typography,
@@ -228,6 +229,63 @@ export function CourseManagement() {
                   >
                     发布课程
                   </Button>
+                )}
+                {course.status !== "archived" && (
+                  <Button
+                    danger
+                    disabled={action.busy}
+                    onClick={async () => {
+                      if (
+                        await confirm("归档后课程转为只读存档（学生与教师保留历史记录），确认归档？", {
+                          danger: true,
+                        })
+                      ) {
+                        await action.run(
+                          "/state",
+                          { state: "archived" },
+                          "POST",
+                          "课程已归档",
+                        );
+                      }
+                    }}
+                  >
+                    归档课程
+                  </Button>
+                )}
+                {course.status === "archived" && (
+                  <>
+                    <Button
+                      type="primary"
+                      disabled={action.busy}
+                      onClick={async () => {
+                        if (await confirm("确认恢复发布该课程？恢复后学生可重新访问。")) {
+                          await action.run(
+                            "/state",
+                            { state: "published" },
+                            "POST",
+                            "课程已恢复发布",
+                          );
+                        }
+                      }}
+                    >
+                      恢复发布
+                    </Button>
+                    <Button
+                      disabled={action.busy}
+                      onClick={async () => {
+                        if (await confirm("确认将已归档课程退回草稿状态？")) {
+                          await action.run(
+                            "/state",
+                            { state: "draft" },
+                            "POST",
+                            "课程已退回草稿",
+                          );
+                        }
+                      }}
+                    >
+                      退回草稿
+                    </Button>
+                  </>
                 )}
                 <Link className="ghost-btn" to="/teacher/curriculum">
                   课程目录
@@ -463,7 +521,27 @@ function Members() {
         }}
         locale={{ emptyText: "暂无课程成员" }}
         renderItem={(m) => (
-          <List.Item key={m.id}>
+          <List.Item
+            key={m.id}
+            actions={[
+              <Popconfirm
+                key="remove"
+                title={`确认将“${m.display_name}”移出当前课程？`}
+                onConfirm={() =>
+                  void action.run(
+                    `/members/${m.id}`,
+                    undefined,
+                    "DELETE",
+                    "成员已移出课程",
+                  )
+                }
+              >
+                <Button size="small" type="link" danger disabled={action.busy}>
+                  移出课程
+                </Button>
+              </Popconfirm>,
+            ]}
+          >
             <Link to={`/teacher/dashboard?student=${m.id}`}>
               {m.display_name}
             </Link>

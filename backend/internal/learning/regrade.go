@@ -134,6 +134,17 @@ func (h *Handler) createRegrade(c *gin.Context) {
 				result(c, nil, e)
 				return
 			}
+			if question.BankQuestionVersionID.Valid {
+				origV, err := q.GetBankQuestionVersion(ctx, question.BankQuestionVersionID.String)
+				if err != nil {
+					result(c, nil, err)
+					return
+				}
+				if v.BankID != origV.BankID {
+					identity.Fail(c, 409, "rubric_mismatch", "重评标准必须来自同一题库条目")
+					return
+				}
+			}
 			b, e := q.GetQuestionBank(ctx, store.GetQuestionBankParams{ID: v.BankID, CourseID: a.CourseID})
 			if e != nil {
 				if errors.Is(e, pgx.ErrNoRows) {
@@ -231,9 +242,10 @@ func regradePoints(criteria []criterion, points []pointScore, answer string) (js
 	}
 	out := []pointFeedback{}
 	var sum int32
+	normAnswer := normalizeLineEndings(answer)
 	for _, item := range criteria {
 		p, ok := byID[item.ID]
-		if !ok || p.Score < 0 || p.Score > item.MaxScore || !validText(p.Feedback, 5000) || len(p.Quote) > 5000 || (p.Quote != "" && !strings.Contains(answer, p.Quote)) {
+		if !ok || p.Score < 0 || p.Score > item.MaxScore || !validText(p.Feedback, 5000) || len(p.Quote) > 5000 || strings.ContainsRune(p.Quote, '\x00') || (p.Quote != "" && !strings.Contains(normAnswer, normalizeLineEndings(p.Quote))) {
 			return nil, 0, errors.New("分值、评语或原文引用无效")
 		}
 		sum += p.Score

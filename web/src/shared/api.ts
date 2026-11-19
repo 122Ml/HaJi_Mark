@@ -27,7 +27,15 @@ export async function requestJSON<T>(path: string, options: RequestInit = {}, cs
     throw new APIError(response.status, payload?.error?.code || 'service_unavailable', payload?.error?.message || fallback);
   }
   if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
+  try {
+    return (await response.json()) as T;
+  } catch {
+    throw new APIError(
+      response.status,
+      'invalid_response',
+      '服务响应格式异常，请刷新页面或检查反向代理配置后重试。',
+    );
+  }
 }
 
 export function getJSON<T>(path: string, signal?: AbortSignal): Promise<T> {

@@ -8,6 +8,7 @@ root = Path(__file__).resolve().parents[1]
 errors = []
 files = [root / "README.md", root / "AGENTS.md", root / "CONTRIBUTING.md", root / "design.md"]
 files += list((root / "docs").rglob("*.md"))
+files += list((root / "deploy").glob("*.md"))
 files += [root / "references/README.md"]
 for path in files:
     content = path.read_text(encoding="utf-8")
@@ -31,6 +32,14 @@ for name in ("course", "assessment", "grading", "insight"):
     for relative in (f"web/src/features/{name}/index.tsx", f"backend/internal/{name}/README.md"):
         if not (root / relative).exists():
             errors.append(f"Missing module entrypoint: {relative}")
+api_inv_path = root / "docs/api-inventory.json"
+if api_inv_path.exists():
+    api_inv = json.loads(api_inv_path.read_text(encoding="utf-8"))
+    route_files = ['server/router.go', 'course/http.go', 'identity/session.go', 'identity/context.go',
+                   'learning/http.go', 'learning/materials.go', 'learning/question_bank.go', 'learning/topics.go', 'learning/intelligence.go', 'agent/http.go']
+    cur_hash = hashlib.sha256(''.join((root / 'backend/internal' / f).read_text(encoding='utf-8') for f in route_files).encode()).hexdigest()
+    if api_inv.get("source_sha256") != cur_hash:
+        errors.append("Out-of-date docs/api-inventory.json source_sha256 (run python scripts/api-inventory.py)")
 if errors:
     raise SystemExit("\n".join(errors))
 print(f"PASS: {len(files)} current documents, {len(manifest['files'])} immutable source snapshots, four module entrypoints.")

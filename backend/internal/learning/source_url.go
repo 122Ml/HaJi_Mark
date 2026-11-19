@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,6 +17,56 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
+
+var urlMimeToExt = map[string]string{
+	"text/html":               ".html",
+	"application/xhtml+xml":   ".html",
+	"application/pdf":         ".pdf",
+	"text/markdown":           ".md",
+	"text/x-markdown":         ".md",
+	"text/csv":                ".csv",
+	"application/csv":         ".csv",
+	"application/vnd.ms-excel": ".csv",
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document":   ".docx",
+	"application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
+}
+
+func safeURLSnapshotFilename(snapshot rag.WebSnapshot) (string, string, bool) {
+	base := filepath.Base(strings.ReplaceAll(strings.ReplaceAll(strings.TrimSpace(snapshot.Filename), `\`, `/`), "\x00", ""))
+	origExt := strings.ToLower(filepath.Ext(base))
+	mt := strings.ToLower(strings.TrimSpace(snapshot.MediaType))
+	var ext string
+	if mapped, ok := urlMimeToExt[mt]; ok {
+		ext = mapped
+	} else if mt == "text/plain" {
+		switch origExt {
+		case ".md", ".csv", ".txt":
+			ext = origExt
+		default:
+			ext = ".txt"
+		}
+	} else if mt == "" || mt == "application/octet-stream" {
+		switch origExt {
+		case ".pdf", ".docx", ".pptx", ".txt", ".md", ".csv":
+			ext = origExt
+		default:
+			return "", "", false
+		}
+	} else {
+		return "", "", false
+	}
+	if base == "" || base == "." || base == ".." || base == "/" {
+		base = "snapshot" + ext
+	}
+	if strings.ToLower(filepath.Ext(base)) != ext {
+		stem := strings.TrimSuffix(base, filepath.Ext(base))
+		if stem == "" || stem == "." || stem == ".." {
+			stem = "snapshot"
+		}
+		base = stem + ext
+	}
+	return ext, base, true
+}
 
 func (h *Handler) importURL(c *gin.Context) {
 	if h.rag == nil {
@@ -56,11 +107,15 @@ func (h *Handler) importURL(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
+	ext, baseName, ok := safeURLSnapshotFilename(snapshot)
+	if !ok {
+		invalid(c, "网页或直链文件 MIME 类型不支持")
+		return
+	}
 	id := uuid.NewString()
-	ext := strings.ToLower(filepath.Ext(snapshot.Filename))
 	name := id + ext
-	if in.Title == "" {
-		in.Title = strings.TrimSpace(snapshot.Filename)
+	if in.Title == "" || in.Title == "." || in.Title == ".." {
+		in.Title = baseName
 	}
 	if len(in.Title) > 500 {
 		in.Title = string([]rune(in.Title)[:100])
@@ -98,6 +153,30 @@ func (h *Handler) importURL(c *gin.Context) {
 	}
 	defer tx.Rollback(ctx)
 	q := h.q.WithTx(tx)
+	if _, e := q.LockBusinessCourse(ctx, courseID); e != nil {
+		result(c, nil, e)
+		return
+	}
+	existingSources, e := q.ListMaterialSources(ctx, courseID)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	var usedBytes int64
+	for _, s := range existingSources {
+		if s.State != "active" {
+			continue
+		}
+		if sp, err := rag.SafeMaterialPath(s.StoragePath); err == nil {
+			if st, err := os.Stat(sp); err == nil && !st.IsDir() {
+				usedBytes += st.Size()
+			}
+		}
+	}
+	if usedBytes+int64(len(snapshot.Data)) > 500<<20 {
+		identity.Fail(c, http.StatusRequestEntityTooLarge, "quota_exceeded", "课程有效原件存储空间已达500MiB上限，请归档旧资料后重试")
+		return
+	}
 	if dup, err := q.SourceDuplicate(ctx, store.SourceDuplicateParams{CourseID: courseID, Sha256: hash}); err == nil {
 		identity.Fail(c, 409, "duplicate_source", "内容已导入，请复用原件："+dup.Title)
 		return
@@ -110,7 +189,7 @@ func (h *Handler) importURL(c *gin.Context) {
 		CourseID:     courseID,
 		CreatedBy:    identity.Current(c).ID,
 		Title:        in.Title,
-		Filename:     filepath.Base(snapshot.Filename),
+		Filename:     baseName,
 		MediaType:    snapshot.MediaType,
 		StoragePath:  name,
 		SourceNote:   in.Note,

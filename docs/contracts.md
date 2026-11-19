@@ -273,3 +273,20 @@ CO-01 发布 course demo-boundary 与资料版本 → AS-01 学生提交“测�
 - Agent新增七类固定工作台（原文、知识、题目标准、目录、CSV导入、整卷拆题、诊断），使用既有编辑器。即使full-access也须用户操作工作台；read-only禁止打开写工作台。返回请求忽略客户端保存声明，通过同会话Gateway重读对象，记录`changed,saved_snapshot,snapshot_hash`，再恢复原运行。已有正式审批仍校验原快照，不能借编辑器绕过出题/标准的数据隔离。
 - Agent CSV工具可用`csv`或同对话`attachment_id`二选一；UTF-8/.csv/512KiB/原件哈希校验，实际导入仍走原预览与教师确认业务。学生草稿和正式提交工具只以本人身份执行，教师不可代学生正式提交。
 - Agent推理默认兼容SSE（`stream_options.include_usage`），协调者公开文本按约700ms合并存入`stream_text,stream_turn`，业务events发送可恢复文本快照。推理内容与工具参数不公开；完整finish、DONE、工具ID/参数校验后才执行。`disable_streaming`可关闭供应商流式，同一次HTTP响应可回退JSON，不自动发第二次付费请求；中断及缺少usage按原预留保守结算。
+
+## 2026-11-19 全量安全与闭环加固（00017–00019，仅本地）
+
+- **迁移 `00017`–`00019`**：`00017` 补齐作业/题库及字段约束；`00018` 新增 `content_sections`（按知识点切分方案与批量发布）；`00019` 新增 `1024/1536` HNSW 部分索引、外键及状态局部索引、`interactions.evidence_refs`、`courses.status` 支持 `archived`、`model_calls` 支持 `completed` 状态及 JSONB/级联检查约束。新迁移编号从 `00020` 起分配。
+- **新增／补齐接口（全量见 [api-inventory.md](api-inventory.md)，共 167 个 method + path）**：
+  - `POST /learning/courses/:courseID/state`（T）：`state=draft|published|archived`；切换课程发布／存档状态。
+  - `DELETE /learning/courses/:courseID/members/:studentID`（T）：将指定学生移出当前课程。
+  - `PUT /learning/courses/:courseID/points/:pointID`、`DELETE /learning/courses/:courseID/points/:pointID`（T）：编辑名称与说明、删除无业务引用节点；删除父节点前须无不可删除业务引用。
+  - `PUT /learning/courses/:courseID/resources/:id`（T）：编辑草稿学习资料（已发布／已归档修订不可原地覆盖）。
+  - `POST /learning/courses/:courseID/resources/:id/archive`（T）：显式归档学习资料；发布新版修订仍保留旧版可查。
+  - `POST /learning/courses/:courseID/sources/:sourceID/sections/publish`（T）：将当前已接受切分方案批量发布为学习资料；片段发布支持 `parse_revision` 陈旧版本冲突检测（`409`）。
+  - `DELETE /learning/courses/:courseID/topics/:topicID`（T）：仅允许删除未被引用的专题。
+- **行为契约澄清与增量字段**：
+  - `GET/POST /learning/courses/:courseID/path` 额外返回 `total_points`（当前课程 `kind=point` 总数），供前端展示待学覆盖率。
+  - `GET/POST /learning/courses/:courseID/interactions` 支持可选 JSON 数组 `evidence_refs`，前端仅提交授权已发布资料引用，服务端校验证据格式与大小。
+  - 客观测验默认仅允许作答 `1` 次；仅当存在已下发的该题补学任务（`HasAssignedQuizIntervention`）时允许补充作答，否则返回 `409`。
+  - Agent SSE `text` 事件：当累计公开文本 `<= 2048` 字节发送 `{turn, text}` 全量快照；当 `> 2048` 字节且增量可追加时发送 `{turn, delta, offset}`（`offset` 为前序公开文本 UTF-8 字节长度），前端核对偏移匹配后追加或回退快照重读。

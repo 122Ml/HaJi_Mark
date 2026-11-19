@@ -8,8 +8,12 @@ import {
   Collapse,
   Form,
   Input,
+  Modal,
+  Popconfirm,
   Select,
+  Space,
   Tag,
+  Tooltip,
   Tree,
 } from "antd";
 import { Feedback, Link, useAction, useLearning, useLiveQuery } from "./context";
@@ -27,7 +31,12 @@ interface TreeNode {
   children: TreeNode[];
 }
 
-function buildCurriculumTree(points: Point[]): TreeNode[] {
+function buildCurriculumTree(
+  points: Point[],
+  onEdit: (p: Point) => void,
+  onDelete: (p: Point) => void,
+  busy: boolean,
+): TreeNode[] {
   const byID = new Map(points.map((p) => [p.id, p]));
   const childrenMap = new Map<string, Point[]>();
   const roots: Point[] = [];
@@ -48,13 +57,47 @@ function buildCurriculumTree(points: Point[]): TreeNode[] {
     const kids = (childrenMap.get(node.id) || [])
       .filter((child) => !nextAncestry.has(child.id))
       .map((child) => visit(child, nextAncestry));
+    const deleteBtn = (
+      <Button
+        size="small"
+        type="link"
+        danger
+        disabled={busy || kids.length > 0}
+        onClick={(e) => e.stopPropagation()}
+      >
+        删除
+      </Button>
+    );
     return {
       key: node.id,
       title: (
-        <span>
-          <span>{node.title}</span>{" "}
+        <Space size={6} wrap>
+          <span>{node.title}</span>
           <Tag>{labelFor(pointKindLabels, node.kind, node.kind)}</Tag>
-        </span>
+          <Button
+            size="small"
+            type="link"
+            disabled={busy}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(node);
+            }}
+          >
+            编辑
+          </Button>
+          {kids.length > 0 ? (
+            <Tooltip title="请先删除所有子节点后再删除当前节点。">
+              <span>{deleteBtn}</span>
+            </Tooltip>
+          ) : (
+            <Popconfirm
+              title={`确认删除“${node.title}”？`}
+              onConfirm={() => void onDelete(node)}
+            >
+              {deleteBtn}
+            </Popconfirm>
+          )}
+        </Space>
       ),
       children: kids,
     };
@@ -74,11 +117,68 @@ export function CurriculumPage() {
   const [parent, setParent] = useState("");
   const [description, setDescription] = useState("");
   const [validationError, setValidationError] = useState("");
+  const [editingPoint, setEditingPoint] = useState<Point | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [editError, setEditError] = useState("");
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
   const seenParentsRef = useRef<Set<string>>(new Set());
 
   const points = ctx.data?.points || [];
-  const treeData = useMemo(() => buildCurriculumTree(points), [points]);
+
+  async function handleDeletePoint(node: Point) {
+    const res = await action.run(
+      `/points/${node.id}`,
+      undefined,
+      "DELETE",
+      `已删除“${node.title}”`,
+    );
+    if (res && editingPoint?.id === node.id) {
+      setEditingPoint(null);
+    }
+  }
+
+  async function handleSavePointEdit() {
+    if (!editingPoint) return;
+    const nextTitle = editTitle.trim();
+    const nextDesc = editDesc.trim();
+    if (!nextTitle || utf8ByteLength(nextTitle) > 500 || hasControlNull(nextTitle)) {
+      setEditError("节点名称不能为空，且不超过 500 字节");
+      return;
+    }
+    if (utf8ByteLength(nextDesc) > 10000 || hasControlNull(nextDesc)) {
+      setEditError("节点说明不能超过 10000 字节且不能包含非法字符");
+      return;
+    }
+    setEditError("");
+    const saved = await action.run(
+      `/points/${editingPoint.id}`,
+      { title: nextTitle, description: nextDesc },
+      "PUT",
+      "目录节点已更新",
+    );
+    if (saved) {
+      setEditingPoint(null);
+    }
+  }
+
+  const treeData = useMemo(
+    () =>
+      buildCurriculumTree(
+        points,
+        (node) => {
+          setEditingPoint(node);
+          setEditTitle(node.title);
+          setEditDesc(node.description || "");
+          setEditError("");
+        },
+        (node) => {
+          void handleDeletePoint(node);
+        },
+        action.busy,
+      ),
+    [points, action.busy],
+  );
 
   // Auto-expand parents whenever new children are added or imported.
   useEffect(() => {
@@ -342,6 +442,55 @@ export function CurriculumPage() {
           <KnowledgeGraph />
         </div>
       )}
+      <Modal
+        open={!!editingPoint}
+        title={
+          editingPoint
+            ? `编辑${labelFor(pointKindLabels, editingPoint.kind, "节点")} · ${editingPoint.title}`
+            : "编辑目录节点"
+        }
+        onCancel={() => {
+          setEditingPoint(null);
+          setEditError("");
+        }}
+        onOk={() => void handleSavePointEdit()}
+        confirmLoading={action.busy}
+        okText="保存修改"
+        destroyOnHidden
+      >
+        {editError && (
+          <Alert
+            type="error"
+            showIcon
+            role="alert"
+            message={editError}
+            style={{ marginBottom: 12 }}
+          />
+        )}
+        <Form layout="vertical">
+          <Field className="ui-field" label="节点名称" required>
+            <Input
+              aria-label="编辑节点名称"
+              value={editTitle}
+              onChange={(e) => {
+                setEditError("");
+                setEditTitle(e.target.value);
+              }}
+            />
+          </Field>
+          <Field className="ui-field" label="节点说明（选填）">
+            <Input.TextArea
+              aria-label="编辑节点说明"
+              rows={3}
+              value={editDesc}
+              onChange={(e) => {
+                setEditError("");
+                setEditDesc(e.target.value);
+              }}
+            />
+          </Field>
+        </Form>
+      </Modal>
     </div>
   );
 }

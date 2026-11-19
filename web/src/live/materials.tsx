@@ -1441,6 +1441,7 @@ function SourceDocument({
                 fragment_ids: selected,
                 full_source: full,
                 knowledge_point_id: point,
+                parse_revision: source.parse_revision,
               });
               if (r) setPublication(r);
             }}

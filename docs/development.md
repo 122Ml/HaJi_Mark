@@ -8,7 +8,7 @@
 
 ## 对话助理（2026-11-17，本地）
 
-当前代码执行迁移到00016；既有迁移不修改，新迁移从00017开始。默认Compose仍可运行人工业务；`compose.rag.yaml`显式启用RAG和`AGENT_ENABLED=true`，沿用忽略的模型密钥文件与共享50元账本。助理由API进程的关闭上下文管理，不另起Agent服务。运行时、模型／工具协议和三种模式见[助理说明](agent-harness.md)。
+当前代码执行迁移到00019；既有迁移不修改，新迁移从00020开始。默认Compose仍可运行人工业务；`compose.rag.yaml`显式启用RAG和`AGENT_ENABLED=true`，沿用忽略的模型密钥文件与共享50元账本。助理由API进程的关闭上下文管理，不另起Agent服务。运行时、模型／工具协议和三种模式见[助理说明](agent-harness.md)。
 
 ```powershell
 docker compose -f compose.yaml -f compose.rag.yaml build api
@@ -62,7 +62,7 @@ docker compose logs --tail=60 api worker
 docker compose down         # 不删除卷
 ```
 
-api/worker 五个常驻服务共享内部网络，另有迁移/种子的一次性服务。只有web本机18080端口公开。默认密码仅本机Compose构造数据使用，不是平台登录凭据；密码包含URL特殊字符时DATABASE_URL需要正确编码，此骨架默认示例使用简单本地值。尚无生产部署配置。
+api/worker 五个常驻服务共享内部网络，另有迁移/种子的一次性服务。只有web本机18080端口公开。默认密码仅本机Compose构造数据使用，不是平台登录凭据；密码包含URL特殊字符时DATABASE_URL需要正确编码，此骨架默认示例使用简单本地值。生产部署使用 `deploy/compose.production.yaml`，详见[生产部署](../deploy/README.md)。
 
 后端目录（Docker build会产生API/worker，避免直接运行本地服务）：
 
@@ -111,13 +111,12 @@ docker compose config --quiet
 
 `backend-test` 在真实PostgreSQL的独立schema运行身份与学习集成测试，结束只删除该测试schema；包含并发重复提交、课程/本人/CSRF权限、评分草稿隔离和最新修订发布。CI现有 `go test ./...` 会运行这些测试；本轮没有执行远端CI。没有TEST_DATABASE_URL时数据库用例明确skip，不能记为集成通过。
 
-浏览器回归使用本机Playwright和Edge，两个独立会话操作真实数据。桌面附带运行时示例：
+浏览器回归使用本机Playwright和Edge，两个独立会话操作真实数据（如全局安装 Playwright，可传入其 `node_modules` 作为 `NODE_PATH`）：
 
 ```powershell
-$taskNode = 'C:/Users/23396/.cache/codex-runtimes/codex-primary-runtime/dependencies/node'
-$env:NODE_PATH = "$taskNode/node_modules"
-& "$taskNode/bin/node.exe" scripts/check-platform-browser.cjs
-& "$taskNode/bin/node.exe" scripts/check-design-browser.cjs
+$env:NODE_PATH = (npm root -g)
+node scripts/check-platform-browser.cjs
+node scripts/check-design-browser.cjs
 ```
 
 也可安装本机Playwright后用Node执行脚本，不需要增加业务依赖。脚本创建有标签的课程并保留，`.local/platform-teacher.png`、`platform-student.png`为本地检查截图。旧 `frontend-browser-check.js` 仅适用于历史replica，`check-s1-browser.cjs` 现转到当前平台回归，不再验证旧localStorage演示。
@@ -132,7 +131,7 @@ python scripts/backup.py --verify-restore
 
 默认Compose保持模型关闭，人工答疑、评分、客观规则和学习路径可单独运行。2026-11-11已获用户授权的本地真实RAG配置见下节；公网仍未启用，不沿用旧AI环境变量隐式开通新功能。
 
-迁移已分配并在本地执行00001—00012，后续从00013新建。修改queries后用sqlc1.30.0生成；不改已执行迁移，不手改store，不删除Goose历史来绕过失败。Nginx使用Docker DNS解析API，API重建后应自动恢复代理。
+迁移已分配并在本地执行00001—00019，后续从00020新建。修改queries后用sqlc1.30.0生成；不改已执行迁移，不手改store，不删除Goose历史来绕过失败。路由注册改动后运行 `python scripts/api-inventory.py` 并以 `--check` 复验一致性。Nginx使用Docker DNS解析API，API重建后应自动恢复代理。
 
 ## 资料与知识库的本地运行
 

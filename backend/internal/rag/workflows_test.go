@@ -138,6 +138,8 @@ func TestValidateSegmentsExactPartition(t *testing.T) {
 		{"non-point target", strings.Replace(valid, `"knowledge_point_id":"p"`, `"knowledge_point_id":"ch"`, 1), false},
 		{"sequence with point id", `{"segments":[{"title":"第一部分","relation":"sequence","fragment_ids":["f1","f2"],"knowledge_point_id":"p","reason":"冲突"}]}`, false},
 		{"empty title", strings.Replace(valid, `"第一部分"`, `"   "`, 1), false},
+		{"out of order", `{"segments":[{"title":"第二部分","relation":"sequence","fragment_ids":["f2"],"knowledge_point_id":"","reason":"顺承"},{"title":"第一部分","relation":"point","fragment_ids":["f1"],"knowledge_point_id":"p","reason":"对应"}]}`, false},
+		{"nul byte in title", strings.Replace(valid, `"第一部分"`, `"第一\u0000部分"`, 1), false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var out map[string]json.RawMessage

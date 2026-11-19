@@ -1,6 +1,7 @@
 package learning
 
 import (
+	"encoding/json"
 	"errors"
 	"slices"
 	"strings"
@@ -235,6 +236,7 @@ func (h *Handler) createAssignment(c *gin.Context) {
 	}
 	var a store.Assignment
 	existingIDs := map[string]bool{}
+	existingByID := map[string]store.Question{}
 	if updating {
 		a, e = q.UpdateAssignmentDraft(ctx, store.UpdateAssignmentDraftParams{ID: old.ID, Title: in.Title, Description: in.Description, Type: in.Type, MaxScore: total, DueAt: due})
 		if e != nil {
@@ -252,6 +254,7 @@ func (h *Handler) createAssignment(c *gin.Context) {
 		}
 		for _, eq := range existingQuestions {
 			existingIDs[eq.ID] = true
+			existingByID[eq.ID] = eq
 		}
 	} else {
 		a, e = q.CreateBusinessAssignment(ctx, store.CreateBusinessAssignmentParams{ID: uuid.NewString(), CourseID: courseID, Title: in.Title, Description: in.Description, Type: in.Type, MaxScore: total, DueAt: due, CreatedBy: identity.Current(c).ID})
@@ -261,6 +264,7 @@ func (h *Handler) createAssignment(c *gin.Context) {
 		}
 	}
 	keepIDs := make([]string, 0, len(in.Questions))
+	keepSet := make(map[string]bool, len(in.Questions))
 	for i, item := range in.Questions {
 		options := item.Options
 		if options == nil {
@@ -268,6 +272,33 @@ func (h *Handler) createAssignment(c *gin.Context) {
 		}
 		var qID string
 		if updating && item.ID != "" && existingIDs[item.ID] {
+			if _, err := q.LockRubricQuestion(ctx, item.ID); err != nil {
+				result(c, nil, err)
+				return
+			}
+			oldQ := existingByID[item.ID]
+			rubrics, err := q.ListRubricVersions(ctx, text(item.ID))
+			if err != nil {
+				result(c, nil, err)
+				return
+			}
+			var ownRubrics []store.ListRubricVersionsRow
+			for _, rv := range rubrics {
+				if rv.Origin == "assignment" {
+					ownRubrics = append(ownRubrics, rv)
+				}
+			}
+			contentUnchanged := oldQ.Prompt == item.Prompt && oldQ.Type == in.Type && oldQ.MaxScore == item.MaxScore && oldQ.Rubric == item.Rubric && slices.Equal(oldQ.Options, options) && oldQ.CorrectAnswer == item.CorrectAnswer
+			for _, rv := range ownRubrics {
+				if rv.State == "confirmed" && !contentUnchanged {
+					identity.Fail(c, 409, "state_conflict", "题目已有已确认评分标准，不能直接修改原题内容")
+					return
+				}
+			}
+			if len(ownRubrics) > 0 && (oldQ.MaxScore != item.MaxScore || oldQ.Type != in.Type) {
+				identity.Fail(c, 409, "state_conflict", "题目已有评分标准草稿，不能变更满分或题型")
+				return
+			}
 			updated, err := q.UpdateDraftQuestion(ctx, store.UpdateDraftQuestionParams{
 				ID:               item.ID,
 				AssignmentID:     a.ID,
@@ -317,8 +348,34 @@ func (h *Handler) createAssignment(c *gin.Context) {
 			}
 		}
 		keepIDs = append(keepIDs, qID)
+		keepSet[qID] = true
 	}
 	if updating {
+		for eqID := range existingByID {
+			if keepSet[eqID] {
+				continue
+			}
+			if _, err := q.LockRubricQuestion(ctx, eqID); err != nil {
+				result(c, nil, err)
+				return
+			}
+			rubrics, err := q.ListRubricVersions(ctx, text(eqID))
+			if err != nil {
+				result(c, nil, err)
+				return
+			}
+			hasOwnRubric := false
+			for _, rv := range rubrics {
+				if rv.Origin == "assignment" {
+					hasOwnRubric = true
+					break
+				}
+			}
+			if hasOwnRubric {
+				identity.Fail(c, 409, "state_conflict", "已关联评分标准的草稿题目不可直接删除")
+				return
+			}
+		}
 		if e = q.DeleteDraftQuestionsExcept(ctx, store.DeleteDraftQuestionsExceptParams{AssignmentID: a.ID, KeepIds: keepIDs}); e != nil {
 			result(c, nil, e)
 			return
@@ -381,6 +438,30 @@ func (h *Handler) assignmentState(c *gin.Context) {
 				if _, _, e = h.bankSelection(ctx, q, a.CourseID, item.BankQuestionVersionID.String, item.BoundRubricID.String); e != nil {
 					ragError(c, e)
 					return
+				}
+			} else {
+				versions, err := q.ListRubricVersions(ctx, text(item.ID))
+				if err != nil {
+					result(c, nil, err)
+					return
+				}
+				for _, rv := range versions {
+					if rv.State != "confirmed" {
+						continue
+					}
+					var criteria []criterion
+					if json.Unmarshal(rv.Criteria, &criteria) != nil {
+						invalid(c, "题目确认的评分标准格式无效")
+						return
+					}
+					var sum int32
+					for _, cr := range criteria {
+						sum += cr.MaxScore
+					}
+					if sum != item.MaxScore {
+						invalid(c, "题目确认评分标准满分之和与题目满分不一致")
+						return
+					}
 				}
 			}
 		}
@@ -481,6 +562,22 @@ func (h *Handler) submit(c *gin.Context) {
 	if e != nil {
 		result(c, nil, e)
 		return
+	}
+	if attempt > 1 && question.Type == "quiz" {
+		allowedRetry, err := q.HasAssignedQuizIntervention(ctx, store.HasAssignedQuizInterventionParams{
+			CourseID:     a.CourseID,
+			StudentID:    actorID,
+			AssignmentID: text(a.ID),
+			QuestionID:   question.ID,
+		})
+		if err != nil {
+			result(c, nil, err)
+			return
+		}
+		if !allowedRetry {
+			identity.Fail(c, 409, "attempt_limit", "客观题默认限提交一次，需教师分配补练任务后方可重做")
+			return
+		}
 	}
 	v, e := q.CreateBusinessSubmission(ctx, store.CreateBusinessSubmissionParams{ID: uuid.NewString(), AssignmentID: a.ID, AssignmentVersion: a.Version, QuestionID: question.ID, CourseID: a.CourseID, StudentID: actorID, Attempt: attempt, AnswerText: in.Answer, AnswerSha256: hashAnswer(in.Answer), RequestID: in.RequestID})
 	if e != nil {

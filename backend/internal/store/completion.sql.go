@@ -526,29 +526,36 @@ func (q *Queries) ListAgentPageSteps(ctx context.Context, ids []string) ([]Agent
 }
 
 const listAgentTimeline = `-- name: ListAgentTimeline :many
-SELECT id,kind,created_at FROM (
+SELECT id,kind,kind_order,created_at FROM (
  SELECT m.id,'message'::text AS kind,m.created_at,0 AS kind_order FROM agent_messages m WHERE m.conversation_id=$1
  UNION ALL
  SELECT r.id,'run'::text AS kind,r.created_at,1 AS kind_order FROM agent_runs r WHERE r.conversation_id=$1
 ) timeline
-WHERE (created_at,id)<($2::timestamptz,$3::text)
+WHERE (created_at,kind_order,id)<($2::timestamptz,$3::int,$4::text)
 ORDER BY created_at DESC,kind_order DESC,id DESC LIMIT 51
 `
 
 type ListAgentTimelineParams struct {
-	ConversationID string             `json:"conversation_id"`
-	BeforeTime     pgtype.Timestamptz `json:"before_time"`
-	BeforeID       string             `json:"before_id"`
+	ConversationID  string             `json:"conversation_id"`
+	BeforeTime      pgtype.Timestamptz `json:"before_time"`
+	BeforeKindOrder int32              `json:"before_kind_order"`
+	BeforeID        string             `json:"before_id"`
 }
 
 type ListAgentTimelineRow struct {
 	ID        string             `json:"id"`
 	Kind      string             `json:"kind"`
+	KindOrder int32              `json:"kind_order"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) ListAgentTimeline(ctx context.Context, arg ListAgentTimelineParams) ([]ListAgentTimelineRow, error) {
-	rows, err := q.db.Query(ctx, listAgentTimeline, arg.ConversationID, arg.BeforeTime, arg.BeforeID)
+	rows, err := q.db.Query(ctx, listAgentTimeline,
+		arg.ConversationID,
+		arg.BeforeTime,
+		arg.BeforeKindOrder,
+		arg.BeforeID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -556,7 +563,12 @@ func (q *Queries) ListAgentTimeline(ctx context.Context, arg ListAgentTimelinePa
 	items := []ListAgentTimelineRow{}
 	for rows.Next() {
 		var i ListAgentTimelineRow
-		if err := rows.Scan(&i.ID, &i.Kind, &i.CreatedAt); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.KindOrder,
+			&i.CreatedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -568,7 +580,7 @@ func (q *Queries) ListAgentTimeline(ctx context.Context, arg ListAgentTimelinePa
 }
 
 const listAssistHistory = `-- name: ListAssistHistory :many
-SELECT id,question,state,created_at,count(*) OVER()::int AS total FROM assist_turns
+SELECT id,question,state,resource_id,created_at,count(*) OVER()::int AS total FROM assist_turns
 WHERE course_id=$1 AND owner_id=$2
 ORDER BY created_at DESC,id DESC LIMIT $4 OFFSET $3
 `
@@ -581,11 +593,12 @@ type ListAssistHistoryParams struct {
 }
 
 type ListAssistHistoryRow struct {
-	ID        string             `json:"id"`
-	Question  string             `json:"question"`
-	State     string             `json:"state"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	Total     int32              `json:"total"`
+	ID         string             `json:"id"`
+	Question   string             `json:"question"`
+	State      string             `json:"state"`
+	ResourceID pgtype.Text        `json:"resource_id"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	Total      int32              `json:"total"`
 }
 
 func (q *Queries) ListAssistHistory(ctx context.Context, arg ListAssistHistoryParams) ([]ListAssistHistoryRow, error) {
@@ -606,6 +619,7 @@ func (q *Queries) ListAssistHistory(ctx context.Context, arg ListAssistHistoryPa
 			&i.ID,
 			&i.Question,
 			&i.State,
+			&i.ResourceID,
 			&i.CreatedAt,
 			&i.Total,
 		); err != nil {

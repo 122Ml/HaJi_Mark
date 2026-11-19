@@ -33,7 +33,7 @@ SELECT f.* FROM material_fragments f JOIN material_sources s ON s.id=f.source_id
 UPDATE resources SET source_id=$2,fragment_ids=$3,full_source=$4 WHERE id=$1;
 
 -- name: ResourceContainsFragment :one
-SELECT EXISTS(SELECT 1 FROM resources r WHERE r.course_id=$1 AND r.status='published' AND sqlc.arg(fragment_id)::text=ANY(r.fragment_ids));
+SELECT EXISTS(SELECT 1 FROM resources r WHERE r.course_id=$1 AND r.status='published' AND r.fragment_ids @> ARRAY[sqlc.arg(fragment_id)::text]);
 
 -- name: StudentCanDownloadSource :one
 SELECT EXISTS(SELECT 1 FROM resources r JOIN material_sources s ON s.id=r.source_id WHERE s.id=$1 AND s.course_id=$2 AND s.state='active' AND r.status='published' AND r.full_source=true);
@@ -44,7 +44,7 @@ VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,COALESCE(NULLIF(sq
 
 -- name: ListKnowledgeEntries :many
 SELECT k.* FROM knowledge_entries k WHERE k.course_id=$1 AND (sqlc.arg(teacher)::boolean OR (k.state='confirmed' AND k.student_visible AND k.use_for_learning
- AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev WHERE NOT EXISTS(SELECT 1 FROM resources pr JOIN material_sources ms ON ms.id=pr.source_id WHERE pr.status='published' AND ms.state='active' AND ms.allow_derived AND ev->>'fragment_id'=ANY(pr.fragment_ids))))) ORDER BY created_at DESC;
+ AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev WHERE NOT EXISTS(SELECT 1 FROM resources pr JOIN material_sources ms ON ms.id=pr.source_id WHERE pr.course_id=k.course_id AND pr.status='published' AND ms.state='active' AND ms.allow_derived AND pr.fragment_ids @> ARRAY[ev->>'fragment_id'])))) ORDER BY created_at DESC;
 
 -- name: GetKnowledgeEntry :one
 SELECT * FROM knowledge_entries WHERE id=$1 AND course_id=$2;
@@ -54,7 +54,7 @@ UPDATE knowledge_entries SET title=$3,body=$4,category=$5,content_kind=$6,condit
 WHERE id=$1 AND course_id=$2 AND state='draft' AND edit_version=$14 RETURNING *;
 
 -- name: TransitionKnowledgeEntry :one
-UPDATE knowledge_entries SET state=$3,confirmed_at=CASE WHEN $3='confirmed' THEN now() ELSE confirmed_at END
+UPDATE knowledge_entries SET state=$3,edit_version=edit_version+1,confirmed_at=CASE WHEN $3='confirmed' THEN now() ELSE confirmed_at END
 WHERE id=$1 AND course_id=$2 AND state=$4 AND edit_version=$5 RETURNING *;
 
 -- name: PutRetrievalChunk :exec
@@ -86,11 +86,44 @@ LEFT JOIN knowledge_entries k ON k.id=c.knowledge_id
 LEFT JOIN resources r ON r.id=c.resource_id
 WHERE c.course_id=sqlc.arg(course_id) AND e.space_id=sqlc.arg(space_id) AND c.active
 AND (sqlc.arg(purpose)::text<>'comparison' OR k.id IS NOT NULL)
-AND ((s.state='active' AND (sqlc.arg(teacher)::boolean OR EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids)))
+AND ((s.state='active' AND ((sqlc.arg(teacher)::boolean AND EXISTS(SELECT 1 FROM material_fragments mf WHERE mf.source_id=s.id AND mf.revision=s.parse_revision AND mf.id=ANY(c.fragment_ids)))
+   OR (NOT sqlc.arg(teacher)::boolean AND EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids))))
  OR (k.state='confirmed' AND CASE WHEN sqlc.arg(purpose)::text='grading' THEN k.use_for_grading WHEN sqlc.arg(purpose)::text='comparison' THEN k.use_for_grading OR k.use_for_learning ELSE k.use_for_learning END AND (sqlc.arg(teacher)::boolean OR k.student_visible)
- AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT sqlc.arg(teacher)::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND ev->>'fragment_id'=ANY(pr.fragment_ids)))))
+ AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT sqlc.arg(teacher)::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.course_id=c.course_id AND pr.status='published' AND pr.fragment_ids @> ARRAY[ev->>'fragment_id']))))
  OR (r.status='published' AND r.source_id IS NULL))
 ORDER BY distance,c.id LIMIT 20;
+
+-- name: VectorSearch1024 :many
+SELECT c.id,c.source_id,c.knowledge_id,c.resource_id,c.fragment_ids,c.title,c.heading,c.body,c.locator,
+ ((e.embedding::vector(1024)) <=> (sqlc.arg(vector_text)::text::vector(1024)))::float8 AS distance
+FROM retrieval_chunks c JOIN chunk_embeddings e ON e.chunk_id=c.id
+LEFT JOIN material_sources s ON s.id=c.source_id
+LEFT JOIN knowledge_entries k ON k.id=c.knowledge_id
+LEFT JOIN resources r ON r.id=c.resource_id
+WHERE c.course_id=sqlc.arg(course_id) AND e.space_id=sqlc.arg(space_id) AND e.dimensions=1024 AND c.active
+AND (sqlc.arg(purpose)::text<>'comparison' OR k.id IS NOT NULL)
+AND ((s.state='active' AND ((sqlc.arg(teacher)::boolean AND EXISTS(SELECT 1 FROM material_fragments mf WHERE mf.source_id=s.id AND mf.revision=s.parse_revision AND mf.id=ANY(c.fragment_ids)))
+   OR (NOT sqlc.arg(teacher)::boolean AND EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids))))
+ OR (k.state='confirmed' AND CASE WHEN sqlc.arg(purpose)::text='grading' THEN k.use_for_grading WHEN sqlc.arg(purpose)::text='comparison' THEN k.use_for_grading OR k.use_for_learning ELSE k.use_for_learning END AND (sqlc.arg(teacher)::boolean OR k.student_visible)
+ AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT sqlc.arg(teacher)::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.course_id=c.course_id AND pr.status='published' AND pr.fragment_ids @> ARRAY[ev->>'fragment_id']))))
+ OR (r.status='published' AND r.source_id IS NULL))
+ORDER BY (e.embedding::vector(1024)) <=> (sqlc.arg(vector_text)::text::vector(1024)),c.id LIMIT 20;
+
+-- name: VectorSearch1536 :many
+SELECT c.id,c.source_id,c.knowledge_id,c.resource_id,c.fragment_ids,c.title,c.heading,c.body,c.locator,
+ ((e.embedding::vector(1536)) <=> (sqlc.arg(vector_text)::text::vector(1536)))::float8 AS distance
+FROM retrieval_chunks c JOIN chunk_embeddings e ON e.chunk_id=c.id
+LEFT JOIN material_sources s ON s.id=c.source_id
+LEFT JOIN knowledge_entries k ON k.id=c.knowledge_id
+LEFT JOIN resources r ON r.id=c.resource_id
+WHERE c.course_id=sqlc.arg(course_id) AND e.space_id=sqlc.arg(space_id) AND e.dimensions=1536 AND c.active
+AND (sqlc.arg(purpose)::text<>'comparison' OR k.id IS NOT NULL)
+AND ((s.state='active' AND ((sqlc.arg(teacher)::boolean AND EXISTS(SELECT 1 FROM material_fragments mf WHERE mf.source_id=s.id AND mf.revision=s.parse_revision AND mf.id=ANY(c.fragment_ids)))
+   OR (NOT sqlc.arg(teacher)::boolean AND EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids))))
+ OR (k.state='confirmed' AND CASE WHEN sqlc.arg(purpose)::text='grading' THEN k.use_for_grading WHEN sqlc.arg(purpose)::text='comparison' THEN k.use_for_grading OR k.use_for_learning ELSE k.use_for_learning END AND (sqlc.arg(teacher)::boolean OR k.student_visible)
+ AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT sqlc.arg(teacher)::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.course_id=c.course_id AND pr.status='published' AND pr.fragment_ids @> ARRAY[ev->>'fragment_id']))))
+ OR (r.status='published' AND r.source_id IS NULL))
+ORDER BY (e.embedding::vector(1536)) <=> (sqlc.arg(vector_text)::text::vector(1536)),c.id LIMIT 20;
 
 -- name: KeywordSearch :many
 SELECT c.id,c.source_id,c.knowledge_id,c.resource_id,c.fragment_ids,c.title,c.heading,c.body,c.locator,
@@ -101,9 +134,10 @@ LEFT JOIN knowledge_entries k ON k.id=c.knowledge_id
 LEFT JOIN resources r ON r.id=c.resource_id
 WHERE c.course_id=sqlc.arg(course_id) AND c.active AND c.search_document @@ to_tsquery('simple',sqlc.arg(query_tokens)::text)
 AND (sqlc.arg(purpose)::text<>'comparison' OR k.id IS NOT NULL)
-AND ((s.state='active' AND (sqlc.arg(teacher)::boolean OR EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids)))
+AND ((s.state='active' AND ((sqlc.arg(teacher)::boolean AND EXISTS(SELECT 1 FROM material_fragments mf WHERE mf.source_id=s.id AND mf.revision=s.parse_revision AND mf.id=ANY(c.fragment_ids)))
+   OR (NOT sqlc.arg(teacher)::boolean AND EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids))))
  OR (k.state='confirmed' AND CASE WHEN sqlc.arg(purpose)::text='grading' THEN k.use_for_grading WHEN sqlc.arg(purpose)::text='comparison' THEN k.use_for_grading OR k.use_for_learning ELSE k.use_for_learning END AND (sqlc.arg(teacher)::boolean OR k.student_visible)
- AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT sqlc.arg(teacher)::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND ev->>'fragment_id'=ANY(pr.fragment_ids)))))
+ AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT sqlc.arg(teacher)::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.course_id=c.course_id AND pr.status='published' AND pr.fragment_ids @> ARRAY[ev->>'fragment_id']))))
  OR (r.status='published' AND r.source_id IS NULL))
 ORDER BY rank DESC,c.id LIMIT 20;
 
@@ -163,14 +197,26 @@ AND (sqlc.arg(asset_id)::text='' OR input->>'asset_id'=sqlc.arg(asset_id))
 ORDER BY created_at DESC,id DESC LIMIT sqlc.arg(page_size) OFFSET sqlc.arg(page_offset);
 
 -- name: PendingProcessingJobs :many
-SELECT * FROM processing_jobs WHERE state='queued' OR (state='running' AND kind IN ('parse','index') AND started_at<now()-interval '15 minutes') ORDER BY created_at LIMIT 20;
+SELECT * FROM processing_jobs
+WHERE state='queued' OR (state='running' AND kind IN ('parse','index') AND attempt < 3 AND started_at < now() - interval '15 minutes')
+ORDER BY created_at, id LIMIT 50;
+
+-- name: HasActiveParseJob :one
+SELECT EXISTS(SELECT 1 FROM processing_jobs WHERE course_id=$1 AND kind='parse' AND state IN ('queued','running') AND input->>'source_id'=sqlc.arg(source_id)::text);
+
+-- name: HasNewerIndexJob :one
+SELECT EXISTS(SELECT 1 FROM processing_jobs j WHERE j.course_id=$1 AND j.kind='index' AND j.id<>$2 AND j.created_at > (SELECT created_at FROM processing_jobs WHERE id=$2));
 
 -- name: ClaimProcessingJob :one
-UPDATE processing_jobs SET state='running',started_at=now(),attempt=attempt+1,error='' WHERE id=$1 AND (state='queued' OR (state='running' AND kind IN ('parse','index') AND started_at<now()-interval '15 minutes')) RETURNING *;
+UPDATE processing_jobs SET state='running',started_at=now(),attempt=attempt+1,error='' WHERE id=$1 AND (state='queued' OR (state='running' AND kind IN ('parse','index') AND attempt < 3 AND started_at<now()-interval '15 minutes')) RETURNING *;
 
 -- name: ExpireInterruptedGenerationJobs :exec
 UPDATE processing_jobs SET state='failed',finished_at=now(),error='任务执行中断，模型结果未知；请核对调用记录后显式重试'
 WHERE state='running' AND kind NOT IN ('parse','index') AND started_at<now()-interval '15 minutes';
+
+-- name: ExpireStuckParseIndexJobs :exec
+UPDATE processing_jobs SET state='failed',finished_at=now(),error='解析或索引任务多次异常中断，请检查文件后重试'
+WHERE state='running' AND kind IN ('parse','index') AND attempt >= 3 AND started_at < now() - interval '15 minutes';
 
 -- name: SettleInterruptedModelCalls :exec
 WITH expired AS (
@@ -178,7 +224,7 @@ WITH expired AS (
  WHERE state='reserved' AND created_at<now()-interval '15 minutes'
  RETURNING reserved_micro_cny
 )
-UPDATE model_budget SET reserved_micro_cny=reserved_micro_cny-amount.total,spent_micro_cny=spent_micro_cny+amount.total
+UPDATE model_budget SET reserved_micro_cny=GREATEST(0, reserved_micro_cny-amount.total),spent_micro_cny=spent_micro_cny+amount.total
 FROM (SELECT coalesce(sum(reserved_micro_cny),0)::bigint AS total FROM expired) amount WHERE id=1;
 
 -- name: FinishProcessingJob :exec
@@ -204,6 +250,21 @@ UPDATE model_budget SET reserved_micro_cny=reserved_micro_cny-$1,spent_micro_cny
 
 -- name: FinishModelCall :one
 UPDATE model_calls SET state=$2,charged_micro_cny=$3,input_tokens=$4,output_tokens=$5,duration_ms=$6,error_code=$7 WHERE id=$1 AND state='reserved' RETURNING id;
+
+-- name: FinishAndSettleModelCall :one
+WITH done AS (
+ UPDATE model_calls
+    SET state=$2, charged_micro_cny=$3, input_tokens=$4, output_tokens=$5, duration_ms=$6, error_code=$7
+  WHERE model_calls.id=$1 AND model_calls.state='reserved'
+  RETURNING model_calls.id AS call_id, model_calls.reserved_micro_cny, model_calls.charged_micro_cny
+), settled AS (
+ UPDATE model_budget
+    SET reserved_micro_cny = GREATEST(0, model_budget.reserved_micro_cny - done.reserved_micro_cny),
+        spent_micro_cny = model_budget.spent_micro_cny + done.charged_micro_cny
+   FROM done
+  WHERE model_budget.id = 1
+)
+SELECT done.call_id AS id FROM done;
 
 -- name: GetModelBudget :one
 SELECT * FROM model_budget WHERE id=1;

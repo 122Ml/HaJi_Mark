@@ -101,8 +101,8 @@ func (s *Service) CreateJob(ctx context.Context, course, actor, kind string, in 
 	return j, nil
 }
 func enqueue(c *asynq.Client, id string) error {
-	// Database claims deduplicate execution. A short queue lock must not block
-	// recovery for a day when a task failed before its database claim succeeded.
+	// Database claims deduplicate execution. Keep unique TTL aligned with recoveryInterval
+	// so archived tasks do not block recovery retries.
 	_, e := c.Enqueue(asynq.NewTask(taskType, []byte(id)), asynq.Unique(recoveryInterval), asynq.MaxRetry(0), asynq.Timeout(12*time.Minute))
 	return e
 }
@@ -147,6 +147,9 @@ func (s *Service) recoverInterrupted(ctx context.Context) error {
 		return err
 	}
 	if err = q.ExpireInterruptedGenerationJobs(ctx); err != nil {
+		return err
+	}
+	if err = q.ExpireStuckParseIndexJobs(ctx); err != nil {
 		return err
 	}
 	if err = q.ReconcileStuckSourceParse(ctx); err != nil {
@@ -346,9 +349,10 @@ func (s *Service) Parse(ctx context.Context, j store.ProcessingJob, in JobInput)
 		return nil, e
 	}
 	committed := false
+	takenOver := false
 	parseError := "解析未完成或已取消，可重试；已有原文修订保留"
 	defer func() {
-		if committed {
+		if committed || takenOver {
 			return
 		}
 		restoreCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -361,15 +365,14 @@ func (s *Service) Parse(ctx context.Context, j store.ProcessingJob, in JobInput)
 			log.Printf("RAG restore source parse %s failed: %v", src.ID, err)
 		}
 	}()
-	var srcPath string
-	if src.StoragePath == "" {
-		srcPath = filepath.Clean(materialsDir())
-	} else {
-		srcPath, e = SafeMaterialPath(src.StoragePath)
-		if e != nil {
-			parseError = "原件文件路径无效"
-			return nil, errors.New(parseError)
-		}
+	if strings.TrimSpace(src.StoragePath) == "" {
+		parseError = "原件文件路径缺失"
+		return nil, errors.New(parseError)
+	}
+	srcPath, e := SafeMaterialPath(src.StoragePath)
+	if e != nil {
+		parseError = "原件文件路径无效"
+		return nil, errors.New(parseError)
 	}
 	script := os.Getenv("PARSER_SCRIPT")
 	if script == "" {
@@ -419,6 +422,7 @@ func (s *Service) Parse(ctx context.Context, j store.ProcessingJob, in JobInput)
 	defer tx.Rollback(ctx)
 	q = s.Q.WithTx(tx)
 	if e = lockRunningJob(ctx, q, j); e != nil {
+		takenOver = true
 		return nil, e
 	}
 	current, e := q.LockMaterialSource(ctx, store.LockMaterialSourceParams{ID: src.ID, CourseID: j.CourseID})
@@ -752,10 +756,14 @@ func (s *Service) Draft(ctx context.Context, j store.ProcessingJob, in JobInput)
 		sum := int32(0)
 		seen := map[string]bool{}
 		for _, c := range criteria {
-			if c.ID == "" || seen[c.ID] || c.Title == "" || c.Rule == "" || c.MaxScore < 1 {
+			id := strings.TrimSpace(c.ID)
+			title := strings.TrimSpace(c.Title)
+			rule := strings.TrimSpace(c.Rule)
+			if id == "" || seen[id] || title == "" || rule == "" || c.MaxScore < 1 || c.MaxScore > in.MaxScore ||
+				strings.ContainsRune(id, '\x00') || strings.ContainsRune(title, '\x00') || strings.ContainsRune(rule, '\x00') {
 				return failedDraft, errors.New("AI标准字段无效")
 			}
-			seen[c.ID] = true
+			seen[id] = true
 			sum += c.MaxScore
 		}
 		if sum != in.MaxScore {
@@ -800,9 +808,10 @@ func ValidateGrade(out map[string]json.RawMessage, in JobInput) error {
 	}
 	var total int32
 	var feedback string
-	if json.Unmarshal(in.Criteria, &criteria) != nil || json.Unmarshal(out["points"], &points) != nil || json.Unmarshal(out["score"], &total) != nil || json.Unmarshal(out["feedback"], &feedback) != nil || feedback == "" || len(points) != len(criteria) {
+	if json.Unmarshal(in.Criteria, &criteria) != nil || json.Unmarshal(out["points"], &points) != nil || json.Unmarshal(out["score"], &total) != nil || json.Unmarshal(out["feedback"], &feedback) != nil || strings.TrimSpace(feedback) == "" || len(points) != len(criteria) {
 		return errors.New("AI评分字段不完整")
 	}
+	normAnswer := strings.ReplaceAll(strings.ReplaceAll(in.Answer, "\r\n", "\n"), "\r", "\n")
 	sum := int32(0)
 	seen := map[string]bool{}
 	for _, p := range points {
@@ -812,7 +821,11 @@ func ValidateGrade(out map[string]json.RawMessage, in JobInput) error {
 				max = c.MaxScore
 			}
 		}
-		if seen[p.ID] || p.Score < 0 || p.Score > max || p.Feedback == "" || (p.Quote != "" && !strings.Contains(in.Answer, p.Quote)) || (p.Score > 0 && p.Quote == "") {
+		trimmedQuote := strings.TrimSpace(p.Quote)
+		normQuote := strings.ReplaceAll(strings.ReplaceAll(p.Quote, "\r\n", "\n"), "\r", "\n")
+		if seen[p.ID] || p.Score < 0 || p.Score > max || strings.TrimSpace(p.Feedback) == "" ||
+			(trimmedQuote != "" && !strings.Contains(normAnswer, normQuote)) ||
+			(p.Score > 0 && trimmedQuote == "") {
 			return fmt.Errorf("AI评分点%s的分数或原文引用无效", p.ID)
 		}
 		seen[p.ID] = true

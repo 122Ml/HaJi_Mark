@@ -15,7 +15,7 @@ import {
   useLiveQuery,
   uuid,
 } from "./context";
-import { formatLocator, labelFor, stateLabels } from "./domain-meta";
+import { formatHitLocator, labelFor, stateLabels } from "./domain-meta";
 import { RetrievalHistory } from "./retrieval-history";
 import type { AssistAnswer, Hit, Resource } from "./types";
 import { hasControlNull, utf8ByteLength } from "./validation";
@@ -39,28 +39,6 @@ const PURPOSE_OPTIONS = [
   { value: "learning", label: "学习资料与知识" },
   { value: "grading", label: "评分依据" },
 ];
-
-function formatHitLocator(locator?: Record<string, unknown> | null): string {
-  if (!locator || typeof locator !== "object") return "";
-  const parts: string[] = [];
-  const base = formatLocator(locator);
-  if (base) parts.push(base);
-  const extra: [string, string][] = [
-    ["location", "位置"],
-    ["locator", "位置"],
-    ["knowledge_version", "知识版本"],
-    ["resource_version", "资料版本"],
-  ];
-  for (const [key, label] of extra) {
-    const val = locator[key];
-    if (val !== null && val !== undefined && String(val).trim() !== "") {
-      const text =
-        key.endsWith("_version") ? `v${String(val)}` : String(val).trim();
-      parts.push(`${label} ${text}`);
-    }
-  }
-  return parts.join(" · ");
-}
 
 function formatSearchMode(rawMode: string, teacher: boolean): string {
   if (!rawMode) return "";
@@ -113,14 +91,19 @@ export function RetrievalPage({
   const [answer, setAnswer] = useState<AssistAnswer | null>(null);
 
   const requestIDRef = useRef<{ sig: string; id: string }>({ sig: "", id: "" });
+  const opSeqRef = useRef(0);
 
   useEffect(() => {
+    opSeqRef.current += 1;
     setOnlyCurrent(!!targetResource);
     setPickedResource("");
+    setValidationError("");
     setResult(null);
     setAnswer(null);
     requestIDRef.current = { sig: "", id: "" };
-  }, [targetResource]);
+    assistAction.clearError();
+    searchAction.clearError();
+  }, [course?.id, targetResource, assistAction.clearError, searchAction.clearError]);
 
   const resourcesQuery = useLiveQuery<Resource[]>(
     "/resources",
@@ -185,12 +168,14 @@ export function RetrievalPage({
     }
     setValidationError("");
     setAnswer(null);
+    searchAction.clearError();
     const trimmed = query.trim();
     const sig = `${trimmed}|${effectiveResourceID}|${model}`;
     if (requestIDRef.current.sig !== sig || !requestIDRef.current.id) {
       requestIDRef.current = { sig, id: uuid() };
     }
     const requestID = requestIDRef.current.id;
+    const seq = ++opSeqRef.current;
     try {
       const r = await assistAction.run<AssistAnswer>("/assist", {
         topic: trimmed,
@@ -198,7 +183,7 @@ export function RetrievalPage({
         profile_id: model,
         request_id: requestID,
       });
-      if (r) {
+      if (r && seq === opSeqRef.current) {
         requestIDRef.current = { sig: "", id: "" };
         setAnswer(r);
         setResult({ hits: r.sources || [], mode: r.mode || "" });
@@ -326,6 +311,8 @@ export function RetrievalPage({
           }
           setValidationError("");
           setAnswer(null);
+          assistAction.clearError();
+          const seq = ++opSeqRef.current;
           const r = await searchAction.run<{ hits: Hit[]; mode: string }>(
             "/retrieval",
             {
@@ -337,7 +324,7 @@ export function RetrievalPage({
             undefined,
             { invalidate: false },
           );
-          if (r) setResult(r);
+          if (r && seq === opSeqRef.current) setResult(r);
         }}
         layout="vertical"
       >

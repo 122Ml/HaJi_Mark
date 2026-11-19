@@ -84,6 +84,9 @@ func LoadModels(db *pgxpool.Pool) (*Models, error) {
 }
 func Enabled() bool { return os.Getenv("RAG_ENABLED") == "true" }
 func (m *Models) Profile(id, kind string) (Profile, error) {
+	if m == nil {
+		return Profile{}, errors.New("未配置可用模型，请检查服务端接口和密钥")
+	}
 	for _, p := range m.Profiles {
 		if p.Kind == kind && (id == "" || id == p.ID) && os.Getenv(p.KeyEnv) != "" && os.Getenv(p.BaseURLEnv) != "" {
 			return p, nil
@@ -93,6 +96,9 @@ func (m *Models) Profile(id, kind string) (Profile, error) {
 }
 func (m *Models) Public() []map[string]any {
 	out := []map[string]any{}
+	if m == nil {
+		return out
+	}
 	for _, p := range m.Profiles {
 		out = append(out, map[string]any{"id": p.ID, "label": p.Label, "kind": p.Kind, "model": p.Model, "dimensions": p.Dimensions, "available": Enabled() && os.Getenv(p.KeyEnv) != "" && os.Getenv(p.BaseURLEnv) != ""})
 	}
@@ -117,9 +123,15 @@ func redactSecret(s, secret string) string {
 }
 
 func (m *Models) call(ctx context.Context, course, actor, purpose string, p Profile, path string, payload any, inputBytes, maxOutput int, out any) error {
-	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+	callTimeout := 180 * time.Second
+	if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
+		if rem := time.Until(deadline); rem < callTimeout {
+			callTimeout = rem
+		}
+	}
+	if callTimeout > 0 {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, 180*time.Second)
+		ctx, cancel = context.WithTimeout(ctx, callTimeout)
 		defer cancel()
 	}
 	return m.callDecoded(ctx, course, actor, purpose, p, path, payload, inputBytes, maxOutput, func(resp *http.Response) (usage, error) {
@@ -180,28 +192,22 @@ func (m *Models) callDecoded(ctx context.Context, course, actor, purpose string,
 	defer func() {
 		settleCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		t, err := m.DB.Begin(settleCtx)
-		if err != nil {
-			log.Printf("settle model call %s begin failed: %v", id, err)
-			return
-		}
-		defer t.Rollback(settleCtx)
-		sq := store.New(t)
-		if _, err = sq.FinishModelCall(settleCtx, store.FinishModelCallParams{ID: id, State: state, ChargedMicroCny: charge, InputTokens: u.Prompt, OutputTokens: u.Completion, DurationMs: time.Since(started).Milliseconds(), ErrorCode: code}); err != nil {
-			log.Printf("settle model call %s finish failed: %v", id, err)
-			return
-		}
-		if err = sq.SettleModelBudget(settleCtx, store.SettleModelBudgetParams{ReservedMicroCny: reserve, SpentMicroCny: charge}); err != nil {
-			log.Printf("settle model call %s budget failed: %v", id, err)
-			return
-		}
-		if err = t.Commit(settleCtx); err != nil {
-			log.Printf("settle model call %s commit failed: %v", id, err)
+		if _, err := store.New(m.DB).FinishAndSettleModelCall(settleCtx, store.FinishAndSettleModelCallParams{
+			ID:              id,
+			State:           state,
+			ChargedMicroCny: charge,
+			InputTokens:     u.Prompt,
+			OutputTokens:    u.Completion,
+			DurationMs:      time.Since(started).Milliseconds(),
+			ErrorCode:       code,
+		}); err != nil {
+			log.Printf("settle model call %s failed: %v", id, err)
 		}
 	}()
 	raw, _ := json.Marshal(payload)
 	req, e := http.NewRequestWithContext(ctx, "POST", strings.TrimRight(os.Getenv(p.BaseURLEnv), "/")+path, bytes.NewReader(raw))
 	if e != nil {
+		state, code, charge = "failed", "invalid_request", 0
 		return errors.New("模型接口配置无效")
 	}
 	apiKey := os.Getenv(p.KeyEnv)
@@ -211,13 +217,19 @@ func (m *Models) callDecoded(ctx context.Context, course, actor, purpose string,
 	if e != nil {
 		log.Printf("model call %s (%s/%s) request failed: %s", id, p.ID, purpose, redactSecret(e.Error(), apiKey))
 		if errors.Is(e, context.Canceled) {
-			code = "canceled"
+			state, code = "canceled", "canceled"
 		}
 		return errors.New("模型连接失败或超时；未知调用保留预算，不自动重试")
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		code = fmt.Sprintf("http_%d", resp.StatusCode)
+		if resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusUnauthorized ||
+			resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusNotFound ||
+			resp.StatusCode == http.StatusTooManyRequests {
+			state = "failed"
+			charge = 0
+		}
 		bodySnippet, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
 		log.Printf("model call %s (%s/%s) upstream HTTP %d: %s", id, p.ID, purpose, resp.StatusCode, redactSecret(strings.TrimSpace(string(bodySnippet)), apiKey))
 		return fmt.Errorf("模型服务返回HTTP %d，请检查服务端配置及额度", resp.StatusCode)
@@ -225,9 +237,9 @@ func (m *Models) callDecoded(ctx context.Context, course, actor, purpose string,
 	u, e = decode(resp)
 	if u.Prompt >= 0 && u.Completion >= 0 && u.Total >= 0 && u.Prompt <= 10000000 && u.Completion <= 10000000 && u.Total <= 10000000 {
 		if u.Prompt == 0 && u.Total > 0 {
-			u.Prompt = u.Total
+			u.Prompt = max(int64(0), u.Total-u.Completion)
 		}
-		if u.Prompt > 0 {
+		if u.Prompt > 0 || u.Completion > 0 {
 			charge = u.Prompt*p.InputRate + u.Completion*p.OutputRate
 			if charge > reserve {
 				charge = reserve
@@ -239,7 +251,7 @@ func (m *Models) callDecoded(ctx context.Context, course, actor, purpose string,
 	}
 	if e != nil {
 		if errors.Is(e, context.Canceled) {
-			code = "canceled"
+			state, code = "canceled", "canceled"
 		} else {
 			code = "invalid_response"
 		}

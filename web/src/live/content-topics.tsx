@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Button, Collapse, Form, Input, Select, Space } from "antd";
+import { Alert, Button, Collapse, Form, Input, Popconfirm, Select, Space } from "antd";
 import { Field } from "../shared/Field";
 import { LoadingState, StatusTag } from "../shared/ui";
 import { Feedback, useAction, useLiveQuery, when } from "./context";
 import type { Point } from "./types";
-import { hasControlNull, utf8ByteLength } from "./validation";
+import { cleanTags, dedupeStrings, hasControlNull, utf8ByteLength } from "./validation";
 
 export type Topic = {
   id: string;
@@ -29,30 +29,6 @@ export type TopicData = {
     knowledge_point_ids: string[];
   }[];
 };
-
-function dedupeStrings(items: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const item of items) {
-    if (!seen.has(item)) {
-      seen.add(item);
-      out.push(item);
-    }
-  }
-  return out;
-}
-
-function cleanTags(items: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const raw of items) {
-    const trimmed = raw.trim();
-    if (!trimmed || seen.has(trimmed)) continue;
-    seen.add(trimmed);
-    out.push(trimmed);
-  }
-  return out;
-}
 
 export function TopicManager() {
   const [open, setOpen] = useState(false);
@@ -290,6 +266,24 @@ export function TopicManager() {
                       >
                         {editing.active ? "停用" : "恢复"}
                       </Button>
+                      <Popconfirm
+                        title={`确认永久删除专题“${editing.title}”？`}
+                        description="删除后将移除该专题与资料、知识条目及题目的关联，原内容本身保留。"
+                        onConfirm={async () => {
+                          const removed = await action.run(
+                            `/topics/${editing.id}`,
+                            undefined,
+                            "DELETE",
+                            "专题已删除",
+                            { invalidatePrefixes: ["topics", "question-bank"] },
+                          );
+                          if (removed) clearEditor();
+                        }}
+                      >
+                        <Button danger disabled={action.busy} htmlType="button">
+                          删除专题
+                        </Button>
+                      </Popconfirm>
                       <Button onClick={clearEditor} htmlType="button">
                         取消
                       </Button>

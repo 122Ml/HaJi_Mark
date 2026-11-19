@@ -44,6 +44,11 @@ snippet = ''' location = /diagrams { return 301 /diagrams/; }
   root /www/hajimark-static;
   index index.html;
   autoindex off;
+  add_header Strict-Transport-Security "max-age=31536000" always;
+  add_header X-Content-Type-Options nosniff always;
+  add_header X-Frame-Options SAMEORIGIN always;
+  add_header Referrer-Policy strict-origin-when-cross-origin always;
+  add_header Content-Security-Policy "default-src 'self' 'unsafe-inline' data: blob:; frame-ancestors 'self'" always;
   try_files $uri $uri/ =404;
  }
 '''

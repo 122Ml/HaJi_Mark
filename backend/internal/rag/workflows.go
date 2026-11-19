@@ -64,14 +64,26 @@ func ValidatePaper(out PaperOutput, fs []store.MaterialFragment, assets []store.
 		if q.AnswerOrigin != "missing" && q.AnswerOrigin != "extracted" && q.AnswerOrigin != "teacher" {
 			return errors.New("解答来源须为提取、留空或教师补录")
 		}
+		if len(q.ReferenceAnswer) > 30000 || strings.ContainsRune(q.Title, '\x00') || strings.ContainsRune(q.Prompt, '\x00') ||
+			strings.ContainsRune(q.ReferenceAnswer, '\x00') || strings.ContainsRune(q.CorrectAnswer, '\x00') {
+			return errors.New("题目内容长度超限或包含非法空字符")
+		}
 		if q.AnswerOrigin == "missing" && (q.ReferenceAnswer != "" || q.CorrectAnswer != "") {
 			return errors.New("未提供解答时不能补造原卷答案")
 		}
-		if q.AnswerOrigin == "extracted" && q.ReferenceAnswer != "" && !strings.Contains(body, q.ReferenceAnswer) {
-			return errors.New("提取解答须能逐字定位原卷")
-		}
-		if q.AnswerOrigin == "extracted" && (q.CorrectAnswer != "" && !strings.Contains(body, q.CorrectAnswer) || q.CorrectAnswer == "" && q.ReferenceAnswer == "") {
-			return errors.New("提取答案须非空且能逐字定位原卷")
+		normBody := strings.ReplaceAll(strings.ReplaceAll(body, "\r\n", "\n"), "\r", "\n")
+		normRef := strings.ReplaceAll(strings.ReplaceAll(q.ReferenceAnswer, "\r\n", "\n"), "\r", "\n")
+		normCorr := strings.ReplaceAll(strings.ReplaceAll(q.CorrectAnswer, "\r\n", "\n"), "\r", "\n")
+		if q.AnswerOrigin == "extracted" {
+			if strings.TrimSpace(q.ReferenceAnswer) == "" && strings.TrimSpace(q.CorrectAnswer) == "" {
+				return errors.New("提取答案须非空且能逐字定位原卷")
+			}
+			if q.ReferenceAnswer != "" && (strings.TrimSpace(q.ReferenceAnswer) == "" || !strings.Contains(normBody, normRef)) {
+				return errors.New("提取解答须非空且能逐字定位原卷")
+			}
+			if q.CorrectAnswer != "" && (strings.TrimSpace(q.CorrectAnswer) == "" || !strings.Contains(normBody, normCorr)) {
+				return errors.New("提取答案须非空且能逐字定位原卷")
+			}
 		}
 	}
 	for _, x := range out.Excluded {
@@ -195,18 +207,28 @@ func (s *Service) WorkflowDraft(ctx context.Context, j store.ProcessingJob, in J
 			instruction = `根据有限摘录提出目录、分类、专题、知识点关联和新知识点建议，不修改已有目录，不自动创建专题或知识点。识别与known_knowledge可能相似的知识，仅作比较入口。返回 {"outline":[{"title":"","fragment_ids":[]}],"topic_ids":[],"new_topic_names":[],"new_points":[{"title":"","parent_id":"","duplicate_of":"","reason":""}],"tags":[],"knowledge_point_ids":[],"similar_knowledge_ids":[],"reason":"概括依据和不确定性","review_status":"pending_teacher_review"}。所有id必须来自输入。`
 			instruction += `无可靠建议时对应字段必须返回空数组，不生成空标题目录。knowledge_point_ids只能取course_points中kind=point的id，绝不能使用fragment的id；topic_ids只能取topics的id，similar_knowledge_ids只能取known_knowledge的id。new_points最多10条且只作候选，须教师逐条勾选后才创建：title为拟建知识点名称，不超过200字节，不得与course_points已有标题重复或仅措辞不同；parent_id只能取course_points中kind=chapter或section的id，不确定时返回空字符串；duplicate_of只在发现与course_points中kind=point的条目语义等价时填该id，否则返回空字符串。`
 		} else if j.Kind == "source_segment" {
+			if src.ParseState != "ready" || len(fs) == 0 {
+				return nil, errors.New("原件尚未解析就绪，暂不能切分")
+			}
 			if len(fs) > 120 {
 				return nil, errors.New("原件片段超过120段上限，请先拆分原件后再切分")
 			}
-			excerpts := append([]store.MaterialFragment(nil), fs...)
-			for i := range excerpts {
-				v := []rune(excerpts[i].Body)
-				if len(v) > 400 {
-					excerpts[i].Body = string(v[:400])
-				}
+			type segFragment struct {
+				ID       string `json:"id"`
+				Position int32  `json:"position"`
+				Heading  string `json:"heading"`
+				Body     string `json:"body"`
 			}
-			payload["fragments"] = excerpts
-			payload["excerpt_only"] = true
+			excerpts := make([]segFragment, len(fs))
+			for i, f := range fs {
+				v := []rune(f.Body)
+				body := f.Body
+				if len(v) > 400 {
+					body = string(v[:400])
+				}
+				excerpts[i] = segFragment{ID: f.ID, Position: f.Position, Heading: f.Heading, Body: body}
+			}
+			payload = map[string]any{"source": src.Title, "fragments": excerpts, "excerpt_only": true, "course_points": points}
 			instruction = `把输入片段按内容切成若干连续段，覆盖全部片段，每个片段只能出现一次，顺序与输入一致。course_points只用于判断关联，不用于改写原文。返回 {"segments":[{"title":"本段主题","relation":"point|sequence","fragment_ids":[],"knowledge_point_id":"","reason":"切分依据"}],"review_status":"pending_teacher_review"}。`
 			instruction += `relation=point表示本段内容明确对应某个已有知识点，此时knowledge_point_id只能取course_points中kind=point的id；relation=sequence表示只是前后顺序不同、没有明确对应知识点，此时knowledge_point_id必须为空字符串。段数不超过50，标题不超过200字节。不得遗漏片段，不得重复片段，不得引用未提供的片段或知识点。`
 		} else if j.Kind == "paper_split" {
@@ -352,7 +374,7 @@ func validateSuggestions(out map[string]json.RawMessage, payload map[string]any)
 		}
 		seen := map[string]bool{}
 		for _, v := range values {
-			if strings.TrimSpace(v) == "" || len(v) > 500 || seen[v] || (groups[field] != nil && !groups[field][v]) {
+			if strings.TrimSpace(v) == "" || len(v) > 500 || strings.ContainsRune(v, '\x00') || seen[v] || (groups[field] != nil && !groups[field][v]) {
 				return errors.New("关联建议包含重复、空值或范围外ID")
 			}
 			seen[v] = true
@@ -385,34 +407,46 @@ func validateSuggestions(out map[string]json.RawMessage, payload map[string]any)
 		return errors.New("新知识点建议格式无效")
 	}
 	kinds := map[string]string{}
+	existingPointTitles := map[string]bool{}
 	var pointRows []struct {
-		ID   string `json:"id"`
-		Kind string `json:"kind"`
+		ID    string `json:"id"`
+		Kind  string `json:"kind"`
+		Title string `json:"title"`
 	}
 	rawPoints, _ := json.Marshal(payload["course_points"])
 	_ = json.Unmarshal(rawPoints, &pointRows)
 	for _, row := range pointRows {
 		kinds[row.ID] = row.Kind
+		if row.Title != "" {
+			existingPointTitles[normalizeTitle(row.Title)] = true
+		}
 	}
 	seenPointTitles := map[string]bool{}
 	for _, p := range newPoints {
 		title := strings.TrimSpace(p.Title)
-		if title == "" || len(title) > 200 || strings.ContainsRune(title, '\x00') || seenPointTitles[normalizeTitle(title)] {
+		norm := normalizeTitle(title)
+		if title == "" || len(title) > 200 || strings.ContainsRune(title, '\x00') || seenPointTitles[norm] {
 			return errors.New("新知识点建议标题为空、过长或重复")
 		}
-		seenPointTitles[normalizeTitle(title)] = true
+		if p.DuplicateOf == "" && existingPointTitles[norm] {
+			return errors.New("新知识点建议与课程已有知识点标题重复，请标记duplicate_of")
+		}
+		if p.DuplicateOf != "" && p.ParentID != "" {
+			return errors.New("合并到已有知识点时不得再指定上级目录")
+		}
+		seenPointTitles[norm] = true
 		if p.ParentID != "" && kinds[p.ParentID] != "chapter" && kinds[p.ParentID] != "section" {
 			return errors.New("新知识点建议的上级目录不在本课程")
 		}
 		if p.DuplicateOf != "" && kinds[p.DuplicateOf] != "point" {
 			return errors.New("新知识点建议的合并目标无效")
 		}
-		if len(p.Reason) > 500 {
-			return errors.New("新知识点建议依据过长")
+		if strings.TrimSpace(p.Reason) == "" || len(p.Reason) > 500 || strings.ContainsRune(p.Reason, '\x00') {
+			return errors.New("新知识点建议缺少有效依据或过长")
 		}
 	}
 	var reason string
-	if json.Unmarshal(out["reason"], &reason) != nil || strings.TrimSpace(reason) == "" || len(reason) > 10000 {
+	if json.Unmarshal(out["reason"], &reason) != nil || strings.TrimSpace(reason) == "" || len(reason) > 10000 || strings.ContainsRune(reason, '\x00') {
 		return errors.New("归类建议缺少依据")
 	}
 	return nil
@@ -422,7 +456,7 @@ func normalizeTitle(s string) string {
 	return strings.Join(strings.Fields(strings.ToLower(strings.TrimSpace(s))), "")
 }
 
-// A split is only accepted when it is an exact partition of the input fragments.
+// A split is only accepted when it is an exact, contiguous, order-preserving partition.
 func validateSegments(out map[string]json.RawMessage, payload map[string]any) error {
 	var rows []struct {
 		Title       string   `json:"title"`
@@ -434,14 +468,14 @@ func validateSegments(out map[string]json.RawMessage, payload map[string]any) er
 	if json.Unmarshal(out["segments"], &rows) != nil || len(rows) == 0 || len(rows) > 50 {
 		return errors.New("切分结果缺失、格式无效或段数超限")
 	}
-	fragments := map[string]bool{}
 	rawFragments, _ := json.Marshal(payload["fragments"])
 	var fs []struct {
 		ID string `json:"id"`
 	}
 	_ = json.Unmarshal(rawFragments, &fs)
-	for _, f := range fs {
-		fragments[f.ID] = true
+	indexOf := make(map[string]int, len(fs))
+	for i, f := range fs {
+		indexOf[f.ID] = i
 	}
 	points := map[string]bool{}
 	rawPoints, _ := json.Marshal(payload["course_points"])
@@ -455,14 +489,14 @@ func validateSegments(out map[string]json.RawMessage, payload map[string]any) er
 			points[p.ID] = true
 		}
 	}
-	seen := map[string]bool{}
+	cursor := 0
 	for _, r := range rows {
 		title := strings.TrimSpace(r.Title)
 		if title == "" || len(title) > 200 || strings.ContainsRune(title, '\x00') || len(r.FragmentIDs) == 0 {
 			return errors.New("切分段缺少标题或片段")
 		}
-		if len(r.Reason) > 1000 {
-			return errors.New("切分依据过长")
+		if len(r.Reason) > 1000 || strings.ContainsRune(r.Reason, '\x00') {
+			return errors.New("切分依据无效或过长")
 		}
 		if r.Relation != "point" && r.Relation != "sequence" {
 			return errors.New("切分段关联方式无效")
@@ -474,13 +508,14 @@ func validateSegments(out map[string]json.RawMessage, payload map[string]any) er
 			return errors.New("顺序切分段不能指定知识点")
 		}
 		for _, id := range r.FragmentIDs {
-			if !fragments[id] || seen[id] {
-				return errors.New("切分片段重复或超出输入范围")
+			idx, ok := indexOf[id]
+			if !ok || idx != cursor {
+				return errors.New("切分片段必须按原件顺序严格连续且不重复、不遗漏")
 			}
-			seen[id] = true
+			cursor++
 		}
 	}
-	if len(seen) != len(fragments) {
+	if cursor != len(fs) {
 		return errors.New("切分未覆盖全部片段")
 	}
 	return nil

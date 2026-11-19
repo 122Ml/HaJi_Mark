@@ -27,6 +27,8 @@ import {
   MetaTags,
 } from "../shared/ui";
 import { DraftNotice, useEditorDraft } from "./editing";
+import { FrozenEvidence } from "./citations";
+import type { Hit, Resource } from "./types";
 import { hasControlNull, utf8ByteLength } from "./validation";
 
 interface Post {
@@ -38,12 +40,14 @@ interface Post {
   author_name: string;
   author_role?: string;
   created_at: string;
+  evidence_refs?: Hit[];
 }
 
 interface ComposerState {
   kind: string;
   title: string;
   content: string;
+  resource_ids: string[];
 }
 
 const KIND_TITLES: Record<string, string> = {
@@ -86,7 +90,13 @@ export function InteractionPage() {
   const { course } = useLearning();
   const teacher = session?.user.role === "teacher";
   const query = useLiveQuery<Post[]>("/interactions");
+  const resources = useLiveQuery<Resource[]>("/resources");
   const action = useAction();
+
+  const publishedResources = useMemo(
+    () => (resources.data || []).filter((r) => r.status === "published"),
+    [resources.data],
+  );
 
   const defaultKind = teacher ? "announcement" : "question";
   const initialComposer = useMemo<ComposerState>(
@@ -94,6 +104,7 @@ export function InteractionPage() {
       kind: defaultKind,
       title: "",
       content: "",
+      resource_ids: [],
     }),
     [defaultKind],
   );
@@ -176,12 +187,25 @@ export function InteractionPage() {
       return;
     }
     setFormError("");
+    const evidenceRefs = (form.resource_ids || [])
+      .map((id) => publishedResources.find((r) => r.id === id))
+      .filter((r): r is Resource => Boolean(r))
+      .map((r) => ({
+        id: r.id,
+        kind: "resource",
+        title: r.title,
+        body: r.content.slice(0, 240),
+        score: 1,
+        resource_id: r.id,
+        locator: r.locator ? { locator: r.locator, resource_version: r.version } : {},
+      }));
     const created = await action.run(
       "/interactions",
       {
         kind: form.kind,
         title: trimmedTitle,
         content: trimmedContent,
+        ...(evidenceRefs.length ? { evidence_refs: evidenceRefs } : {}),
       },
       "POST",
       "内容已发布到当前课程",
@@ -256,6 +280,9 @@ export function InteractionPage() {
                   <span className="live-meta">{when(p.created_at)}</span>
                 </MetaTags>
                 <p className="live-prose">{p.content}</p>
+                {Array.isArray(p.evidence_refs) && p.evidence_refs.length > 0 && (
+                  <FrozenEvidence sources={p.evidence_refs} />
+                )}
                 {replies.map((r) => (
                   <blockquote key={r.id}>
                     <strong>{r.author_name}</strong>{" "}
@@ -355,6 +382,30 @@ export function InteractionPage() {
                 }}
               />
             </Field>
+            {publishedResources.length > 0 && (
+              <Field className="ui-field" label="关联参考资料（可选）">
+                <Select
+                  aria-label="关联参考资料"
+                  mode="multiple"
+                  maxCount={5}
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                  placeholder="附带课程已发布资料引用"
+                  value={form.resource_ids || []}
+                  onChange={(val) =>
+                    composer.change((prev) => ({
+                      ...prev,
+                      resource_ids: val.slice(0, 5),
+                    }))
+                  }
+                  options={publishedResources.map((r) => ({
+                    value: r.id,
+                    label: `${r.title} · v${r.version}`,
+                  }))}
+                />
+              </Field>
+            )}
             <Button
               disabled={action.busy || !form.content.trim()}
               htmlType="submit"

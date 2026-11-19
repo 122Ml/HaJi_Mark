@@ -60,7 +60,7 @@ func (h *Handler) rubrics(c *gin.Context) {
 	}
 	v, err := h.q.ListRubricVersions(c.Request.Context(), text(question.ID))
 	if err == nil && v == nil {
-		v = []store.RubricVersion{}
+		v = []store.ListRubricVersionsRow{}
 	}
 	result(c, v, err)
 }
@@ -146,6 +146,15 @@ func (h *Handler) createRubric(c *gin.Context) {
 		result(c, nil, err)
 		return
 	}
+	if ids, idErr := rag.EvidenceIDs(evidence); idErr != nil {
+		ragError(c, idErr)
+		return
+	} else if len(ids) > 0 {
+		if _, rErr := rag.ResolveEvidence(ctx, q, c.Param("courseID"), ids); rErr != nil {
+			ragError(c, rErr)
+			return
+		}
+	}
 	v, err := q.CreateRubricVersion(ctx, store.CreateRubricVersionParams{ID: uuid.NewString(), QuestionID: text(question.ID), Criteria: raw, CreatedBy: identity.Current(c).ID})
 	if err != nil {
 		result(c, nil, err)
@@ -225,6 +234,15 @@ func (h *Handler) confirmRubric(c *gin.Context) {
 			result(c, nil, err)
 			return
 		}
+		if ids, idErr := rag.EvidenceIDs(r.EvidenceRefs); idErr != nil {
+			ragError(c, idErr)
+			return
+		} else if len(ids) > 0 {
+			if _, rErr := rag.ResolveEvidence(ctx, q, c.Param("courseID"), ids); rErr != nil {
+				ragError(c, rErr)
+				return
+			}
+		}
 	}
 	if r.State != "draft" {
 		identity.Fail(c, 409, "state_conflict", "标准已确认，修改请另建版本")
@@ -264,6 +282,14 @@ func (h *Handler) scorePointsTx(c *gin.Context, q *store.Queries, rubricID strin
 	var criteria []criterion
 	if err = json.Unmarshal(r.Criteria, &criteria); err != nil {
 		result(c, nil, err)
+		return nil, 0, false
+	}
+	var criteriaMax int32
+	for _, item := range criteria {
+		criteriaMax += item.MaxScore
+	}
+	if criteriaMax != question.MaxScore {
+		invalid(c, "评分标准满分之和与题目满分不一致")
 		return nil, 0, false
 	}
 	if len(points) != len(criteria) {

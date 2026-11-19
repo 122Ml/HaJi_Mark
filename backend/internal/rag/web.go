@@ -200,17 +200,26 @@ func CachePublicImages(ctx context.Context, snapshot WebSnapshot, directory, ste
 	}
 	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
-	root, e := html.Parse(bytes.NewReader(snapshot.Data))
-	if e != nil {
-		return e
-	}
+	tokenizer := html.NewTokenizer(bytes.NewReader(snapshot.Data))
 	manifest := map[string]map[string]string{}
 	count := 0
 	total := 0
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "base" {
-			for _, a := range n.Attr {
+	downloaded := 0
+	for {
+		tokType := tokenizer.Next()
+		if tokType == html.ErrorToken {
+			if err := tokenizer.Err(); err != nil && !errors.Is(err, io.EOF) {
+				return err
+			}
+			break
+		}
+		if tokType != html.StartTagToken && tokType != html.SelfClosingTagToken {
+			continue
+		}
+		tok := tokenizer.Token()
+		switch tok.Data {
+		case "base":
+			for _, a := range tok.Attr {
 				if a.Key == "href" && strings.TrimSpace(a.Val) != "" {
 					if u, err := url.Parse(strings.TrimSpace(a.Val)); err == nil {
 						resolved := base.ResolveReference(u)
@@ -221,64 +230,63 @@ func CachePublicImages(ctx context.Context, snapshot WebSnapshot, directory, ste
 					break
 				}
 			}
-		}
-		if n.Type == html.ElementNode && n.Data == "img" {
+		case "img":
 			var src string
-			for _, a := range n.Attr {
+			for _, a := range tok.Attr {
 				if a.Key == "src" {
 					src = a.Val
+					break
 				}
 			}
 			trimmed := strings.TrimSpace(src)
-			if trimmed != "" && !strings.HasPrefix(strings.ToLower(trimmed), "data:") && manifest[src] == nil {
+			if trimmed != "" && !strings.HasPrefix(strings.ToLower(trimmed), "data:") && manifest[src] == nil && len(manifest) < 50 {
 				entry := map[string]string{}
 				manifest[src] = entry
 				u, err := url.Parse(trimmed)
 				if err != nil {
 					entry["error"] = "无效图像地址"
-				} else if count >= 12 || total >= 20<<20 {
+				} else if count >= 12 || total >= 20<<20 || downloaded >= 20<<20 {
 					entry["error"] = "图片超过单页12张／20MiB上限，请单独上传"
 				} else {
-					count++
 					resolved := base.ResolveReference(u).String()
 					entry["url"] = resolved
 					img, err := fetchPublicBytes(ctx, resolved, 5<<20)
 					if err != nil {
 						entry["error"] = err.Error()
-					} else if total+len(img.Data) > 20<<20 {
-						entry["error"] = "图片超过单页12张／20MiB上限，请单独上传"
 					} else {
-						ext := ""
-						switch parseMediaType(http.DetectContentType(img.Data)) {
-						case "image/png":
-							ext = ".png"
-						case "image/jpeg":
-							ext = ".jpg"
-						case "image/gif":
-							ext = ".gif"
-						case "image/webp":
-							ext = ".webp"
-						}
-						if ext == "" {
-							entry["error"] = "仅支持PNG、JPEG、GIF或WebP图片"
+						downloaded += len(img.Data)
+						if total+len(img.Data) > 20<<20 {
+							entry["error"] = "图片超过单页12张／20MiB上限，请单独上传"
 						} else {
-							name := fmt.Sprintf("%s_web_%d%s", stem, count, ext)
-							if err = os.WriteFile(filepath.Join(directory, name), img.Data, 0600); err != nil {
-								entry["error"] = "图片快照保存失败"
+							ext := ""
+							switch parseMediaType(http.DetectContentType(img.Data)) {
+							case "image/png":
+								ext = ".png"
+							case "image/jpeg":
+								ext = ".jpg"
+							case "image/gif":
+								ext = ".gif"
+							case "image/webp":
+								ext = ".webp"
+							}
+							if ext == "" {
+								entry["error"] = "仅支持PNG、JPEG、GIF或WebP图片"
 							} else {
-								entry["path"] = name
-								total += len(img.Data)
+								count++
+								name := fmt.Sprintf("%s_web_%d%s", stem, count, ext)
+								if err = os.WriteFile(filepath.Join(directory, name), img.Data, 0600); err != nil {
+									entry["error"] = "图片快照保存失败"
+								} else {
+									entry["path"] = name
+									total += len(img.Data)
+								}
 							}
 						}
 					}
 				}
 			}
 		}
-		for child := n.FirstChild; child != nil; child = child.NextSibling {
-			walk(child)
-		}
 	}
-	walk(root)
 	data, _ := json.Marshal(manifest)
 	return os.WriteFile(filepath.Join(directory, stem+"_images.json"), data, 0600)
 }

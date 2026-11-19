@@ -1,8 +1,10 @@
 package learning
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
 	"github.com/122Ml/HaJi_Mark/backend/internal/rag"
@@ -11,6 +13,15 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
+
+func canonicalPaperJSON(raw json.RawMessage) ([]byte, bool) {
+	var p rag.PaperOutput
+	if len(bytes.TrimSpace(raw)) == 0 || json.Unmarshal(raw, &p) != nil {
+		return nil, false
+	}
+	norm, err := json.Marshal(p)
+	return norm, err == nil
+}
 
 func (h *Handler) adoptPaper(c *gin.Context) {
 	var in struct {
@@ -42,7 +53,29 @@ func (h *Handler) adoptPaper(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
+	for i := range in.Questions {
+		item := &in.Questions[i]
+		item.Title = strings.TrimSpace(item.Title)
+		item.Prompt = strings.TrimSpace(item.Prompt)
+		item.ReferenceAnswer = strings.TrimSpace(item.ReferenceAnswer)
+		item.CorrectAnswer = strings.TrimSpace(item.CorrectAnswer)
+		for j := range item.Options {
+			item.Options[j] = strings.TrimSpace(item.Options[j])
+		}
+	}
 	if old, err := q.DecisionByJob(ctx, store.DecisionByJobParams{CourseID: j.CourseID, Kind: "paper_adopt", JobID: j.ID}); err == nil {
+		var prev struct {
+			Adopted json.RawMessage `json:"adopted"`
+		}
+		if json.Unmarshal(old.Inputs, &prev) == nil {
+			prevNorm, ok1 := canonicalPaperJSON(prev.Adopted)
+			curRaw, _ := json.Marshal(in.PaperOutput)
+			curNorm, ok2 := canonicalPaperJSON(curRaw)
+			if ok1 && ok2 && !bytes.Equal(prevNorm, curNorm) {
+				identity.Fail(c, 409, "duplicate_adopt", "该拆题任务已采纳，不能以不同内容重复入库")
+				return
+			}
+		}
 		result(c, json.RawMessage(old.Output), nil)
 		return
 	} else if !errors.Is(err, pgx.ErrNoRows) {
@@ -84,6 +117,10 @@ func (h *Handler) adoptPaper(c *gin.Context) {
 	}
 	versions := []store.BankQuestionVersion{}
 	for _, v := range in.Questions {
+		if len(v.ReferenceAnswer) > 30000 || strings.ContainsRune(v.ReferenceAnswer, '\x00') {
+			invalid(c, "参考解答过长或包含非法字符")
+			return
+		}
 		options := []string{}
 		correctAnswer := ""
 		if v.Type == "quiz" {

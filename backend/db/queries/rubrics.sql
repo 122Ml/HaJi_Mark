@@ -1,5 +1,7 @@
 -- name: ListRubricVersions :many
-SELECT * FROM rubric_versions WHERE question_id=$1 OR id=(SELECT bound_rubric_id FROM questions WHERE id=$1) ORDER BY version DESC;
+SELECT id,question_id,version,criteria,state,created_by,created_at,confirmed_at,bank_question_version_id,evidence_refs,
+ CASE WHEN bank_question_version_id IS NOT NULL THEN 'bank'::text ELSE 'assignment'::text END AS origin
+FROM rubric_versions WHERE question_id=$1 OR id=(SELECT bound_rubric_id FROM questions WHERE id=$1) ORDER BY version DESC;
 
 -- name: GetRubricVersion :one
 SELECT * FROM rubric_versions WHERE id=$1;

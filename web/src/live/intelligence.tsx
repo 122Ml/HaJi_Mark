@@ -586,11 +586,17 @@ export function DiagnosisPanel({
 }
 
 function DiagnosisLabels() {
+  const { course } = useLearning();
   const labels = useLiveQuery<{ built_in: Label[]; custom: Label[] }>(
     "/diagnosis-labels",
   );
   const action = useAction();
+  const clearError = action.clearError;
   const [title, setTitle] = useState("");
+  useEffect(() => {
+    setTitle("");
+    clearError();
+  }, [course?.id, clearError]);
   return (
     <Collapse
       size="small"

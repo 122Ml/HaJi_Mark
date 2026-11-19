@@ -27,6 +27,27 @@ func isDBInfraError(err error) bool {
 	return errors.As(err, &pgErr) || errors.As(err, &netErr) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, pgx.ErrTxClosed) || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF)
 }
 
+func samePointScores(raw json.RawMessage, in []pointScore) bool {
+	var oldPoints []pointFeedback
+	if json.Unmarshal(raw, &oldPoints) != nil || len(oldPoints) != len(in) {
+		return false
+	}
+	byID := make(map[string]pointScore, len(in))
+	for _, p := range in {
+		if _, dup := byID[p.CriterionID]; dup {
+			return false
+		}
+		byID[p.CriterionID] = p
+	}
+	for _, op := range oldPoints {
+		p, ok := byID[op.CriterionID]
+		if !ok || op.Score != p.Score || op.Feedback != p.Feedback || op.Quote != p.Quote {
+			return false
+		}
+	}
+	return true
+}
+
 func (h *Handler) grade(c *gin.Context) {
 	var in struct {
 		Score     int32        `json:"score"`
@@ -93,6 +114,20 @@ func (h *Handler) grade(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
+	actorID := identity.Current(c).ID
+	old, e := q.GetRevisionByRequest(ctx, store.GetRevisionByRequestParams{ReviewerID: actorID, RequestID: in.RequestID})
+	if e == nil {
+		if old.SubmissionID != s.ID || old.Score != in.Score || old.Feedback != in.Feedback || old.RubricID.String != in.RubricID || old.AiJobID.String != in.AIJobID || !samePointScores(old.PointScores, in.Points) {
+			identity.Fail(c, 409, "request_conflict", "相同请求号不能改变评分")
+			return
+		}
+		result(c, old, nil)
+		return
+	}
+	if !errors.Is(e, pgx.ErrNoRows) {
+		result(c, nil, e)
+		return
+	}
 	raw := []byte("[]")
 	if in.RubricID != "" {
 		var total int32
@@ -121,30 +156,6 @@ func (h *Handler) grade(c *gin.Context) {
 			invalid(c, "逐点给分必须指定标准版本")
 			return
 		}
-	}
-	actorID := identity.Current(c).ID
-	old, e := q.GetRevisionByRequest(ctx, store.GetRevisionByRequestParams{ReviewerID: actorID, RequestID: in.RequestID})
-	if e == nil {
-		var oldPoints []pointFeedback
-		if e = json.Unmarshal(old.PointScores, &oldPoints); e != nil {
-			result(c, nil, e)
-			return
-		}
-		canonical, err := json.Marshal(oldPoints)
-		if err != nil {
-			result(c, nil, err)
-			return
-		}
-		if old.SubmissionID != s.ID || old.Score != in.Score || old.Feedback != in.Feedback || old.RubricID.String != in.RubricID || old.AiJobID.String != in.AIJobID || !bytes.Equal(canonical, raw) {
-			identity.Fail(c, 409, "request_conflict", "相同请求号不能改变评分")
-			return
-		}
-		result(c, old, nil)
-		return
-	}
-	if !errors.Is(e, pgx.ErrNoRows) {
-		result(c, nil, e)
-		return
 	}
 	revision, e := q.NextBusinessRevision(ctx, s.ID)
 	if e != nil {
@@ -465,6 +476,53 @@ func (h *Handler) interventionState(c *gin.Context) {
 		identity.Fail(c, 409, "state_conflict", "任务状态已改变")
 		return
 	}
+	if teacher(c) && in.State == "assigned" {
+		if item.ResourceID.Valid {
+			res, err := q.GetBusinessResource(ctx, item.ResourceID.String)
+			if err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					identity.Fail(c, 409, "stale_target", "关联资料已不存在，无法分配任务")
+					return
+				}
+				result(c, nil, err)
+				return
+			}
+			if res.CourseID != item.CourseID || res.Status != "published" {
+				identity.Fail(c, 409, "stale_target", "关联资料已归档或未发布，无法分配任务")
+				return
+			}
+		}
+		if item.AssignmentID.Valid {
+			asg, err := q.GetBusinessAssignment(ctx, item.AssignmentID.String)
+			if err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					identity.Fail(c, 409, "stale_target", "关联补练作业已不存在，无法分配任务")
+					return
+				}
+				result(c, nil, err)
+				return
+			}
+			if asg.CourseID != item.CourseID || asg.Status != "published" {
+				identity.Fail(c, 409, "stale_target", "关联补练作业已关闭或未发布，无法分配任务")
+				return
+			}
+		}
+		if item.DiagnosisReportID.Valid {
+			rep, err := q.IntelligenceReport(ctx, store.IntelligenceReportParams{ID: item.DiagnosisReportID.String, CourseID: item.CourseID})
+			if err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					identity.Fail(c, 409, "stale_target", "关联诊断报告已不存在，无法分配任务")
+					return
+				}
+				result(c, nil, err)
+				return
+			}
+			if rep.State != "confirmed" || rep.JobState != "succeeded" {
+				identity.Fail(c, 409, "stale_target", "关联诊断报告未确认或无效，无法分配任务")
+				return
+			}
+		}
+	}
 	if !teacher(c) && in.State == "submitted" {
 		if item.ResourceID.Valid {
 			ok, e := q.HasInterventionLearning(ctx, store.HasInterventionLearningParams{ActorID: item.StudentID, ResourceID: item.ResourceID, OccurredAt: item.AssignedAt})
@@ -533,12 +591,18 @@ func (h *Handler) createInteraction(c *gin.Context) {
 		invalid(c, "内容不能为空且不超过30000字节，标题不超过500字节")
 		return
 	}
+	evidenceRefs := []byte("[]")
 	if trimmed := bytes.TrimSpace(in.EvidenceRefs); len(trimmed) > 0 && string(trimmed) != "null" {
+		if len(trimmed) > 100000 || strings.ContainsRune(string(trimmed), '\x00') {
+			invalid(c, "evidence_refs 过大或包含非法字符")
+			return
+		}
 		var refs []json.RawMessage
 		if json.Unmarshal(trimmed, &refs) != nil {
 			invalid(c, "evidence_refs 必须是有效的 JSON 数组")
 			return
 		}
+		evidenceRefs = trimmed
 	}
 	if !teacher(c) && (in.Kind == "announcement" || in.Kind == "discussion") {
 		identity.Fail(c, 403, "forbidden", "无权发布该类型内容")
@@ -565,6 +629,15 @@ func (h *Handler) createInteraction(c *gin.Context) {
 		invalid(c, "只有回复可以关联原帖")
 		return
 	}
-	v, e := h.q.CreateBusinessInteraction(c.Request.Context(), store.CreateBusinessInteractionParams{ID: uuid.NewString(), CourseID: c.Param("courseID"), ActorID: identity.Current(c).ID, Kind: in.Kind, Title: in.Title, Content: in.Content, ParentID: text(in.ParentID)})
+	v, e := h.q.CreateBusinessInteraction(c.Request.Context(), store.CreateBusinessInteractionParams{
+		ID:           uuid.NewString(),
+		CourseID:     c.Param("courseID"),
+		ActorID:      identity.Current(c).ID,
+		Kind:         in.Kind,
+		Title:        in.Title,
+		Content:      in.Content,
+		ParentID:     text(in.ParentID),
+		EvidenceRefs: evidenceRefs,
+	})
 	result(c, v, e)
 }

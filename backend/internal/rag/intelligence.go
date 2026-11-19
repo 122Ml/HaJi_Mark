@@ -164,6 +164,7 @@ func ValidateIntelligence(kind string, in IntelligenceInput, out IntelligenceOut
 	labels := map[string]string{}
 	covered := map[string]bool{}
 	usedLabels := map[string]bool{}
+	usedTitles := map[string]bool{}
 	for _, a := range in.Answers {
 		answers[a.SubmissionID] = a
 	}
@@ -171,7 +172,10 @@ func ValidateIntelligence(kind string, in IntelligenceInput, out IntelligenceOut
 		labels[l.ID] = l.Title
 	}
 	for _, f := range out.Findings {
-		if strings.TrimSpace(f.Title) == "" || len(f.Title) > 180 || strings.TrimSpace(f.Explanation) == "" || len(f.Explanation) > 3000 || len(f.Evidence) == 0 || len(f.Evidence) > len(in.Answers) {
+		trimmedTitle := strings.TrimSpace(f.Title)
+		if trimmedTitle == "" || len(f.Title) > 180 || strings.ContainsRune(f.Title, '\x00') ||
+			strings.TrimSpace(f.Explanation) == "" || len(f.Explanation) > 3000 || strings.ContainsRune(f.Explanation, '\x00') ||
+			len(f.Evidence) == 0 || len(f.Evidence) > len(in.Answers) {
 			return errors.New("每项诊断须有标签、说明和作答原句")
 		}
 		if f.LabelID != "" && labels[f.LabelID] != f.Title {
@@ -180,9 +184,14 @@ func ValidateIntelligence(kind string, in IntelligenceInput, out IntelligenceOut
 		if confirmed && f.LabelID == "" {
 			return errors.New("新标签须先由教师明确建立，再确认诊断")
 		}
+		lowerTitle := strings.ToLower(trimmedTitle)
+		if usedTitles[lowerTitle] {
+			return errors.New("重复诊断标签请合并")
+		}
+		usedTitles[lowerTitle] = true
 		key := f.LabelID
 		if key == "" {
-			key = "new:" + f.Title
+			key = "new:" + lowerTitle
 		}
 		if usedLabels[key] {
 			return errors.New("重复诊断标签请合并")
@@ -191,7 +200,10 @@ func ValidateIntelligence(kind string, in IntelligenceInput, out IntelligenceOut
 		seen := map[string]bool{}
 		for _, e := range f.Evidence {
 			a, ok := answers[e.SubmissionID]
-			if !ok || seen[e.SubmissionID] || strings.TrimSpace(e.Quote) == "" || len(e.Quote) > 3000 || !strings.Contains(a.Answer, e.Quote) {
+			normAnswer := strings.ReplaceAll(strings.ReplaceAll(a.Answer, "\r\n", "\n"), "\r", "\n")
+			normQuote := strings.ReplaceAll(strings.ReplaceAll(e.Quote, "\r\n", "\n"), "\r", "\n")
+			if !ok || seen[e.SubmissionID] || strings.TrimSpace(e.Quote) == "" || len(e.Quote) > 3000 ||
+				strings.ContainsRune(e.Quote, '\x00') || !strings.Contains(normAnswer, normQuote) {
 				return errors.New("诊断引用必须逐字来自本批对应作答，且同项不重复计人")
 			}
 			seen[e.SubmissionID] = true
@@ -231,6 +243,22 @@ func (s *Service) Intelligence(ctx context.Context, j store.ProcessingJob, job J
 		var input map[string]any
 		if e = json.Unmarshal(r.Input, &input); e != nil {
 			return nil, e
+		}
+		// Strip redundant raw answer text from model payload since evidence_spans carries the grounded snippets.
+		if rawAns, ok := input["answers"].([]any); ok {
+			compact := make([]map[string]any, 0, len(rawAns))
+			for _, item := range rawAns {
+				if m, ok := item.(map[string]any); ok {
+					cp := make(map[string]any, len(m))
+					for k, v := range m {
+						if k != "answer" {
+							cp[k] = v
+						}
+					}
+					compact = append(compact, cp)
+				}
+			}
+			input["answers"] = compact
 		}
 		input["evidence_spans"] = spans
 		encoded, _ := json.Marshal(input)

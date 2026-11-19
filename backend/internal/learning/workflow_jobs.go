@@ -1,6 +1,7 @@
 package learning
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 
@@ -10,6 +11,75 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
 )
+
+func collectLineage(startID string, parentOf map[string]string, childrenOf map[string][]string) []string {
+	if startID == "" {
+		return []string{}
+	}
+	seen := map[string]bool{startID: true}
+	out := []string{startID}
+	cur := startID
+	for len(seen) < 64 {
+		parent := parentOf[cur]
+		if parent == "" || seen[parent] {
+			break
+		}
+		seen[parent] = true
+		out = append(out, parent)
+		cur = parent
+	}
+	queue := append([]string{}, out...)
+	for len(queue) > 0 && len(seen) < 64 {
+		id := queue[0]
+		queue = queue[1:]
+		for _, child := range childrenOf[id] {
+			if !seen[child] {
+				seen[child] = true
+				out = append(out, child)
+				queue = append(queue, child)
+			}
+		}
+	}
+	return out
+}
+
+func sourceLineageIDs(ctx context.Context, q *store.Queries, course, sourceID string) ([]string, []store.ListMaterialSourcesRow, error) {
+	sources, err := q.ListMaterialSources(ctx, course)
+	if err != nil {
+		return nil, nil, err
+	}
+	if sourceID == "" {
+		return []string{}, sources, nil
+	}
+	parentOf := make(map[string]string, len(sources))
+	childrenOf := make(map[string][]string)
+	for _, s := range sources {
+		if s.SupersedesID.Valid && s.SupersedesID.String != "" {
+			parentOf[s.ID] = s.SupersedesID.String
+			childrenOf[s.SupersedesID.String] = append(childrenOf[s.SupersedesID.String], s.ID)
+		}
+	}
+	return collectLineage(sourceID, parentOf, childrenOf), sources, nil
+}
+
+func knowledgeLineageIDs(ctx context.Context, q *store.Queries, course, knowledgeID string) ([]string, []store.KnowledgeEntry, error) {
+	entries, err := q.ListKnowledgeEntries(ctx, store.ListKnowledgeEntriesParams{CourseID: course, Teacher: true})
+	if err != nil {
+		return nil, nil, err
+	}
+	if knowledgeID == "" {
+		return []string{}, entries, nil
+	}
+	parentOf := make(map[string]string, len(entries))
+	childrenOf := make(map[string][]string)
+	for _, k := range entries {
+		if k.SupersedesID.Valid && k.SupersedesID.String != "" {
+			parentOf[k.ID] = k.SupersedesID.String
+			childrenOf[k.SupersedesID.String] = append(childrenOf[k.SupersedesID.String], k.ID)
+		}
+	}
+	return collectLineage(knowledgeID, parentOf, childrenOf), entries, nil
+}
 
 func (h *Handler) createWorkflowJob(c *gin.Context, kind string, in rag.JobInput) {
 	ctx := c.Request.Context()
@@ -115,24 +185,29 @@ func (h *Handler) impact(c *gin.Context) {
 			return
 		}
 	}
+	srcIDs, sources, e := sourceLineageIDs(ctx, h.q, course, srcID)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	kIDs, knowledge, e := knowledgeLineageIDs(ctx, h.q, course, kID)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
 	rows := []store.ContentImpactRow{}
 	if srcID != "" || kID != "" {
-		var e error
-		rows, e = h.q.ContentImpact(ctx, store.ContentImpactParams{CourseID: course, SourceID: srcID, KnowledgeID: kID})
+		if srcIDs == nil {
+			srcIDs = []string{}
+		}
+		if kIDs == nil {
+			kIDs = []string{}
+		}
+		rows, e = h.q.ContentImpact(ctx, store.ContentImpactParams{CourseID: course, SourceIds: srcIDs, KnowledgeIds: kIDs})
 		if e != nil {
 			result(c, nil, e)
 			return
 		}
-	}
-	sources, e := h.q.ListMaterialSources(ctx, course)
-	if e != nil {
-		result(c, nil, e)
-		return
-	}
-	knowledge, e := h.q.ListKnowledgeEntries(ctx, store.ListKnowledgeEntriesParams{CourseID: course, Teacher: true})
-	if e != nil {
-		result(c, nil, e)
-		return
 	}
 	derivedSources := map[string]bool{}
 	for _, k := range knowledge {
@@ -184,29 +259,31 @@ func (h *Handler) impactDecision(c *gin.Context) {
 	}
 	defer tx.Rollback(ctx)
 	q := h.q.WithTx(tx)
-	params := store.ContentImpactParams{CourseID: c.Param("courseID")}
-	// A new version's impact refers to consumers of its predecessor, matching
-	// the displayed preview. Keep the decision itself attached to the new version.
+	params := store.ContentImpactParams{CourseID: c.Param("courseID"), SourceIds: []string{}, KnowledgeIds: []string{}}
+	// Walk the full supersedes lineage so consumers of either predecessors or successors
+	// are captured in the frozen impact snapshot.
 	if in.Kind == "source" {
-		src, err := q.LockMaterialSource(ctx, store.LockMaterialSourceParams{ID: in.ID, CourseID: params.CourseID})
+		if _, err := q.LockMaterialSource(ctx, store.LockMaterialSourceParams{ID: in.ID, CourseID: params.CourseID}); err != nil {
+			result(c, nil, err)
+			return
+		}
+		ids, _, err := sourceLineageIDs(ctx, q, params.CourseID, in.ID)
 		if err != nil {
 			result(c, nil, err)
 			return
 		}
-		params.SourceID = src.ID
-		if src.SupersedesID.Valid {
-			params.SourceID = src.SupersedesID.String
-		}
+		params.SourceIds = ids
 	} else {
-		k, err := q.LockKnowledgeEntry(ctx, store.LockKnowledgeEntryParams{ID: in.ID, CourseID: params.CourseID})
+		if _, err := q.LockKnowledgeEntry(ctx, store.LockKnowledgeEntryParams{ID: in.ID, CourseID: params.CourseID}); err != nil {
+			result(c, nil, err)
+			return
+		}
+		ids, _, err := knowledgeLineageIDs(ctx, q, params.CourseID, in.ID)
 		if err != nil {
 			result(c, nil, err)
 			return
 		}
-		params.KnowledgeID = k.ID
-		if k.SupersedesID.Valid {
-			params.KnowledgeID = k.SupersedesID.String
-		}
+		params.KnowledgeIds = ids
 	}
 	snapshot, e := q.ContentImpact(ctx, params)
 	if e != nil {

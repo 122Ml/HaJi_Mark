@@ -19,6 +19,7 @@ func (h *Handler) registerMaterialWorkflows(g *gin.RouterGroup, auth *identity.H
 	t.GET("/topics", h.topics)
 	t.POST("/topics", auth.RequireCSRF(), h.saveTopic)
 	t.PUT("/topics/:topicID", auth.RequireCSRF(), h.saveTopic)
+	t.DELETE("/topics/:topicID", auth.RequireCSRF(), h.deleteTopic)
 	t.PUT("/content-links", auth.RequireCSRF(), h.contentLinks)
 	t.GET("/decisions", h.decisions)
 	t.GET("/question-bank/search", h.searchBank)
@@ -102,6 +103,32 @@ func (h *Handler) saveTopic(c *gin.Context) {
 		return
 	}
 	result(c, v, e)
+}
+
+func (h *Handler) deleteTopic(c *gin.Context) {
+	ctx := c.Request.Context()
+	courseID := c.Param("courseID")
+	topicID := c.Param("topicID")
+	tx, e := h.db.Begin(ctx)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	defer tx.Rollback(ctx)
+	q := h.q.WithTx(tx)
+	if _, e = q.GetTopicByID(ctx, store.GetTopicByIDParams{ID: topicID, CourseID: courseID}); e != nil {
+		result(c, nil, e)
+		return
+	}
+	if e = q.DeleteTopicLinksByTopic(ctx, topicID); e != nil {
+		result(c, nil, e)
+		return
+	}
+	id, e := q.DeleteTopic(ctx, store.DeleteTopicParams{ID: topicID, CourseID: courseID})
+	if e == nil {
+		e = tx.Commit(ctx)
+	}
+	result(c, gin.H{"deleted": id}, e)
 }
 
 func (h *Handler) validateContentObject(ctx context.Context, q *store.Queries, course, kind, id string) error {

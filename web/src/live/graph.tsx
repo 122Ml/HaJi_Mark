@@ -14,9 +14,9 @@ import {
   Tag,
   Typography,
 } from "antd";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSession } from "../shared/session";
-import { Feedback, useAction, useLiveQuery } from "./context";
+import { Feedback, useAction, useLearning, useLiveQuery } from "./context";
 import { EmptyState, ErrorState, LoadingState, MetaTag, MetaTags } from "../shared/ui";
 import type { Point } from "./types";
 
@@ -199,6 +199,7 @@ function reachableSet(startID: string, adjacency: Map<string, string[]>): Set<st
 
 export function KnowledgeGraph() {
   const confirm = useConfirm();
+  const { course } = useLearning();
   const query = useLiveQuery<{
     nodes: Point[];
     edges: Edge[];
@@ -213,6 +214,15 @@ export function KnowledgeGraph() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [formError, setFormError] = useState("");
+
+  useEffect(() => {
+    setSelectedID("");
+    setSearch("");
+    setOnlyLinked(false);
+    setFrom("");
+    setTo("");
+    setFormError("");
+  }, [course?.id]);
 
   const allNodes = useMemo(
     () => (query.data?.nodes || []).filter((p) => p.kind === "point"),

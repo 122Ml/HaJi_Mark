@@ -156,6 +156,8 @@ func (h *Handler) cropAsset(c *gin.Context) {
 	if loc == nil {
 		loc = map[string]any{}
 	}
+	delete(loc, "asset_revision_id")
+	delete(loc, "transcription")
 	loc["parent_asset_id"] = a.ID
 	loc["crop"] = []float64{in.X, in.Y, in.Width, in.Height}
 	loc["asset_id"] = id
@@ -165,11 +167,18 @@ func (h *Handler) cropAsset(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
+	fragMap := make(map[string]string, len(fs))
 	for _, f := range fs {
-		if _, e = q.InsertMaterialFragment(ctx, store.InsertMaterialFragmentParams{ID: uuid.NewString(), SourceID: s.ID, Revision: s.ParseRevision + 1, Position: f.Position, Heading: f.Heading, Body: f.Body, Locator: f.Locator, Quality: f.Quality}); e != nil {
-			result(c, nil, e)
+		nf, err := q.InsertMaterialFragment(ctx, store.InsertMaterialFragmentParams{ID: uuid.NewString(), SourceID: s.ID, Revision: s.ParseRevision + 1, Position: f.Position, Heading: f.Heading, Body: f.Body, Locator: f.Locator, Quality: f.Quality})
+		if err != nil {
+			result(c, nil, err)
 			return
 		}
+		fragMap[f.ID] = nf.ID
+	}
+	if e = carryForwardContentSections(ctx, q, s.CourseID, s.ID, s.ParseRevision, s.ParseRevision+1, fragMap); e != nil {
+		result(c, nil, e)
+		return
 	}
 	fragment, e := q.InsertMaterialFragment(ctx, store.InsertMaterialFragmentParams{ID: uuid.NewString(), SourceID: s.ID, Revision: s.ParseRevision + 1, Position: int32(len(fs)), Heading: "裁剪区域", Body: "[图文资产待核对]", Locator: raw, Quality: "needs_review"})
 	if e != nil {
@@ -191,7 +200,15 @@ func (h *Handler) cropAsset(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
+	jobID, e := rag.QueueIndexID(ctx, q, s.CourseID, identity.Current(c).ID)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
 	e = tx.Commit(ctx)
 	committed = e == nil
+	if e == nil {
+		h.enqueueIndex(jobID)
+	}
 	result(c, asset, e)
 }

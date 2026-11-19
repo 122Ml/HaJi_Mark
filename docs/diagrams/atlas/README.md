@@ -68,7 +68,7 @@ F02 将教师和学生拆为两个概念角色：教师关联授课、人工复�
 
 ```powershell
 python -B docs/diagrams/atlas/generate.py
-$env:NODE_PATH='C:/Users/23396/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules'
+$env:NODE_PATH = (npm root -g)
 node docs/diagrams/atlas/render.cjs
 python -B scripts/check_docs.py
 ```

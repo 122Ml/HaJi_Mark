@@ -98,10 +98,12 @@ pwsh -File scripts/smoke.ps1
 python scripts/check-platform.py          # 创建有明确标签的测试课程，保留记录
 python scripts/check-platform.py --resume # 用上次ID复查持久化
 python scripts/backup.py --verify-restore # 本地备份＋独立临时数据库恢复演练
+python scripts/api-inventory.py --check   # 校验 167 项 API 清单与源码一致
+node scripts/check-frontend-ui.cjs        # Ant Design 复用率与未使用声明静态检查
 python scripts/check_docs.py
 ```
 
-真实数据库 Go 测试、浏览器双会话验收与恢复命令见 [开发说明](docs/development.md)，实际运行记录见 [验证记录](docs/verification.md)。测试凭据、备份和日志均留在被忽略的 `.local`，勿上传。
+真实数据库 Go 测试、浏览器双会话验收与恢复命令见 [开发说明](docs/development.md)，全部文档索引见 [文档总览](docs/README.md)，实际运行记录见 [验证记录](docs/verification.md)。测试凭据、备份和日志均留在被忽略的 `.local`，勿上传。
 
 ## 协作与课程材料
 

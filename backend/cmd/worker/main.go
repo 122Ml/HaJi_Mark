@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/122Ml/HaJi_Mark/backend/internal/platform"
@@ -13,29 +15,57 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func main() {
-	config := platform.LoadConfig()
-	worker := asynq.NewServer(asynq.RedisClientOpt{Addr: config.RedisAddr}, asynq.Config{Concurrency: config.WorkerConcurrency})
-	mux := asynq.NewServeMux()
+func run() error {
+	config, err := platform.LoadConfigStrict()
+	if err != nil {
+		return err
+	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	if rag.Enabled() {
-		db, err := pgxpool.New(ctx, config.DatabaseURL)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer db.Close()
-		models, err := rag.LoadModels(db)
-		if err != nil {
-			log.Fatalf("invalid model profiles: %v", err)
-		}
-		service := rag.New(models)
-		defer service.Close()
-		rag.RegisterWorker(mux, service)
-		go service.Recover(ctx)
+	if !rag.Enabled() {
+		log.Printf("worker idle (RAG disabled)")
+		<-ctx.Done()
+		return nil
 	}
+	poolCfg, err := pgxpool.ParseConfig(config.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	poolCfg.MaxConns = 8
+	poolCfg.MinConns = 1
+	db, err := pgxpool.NewWithConfig(ctx, poolCfg)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	models, err := rag.LoadModels(db)
+	if err != nil {
+		return fmt.Errorf("invalid model profiles: %w", err)
+	}
+	service := rag.New(models)
+	defer service.Close()
+
+	worker := asynq.NewServer(asynq.RedisClientOpt{Addr: config.RedisAddr}, asynq.Config{Concurrency: config.WorkerConcurrency})
+	mux := asynq.NewServeMux()
+	rag.RegisterWorker(mux, service)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		service.Recover(ctx)
+	}()
+
 	log.Printf("worker ready (concurrency=%d)", config.WorkerConcurrency)
-	if err := worker.Run(mux); err != nil {
-		log.Fatal(err)
+	err = worker.Run(mux)
+	cancel()
+	wg.Wait()
+	return err
+}
+
+func main() {
+	if err := run(); err != nil {
+		log.Print(err)
+		os.Exit(1)
 	}
 }

@@ -47,9 +47,16 @@ SELECT c.* FROM agent_conversations c JOIN agent_runs r ON r.conversation_id=c.i
 SELECT id,conversation_id,request_id,state,error,cancel_requested,created_at,updated_at FROM agent_runs WHERE conversation_id=$1 ORDER BY created_at DESC,id DESC LIMIT 30;
 
 -- name: ListReadyAgentRuns :many
-SELECT a.id FROM agent_runs a WHERE state IN ('queued','running','waiting_job') OR
- (state IN ('waiting_input','waiting_approval') AND EXISTS(SELECT 1 FROM agent_requests r WHERE r.run_id=a.id AND r.state='pending' AND r.expires_at<=now()))
- ORDER BY CASE WHEN state='waiting_job' THEN 1 ELSE 0 END, updated_at, a.id LIMIT 16;
+SELECT id FROM (
+  (SELECT a.id, a.updated_at FROM agent_runs a WHERE a.state IN ('queued','running') ORDER BY a.updated_at, a.id LIMIT 16)
+  UNION ALL
+  (SELECT a.id, a.updated_at FROM agent_runs a WHERE a.state='waiting_job' AND a.updated_at <= now() - interval '3 seconds' ORDER BY a.updated_at, a.id LIMIT 16)
+  UNION ALL
+  (SELECT a.id, a.updated_at FROM agent_runs a WHERE a.state IN ('waiting_input','waiting_approval') AND EXISTS(SELECT 1 FROM agent_requests r WHERE r.run_id=a.id AND r.state='pending' AND r.expires_at<=now()) ORDER BY a.updated_at, a.id LIMIT 16)
+) ready ORDER BY updated_at, id LIMIT 24;
+
+-- name: LockConversationEvents :exec
+SELECT pg_advisory_xact_lock(hashtextextended(sqlc.arg(lock_key)::text, 137));
 
 -- name: TouchAgentRun :exec
 UPDATE agent_runs SET updated_at=now() WHERE id=$1;

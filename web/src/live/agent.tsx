@@ -37,6 +37,7 @@ import { Link, useLearning, uuid } from "./context";
 import type { BusinessContext } from "./context-agent";
 import { jobKindLabels, labelFor } from "./domain-meta";
 import { DraftNotice, useEditorDraft } from "./editing";
+import { utf8ByteLength } from "./validation";
 import "./agent.css";
 
 type Conversation = {
@@ -162,10 +163,6 @@ const CONTEXT_KIND_LABELS: Record<string, string> = {
 };
 
 const VERIFIED_CONTEXT_MARKER = "当前业务对象（服务端已核验访问权限";
-
-function utf8Bytes(text: string): number {
-  return new TextEncoder().encode(text).length;
-}
 
 function getFileExtension(name: string): string {
   const dot = name.lastIndexOf(".");
@@ -561,7 +558,7 @@ function RequestCard({
                         validator: async (_: unknown, val: unknown) => {
                           if (
                             typeof val === "string" &&
-                            utf8Bytes(val) > 10000
+                            utf8ByteLength(val) > 10000
                           ) {
                             throw new Error("内容不能超过 10000 字节");
                           }
@@ -1059,6 +1056,20 @@ export function AgentPage({
     turn: number;
     text: string;
   } | null>(null);
+  const liveStreamRef = useRef<{
+    conversationID: string;
+    turn: number;
+    text: string;
+  } | null>(null);
+  const updateLiveStream = useCallback(
+    (
+      next: { conversationID: string; turn: number; text: string } | null,
+    ) => {
+      liveStreamRef.current = next;
+      setLiveStream(next);
+    },
+    [],
+  );
   const [liveStage, setLiveStage] = useState<{
     conversationID: string;
     label: string;
@@ -1187,7 +1198,7 @@ export function AgentPage({
     !drafts.ready ||
     !courseID ||
     (!!conversationID && !current);
-  const bytes = utf8Bytes(composer.text);
+  const bytes = utf8ByteLength(composer.text);
   const allAttachments = snapshot.data?.attachments || [];
   const reusable = allAttachments.filter(
     (a) =>
@@ -1489,9 +1500,32 @@ export function AgentPage({
     setFollowing(true);
     anchor.current = null;
     setArchive({ key: "", pages: [] });
-    setLiveStream(null);
+    updateLiveStream(null);
     setLiveStage(null);
-  }, [scope, conversationID]);
+  }, [scope, conversationID, updateLiveStream]);
+
+  // Hydrate liveStream from snapshot so mid-turn reconnects resume delta streaming without polling fallback.
+  useEffect(() => {
+    const snap = latestSnapshot.data;
+    if (!snap || snap.conversation.id !== conversationID) return;
+    const activeRun = snap.runs.find((r) => r.state === "running");
+    if (!activeRun) return;
+    const serverText = activeRun.stream_text ?? "";
+    const turn = activeRun.stream_turn ?? 0;
+    const cur = liveStreamRef.current;
+    if (
+      !cur ||
+      cur.conversationID !== conversationID ||
+      cur.turn !== turn ||
+      utf8ByteLength(cur.text) < utf8ByteLength(serverText)
+    ) {
+      updateLiveStream({
+        conversationID,
+        turn,
+        text: serverText,
+      });
+    }
+  }, [latestSnapshot.data, conversationID, updateLiveStream]);
 
   useEffect(() => {
     setSearchInput("");
@@ -1534,28 +1568,37 @@ export function AgentPage({
   }, [snapshot.data, drafts.ready, composer.requestID, runs, draftKey]);
 
   // Track latest SSE event cursor per conversation so fresh streams never replay full history.
-  const lastEventIDRef = useRef<number>(0);
+  const convKey = `${scope}:${conversationID}`;
+  const lastEventIDRef = useRef<{ key: string; id: number }>({
+    key: "",
+    id: 0,
+  });
   const streamReady = Boolean(
     courseID &&
       conversationID &&
       latestSnapshot.data?.conversation.id === conversationID,
   );
   useEffect(() => {
+    if (lastEventIDRef.current.key !== convKey) {
+      lastEventIDRef.current = { key: convKey, id: 0 };
+    }
     if (latestSnapshot.data?.conversation.id === conversationID) {
       const serverCursor = latestSnapshot.data.latest_event_id ?? 0;
-      if (serverCursor > lastEventIDRef.current) {
-        lastEventIDRef.current = serverCursor;
+      if (serverCursor > lastEventIDRef.current.id) {
+        lastEventIDRef.current = { key: convKey, id: serverCursor };
       }
     }
-  }, [latestSnapshot.data?.latest_event_id, latestSnapshot.data?.conversation.id, conversationID]);
-
-  useEffect(() => {
-    lastEventIDRef.current = 0;
-  }, [scope, conversationID]);
+  }, [
+    convKey,
+    conversationID,
+    latestSnapshot.data?.conversation.id,
+    latestSnapshot.data?.latest_event_id,
+  ]);
 
   useEffect(() => {
     if (!streamReady) return;
-    const afterID = lastEventIDRef.current;
+    const afterID =
+      lastEventIDRef.current.key === convKey ? lastEventIDRef.current.id : 0;
     setStreamState("连接中");
     const stream = new EventSource(
       `/api/v1${prefix}/conversations/${conversationID}/events?after=${afterID}`,
@@ -1568,8 +1611,12 @@ export function AgentPage({
       const idStr = (e as MessageEvent).lastEventId;
       if (idStr) {
         const parsed = Number.parseInt(idStr, 10);
-        if (!Number.isNaN(parsed) && parsed > lastEventIDRef.current) {
-          lastEventIDRef.current = parsed;
+        if (
+          !Number.isNaN(parsed) &&
+          lastEventIDRef.current.key === convKey &&
+          parsed > lastEventIDRef.current.id
+        ) {
+          lastEventIDRef.current = { key: convKey, id: parsed };
         }
       }
     };
@@ -1588,13 +1635,33 @@ export function AgentPage({
         const payload = JSON.parse((e as MessageEvent).data || "{}") as {
           turn?: number;
           text?: string;
+          delta?: string;
+          offset?: number;
         };
+        const turn = payload.turn ?? 0;
         if (typeof payload.text === "string") {
-          setLiveStream({
+          updateLiveStream({
             conversationID,
-            turn: payload.turn ?? 0,
+            turn,
             text: payload.text,
           });
+        } else if (typeof payload.delta === "string") {
+          const cur = liveStreamRef.current;
+          if (
+            cur &&
+            cur.conversationID === conversationID &&
+            cur.turn === turn &&
+            typeof payload.offset === "number" &&
+            utf8ByteLength(cur.text) === payload.offset
+          ) {
+            updateLiveStream({
+              conversationID,
+              turn,
+              text: cur.text + payload.delta,
+            });
+          } else {
+            scheduleInvalidate(100);
+          }
         }
       } catch {
         // Ignore malformed chunk.
@@ -1613,7 +1680,7 @@ export function AgentPage({
         } else if (nextState === "running") {
           setLiveStage({ conversationID, label: "正在思考与执行…" });
         } else {
-          setLiveStream(null);
+          updateLiveStream(null);
           setLiveStage(null);
         }
       } catch {
@@ -1643,10 +1710,10 @@ export function AgentPage({
     const onStructural = (e: Event) => {
       recordCursor(e);
       if (e.type === "tool") {
-        setLiveStream(null);
+        updateLiveStream(null);
         scheduleInvalidate(250);
       } else if (e.type === "done") {
-        setLiveStream(null);
+        updateLiveStream(null);
         setLiveStage(null);
         void cache.invalidateQueries({ queryKey: ["live", courseID] });
         scheduleInvalidate(100);
@@ -1711,11 +1778,13 @@ export function AgentPage({
     };
   }, [
     streamReady,
+    convKey,
     prefix,
     conversationID,
     courseID,
     streamNonce,
     invalidate,
+    updateLiveStream,
     cache,
     refresh,
   ]);
@@ -2198,7 +2267,8 @@ export function AgentPage({
               if (
                 e.key === "Enter" &&
                 (e.ctrlKey || e.metaKey) &&
-                !e.nativeEvent.isComposing
+                !e.nativeEvent.isComposing &&
+                e.keyCode !== 229
               ) {
                 e.preventDefault();
                 void send();

@@ -16,11 +16,12 @@ x-backend: &backend
     RAG_ENABLED: 'true'
     AGENT_ENABLED: 'true'
     MATERIALS_DIR: /data/materials
+    TRUSTED_PROXIES: '127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16'
     GOMAXPROCS: '2'
     GOMEMLIMIT: 128MiB
   logging: *logging
   networks: [private]
-  mem_limit: 192m
+  mem_limit: 224m
 
 services:
   postgres:
@@ -87,9 +88,16 @@ services:
     environment:
       <<: *environment
       GOMEMLIMIT: 128MiB
+      WORKER_CONCURRENCY: '1'
       PARSER_SCRIPT: /app/tools/parser/parse.py
       OMP_NUM_THREADS: '1'
       OPENBLAS_NUM_THREADS: '1'
+    healthcheck:
+      test: [CMD-SHELL, 'test -e /proc/1/stat && grep -q worker /proc/1/comm || exit 1']
+      interval: 15s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
     depends_on:
       migrate: {condition: service_completed_successfully}
       redis: {condition: service_healthy}

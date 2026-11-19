@@ -28,6 +28,7 @@ interface SessionContext {
   session: Session | null;
   loading: boolean;
   error: string;
+  intentionalSignOut: boolean;
   login: (username: string, password: string) => Promise<Actor>;
   logout: () => Promise<void>;
   clearSession: () => void;
@@ -52,6 +53,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [intentionalSignOut, setIntentionalSignOut] = useState(false);
   const [revision, setRevision] = useState(0);
   const pendingRefresh = useRef<AbortController | null>(null);
   const actorID = useRef<string | null>(null);
@@ -68,6 +70,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     actorID.current = null;
     clearSessionDrafts();
     queryClient.clear();
+    setIntentionalSignOut(true);
     setSession(null);
     setError("");
     setLoading(false);
@@ -84,6 +87,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             queryClient.clear();
           }
           actorID.current = data.user.id;
+          setIntentionalSignOut(false);
           setSession(data);
           setError("");
         }
@@ -91,7 +95,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       .catch((err) => {
         if (controller.signal.aborted) return;
         if (err instanceof APIError && err.status === 401) {
+          if (actorID.current !== null) clearSessionDrafts();
           actorID.current = null;
+          setIntentionalSignOut(false);
           setSession(null);
           setError("");
           queryClient.clear();
@@ -106,6 +112,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return () => controller.abort();
   }, [revision, queryClient]);
   useEffect(() => {
+    const onFocus = () => {
+      if (sessionRef.current) refresh();
+    };
     const onVisibility = () => {
       if (document.visibilityState === "visible" && Date.now() - lastRefreshAt.current > 30_000) {
         refresh();
@@ -114,9 +123,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const onUnauthorized = () => {
       if (sessionRef.current) refresh();
     };
+    window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("haji:unauthorized", onUnauthorized);
     return () => {
+      window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("haji:unauthorized", onUnauthorized);
     };
@@ -130,6 +141,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (actorID.current && actorID.current !== data.user.id) clearSessionDrafts();
     actorID.current = data.user.id;
     queryClient.clear();
+    setIntentionalSignOut(false);
     setSession(data);
     setError("");
     setLoading(false);
@@ -148,8 +160,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     clearSession();
   }, [clearSession]);
   const value = useMemo(
-    () => ({ session, loading, error, login, logout, clearSession, refresh }),
-    [session, loading, error, login, logout, clearSession, refresh],
+    () => ({ session, loading, error, intentionalSignOut, login, logout, clearSession, refresh }),
+    [session, loading, error, intentionalSignOut, login, logout, clearSession, refresh],
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
@@ -168,7 +180,7 @@ export function RequireSession({
   role: "teacher" | "student";
   children: ReactNode;
 }) {
-  const { session, loading, error, refresh } = useSession();
+  const { session, loading, error, intentionalSignOut, refresh } = useSession();
   const location = useLocation();
   const navigate = useNavigate();
   if (loading)
@@ -184,6 +196,9 @@ export function RequireSession({
       </div>
     );
   if (!session) {
+    if (intentionalSignOut) {
+      return <Navigate replace to="/login" />;
+    }
     const from = `${location.pathname}${location.search}${location.hash}`;
     return <Navigate replace to="/login" state={{ from }} />;
   }

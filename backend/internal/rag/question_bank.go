@@ -73,8 +73,15 @@ func ValidateCriteria(points []Criterion, max int32, refs []Hit) error {
 	seen := map[string]bool{}
 	total := int32(0)
 	for _, p := range points {
-		if strings.TrimSpace(p.ID) == "" || len(p.ID) > 100 || seen[p.ID] || strings.TrimSpace(p.Title) == "" || len(p.Title) > 300 || strings.TrimSpace(p.Rule) == "" || len(p.Rule) > 5000 || p.MaxScore < 1 || p.MaxScore > max {
-			return errors.New("评分点编号须唯一，名称、规则和正数分值须完整")
+		id := strings.TrimSpace(p.ID)
+		title := strings.TrimSpace(p.Title)
+		rule := strings.TrimSpace(p.Rule)
+		if id == "" || len(id) > 100 || seen[id] || title == "" || len(title) > 300 || rule == "" || len(rule) > 5000 ||
+			p.MaxScore < 1 || p.MaxScore > max ||
+			strings.ContainsRune(p.ID, '\x00') || strings.ContainsRune(p.Title, '\x00') || strings.ContainsRune(p.Rule, '\x00') ||
+			strings.ContainsRune(p.Requirement, '\x00') || strings.ContainsRune(p.PartialCredit, '\x00') ||
+			strings.ContainsRune(p.AcceptableAnswers, '\x00') || strings.ContainsRune(p.ErrorConditions, '\x00') {
+			return errors.New("评分点编号须唯一，名称、规则和正数分值须完整且不含非法字符")
 		}
 		if len(p.Requirement)+len(p.PartialCredit)+len(p.AcceptableAnswers)+len(p.ErrorConditions) > 12000 {
 			return errors.New("评分规则说明过长")
@@ -86,7 +93,7 @@ func ValidateCriteria(points []Criterion, max int32, refs []Hit) error {
 			}
 			cited[id] = true
 		}
-		seen[p.ID] = true
+		seen[id] = true
 		total += p.MaxScore
 	}
 	if total != max {
@@ -162,10 +169,16 @@ func (s *Service) BankDraft(ctx context.Context, j store.ProcessingJob, in JobIn
 		if len(refs) == 0 {
 			return nil, errors.New("请先选择出题依据")
 		}
+		if in.Count < 1 || in.MaxScore < 1 {
+			return nil, errors.New("出题数量和满分须为正整数")
+		}
 		instruction = `仅按教师要求与所选依据出文本主观题，条件完整，不补造来源。返回 {"questions":[{"title":"","prompt":"","reference_answer":"","criteria":[` + criterionSchema + `]}],"review_status":"pending_teacher_review"}。题数等于count，每题标准正整数加和等于max_score。不得读取学生作答。`
 	case "question_analyze":
 		instruction = `分析题目的考查要求、条件歧义及与所选依据的关系，不静默改题。返回 {"requirements":["具体回答要求"],"issues":["歧义或缺项；无则空数组"],"associations":[{"evidence_id":"所选sources中的id","reason":"关联理由"}],"review_status":"pending_teacher_review"}。没有依据不能伪造关联。`
 	case "bank_rubric":
+		if in.MaxScore < 1 {
+			return nil, errors.New("题目满分须为正整数")
+		}
 		instruction = `根据题目、教师要求、可选参考解答和所选依据独立起草评分标准，不读取学生作答，不从资料增加题目未要求的扣分点；允许合理替代表达。返回 {"criteria":[` + criterionSchema + `],"review_status":"pending_teacher_review"}。正整数分值加和必须等于max_score。`
 	default:
 		return nil, errors.New("题库任务类型无效")
@@ -241,17 +254,21 @@ func (s *Service) BankDraft(ctx context.Context, j store.ProcessingJob, in JobIn
 			EvidenceID string `json:"evidence_id"`
 			Reason     string `json:"reason"`
 		}
-		if json.Unmarshal(out["requirements"], &req) != nil || json.Unmarshal(out["issues"], &issues) != nil || json.Unmarshal(out["associations"], &associations) != nil {
+		if json.Unmarshal(out["requirements"], &req) != nil || req == nil || len(req) > 50 ||
+			json.Unmarshal(out["issues"], &issues) != nil || issues == nil || len(issues) > 50 ||
+			json.Unmarshal(out["associations"], &associations) != nil || associations == nil || len(associations) > 50 {
 			return failed, errors.New("AI分析字段无效")
 		}
 		allowed := map[string]bool{}
 		for _, r := range refs {
 			allowed[r.ID] = true
 		}
+		seenAssoc := map[string]bool{}
 		for _, a := range associations {
-			if !allowed[a.EvidenceID] || strings.TrimSpace(a.Reason) == "" {
-				return failed, errors.New("AI分析引用了未选依据")
+			if !allowed[a.EvidenceID] || seenAssoc[a.EvidenceID] || strings.TrimSpace(a.Reason) == "" {
+				return failed, errors.New("AI分析引用了未选或重复依据")
 			}
+			seenAssoc[a.EvidenceID] = true
 		}
 	}
 	out["evidence_refs"], _ = json.Marshal(refs)

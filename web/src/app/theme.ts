@@ -49,7 +49,7 @@ type Palette = Record<keyof typeof palette, string>;
 export const darkPalette = {
   ink: "#edeef0",
   inkSoft: "#b8bcc4",
-  muted: "#8b909a",
+  muted: "#9ca3af",
   teal: "#6366f1",
   tealDeep: "#5254e0",
   tealPressed: "#4345c9",

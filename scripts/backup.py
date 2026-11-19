@@ -39,7 +39,7 @@ if args.verify_restore:
     try:
         with target.open('rb') as stream:
             command('exec pg_restore --exit-on-error -U "$POSTGRES_USER" -d "$1"',database,stdin=stream)
-        tables=('submissions','grading_revisions','material_sources','material_assets','knowledge_topics','knowledge_entries','bank_question_versions','content_decisions','regrade_batches','regrade_items')
+        tables=('submissions','grading_revisions','material_sources','material_assets','content_sections','knowledge_topics','knowledge_entries','bank_question_versions','content_decisions','regrade_batches','regrade_items','agent_conversations','agent_runs','diagnosis_labels')
         query=' '.join('SELECT count(*) FROM '+table+';' for table in tables)
         check=command('exec psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$1" -At -c "$2"',database,query,capture_output=True)
         counts=[int(v) for v in check.stdout.decode().splitlines()]

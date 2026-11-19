@@ -26,6 +26,7 @@ interface PathItem {
 interface PathData {
   path: { id: string; created_at: string; rule_version: string };
   items: PathItem[];
+  total_points?: number;
 }
 
 interface PathEvent {
@@ -131,7 +132,11 @@ export function StudyPath() {
           <Card className="card-panel" title="当前路径">
             <MetaTags>
               <MetaTag>规划于 {when(query.data.path.created_at)}</MetaTag>
-              <MetaTag>共 {query.data.items.length} 个知识点</MetaTag>
+              <MetaTag>
+                {typeof query.data.total_points === "number"
+                  ? `待学 ${query.data.items.length} / 共 ${query.data.total_points} 个知识点`
+                  : `共 ${query.data.items.length} 个知识点`}
+              </MetaTag>
               {progressSummary.total > 0 && (
                 <MetaTag>
                   关联资料已完成 {progressSummary.completed}/{progressSummary.total}

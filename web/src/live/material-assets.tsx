@@ -11,6 +11,7 @@ import {
 } from "../shared/ui";
 import { Feedback, useAction, useLearning, useLiveQuery } from "./context";
 import { RichContent, type Asset } from "./content-render";
+import { ASSET_KIND_LABELS } from "./domain-meta";
 import { DraftNotice, useEditorDraft } from "./editing";
 import { hasControlNull, utf8ByteLength } from "./validation";
 import { WorkflowJob } from "./workflow-job";
@@ -30,14 +31,6 @@ type CropBox = {
   y: number;
   width: number;
   height: number;
-};
-
-const ASSET_KIND_LABELS: Record<string, string> = {
-  page: "原页预览",
-  image: "图片",
-  formula: "公式",
-  chart: "数据图表",
-  diagram: "结构／流程图",
 };
 
 const CROP_KIND_OPTIONS = [

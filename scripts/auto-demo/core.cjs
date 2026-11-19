@@ -1,7 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFile } = require('node:child_process');
-const { chromium } = require('playwright');
 const { choose, selectFile } = require('../browser-ui.cjs');
 
 const root = path.resolve(__dirname, '../..');
@@ -56,6 +55,7 @@ class Demo {
   }
   async boot() {
     if (this.browser?.isConnected()) return;
+    const { chromium } = require('playwright');
     this.browser = await chromium.launch({ channel: 'msedge', headless: !!this.options.headless, slowMo: this.options.headless ? 0 : 120, args: ['--start-maximized'] });
     for (const role of ['teacher', 'student']) {
       const context = await this.browser.newContext({ viewport: this.options.headless ? { width: 1440, height: 1000 } : null, acceptDownloads: true });

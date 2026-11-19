@@ -138,26 +138,34 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  const loggingOutRef = useRef(false);
+
   async function handleLogout() {
-    if (
-      dirty &&
-      !(await confirm("还有未保存的内容，确认退出？", {
-        content: "未保存编辑仅暂存在当前浏览器会话，退出后将被清理。",
-        okText: "退出登录",
-        cancelText: "继续编辑",
-      }))
-    )
-      return;
-    setBusy(true);
-    setError("");
+    if (loggingOutRef.current || busy) return;
+    loggingOutRef.current = true;
     try {
-      clearAllDirty();
-      await logout();
-      navigate("/login", { replace: true });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "退出失败，请重试");
+      if (
+        dirty &&
+        !(await confirm("还有未保存的内容，确认退出？", {
+          content: "未保存编辑仅暂存在当前浏览器会话，退出后将被清理。",
+          okText: "退出登录",
+          cancelText: "继续编辑",
+        }))
+      )
+        return;
+      setBusy(true);
+      setError("");
+      try {
+        await logout();
+        clearAllDirty();
+        navigate("/login", { replace: true });
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "退出失败，请重试");
+      } finally {
+        setBusy(false);
+      }
     } finally {
-      setBusy(false);
+      loggingOutRef.current = false;
     }
   }
 
@@ -181,6 +189,17 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
           个人设置
         </Link>
       ),
+    },
+    { type: "divider" as const },
+    {
+      key: "logout",
+      icon: <LogOut size={15} aria-hidden="true" />,
+      label: "退出登录",
+      disabled: busy,
+      onClick: () => {
+        setNavOpen(false);
+        void handleLogout();
+      },
     },
   ];
 
@@ -390,7 +409,7 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
                 onClose={() => setError("")}
               />
             )}
-            <ErrorBoundary key={pathname}>
+            <ErrorBoundary key={pathname} resetKey={course?.id ?? ""}>
               <LiveRoutes teacher={teacher} />
             </ErrorBoundary>
           </main>
@@ -433,7 +452,7 @@ function Workspace({ teacher = false }: { teacher?: boolean }) {
     <ConfigProvider
       theme={{
         ...baseTheme,
-        cssVar: { key: "haji-theme" },
+        cssVar: { key: "haji-theme-comfortable" },
         token: { ...baseTheme.token, ...comfortableToken },
       }}
     >

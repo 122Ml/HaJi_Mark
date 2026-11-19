@@ -97,7 +97,7 @@ func (s *Service) status(c *gin.Context) {
 			tools = append(tools, t)
 		}
 	}
-	c.JSON(200, gin.H{"data": gin.H{"configured": s.Model != nil, "profiles": profiles, "tools": tools, "limits": gin.H{"steps": maxOperations, "model_calls": maxModelCalls, "delegation_depth": 1, "file_mib": 30, "attachment_count": 30}}})
+	c.JSON(200, gin.H{"data": gin.H{"configured": s.chatConfigured(), "profiles": profiles, "tools": tools, "limits": gin.H{"steps": maxOperations, "model_calls": maxModelCalls, "delegation_depth": 1, "file_mib": 30, "attachment_count": 30}}})
 }
 func escapeLike(s string) string {
 	s = strings.ReplaceAll(s, `\`, `\\`)
@@ -208,9 +208,10 @@ func (s *Service) conversation(c *gin.Context) {
 	}
 	ctx := c.Request.Context()
 	before := struct {
-		Time time.Time `json:"time"`
-		ID   string    `json:"id"`
-	}{Time: time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC), ID: "~"}
+		Time      time.Time `json:"time"`
+		KindOrder int32     `json:"kind_order"`
+		ID        string    `json:"id"`
+	}{Time: time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC), KindOrder: 999, ID: "~"}
 	if cursor := c.Query("before"); cursor != "" {
 		raw, err := base64.RawURLEncoding.DecodeString(cursor)
 		if err != nil || len(raw) > 256 || json.Unmarshal(raw, &before) != nil || before.Time.IsZero() || before.ID == "" {
@@ -218,7 +219,7 @@ func (s *Service) conversation(c *gin.Context) {
 			return
 		}
 	}
-	timeline, e := s.Q.ListAgentTimeline(ctx, store.ListAgentTimelineParams{ConversationID: conv.ID, BeforeTime: pgtype.Timestamptz{Time: before.Time, Valid: true}, BeforeID: before.ID})
+	timeline, e := s.Q.ListAgentTimeline(ctx, store.ListAgentTimelineParams{ConversationID: conv.ID, BeforeTime: pgtype.Timestamptz{Time: before.Time, Valid: true}, BeforeKindOrder: before.KindOrder, BeforeID: before.ID})
 	if e != nil {
 		data(c, nil, e)
 		return
@@ -239,9 +240,10 @@ func (s *Service) conversation(c *gin.Context) {
 	if hasMore {
 		last := timeline[len(timeline)-1]
 		raw, _ := json.Marshal(struct {
-			Time time.Time `json:"time"`
-			ID   string    `json:"id"`
-		}{last.CreatedAt.Time, last.ID})
+			Time      time.Time `json:"time"`
+			KindOrder int32     `json:"kind_order"`
+			ID        string    `json:"id"`
+		}{last.CreatedAt.Time, last.KindOrder, last.ID})
 		nextCursor = base64.RawURLEncoding.EncodeToString(raw)
 	}
 	// All private runtime fields (session references and model reasoning) stay server-side.
@@ -350,8 +352,8 @@ func (s *Service) send(c *gin.Context) {
 		fail(c, 422, "缺少有效幂等请求ID")
 		return
 	}
-	if s.Model == nil {
-		fail(c, 503, "Agent尚未启用或生成模型未配置")
+	if !s.chatConfigured() {
+		fail(c, 503, "未配置可用模型，请检查服务端接口和密钥")
 		return
 	}
 	if _, ok := s.owned(c); !ok {
@@ -689,6 +691,10 @@ func (s *Service) resume(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !s.chatConfigured() {
+		fail(c, 503, "未配置可用模型，请检查服务端接口和密钥")
+		return
+	}
 	var rt runtime
 	if json.Unmarshal(run.Runtime, &rt) != nil {
 		fail(c, 409, "检查点无效")
@@ -941,7 +947,7 @@ func (s *Service) stream(c *gin.Context) {
 		after = parsed
 	}
 	rc := http.NewResponseController(c.Writer)
-	_ = rc.SetWriteDeadline(time.Time{})
+	_ = rc.SetWriteDeadline(time.Now().Add(15 * time.Second))
 
 	c.Header("Content-Type", "text/event-stream; charset=utf-8")
 	c.Header("Cache-Control", "no-cache, no-store, no-transform")
@@ -949,7 +955,23 @@ func (s *Service) stream(c *gin.Context) {
 	if _, err := io.WriteString(c.Writer, "retry: 2000\n\n"); err != nil {
 		return
 	}
-	c.Writer.Flush()
+	// Unwrap gin.ResponseWriter after headers are written so rc.Flush calls FlushError() on the underlying writer.
+	for rw := http.ResponseWriter(c.Writer); ; {
+		u, ok := rw.(interface{ Unwrap() http.ResponseWriter })
+		if !ok {
+			rc = http.NewResponseController(rw)
+			break
+		}
+		inner := u.Unwrap()
+		if inner == nil || inner == rw {
+			rc = http.NewResponseController(rw)
+			break
+		}
+		rw = inner
+	}
+	if err := rc.Flush(); err != nil {
+		return
+	}
 
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
@@ -958,6 +980,15 @@ func (s *Service) stream(c *gin.Context) {
 	lastAuthCheck := time.Now()
 	lastWrite := time.Now()
 	sessionRef := identity.SessionReference(c)
+	sendFinal := func(event string) {
+		if ctx.Err() != nil {
+			return
+		}
+		_ = rc.SetWriteDeadline(time.Now().Add(15 * time.Second))
+		if _, err := io.WriteString(c.Writer, "event: "+event+"\ndata: {}\n\n"); err == nil {
+			_ = rc.Flush()
+		}
+	}
 
 	for {
 		if ctx.Err() != nil {
@@ -967,14 +998,12 @@ func (s *Service) stream(c *gin.Context) {
 		if time.Since(lastAuthCheck) >= 15*time.Second {
 			user, e := s.Q.GetSessionUser(ctx, sessionRef)
 			if e != nil || user.ID != conv.OwnerID {
-				_, _ = io.WriteString(c.Writer, "event: auth_error\ndata: {}\n\n")
-				c.Writer.Flush()
+				sendFinal("auth_error")
 				return
 			}
 			access, e := s.Q.CanAccessCourse(ctx, store.CanAccessCourseParams{CourseID: conv.CourseID, ActorID: user.ID, ActorRole: user.Role})
 			if e != nil || !access {
-				_, _ = io.WriteString(c.Writer, "event: auth_error\ndata: {}\n\n")
-				c.Writer.Flush()
+				sendFinal("auth_error")
 				return
 			}
 			lastAuthCheck = time.Now()
@@ -984,19 +1013,25 @@ func (s *Service) stream(c *gin.Context) {
 			return
 		}
 		if len(events) > 0 {
+			_ = rc.SetWriteDeadline(time.Now().Add(15 * time.Second))
 			for _, ev := range events {
 				if _, err := fmt.Fprintf(c.Writer, "id: %d\nevent: %s\ndata: %s\n\n", ev.ID, ev.Kind, ev.Payload); err != nil {
 					return
 				}
 				after = ev.ID
 			}
-			c.Writer.Flush()
+			if err := rc.Flush(); err != nil {
+				return
+			}
 			lastWrite = time.Now()
 		} else if time.Since(lastWrite) >= 15*time.Second {
+			_ = rc.SetWriteDeadline(time.Now().Add(15 * time.Second))
 			if _, err := io.WriteString(c.Writer, ": heartbeat\n\n"); err != nil {
 				return
 			}
-			c.Writer.Flush()
+			if err := rc.Flush(); err != nil {
+				return
+			}
 			lastWrite = time.Now()
 		}
 		if len(events) == 100 {
@@ -1005,8 +1040,7 @@ func (s *Service) stream(c *gin.Context) {
 			}
 			select {
 			case <-deadline.C:
-				_, _ = io.WriteString(c.Writer, "event: reconnect\ndata: {}\n\n")
-				c.Writer.Flush()
+				sendFinal("reconnect")
 				return
 			default:
 				continue
@@ -1016,8 +1050,7 @@ func (s *Service) stream(c *gin.Context) {
 		case <-ctx.Done():
 			return
 		case <-deadline.C:
-			_, _ = io.WriteString(c.Writer, "event: reconnect\ndata: {}\n\n")
-			c.Writer.Flush()
+			sendFinal("reconnect")
 			return
 		case <-ticker.C:
 		}

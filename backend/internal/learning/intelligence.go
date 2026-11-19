@@ -47,6 +47,9 @@ func (h *Handler) intelligenceList(c *gin.Context) {
 		return
 	}
 	v, e := h.q.ListIntelligenceReports(c.Request.Context(), store.ListIntelligenceReportsParams{CourseID: c.Param("courseID"), OwnerID: identity.Current(c).ID, Kind: kind})
+	if e == nil && v == nil {
+		v = []store.ListIntelligenceReportsRow{}
+	}
 	result(c, v, e)
 }
 func (h *Handler) intelligenceRecord(c *gin.Context) (store.IntelligenceReportRow, bool) {
@@ -126,6 +129,12 @@ func (h *Handler) listRecommendationCandidates(ctx context.Context, q *store.Que
 	if e != nil {
 		return in, e
 	}
+	superseded := map[string]bool{}
+	for _, r := range resources {
+		if r.SupersedesID.Valid && r.SupersedesID.String != "" {
+			superseded[r.SupersedesID.String] = true
+		}
+	}
 	sources, e := q.ListMaterialSources(ctx, course)
 	if e != nil {
 		return in, e
@@ -160,6 +169,9 @@ func (h *Handler) listRecommendationCandidates(ctx context.Context, q *store.Que
 			}
 		}
 		for _, r := range resources {
+			if superseded[r.ID] {
+				continue
+			}
 			if r.KnowledgePointID.String == p.KnowledgePointID && !completed[r.ID] {
 				if r.SourceID.Valid && !activeSources[r.SourceID.String] {
 					continue
@@ -367,6 +379,9 @@ func (h *Handler) intelligenceRead(c *gin.Context) {
 		}
 		r.Output, _ = json.Marshal(output)
 		choices, e := h.q.RecommendationChoices(ctx, r.ID)
+		if e == nil && choices == nil {
+			choices = []store.RecommendationChoice{}
+		}
 		result(c, gin.H{"report": r, "choices": choices, "unavailable": unavailable}, e)
 		return
 	}
@@ -478,6 +493,20 @@ func (h *Handler) diagnosisEdit(confirming bool) gin.HandlerFunc {
 			ragError(c, e)
 			return
 		}
+		if req.Output.Findings == nil {
+			req.Output.Findings = []rag.DiagnosisFinding{}
+		}
+		for i := range req.Output.Findings {
+			if req.Output.Findings[i].Evidence == nil {
+				req.Output.Findings[i].Evidence = []rag.DiagnosisQuote{}
+			}
+		}
+		if req.Output.Unclassified == nil {
+			req.Output.Unclassified = []string{}
+		}
+		if req.Output.Ranking == nil {
+			req.Output.Ranking = []rag.RankedCandidate{}
+		}
 		raw, _ := json.Marshal(req.Output)
 		var v store.IntelligenceReport
 		if confirming {
@@ -554,6 +583,9 @@ func (h *Handler) intelligenceCancel(c *gin.Context) {
 }
 func (h *Handler) diagnosisLabels(c *gin.Context) {
 	v, e := h.q.ListDiagnosisLabels(c.Request.Context(), c.Param("courseID"))
+	if e == nil && v == nil {
+		v = []store.DiagnosisLabel{}
+	}
 	result(c, gin.H{"built_in": rag.BaseDiagnosisLabels, "custom": v}, e)
 }
 func (h *Handler) diagnosisLabelSave(c *gin.Context) {
@@ -592,8 +624,19 @@ func (h *Handler) diagnosisLabelSave(c *gin.Context) {
 		return
 	}
 	for _, l := range rag.BaseDiagnosisLabels {
-		if l.Title == req.Title {
-			invalid(c, "已有同名预设标签")
+		if strings.EqualFold(strings.TrimSpace(l.Title), req.Title) {
+			identity.Fail(c, 409, "duplicate_label", "已有同名预设标签")
+			return
+		}
+	}
+	existing, lErr := h.q.ListDiagnosisLabels(ctx, c.Param("courseID"))
+	if lErr != nil {
+		result(c, nil, lErr)
+		return
+	}
+	for _, l := range existing {
+		if strings.EqualFold(strings.TrimSpace(l.Title), req.Title) {
+			identity.Fail(c, 409, "duplicate_label", "课程内已存在同名诊断标签")
 			return
 		}
 	}

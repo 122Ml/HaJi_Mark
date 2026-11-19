@@ -33,6 +33,7 @@ export function CommandPalette({
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<InputRef>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   const items = useMemo<CommandItem[]>(() => {
     const navItems: CommandItem[] = groups.flatMap((group) =>
@@ -86,6 +87,12 @@ export function CommandPalette({
     setActiveIndex((prev) => (filtered.length === 0 ? 0 : Math.min(prev, filtered.length - 1)));
   }, [filtered.length]);
 
+  useEffect(() => {
+    if (!open) return;
+    const activeEl = listRef.current?.querySelector<HTMLElement>('[aria-selected="true"]');
+    activeEl?.scrollIntoView({ block: "nearest" });
+  }, [open, activeIndex, filtered.length]);
+
   function execute(item: CommandItem | undefined) {
     if (!item) return;
     onClose();
@@ -111,6 +118,7 @@ export function CommandPalette({
           setActiveIndex(0);
         }}
         onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing || event.keyCode === 229) return;
           if (event.key === "ArrowDown") {
             event.preventDefault();
             setActiveIndex((prev) => (filtered.length ? (prev + 1) % filtered.length : 0));
@@ -128,7 +136,7 @@ export function CommandPalette({
         suffix={<kbd>Esc</kbd>}
         aria-label="搜索命令"
       />
-      <ul className="lab-palette-list" role="listbox" aria-label="快捷命令列表">
+      <ul ref={listRef} className="lab-palette-list" role="listbox" aria-label="快捷命令列表">
         {filtered.length === 0 ? (
           <li className="lab-palette-empty">未找到匹配项</li>
         ) : (

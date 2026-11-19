@@ -120,7 +120,7 @@ func (q *Queries) CancelProcessingJob(ctx context.Context, arg CancelProcessingJ
 }
 
 const claimProcessingJob = `-- name: ClaimProcessingJob :one
-UPDATE processing_jobs SET state='running',started_at=now(),attempt=attempt+1,error='' WHERE id=$1 AND (state='queued' OR (state='running' AND kind IN ('parse','index') AND started_at<now()-interval '15 minutes')) RETURNING id, course_id, created_by, kind, state, input, output, progress, error, attempt, created_at, started_at, finished_at
+UPDATE processing_jobs SET state='running',started_at=now(),attempt=attempt+1,error='' WHERE id=$1 AND (state='queued' OR (state='running' AND kind IN ('parse','index') AND attempt < 3 AND started_at<now()-interval '15 minutes')) RETURNING id, course_id, created_by, kind, state, input, output, progress, error, attempt, created_at, started_at, finished_at
 `
 
 func (q *Queries) ClaimProcessingJob(ctx context.Context, id string) (ProcessingJob, error) {
@@ -417,6 +417,57 @@ func (q *Queries) ExpireInterruptedGenerationJobs(ctx context.Context) error {
 	return err
 }
 
+const expireStuckParseIndexJobs = `-- name: ExpireStuckParseIndexJobs :exec
+UPDATE processing_jobs SET state='failed',finished_at=now(),error='解析或索引任务多次异常中断，请检查文件后重试'
+WHERE state='running' AND kind IN ('parse','index') AND attempt >= 3 AND started_at < now() - interval '15 minutes'
+`
+
+func (q *Queries) ExpireStuckParseIndexJobs(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, expireStuckParseIndexJobs)
+	return err
+}
+
+const finishAndSettleModelCall = `-- name: FinishAndSettleModelCall :one
+WITH done AS (
+ UPDATE model_calls
+    SET state=$2, charged_micro_cny=$3, input_tokens=$4, output_tokens=$5, duration_ms=$6, error_code=$7
+  WHERE model_calls.id=$1 AND model_calls.state='reserved'
+  RETURNING model_calls.id AS call_id, model_calls.reserved_micro_cny, model_calls.charged_micro_cny
+), settled AS (
+ UPDATE model_budget
+    SET reserved_micro_cny = GREATEST(0, model_budget.reserved_micro_cny - done.reserved_micro_cny),
+        spent_micro_cny = model_budget.spent_micro_cny + done.charged_micro_cny
+   FROM done
+  WHERE model_budget.id = 1
+)
+SELECT done.call_id AS id FROM done
+`
+
+type FinishAndSettleModelCallParams struct {
+	ID              string `json:"id"`
+	State           string `json:"state"`
+	ChargedMicroCny int64  `json:"charged_micro_cny"`
+	InputTokens     int64  `json:"input_tokens"`
+	OutputTokens    int64  `json:"output_tokens"`
+	DurationMs      int64  `json:"duration_ms"`
+	ErrorCode       string `json:"error_code"`
+}
+
+func (q *Queries) FinishAndSettleModelCall(ctx context.Context, arg FinishAndSettleModelCallParams) (string, error) {
+	row := q.db.QueryRow(ctx, finishAndSettleModelCall,
+		arg.ID,
+		arg.State,
+		arg.ChargedMicroCny,
+		arg.InputTokens,
+		arg.OutputTokens,
+		arg.DurationMs,
+		arg.ErrorCode,
+	)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
 const finishModelCall = `-- name: FinishModelCall :one
 UPDATE model_calls SET state=$2,charged_micro_cny=$3,input_tokens=$4,output_tokens=$5,duration_ms=$6,error_code=$7 WHERE id=$1 AND state='reserved' RETURNING id
 `
@@ -630,6 +681,38 @@ func (q *Queries) GetProcessingJob(ctx context.Context, arg GetProcessingJobPara
 	return i, err
 }
 
+const hasActiveParseJob = `-- name: HasActiveParseJob :one
+SELECT EXISTS(SELECT 1 FROM processing_jobs WHERE course_id=$1 AND kind='parse' AND state IN ('queued','running') AND input->>'source_id'=$2::text)
+`
+
+type HasActiveParseJobParams struct {
+	CourseID string `json:"course_id"`
+	SourceID string `json:"source_id"`
+}
+
+func (q *Queries) HasActiveParseJob(ctx context.Context, arg HasActiveParseJobParams) (bool, error) {
+	row := q.db.QueryRow(ctx, hasActiveParseJob, arg.CourseID, arg.SourceID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const hasNewerIndexJob = `-- name: HasNewerIndexJob :one
+SELECT EXISTS(SELECT 1 FROM processing_jobs j WHERE j.course_id=$1 AND j.kind='index' AND j.id<>$2 AND j.created_at > (SELECT created_at FROM processing_jobs WHERE id=$2))
+`
+
+type HasNewerIndexJobParams struct {
+	CourseID string `json:"course_id"`
+	ID       string `json:"id"`
+}
+
+func (q *Queries) HasNewerIndexJob(ctx context.Context, arg HasNewerIndexJobParams) (bool, error) {
+	row := q.db.QueryRow(ctx, hasNewerIndexJob, arg.CourseID, arg.ID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const insertMaterialFragment = `-- name: InsertMaterialFragment :one
 INSERT INTO material_fragments(id,source_id,revision,position,heading,body,locator,quality) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, source_id, revision, position, heading, body, locator, quality
 `
@@ -679,9 +762,10 @@ LEFT JOIN knowledge_entries k ON k.id=c.knowledge_id
 LEFT JOIN resources r ON r.id=c.resource_id
 WHERE c.course_id=$2 AND c.active AND c.search_document @@ to_tsquery('simple',$1::text)
 AND ($3::text<>'comparison' OR k.id IS NOT NULL)
-AND ((s.state='active' AND ($4::boolean OR EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids)))
+AND ((s.state='active' AND (($4::boolean AND EXISTS(SELECT 1 FROM material_fragments mf WHERE mf.source_id=s.id AND mf.revision=s.parse_revision AND mf.id=ANY(c.fragment_ids)))
+   OR (NOT $4::boolean AND EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids))))
  OR (k.state='confirmed' AND CASE WHEN $3::text='grading' THEN k.use_for_grading WHEN $3::text='comparison' THEN k.use_for_grading OR k.use_for_learning ELSE k.use_for_learning END AND ($4::boolean OR k.student_visible)
- AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT $4::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND ev->>'fragment_id'=ANY(pr.fragment_ids)))))
+ AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT $4::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.course_id=c.course_id AND pr.status='published' AND pr.fragment_ids @> ARRAY[ev->>'fragment_id']))))
  OR (r.status='published' AND r.source_id IS NULL))
 ORDER BY rank DESC,c.id LIMIT 20
 `
@@ -838,7 +922,7 @@ func (q *Queries) ListIndexKnowledge(ctx context.Context, courseID string) ([]Kn
 
 const listKnowledgeEntries = `-- name: ListKnowledgeEntries :many
 SELECT k.id, k.course_id, k.created_by, k.title, k.body, k.category, k.content_kind, k.conditions, k.knowledge_point_ids, k.evidence, k.related_ids, k.student_visible, k.use_for_learning, k.use_for_grading, k.state, k.version, k.supersedes_id, k.edit_version, k.confirmed_at, k.created_at, k.origin FROM knowledge_entries k WHERE k.course_id=$1 AND ($2::boolean OR (k.state='confirmed' AND k.student_visible AND k.use_for_learning
- AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev WHERE NOT EXISTS(SELECT 1 FROM resources pr JOIN material_sources ms ON ms.id=pr.source_id WHERE pr.status='published' AND ms.state='active' AND ms.allow_derived AND ev->>'fragment_id'=ANY(pr.fragment_ids))))) ORDER BY created_at DESC
+ AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev WHERE NOT EXISTS(SELECT 1 FROM resources pr JOIN material_sources ms ON ms.id=pr.source_id WHERE pr.course_id=k.course_id AND pr.status='published' AND ms.state='active' AND ms.allow_derived AND pr.fragment_ids @> ARRAY[ev->>'fragment_id'])))) ORDER BY created_at DESC
 `
 
 type ListKnowledgeEntriesParams struct {
@@ -1331,7 +1415,9 @@ func (q *Queries) PendingCourseIndex(ctx context.Context, courseID string) (Proc
 }
 
 const pendingProcessingJobs = `-- name: PendingProcessingJobs :many
-SELECT id, course_id, created_by, kind, state, input, output, progress, error, attempt, created_at, started_at, finished_at FROM processing_jobs WHERE state='queued' OR (state='running' AND kind IN ('parse','index') AND started_at<now()-interval '15 minutes') ORDER BY created_at LIMIT 20
+SELECT id, course_id, created_by, kind, state, input, output, progress, error, attempt, created_at, started_at, finished_at FROM processing_jobs
+WHERE state='queued' OR (state='running' AND kind IN ('parse','index') AND attempt < 3 AND started_at < now() - interval '15 minutes')
+ORDER BY created_at, id LIMIT 50
 `
 
 func (q *Queries) PendingProcessingJobs(ctx context.Context) ([]ProcessingJob, error) {
@@ -1505,7 +1591,7 @@ func (q *Queries) ReserveModelBudget(ctx context.Context, amount int64) (ModelBu
 }
 
 const resourceContainsFragment = `-- name: ResourceContainsFragment :one
-SELECT EXISTS(SELECT 1 FROM resources r WHERE r.course_id=$1 AND r.status='published' AND $2::text=ANY(r.fragment_ids))
+SELECT EXISTS(SELECT 1 FROM resources r WHERE r.course_id=$1 AND r.status='published' AND r.fragment_ids @> ARRAY[$2::text])
 `
 
 type ResourceContainsFragmentParams struct {
@@ -1617,7 +1703,7 @@ WITH expired AS (
  WHERE state='reserved' AND created_at<now()-interval '15 minutes'
  RETURNING reserved_micro_cny
 )
-UPDATE model_budget SET reserved_micro_cny=reserved_micro_cny-amount.total,spent_micro_cny=spent_micro_cny+amount.total
+UPDATE model_budget SET reserved_micro_cny=GREATEST(0, reserved_micro_cny-amount.total),spent_micro_cny=spent_micro_cny+amount.total
 FROM (SELECT coalesce(sum(reserved_micro_cny),0)::bigint AS total FROM expired) amount WHERE id=1
 `
 
@@ -1657,7 +1743,7 @@ func (q *Queries) StudentCanDownloadSource(ctx context.Context, arg StudentCanDo
 }
 
 const transitionKnowledgeEntry = `-- name: TransitionKnowledgeEntry :one
-UPDATE knowledge_entries SET state=$3,confirmed_at=CASE WHEN $3='confirmed' THEN now() ELSE confirmed_at END
+UPDATE knowledge_entries SET state=$3,edit_version=edit_version+1,confirmed_at=CASE WHEN $3='confirmed' THEN now() ELSE confirmed_at END
 WHERE id=$1 AND course_id=$2 AND state=$4 AND edit_version=$5 RETURNING id, course_id, created_by, title, body, category, content_kind, conditions, knowledge_point_ids, evidence, related_ids, student_visible, use_for_learning, use_for_grading, state, version, supersedes_id, edit_version, confirmed_at, created_at, origin
 `
 
@@ -1757,9 +1843,10 @@ LEFT JOIN knowledge_entries k ON k.id=c.knowledge_id
 LEFT JOIN resources r ON r.id=c.resource_id
 WHERE c.course_id=$2 AND e.space_id=$3 AND c.active
 AND ($4::text<>'comparison' OR k.id IS NOT NULL)
-AND ((s.state='active' AND ($5::boolean OR EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids)))
+AND ((s.state='active' AND (($5::boolean AND EXISTS(SELECT 1 FROM material_fragments mf WHERE mf.source_id=s.id AND mf.revision=s.parse_revision AND mf.id=ANY(c.fragment_ids)))
+   OR (NOT $5::boolean AND EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids))))
  OR (k.state='confirmed' AND CASE WHEN $4::text='grading' THEN k.use_for_grading WHEN $4::text='comparison' THEN k.use_for_grading OR k.use_for_learning ELSE k.use_for_learning END AND ($5::boolean OR k.student_visible)
- AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT $5::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND ev->>'fragment_id'=ANY(pr.fragment_ids)))))
+ AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT $5::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.course_id=c.course_id AND pr.status='published' AND pr.fragment_ids @> ARRAY[ev->>'fragment_id']))))
  OR (r.status='published' AND r.source_id IS NULL))
 ORDER BY distance,c.id LIMIT 20
 `
@@ -1800,6 +1887,156 @@ func (q *Queries) VectorSearch(ctx context.Context, arg VectorSearchParams) ([]V
 	items := []VectorSearchRow{}
 	for rows.Next() {
 		var i VectorSearchRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.SourceID,
+			&i.KnowledgeID,
+			&i.ResourceID,
+			&i.FragmentIds,
+			&i.Title,
+			&i.Heading,
+			&i.Body,
+			&i.Locator,
+			&i.Distance,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const vectorSearch1024 = `-- name: VectorSearch1024 :many
+SELECT c.id,c.source_id,c.knowledge_id,c.resource_id,c.fragment_ids,c.title,c.heading,c.body,c.locator,
+ ((e.embedding::vector(1024)) <=> ($1::text::vector(1024)))::float8 AS distance
+FROM retrieval_chunks c JOIN chunk_embeddings e ON e.chunk_id=c.id
+LEFT JOIN material_sources s ON s.id=c.source_id
+LEFT JOIN knowledge_entries k ON k.id=c.knowledge_id
+LEFT JOIN resources r ON r.id=c.resource_id
+WHERE c.course_id=$2 AND e.space_id=$3 AND e.dimensions=1024 AND c.active
+AND ($4::text<>'comparison' OR k.id IS NOT NULL)
+AND ((s.state='active' AND (($5::boolean AND EXISTS(SELECT 1 FROM material_fragments mf WHERE mf.source_id=s.id AND mf.revision=s.parse_revision AND mf.id=ANY(c.fragment_ids)))
+   OR (NOT $5::boolean AND EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids))))
+ OR (k.state='confirmed' AND CASE WHEN $4::text='grading' THEN k.use_for_grading WHEN $4::text='comparison' THEN k.use_for_grading OR k.use_for_learning ELSE k.use_for_learning END AND ($5::boolean OR k.student_visible)
+ AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT $5::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.course_id=c.course_id AND pr.status='published' AND pr.fragment_ids @> ARRAY[ev->>'fragment_id']))))
+ OR (r.status='published' AND r.source_id IS NULL))
+ORDER BY (e.embedding::vector(1024)) <=> ($1::text::vector(1024)),c.id LIMIT 20
+`
+
+type VectorSearch1024Params struct {
+	VectorText string `json:"vector_text"`
+	CourseID   string `json:"course_id"`
+	SpaceID    string `json:"space_id"`
+	Purpose    string `json:"purpose"`
+	Teacher    bool   `json:"teacher"`
+}
+
+type VectorSearch1024Row struct {
+	ID          string          `json:"id"`
+	SourceID    pgtype.Text     `json:"source_id"`
+	KnowledgeID pgtype.Text     `json:"knowledge_id"`
+	ResourceID  pgtype.Text     `json:"resource_id"`
+	FragmentIds []string        `json:"fragment_ids"`
+	Title       string          `json:"title"`
+	Heading     string          `json:"heading"`
+	Body        string          `json:"body"`
+	Locator     json.RawMessage `json:"locator"`
+	Distance    float64         `json:"distance"`
+}
+
+func (q *Queries) VectorSearch1024(ctx context.Context, arg VectorSearch1024Params) ([]VectorSearch1024Row, error) {
+	rows, err := q.db.Query(ctx, vectorSearch1024,
+		arg.VectorText,
+		arg.CourseID,
+		arg.SpaceID,
+		arg.Purpose,
+		arg.Teacher,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []VectorSearch1024Row{}
+	for rows.Next() {
+		var i VectorSearch1024Row
+		if err := rows.Scan(
+			&i.ID,
+			&i.SourceID,
+			&i.KnowledgeID,
+			&i.ResourceID,
+			&i.FragmentIds,
+			&i.Title,
+			&i.Heading,
+			&i.Body,
+			&i.Locator,
+			&i.Distance,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const vectorSearch1536 = `-- name: VectorSearch1536 :many
+SELECT c.id,c.source_id,c.knowledge_id,c.resource_id,c.fragment_ids,c.title,c.heading,c.body,c.locator,
+ ((e.embedding::vector(1536)) <=> ($1::text::vector(1536)))::float8 AS distance
+FROM retrieval_chunks c JOIN chunk_embeddings e ON e.chunk_id=c.id
+LEFT JOIN material_sources s ON s.id=c.source_id
+LEFT JOIN knowledge_entries k ON k.id=c.knowledge_id
+LEFT JOIN resources r ON r.id=c.resource_id
+WHERE c.course_id=$2 AND e.space_id=$3 AND e.dimensions=1536 AND c.active
+AND ($4::text<>'comparison' OR k.id IS NOT NULL)
+AND ((s.state='active' AND (($5::boolean AND EXISTS(SELECT 1 FROM material_fragments mf WHERE mf.source_id=s.id AND mf.revision=s.parse_revision AND mf.id=ANY(c.fragment_ids)))
+   OR (NOT $5::boolean AND EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids))))
+ OR (k.state='confirmed' AND CASE WHEN $4::text='grading' THEN k.use_for_grading WHEN $4::text='comparison' THEN k.use_for_grading OR k.use_for_learning ELSE k.use_for_learning END AND ($5::boolean OR k.student_visible)
+ AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT $5::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.course_id=c.course_id AND pr.status='published' AND pr.fragment_ids @> ARRAY[ev->>'fragment_id']))))
+ OR (r.status='published' AND r.source_id IS NULL))
+ORDER BY (e.embedding::vector(1536)) <=> ($1::text::vector(1536)),c.id LIMIT 20
+`
+
+type VectorSearch1536Params struct {
+	VectorText string `json:"vector_text"`
+	CourseID   string `json:"course_id"`
+	SpaceID    string `json:"space_id"`
+	Purpose    string `json:"purpose"`
+	Teacher    bool   `json:"teacher"`
+}
+
+type VectorSearch1536Row struct {
+	ID          string          `json:"id"`
+	SourceID    pgtype.Text     `json:"source_id"`
+	KnowledgeID pgtype.Text     `json:"knowledge_id"`
+	ResourceID  pgtype.Text     `json:"resource_id"`
+	FragmentIds []string        `json:"fragment_ids"`
+	Title       string          `json:"title"`
+	Heading     string          `json:"heading"`
+	Body        string          `json:"body"`
+	Locator     json.RawMessage `json:"locator"`
+	Distance    float64         `json:"distance"`
+}
+
+func (q *Queries) VectorSearch1536(ctx context.Context, arg VectorSearch1536Params) ([]VectorSearch1536Row, error) {
+	rows, err := q.db.Query(ctx, vectorSearch1536,
+		arg.VectorText,
+		arg.CourseID,
+		arg.SpaceID,
+		arg.Purpose,
+		arg.Teacher,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []VectorSearch1536Row{}
+	for rows.Next() {
+		var i VectorSearch1536Row
 		if err := rows.Scan(
 			&i.ID,
 			&i.SourceID,

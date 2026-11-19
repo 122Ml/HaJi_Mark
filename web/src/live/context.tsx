@@ -20,7 +20,7 @@ import {
 } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { requestJSON, APIError } from "../shared/api";
-import { LoadingState } from "../shared/ui";
+import { ErrorState, LoadingState } from "../shared/ui";
 import { useSession } from "../shared/session";
 import { teacherNavigation, studentNavigation } from "../app/navigation";
 
@@ -155,6 +155,17 @@ export function LearningProvider({ children }: { children: ReactNode }) {
     return (
       <LoadingState label="正在读取课程…" />
     );
+  if (query.error && !courses.length)
+    return (
+      <Context.Provider value={value}>
+        <div className="page-container">
+          <ErrorState
+            message={query.error.message}
+            onRetry={() => void query.refetch()}
+          />
+        </div>
+      </Context.Provider>
+    );
   return (
     <Context.Provider value={value}>
       {query.error && (
@@ -225,8 +236,12 @@ export function useLiveQuery<T>(
 }
 
 const RELATED_PREFIXES: Record<string, string[]> = {
-  sources: ["sources", "resources", "knowledge", "jobs", "topics", ""],
+  state: [""],
+  sources: ["sources", "sections", "resources", "knowledge", "jobs", "topics", ""],
+  sections: ["sources", "sections", "resources", "topics", "jobs", ""],
   assets: ["sources", "resources", "jobs"],
+  paper: ["sources", "question-bank", "jobs"],
+  "diagnosis-labels": ["diagnosis-labels", "intelligence", "overview"],
   regrades: [
     "regrades",
     "submissions",
@@ -302,10 +317,18 @@ export function useAction() {
   const cache = useQueryClient();
   const { session, refresh } = useSession();
   const pendingRef = useRef(0);
+  const reqSeqRef = useRef(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
   const [error, setError] = useState<APIError | null>(null);
+
+  const clearError = useCallback(() => {
+    reqSeqRef.current += 1;
+    setFailed(false);
+    setError(null);
+    setMessage("");
+  }, []);
 
   async function run<T>(
     path: string,
@@ -319,9 +342,11 @@ export function useAction() {
       setMessage("请先选择当前课程后再操作");
       return undefined;
     }
+    const silent = Boolean(options?.silent);
+    const seq = silent ? 0 : ++reqSeqRef.current;
     pendingRef.current += 1;
     setBusy(true);
-    if (!options?.silent) {
+    if (!silent) {
       setMessage("");
       setFailed(false);
       setError(null);
@@ -353,14 +378,14 @@ export function useAction() {
         };
         await cache.cancelQueries(filters);
         await cache.invalidateQueries(filters);
-        if (!prefix || prefix === "publish") {
+        if (!prefix || prefix === "publish" || prefix === "state") {
           await cache.invalidateQueries({
             queryKey: ["courses", session?.user.id],
           });
         }
       }
       const data = r?.data;
-      if (!options?.silent) {
+      if (!silent && seq === reqSeqRef.current) {
         const saved = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
         const nextState = body && typeof body === "object" && "state" in body ? String((body as { state?: unknown }).state) : String(saved.state || saved.status || "");
         setMessage(successMessage || (
@@ -372,6 +397,8 @@ export function useAction() {
           nextState === "submitted" ? "执行结果已提交，等待教师复查" :
           nextState === "reviewed" ? "教师复查已完成" :
           nextState === "closed" ? "作业已关闭，停止接收新提交" :
+          nextState === "archived" && prefix === "state" ? "课程已归档" :
+          nextState === "published" && prefix === "state" ? "课程已发布，学生可见并可参与学习" :
           nextState === "published" && path.includes("/assignments/") ? "作业已发布，题目与标准版本已冻结" :
           path.includes("/publish") ? "已发布；检索是否就绪请核对索引任务状态" :
           path === "/interactions" ? "内容已发布到当前课程" :
@@ -383,7 +410,7 @@ export function useAction() {
       }
       return data;
     } catch (e) {
-      if (!options?.silent) {
+      if (!silent && seq === reqSeqRef.current) {
         setFailed(true);
         setError(e instanceof APIError ? e : null);
         setMessage(e instanceof Error ? e.message : "保存失败");
@@ -395,7 +422,7 @@ export function useAction() {
       if (pendingRef.current === 0) setBusy(false);
     }
   }
-  return { run, busy, message, failed, error, setMessage };
+  return { run, busy, message, failed, error, setMessage, clearError, reset: clearError };
 }
 
 export function Feedback({

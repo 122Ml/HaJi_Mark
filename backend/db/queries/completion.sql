@@ -15,7 +15,7 @@ SELECT * FROM assist_turns WHERE id=$1 AND course_id=$2 AND owner_id=$3;
 UPDATE assist_turns SET response=$2,state=$3 WHERE id=$1 AND state='running';
 
 -- name: ListAssistHistory :many
-SELECT id,question,state,created_at,count(*) OVER()::int AS total FROM assist_turns
+SELECT id,question,state,resource_id,created_at,count(*) OVER()::int AS total FROM assist_turns
 WHERE course_id=$1 AND owner_id=$2
 ORDER BY created_at DESC,id DESC LIMIT sqlc.arg(page_size) OFFSET sqlc.arg(page_offset);
 
@@ -50,12 +50,12 @@ SELECT * FROM agent_conversations WHERE course_id=$1 AND owner_id=$2
 ORDER BY updated_at DESC,id LIMIT sqlc.arg(page_size) OFFSET sqlc.arg(page_offset);
 
 -- name: ListAgentTimeline :many
-SELECT id,kind,created_at FROM (
+SELECT id,kind,kind_order,created_at FROM (
  SELECT m.id,'message'::text AS kind,m.created_at,0 AS kind_order FROM agent_messages m WHERE m.conversation_id=sqlc.arg(conversation_id)
  UNION ALL
  SELECT r.id,'run'::text AS kind,r.created_at,1 AS kind_order FROM agent_runs r WHERE r.conversation_id=sqlc.arg(conversation_id)
 ) timeline
-WHERE (created_at,id)<(sqlc.arg(before_time)::timestamptz,sqlc.arg(before_id)::text)
+WHERE (created_at,kind_order,id)<(sqlc.arg(before_time)::timestamptz,sqlc.arg(before_kind_order)::int,sqlc.arg(before_id)::text)
 ORDER BY created_at DESC,kind_order DESC,id DESC LIMIT 51;
 
 -- name: ListAgentPageMessages :many

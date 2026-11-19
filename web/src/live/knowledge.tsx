@@ -61,7 +61,7 @@ import type {
   Source,
   SourceDetail,
 } from "./types";
-import { hasControlNull, utf8ByteLength } from "./validation";
+import { dedupeStrings, hasControlNull, utf8ByteLength } from "./validation";
 import "./knowledge.css";
 
 export {
@@ -79,18 +79,6 @@ export type { Hit, Job, Knowledge, AssistAnswer };
 
 const KNOWLEDGE_PAGE_SIZE = 15;
 const EVIDENCE_FRAGMENT_PAGE_SIZE = 10;
-
-function dedupeStrings(items: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const item of items) {
-    if (typeof item === "string" && item && !seen.has(item)) {
-      seen.add(item);
-      out.push(item);
-    }
-  }
-  return out;
-}
 
 export function KnowledgePage({
   sourceID = "",

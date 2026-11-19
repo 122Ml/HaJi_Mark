@@ -32,6 +32,13 @@ func (s *Service) Vision(ctx context.Context, j store.ProcessingJob, in JobInput
 	if e != nil {
 		return nil, errors.New("原图路径无效")
 	}
+	info, e := os.Stat(fullPath)
+	if e != nil || !info.Mode().IsRegular() {
+		return nil, errors.New("原图不可读")
+	}
+	if info.Size() > 8<<20 {
+		return nil, errors.New("图片超过8MiB，请裁剪后重试")
+	}
 	data, e := os.ReadFile(fullPath)
 	if e != nil {
 		return nil, errors.New("原图不可读")
@@ -69,7 +76,7 @@ func (s *Service) Vision(ctx context.Context, j store.ProcessingJob, in JobInput
 		Status     string          `json:"review_status"`
 	}
 	raw := response.Choices[0].Message.Content
-	if json.Unmarshal([]byte(raw), &out) != nil || strings.TrimSpace(out.Body) == "" || len(out.Body) > 60000 || out.Status != "pending_teacher_review" || len(out.Structured) == 0 {
+	if json.Unmarshal([]byte(raw), &out) != nil || strings.TrimSpace(out.Body) == "" || len(out.Body) > 60000 || strings.ContainsRune(out.Body, '\x00') || strings.ContainsRune(string(out.Structured), '\x00') || out.Status != "pending_teacher_review" || len(out.Structured) == 0 {
 		return map[string]string{"raw_response": raw}, errors.New("视觉候选格式无效")
 	}
 	var structure struct {

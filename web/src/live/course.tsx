@@ -128,6 +128,7 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
 
   const [params, setParams] = useSearchParams();
   const [editorOpen, setEditorOpen] = useState(false);
+  const [editingDraft, setEditingDraft] = useState<CourseResource | null>(null);
   const [revisionBase, setRevisionBase] = useState<CourseResource | null>(null);
   const [editorError, setEditorError] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
@@ -188,22 +189,25 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
     );
   }, [teacher, course?.id, view?.id, view?.status]);
 
-  // Separate draft keys for new resource vs revising a specific published resource.
-  const draftKey = revisionBase
-    ? `resource-rev:${revisionBase.id}`
-    : `resource:new:${course?.id || ""}`;
+  // Separate draft keys for new resource, editing a draft, or revising a published resource.
+  const draftKey = editingDraft
+    ? `resource-edit:${editingDraft.id}`
+    : revisionBase
+      ? `resource-rev:${revisionBase.id}`
+      : `resource:new:${course?.id || ""}`;
 
   const initialDraft = useMemo<ResourceFormDraft>(() => {
-    if (!revisionBase) return EMPTY_DRAFT;
+    const source = editingDraft || revisionBase;
+    if (!source) return EMPTY_DRAFT;
     return {
-      title: revisionBase.title,
-      content: revisionBase.content,
-      source_url: revisionBase.source_url,
-      source_note: revisionBase.source_note,
-      locator: revisionBase.locator,
-      knowledge_point_id: revisionBase.knowledge_point_id || "",
+      title: source.title,
+      content: source.content,
+      source_url: source.source_url,
+      source_note: source.source_note,
+      locator: source.locator,
+      knowledge_point_id: source.knowledge_point_id || "",
     };
-  }, [revisionBase]);
+  }, [editingDraft, revisionBase]);
 
   const resourceDraft = useEditorDraft<ResourceFormDraft>(
     draftKey,
@@ -332,10 +336,38 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
     [events.data],
   );
 
+  function openDraftEditor(target: CourseResource) {
+    setEditorError("");
+    setRevisionBase(null);
+    setEditingDraft(target);
+    setEditorOpen(true);
+  }
+
   function openRevisionEditor(target: CourseResource) {
     setEditorError("");
+    setEditingDraft(null);
     setRevisionBase(target);
     setEditorOpen(true);
+  }
+
+  async function handleArchiveResource(target: CourseResource) {
+    if (
+      !(await confirm(
+        `确认归档学习资料“${target.title}”？归档后不再作为有效学习内容展示。`,
+        { danger: true },
+      ))
+    ) {
+      return;
+    }
+    const archived = await action.run<CourseResource>(
+      `/resources/${target.id}/archive`,
+      {},
+      "POST",
+      "资料已归档",
+    );
+    if (archived && view?.id === target.id) {
+      openResource(archived);
+    }
   }
 
   async function handleSaveResource() {
@@ -390,17 +422,26 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
       source_note: trimmedNote,
       locator: trimmedLocator,
       knowledge_point_id: resource.knowledge_point_id || "",
-      ...(revisionBase ? { supersedes_id: revisionBase.id } : {}),
+      ...(revisionBase && !editingDraft ? { supersedes_id: revisionBase.id } : {}),
     };
 
     const created = await action.run<CourseResource>(
-      revisionBase ? `/resources/${revisionBase.id}/revisions` : "/resources",
+      editingDraft
+        ? `/resources/${editingDraft.id}`
+        : revisionBase
+          ? `/resources/${revisionBase.id}/revisions`
+          : "/resources",
       payload,
-      "POST",
-      revisionBase ? "资料新版本草稿已保存" : "资料草稿已保存",
+      editingDraft ? "PUT" : "POST",
+      editingDraft
+        ? "资料草稿已更新"
+        : revisionBase
+          ? "资料新版本草稿已保存"
+          : "资料草稿已保存",
     );
     if (created) {
       resourceDraft.reset(EMPTY_DRAFT);
+      setEditingDraft(null);
       setRevisionBase(null);
       setEditorOpen(false);
       if (!sourceID || created.source_id === sourceID) {
@@ -498,6 +539,7 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
                     <Button
                       onClick={() => {
                         setEditorError("");
+                        setEditingDraft(null);
                         setRevisionBase(null);
                         setEditorOpen(true);
                       }}
@@ -598,6 +640,9 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
                   )}
                   {teacher && view.status === "draft" && (
                     <div className="live-inline">
+                      <Button onClick={() => openDraftEditor(view)}>
+                        编辑草稿
+                      </Button>
                       <Button
                         type="primary"
                         disabled={action.busy}
@@ -617,6 +662,13 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
                         }}
                       >
                         审核通过并发布
+                      </Button>
+                      <Button
+                        danger
+                        disabled={action.busy}
+                        onClick={() => void handleArchiveResource(view)}
+                      >
+                        归档
                       </Button>
                     </div>
                   )}
@@ -658,9 +710,18 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
                     {teacher &&
                       view.status === "published" &&
                       !supersededIDs.has(view.id) && (
-                        <Button onClick={() => openRevisionEditor(view)}>
-                          另存资料修订
-                        </Button>
+                        <>
+                          <Button onClick={() => openRevisionEditor(view)}>
+                            另存资料修订
+                          </Button>
+                          <Button
+                            danger
+                            disabled={action.busy}
+                            onClick={() => void handleArchiveResource(view)}
+                          >
+                            归档
+                          </Button>
+                        </>
                       )}
                     {!teacher && (
                       <Button
@@ -744,33 +805,54 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
                                 打开资料
                               </Button>
                               {teacher && r.status === "draft" && (
-                                <Button
-                                  disabled={action.busy}
-                                  onClick={async () => {
-                                    if (
-                                      await confirm(
-                                        "确认发布这份学习资料？发布后学生可见，索引由后台处理。",
-                                      )
-                                    ) {
-                                      await action.run(
-                                        `/resources/${r.id}/publish`,
-                                        {},
-                                        "POST",
-                                        "资料已发布，学生现在可以查看",
-                                      );
-                                    }
-                                  }}
-                                  type="primary"
-                                >
-                                  审核通过并发布
-                                </Button>
+                                <>
+                                  <Button onClick={() => openDraftEditor(r)}>
+                                    编辑草稿
+                                  </Button>
+                                  <Button
+                                    disabled={action.busy}
+                                    onClick={async () => {
+                                      if (
+                                        await confirm(
+                                          "确认发布这份学习资料？发布后学生可见，索引由后台处理。",
+                                        )
+                                      ) {
+                                        await action.run(
+                                          `/resources/${r.id}/publish`,
+                                          {},
+                                          "POST",
+                                          "资料已发布，学生现在可以查看",
+                                        );
+                                      }
+                                    }}
+                                    type="primary"
+                                  >
+                                    审核通过并发布
+                                  </Button>
+                                  <Button
+                                    danger
+                                    disabled={action.busy}
+                                    onClick={() => void handleArchiveResource(r)}
+                                  >
+                                    归档
+                                  </Button>
+                                </>
                               )}
                               {teacher &&
                                 r.status === "published" &&
                                 !superseded && (
-                                  <Button onClick={() => openRevisionEditor(r)}>
-                                    另存资料修订
-                                  </Button>
+                                  <>
+                                    <Button onClick={() => openRevisionEditor(r)}>
+                                      另存资料修订
+                                    </Button>
+                                    <Button
+                                      danger
+                                      disabled={action.busy}
+                                      onClick={() => void handleArchiveResource(r)}
+                                    >
+                                      归档
+                                    </Button>
+                                  </>
                                 )}
                             </div>
                           </article>
@@ -793,7 +875,13 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
           </div>
           {teacher && (
             <Drawer
-              title={revisionBase ? "创建资料新版本" : "添加资料草稿"}
+              title={
+                editingDraft
+                  ? "编辑资料草稿"
+                  : revisionBase
+                    ? "创建资料新版本"
+                    : "添加资料草稿"
+              }
               open={editorOpen}
               width={680}
               onClose={async () => {
@@ -939,7 +1027,7 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
                     htmlType="submit"
                     type="primary"
                   >
-                    保存资料草稿
+                    {editingDraft ? "保存草稿修改" : "保存资料草稿"}
                   </Button>
                 </Form>
               </section>

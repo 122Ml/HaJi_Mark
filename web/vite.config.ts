@@ -15,9 +15,6 @@ export default defineConfig({
           if (/[\\/](react-markdown|remark-|rehype-|katex|micromark|mdast|hast|unist|vfile|property-information|comma-separated-tokens|space-separated-tokens|decode-named-character-reference|character-entities|bail|trough|devlop)[\\/]/.test(id)) {
             return 'markdown-katex';
           }
-          if (/[\\/](antd|@ant-design|rc-|@rc-component|dayjs|async-validator|classnames|scroll-into-view-if-needed|compute-scroll-into-view|@babel|@ctrl|resize-observer-polyfill|copy-to-clipboard|toggle-selection|throttle-debounce)[\\/]/.test(id)) {
-            return 'antd-vendor';
-          }
           return undefined;
         },
       },

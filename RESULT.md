@@ -1,3 +1,5 @@
+> **历史归档说明（2026-10-31）**：本文档为 2026-10-31 UI 重构阶段的历史交接快照，仅保留当时基线记录；最新架构、接口契约（167 路由 / 迁移 00019）与当前验收入口请以 [README.md](README.md)、[docs/README.md](docs/README.md) 与 [docs/verification.md](docs/verification.md) 为准。
+
 # UI 重构结果与部署交接 · 2026-10-31
 
 分支 `codex/platform-completion`，回退点 `ca85f97 chore: checkpoint before UI refresh`。详细改动与取舍见 [docs/ui-refresh-2026-10-31.md](docs/ui-refresh-2026-10-31.md)，设计规范见 [design.md](design.md)。

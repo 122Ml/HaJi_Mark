@@ -464,6 +464,9 @@ html .agent-composer { border-top-color: var(--line); background: var(--panel); 
 .live-point-results blockquote { border-left-color: var(--evidence-line); }
 
 /* §10b Responsive: 重新声明原文件媒体查询里改过、而本文件桌面规则又覆写了的属性 */
+@media (max-width: 1320px) {
+  .grading-columns { grid-template-columns: 204px minmax(260px, 1fr) minmax(320px, 380px); gap: 10px; }
+}
 @media (max-width: 1100px) {
   .grading-columns { grid-template-columns: 180px minmax(220px, 1fr) minmax(280px, 1fr); gap: 10px; }
 }
@@ -843,6 +846,12 @@ html .agent-conversations::-webkit-scrollbar-thumb,
 
 /* §12 Motion --------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+  html { scroll-behavior: auto !important; }
+  .lab-shell *, .lab-shell *::before, .lab-shell *::after,
+  .welcome-page *, .welcome-page *::before, .welcome-page *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
   html .agent-stream > .ant-card-head::after { animation: none; }
 }

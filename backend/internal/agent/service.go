@@ -30,7 +30,7 @@ type streamingModel interface {
 const (
 	maxOperations     = 48
 	maxModelCalls     = 32
-	maxConcurrentRuns = 16
+	maxConcurrentRuns = 4
 	agentLockSalt     = 1741
 )
 
@@ -70,6 +70,17 @@ func New(db *pgxpool.Pool, models *rag.Models, gateway identity.Gateway) *Servic
 		s.Model = models
 	}
 	return s
+}
+
+func (s *Service) chatConfigured() bool {
+	if s.Model == nil {
+		return false
+	}
+	if s.Profiles != nil {
+		_, err := s.Profiles.Profile("", "chat")
+		return err == nil
+	}
+	return true
 }
 
 // Serve is owned by the API shutdown context. Per-run PostgreSQL advisory locks
@@ -152,8 +163,23 @@ func active(state string) bool {
 	return slices.Contains([]string{"queued", "running", "waiting_input", "waiting_approval", "waiting_job"}, state)
 }
 func (s *Service) event(ctx context.Context, q *store.Queries, run store.AgentRun, kind string, payload any) error {
+	// Serialize event sequence allocation per conversation inside transaction so commit order matches id order.
+	if e := q.LockConversationEvents(ctx, "event:"+run.ConversationID); e != nil {
+		return e
+	}
 	_, e := q.CreateAgentEvent(ctx, store.CreateAgentEventParams{ConversationID: run.ConversationID, RunID: run.ID, Kind: kind, Payload: raw(payload)})
 	return e
+}
+func (s *Service) eventTx(ctx context.Context, run store.AgentRun, kind string, payload any) error {
+	tx, e := s.DB.Begin(ctx)
+	if e != nil {
+		return e
+	}
+	defer tx.Rollback(ctx)
+	if e = s.event(ctx, s.Q.WithTx(tx), run, kind, payload); e != nil {
+		return e
+	}
+	return tx.Commit(ctx)
 }
 func (s *Service) checkpoint(ctx context.Context, run store.AgentRun, rt *runtime, state, message string) error {
 	tx, e := s.DB.Begin(ctx)
@@ -201,6 +227,9 @@ func (s *Service) finish(ctx context.Context, run store.AgentRun, rt *runtime, c
 	defer tx.Rollback(ctx)
 	q := s.Q.WithTx(tx)
 	if e = q.CreateAgentMessage(ctx, store.CreateAgentMessageParams{ID: uuid.NewString(), ConversationID: run.ConversationID, Role: "assistant", Content: content, AttachmentIds: []string{}}); e != nil {
+		return e
+	}
+	if e = q.ExpireAgentRequests(ctx, run.ID); e != nil {
 		return e
 	}
 	if e = q.UpdateAgentRun(ctx, store.UpdateAgentRunParams{ID: run.ID, State: "succeeded", Runtime: raw(rt)}); e != nil {
@@ -325,7 +354,32 @@ func (s *Service) process(ctx context.Context, id string) error {
 	}
 	modelCtx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	defer cancel()
+	watchDone := make(chan struct{})
+	go func() {
+		defer close(watchDone)
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-modelCtx.Done():
+				return
+			case <-ticker.C:
+				checkCtx, checkCancel := context.WithTimeout(modelCtx, 3*time.Second)
+				fresh, err := s.Q.GetAgentRun(checkCtx, run.ID)
+				if err == nil && !fresh.CancelRequested {
+					_, err = s.authorized(checkCtx, run, conv)
+				}
+				checkCancel()
+				if err != nil || fresh.CancelRequested {
+					cancel()
+					return
+				}
+			}
+		}
+	}()
 	if e = s.Q.SetAgentStream(ctx, store.SetAgentStreamParams{ID: run.ID, StreamText: "", StreamTurn: int32(rt.ModelCalls)}); e != nil {
+		cancel()
+		<-watchDone
 		return e
 	}
 	var msg rag.AgentMessage
@@ -405,10 +459,12 @@ func (s *Service) process(ctx context.Context, id string) error {
 				}
 				checkCancel()
 				if err != nil {
+					cancel()
 					return err
 				}
 				if fresh.CancelRequested {
-					return errors.New("运行已停止")
+					cancel()
+					return context.Canceled
 				}
 			}
 			if f.Domain != "coordinator" {
@@ -438,13 +494,17 @@ func (s *Service) process(ctx context.Context, id string) error {
 			flushMu.Unlock()
 			if needFinal {
 				flushCtx, flushCancel := context.WithTimeout(ctx, 5*time.Second)
-				e = s.streamText(flushCtx, run, rt.ModelCalls, text)
+				if flushErr := s.streamText(flushCtx, run, rt.ModelCalls, text); flushErr != nil {
+					log.Printf("agent final streamText flush failed run=%s: %v", run.ID, flushErr)
+				}
 				flushCancel()
 			}
 		}
 	} else {
 		msg, e = s.Model.AgentChat(modelCtx, conv.CourseID, conv.OwnerID, rt.Profile, f.Messages, definitions)
 	}
+	cancel()
+	<-watchDone
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
@@ -483,6 +543,15 @@ func (s *Service) process(ctx context.Context, id string) error {
 }
 
 func (s *Service) streamText(ctx context.Context, run store.AgentRun, turn int, value string) error {
+	// Write full latest text to agent_runs.stream_text and emit incremental/compact event payload to avoid O(N^2) JSONB bloat.
+	prev := ""
+	if current, err := s.Q.GetAgentRun(ctx, run.ID); err == nil && current.StreamTurn == int32(turn) {
+		prev = current.StreamText
+	}
+	delta := ""
+	if prev != "" && strings.HasPrefix(value, prev) {
+		delta = value[len(prev):]
+	}
 	tx, e := s.DB.Begin(ctx)
 	if e != nil {
 		return e
@@ -492,7 +561,12 @@ func (s *Service) streamText(ctx context.Context, run store.AgentRun, turn int, 
 	if e = q.SetAgentStream(ctx, store.SetAgentStreamParams{ID: run.ID, StreamText: value, StreamTurn: int32(turn)}); e != nil {
 		return e
 	}
-	if e = s.event(ctx, q, run, "text", map[string]any{"turn": turn, "text": value}); e != nil {
+	evPayload := map[string]any{"turn": turn, "text": value}
+	if delta != "" && len(value) > 2048 && len(delta) < len(value) {
+		// Emit delta alongside offset marker; readers that read stream_text snapshot still see full text, and event log stays linear.
+		evPayload = map[string]any{"turn": turn, "delta": delta, "offset": len(prev)}
+	}
+	if e = s.event(ctx, q, run, "text", evPayload); e != nil {
 		return e
 	}
 	return tx.Commit(ctx)

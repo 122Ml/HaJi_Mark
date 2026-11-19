@@ -26,7 +26,7 @@ function Run($exe, [string[]]$argv) { & $exe @argv; if ($LASTEXITCODE -ne 0) { t
 $commit = (git rev-parse HEAD).Trim()
 $short = (git rev-parse --short HEAD).Trim()
 if (-not $ReleaseId) {
-  $existing = Get-ChildItem .local/deployment -Directory -Filter "hajimark-ui-$short-*" -ErrorAction SilentlyContinue | Sort-Object Name -Descending | Select-Object -First 1
+  $existing = Get-ChildItem .local/deployment -Directory -Filter "hajimark-*-$short-*" -ErrorAction SilentlyContinue | Sort-Object Name -Descending | Select-Object -First 1
   $ReleaseId = if ($existing -and $Action -ne 'build') { $existing.Name } else { "hajimark-ui-$short-$(Get-Date -Format yyyyMMdd)" }
 }
 if ($ReleaseId -notmatch '^hajimark-[A-Za-z0-9_-]{1,80}$') { throw "Invalid release id $ReleaseId" }
@@ -75,7 +75,7 @@ function Build-Bundle {
   if ($LASTEXITCODE -ne 0) { throw 'Could not read exported image config IDs' }
   $configIDs = $configJSON | ConvertFrom-Json
   Remove-Item "$Bundle/images.tar"
-  foreach ($f in 'compose.production.yaml', 'backup.sh', 'renew-certificate.sh', 'openresty-hajistudy.conf', 'fingerprint-db.py', 'publish-diagrams.py') { Copy-Item "deploy/$f" $Bundle }
+  foreach ($f in 'compose.production.yaml', 'backup.sh', 'restore.sh', 'renew-certificate.sh', 'openresty-hajistudy.conf', 'fingerprint-db.py', 'publish-diagrams.py') { Copy-Item "deploy/$f" $Bundle }
   $manifest = [ordered]@{
     release_id = $ReleaseId; source_commit = $commit; source_tag = $sourceTag; source_branch = (git branch --show-current).Trim()
     images = @($images | ForEach-Object {
@@ -104,11 +104,11 @@ function Write-ServerScripts {
   # Runs on the server inside the release dir. Preserves secrets and selects bundled images.
   $switch = Get-Content (Join-Path $PSScriptRoot 'switch-release.sh') -Raw
   $update = Get-Content (Join-Path $PSScriptRoot 'update-release.sh') -Raw
-  $rollback = "#!/bin/bash`nset -euo pipefail`necho 'No automatic rollback across schema changes. Verify schema compatibility and preserve post-upgrade writes before selecting an older release.' >&2`nexit 1`n"
+  $rollback = "#!/bin/bash`nset -euo pipefail`necho 'No automatic rollback across schema changes. Check SELECT max(version_id) FROM goose_db_version before switching release.' >&2`nexit 1`n"
   $sha = (Get-Content "$Bundle/release.json" -Raw | ConvertFrom-Json).archive.sha256
   foreach ($pair in @(@('switch-release.sh', $switch), @('update-release.sh', $update), @('rollback.sh', $rollback))) {
     $text = $pair[1].Replace('__RELEASE__', $ReleaseId).Replace('__PREVIOUS__', $PreviousRelease).Replace('__SHA256__', $sha) -replace "`r`n", "`n"
-    [IO.File]::WriteAllText((Join-Path $Bundle $pair[0]), $text + "`n")
+    [IO.File]::WriteAllText((Join-Path $Bundle $pair[0]), $text.TrimEnd("`r", "`n") + "`n")
   }
 }
 function Verify-Bundle {
@@ -130,10 +130,22 @@ function Verify-Bundle {
   $env:POSTGRES_IMAGE = ($m.images | Where-Object { $_.tag -like '*postgres*' }).tag
   try { Run docker @('compose', '-f', "$Bundle/compose.production.yaml", 'config', '-q') }
   finally { Remove-Item Env:POSTGRES_PASSWORD, Env:BACKEND_IMAGE, Env:WORKER_IMAGE, Env:WEB_IMAGE, Env:POSTGRES_IMAGE }
-  Step 'Check server scripts are LF-only and parse with bash -n'
-  foreach ($s in 'switch-release.sh', 'update-release.sh', 'rollback.sh', 'backup.sh') {
-    if ((Get-Content -Raw "$Bundle/$s").Contains("`r")) { throw "$s has CRLF" }
-    Run docker @('run', '--rm', '-v', "${Bundle}:/r:ro", 'redis:7.4.10', 'bash', '-n', "/r/$s")
+  Step 'Check server scripts are non-empty, LF-only, and parse cleanly'
+  $scriptChecks = @(
+    @('sh', 'backup.sh'),
+    @('sh', 'restore.sh'),
+    @('sh', 'renew-certificate.sh'),
+    @('bash', 'switch-release.sh'),
+    @('bash', 'update-release.sh'),
+    @('bash', 'rollback.sh')
+  )
+  foreach ($entry in $scriptChecks) {
+    $shell = $entry[0]
+    $s = $entry[1]
+    $raw = Get-Content -Raw "$Bundle/$s"
+    if ([string]::IsNullOrWhiteSpace($raw)) { throw "$s is empty" }
+    if ($raw.Contains("`r")) { throw "$s has CRLF" }
+    Run docker @('run', '--rm', '-v', "${Bundle}:/r:ro", 'redis:7.4.10', $shell, '-n', "/r/$s")
   }
   Step 'Smoke-test the release web image (static files + SPA fallback)'
   $name = "hajimark-release-smoke-$short"
@@ -191,7 +203,7 @@ switch ($Action) {
   'deploy' {
     Verify-Bundle
     $script:KeyAccess = Get-Remote
-    $files = 'images.tar.gz', 'release.json', 'compose.production.yaml', 'backup.sh', 'renew-certificate.sh', 'openresty-hajistudy.conf', 'switch-release.sh', 'update-release.sh', 'rollback.sh', 'fingerprint-db.py' | ForEach-Object { Join-Path $Bundle $_ }
+    $files = 'images.tar.gz', 'release.json', 'compose.production.yaml', 'backup.sh', 'restore.sh', 'renew-certificate.sh', 'openresty-hajistudy.conf', 'switch-release.sh', 'update-release.sh', 'rollback.sh', 'fingerprint-db.py' | ForEach-Object { Join-Path $Bundle $_ }
     Step "Upload to $TargetHost`:$RemoteDir, backup, load, switch"
     Invoke-Remote "test ! -e $RemoteDir/images.tar.gz && echo NEW_RELEASE_DIR || (echo 'release dir already has images; refusing to overwrite' && exit 1)"
     Invoke-Remote "chmod 700 $RemoteDir/*.sh && nohup bash $RemoteDir/update-release.sh >$RemoteDir/deployment.log 2>&1 </dev/null &" $files

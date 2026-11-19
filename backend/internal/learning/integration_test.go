@@ -27,6 +27,9 @@ import (
 func TestTeachingLoop(t *testing.T) {
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
+		if os.Getenv("REQUIRE_INTEGRATION_TESTS") == "1" {
+			t.Fatal("TEST_DATABASE_URL must be set when REQUIRE_INTEGRATION_TESTS=1")
+		}
 		t.Skip("TEST_DATABASE_URL is not set")
 	}
 	t.Setenv("AI_ENABLED", "false")
@@ -328,6 +331,9 @@ INSERT INTO retrieval_chunks(id,course_id,source_id,title,body,locator,input_has
 	t.Run("AI_adoption_returns_persisted_provenance", func(t *testing.T) {
 		questionID := detail.Questions[0].ID
 		jobInput, _ := json.Marshal(map[string]any{"question_id": questionID, "prompt": "Explain", "max_score": 10})
+		if _, err := db.Exec(ctx, `INSERT INTO retrieval_chunks(id,course_id,source_id,title,body,locator,input_hash,search_tokens) VALUES('frozen-reference','course','bank-source','frozen','fixture','{}','frozen-ref-hash','frozen') ON CONFLICT DO NOTHING`); err != nil {
+			t.Fatal(err)
+		}
 		if _, err := db.Exec(ctx, `INSERT INTO processing_jobs(id,course_id,created_by,kind,state,input,output) VALUES('rubric-job','course','teacher','rubric','succeeded',$1,'{"evidence_refs":[{"id":"frozen-reference","body":"fixture"}]}')`, jobInput); err != nil {
 			t.Fatal(err)
 		}
@@ -889,7 +895,8 @@ INSERT INTO material_fragments(id,source_id,revision,position,body,locator,quali
 		call(student, "PUT", base+"/intelligence/"+report.ID+"/choice", map[string]any{"candidate_id": choice, "choice": "saved"}, 200)
 		call(peer, "GET", base+"/intelligence/"+report.ID, nil, 404)
 		call(student, "PUT", base+"/intelligence/"+report.ID+"/choice", map[string]any{"candidate_id": "foreign", "choice": "saved"}, 409)
-		call(teacher, "POST", base+"/knowledge/"+kid+"/state", map[string]any{"state": "archived", "edit_version": 1}, 200)
+		call(teacher, "POST", base+"/knowledge/"+kid+"/state", map[string]any{"state": "archived", "edit_version": 1}, 409)
+		call(teacher, "POST", base+"/knowledge/"+kid+"/state", map[string]any{"state": "archived", "edit_version": 2}, 200)
 		_ = json.Unmarshal(call(student, "GET", base+"/intelligence/"+report.ID, nil, 200), &recommendation)
 		for _, rank := range recommendation.Report.Output.Ranking {
 			if rank.ID == "knowledge:"+kid && rank.Reason != "内容已不可用或已完成，请以当前学习路径为准。" {

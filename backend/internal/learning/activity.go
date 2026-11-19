@@ -27,6 +27,9 @@ func (h *Handler) activity(c *gin.Context) {
 		}
 	}
 	v, e := h.q.ListCourseActivity(c.Request.Context(), store.ListCourseActivityParams{CourseID: c.Param("courseID"), StudentID: studentID})
+	if e == nil && v == nil {
+		v = []store.ListCourseActivityRow{}
+	}
 	result(c, v, e)
 }
 
@@ -40,6 +43,9 @@ func (h *Handler) roster(c *gin.Context) {
 	if e != nil {
 		result(c, nil, e)
 		return
+	}
+	if rows == nil {
+		rows = []store.AssignmentSubmissionRosterRow{}
 	}
 	submitted, partial, pending := 0, 0, 0
 	for _, row := range rows {

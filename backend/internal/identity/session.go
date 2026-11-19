@@ -7,6 +7,7 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"errors"
+	"log/slog"
 	"mime"
 	"net/http"
 	"net/url"
@@ -39,20 +40,38 @@ type Handler struct {
 	db              *pgxpool.Pool
 	queries         *store.Queries
 	secureCookie    bool
+	publicOrigin    string
 	limiter         *loginLimiter
 	ipLimiter       *loginLimiter
 	passwordLimiter *loginLimiter
 }
 
 func New(db *pgxpool.Pool, secureCookie bool) *Handler {
+	return NewWithOrigin(db, secureCookie, strings.TrimSpace(os.Getenv("PUBLIC_ORIGIN")))
+}
+
+func NewWithOrigin(db *pgxpool.Pool, secureCookie bool, publicOrigin string) *Handler {
 	return &Handler{
 		db:              db,
 		queries:         store.New(db),
 		secureCookie:    secureCookie,
+		publicOrigin:    normalizeOrigin(publicOrigin),
 		limiter:         newLoginLimiter(),
 		ipLimiter:       newRateLimiter(120, time.Minute, 10000),
 		passwordLimiter: newRateLimiter(10, 15*time.Minute, 10000),
 	}
+}
+
+func normalizeOrigin(raw string) string {
+	trimmed := strings.TrimRight(strings.TrimSpace(raw), "/")
+	if trimmed == "" {
+		return ""
+	}
+	u, err := url.Parse(trimmed)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return trimmed
+	}
+	return strings.ToLower(u.Scheme) + "://" + strings.ToLower(u.Host)
 }
 
 func (h *Handler) AllowPasswordChange(actorID string) (bool, int) {
@@ -66,10 +85,26 @@ func (h *Handler) ClearSessionCookie(c *gin.Context) {
 	h.cookie(c, "", -1)
 }
 
+func (h *Handler) reapOnce(ctx context.Context) {
+	for {
+		reapCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		n, err := h.queries.DeleteExpiredSessions(reapCtx)
+		cancel()
+		if err != nil {
+			slog.Warn("session reaper failed", "error", err)
+			return
+		}
+		if n < 1000 || ctx.Err() != nil {
+			return
+		}
+	}
+}
+
 func (h *Handler) StartReaper(ctx context.Context) {
 	if h == nil || h.db == nil || ctx == nil {
 		return
 	}
+	h.reapOnce(ctx)
 	ticker := time.NewTicker(15 * time.Minute)
 	defer ticker.Stop()
 	for {
@@ -77,9 +112,7 @@ func (h *Handler) StartReaper(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			reapCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-			_ = h.queries.DeleteExpiredSessions(reapCtx)
-			cancel()
+			h.reapOnce(ctx)
 		}
 	}
 }
@@ -105,35 +138,71 @@ func Current(c *gin.Context) Actor { return c.MustGet(actorKey).(Actor) }
 
 // Same-origin JSON is required even at login, before a session/CSRF token exists.
 func SameOrigin(c *gin.Context) bool {
-	if strings.EqualFold(strings.TrimSpace(c.GetHeader("Sec-Fetch-Site")), "cross-site") {
+	return sameOriginWith(c, strings.TrimSpace(os.Getenv("PUBLIC_ORIGIN")))
+}
+
+func sameOriginWith(c *gin.Context, publicOrigin string) bool {
+	fetchSite := strings.ToLower(strings.TrimSpace(c.GetHeader("Sec-Fetch-Site")))
+	if fetchSite == "cross-site" {
 		Fail(c, http.StatusForbidden, "origin_forbidden", "请求来源不匹配")
 		return false
 	}
+	configured := normalizeOrigin(publicOrigin)
 	scheme := "http"
 	if c.Request.TLS != nil {
 		scheme = "https"
 	}
-	expectedOrigin := scheme + "://" + c.Request.Host
-	if configured := strings.TrimRight(strings.TrimSpace(os.Getenv("PUBLIC_ORIGIN")), "/"); configured != "" {
+	expectedOrigin := scheme + "://" + strings.ToLower(c.Request.Host)
+	if configured != "" {
 		expectedOrigin = configured
 	}
 	origin := strings.TrimSpace(c.GetHeader("Origin"))
 	if origin != "" {
 		parsed, err := url.Parse(origin)
-		if err != nil || parsed.User != nil || parsed.Host != c.Request.Host || origin != expectedOrigin || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+		actual := ""
+		if err == nil && parsed.Scheme != "" && parsed.Host != "" {
+			actual = strings.ToLower(parsed.Scheme) + "://" + strings.ToLower(parsed.Host)
+		}
+		if err != nil || parsed.User != nil || actual != expectedOrigin || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
 			Fail(c, http.StatusForbidden, "origin_forbidden", "请求来源不匹配")
 			return false
+		}
+		if configured == "" && !strings.EqualFold(parsed.Host, c.Request.Host) {
+			Fail(c, http.StatusForbidden, "origin_forbidden", "请求来源不匹配")
+			return false
+		}
+		if configured != "" && c.Request.Host != "" && !strings.EqualFold(parsed.Host, c.Request.Host) {
+			// If proxy preserves Host, verify it matches too; otherwise rely on configured publicOrigin if Host is internal.
+			if strings.Contains(c.Request.Host, ".") && c.Request.Host != "api" && !strings.HasPrefix(c.Request.Host, "api:") {
+				Fail(c, http.StatusForbidden, "origin_forbidden", "请求来源不匹配")
+				return false
+			}
 		}
 		return true
 	}
 	if referer := strings.TrimSpace(c.GetHeader("Referer")); referer != "" {
 		parsed, err := url.Parse(referer)
-		if err != nil || parsed.User != nil || parsed.Host != c.Request.Host || parsed.Scheme+"://"+parsed.Host != expectedOrigin {
+		actual := ""
+		if err == nil && parsed.Scheme != "" && parsed.Host != "" {
+			actual = strings.ToLower(parsed.Scheme) + "://" + strings.ToLower(parsed.Host)
+		}
+		if err != nil || parsed.User != nil || actual != expectedOrigin {
+			Fail(c, http.StatusForbidden, "origin_forbidden", "请求来源不匹配")
+			return false
+		}
+		if configured == "" && !strings.EqualFold(parsed.Host, c.Request.Host) {
 			Fail(c, http.StatusForbidden, "origin_forbidden", "请求来源不匹配")
 			return false
 		}
 	}
 	return true
+}
+
+func (h *Handler) sameOrigin(c *gin.Context) bool {
+	if h != nil && h.publicOrigin != "" {
+		return sameOriginWith(c, h.publicOrigin)
+	}
+	return SameOrigin(c)
 }
 
 func (h *Handler) cookie(c *gin.Context, raw string, maxAge int) {
@@ -154,7 +223,7 @@ func (h *Handler) Register(api *gin.RouterGroup) {
 
 func (h *Handler) login(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	if !SameOrigin(c) {
+	if !h.sameOrigin(c) {
 		return
 	}
 	contentType, _, err := mime.ParseMediaType(c.GetHeader("Content-Type"))
@@ -176,7 +245,8 @@ func (h *Handler) login(c *gin.Context) {
 		return
 	}
 	now := time.Now()
-	if ip := c.ClientIP(); ip != "" {
+	ip := c.ClientIP()
+	if ip != "" {
 		if ok, retry := h.ipLimiter.allowWithRetry(ip, now); !ok {
 			c.Header("Retry-After", strconv.Itoa(retry))
 			Fail(c, http.StatusTooManyRequests, "too_many_requests", "登录请求过于频繁，请稍后重试")
@@ -184,9 +254,10 @@ func (h *Handler) login(c *gin.Context) {
 		}
 	}
 	username := strings.TrimSpace(input.Username)
-	if ok, retry := h.limiter.allowWithRetry(username, now); !ok {
+	accountKey := ip + "|" + username
+	if ok, retry := h.limiter.checkWithRetry(accountKey, now); !ok {
 		c.Header("Retry-After", strconv.Itoa(retry))
-		Fail(c, http.StatusTooManyRequests, "too_many_requests", "该账号登录请求过于频繁，请稍后重试")
+		Fail(c, http.StatusTooManyRequests, "too_many_requests", "该账号登录失败次数过多，请稍后重试")
 		return
 	}
 	user, err := h.queries.GetLoginUser(c.Request.Context(), pgtype.Text{String: username, Valid: true})
@@ -202,9 +273,11 @@ func (h *Handler) login(c *gin.Context) {
 	}
 	mismatch := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(input.Password))
 	if passwordMissing || mismatch != nil {
+		h.limiter.allowWithRetry(accountKey, now)
 		Fail(c, http.StatusUnauthorized, "invalid_credentials", "用户名或密码错误")
 		return
 	}
+	h.limiter.reset(accountKey)
 	raw, err := randomToken()
 	if err != nil {
 		Fail(c, http.StatusInternalServerError, "session_failed", "无法建立会话")
@@ -242,10 +315,14 @@ func (h *Handler) RequireSession() gin.HandlerFunc {
 		raw, err := c.Cookie(CookieName)
 		ref, internal := c.Request.Context().Value(sessionReferenceKey{}).(sessionReference)
 		if !internal && (err != nil || len(raw) != 64) {
+			if err == nil && raw != "" {
+				h.ClearSessionCookie(c)
+			}
 			Fail(c, http.StatusUnauthorized, "unauthorized", "请先登录")
 			return
 		}
 		if _, err := hex.DecodeString(raw); !internal && err != nil {
+			h.ClearSessionCookie(c)
 			Fail(c, http.StatusUnauthorized, "unauthorized", "会话无效，请重新登录")
 			return
 		}
@@ -284,7 +361,7 @@ func (h *Handler) RequireCSRF() gin.HandlerFunc {
 			c.Next()
 			return
 		}
-		if !SameOrigin(c) {
+		if !h.sameOrigin(c) {
 			return
 		}
 		raw, _ := c.Cookie(CookieName)

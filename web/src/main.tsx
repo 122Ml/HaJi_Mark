@@ -36,21 +36,14 @@ const queryClient = new QueryClient({
   },
 });
 
-const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-const subscribeMotion = (listener: () => void) => {
-  reducedMotion.addEventListener('change', listener);
-  return () => reducedMotion.removeEventListener('change', listener);
-};
-
 function UIProvider({ children }: { children: React.ReactNode }) {
-  const reduce = React.useSyncExternalStore(subscribeMotion, () => reducedMotion.matches);
   const { mode } = useThemeMode();
   const baseTheme = mode === 'dark' ? darkTheme : theme;
   return (
     <ConfigProvider
       locale={zhCN}
       button={{ autoInsertSpace: false }}
-      theme={{ ...baseTheme, cssVar: { key: 'haji-theme' }, token: { ...baseTheme.token, motion: !reduce } }}
+      theme={{ ...baseTheme, cssVar: { key: 'haji-theme' } }}
     >
       <AntApp>{children}</AntApp>
     </ConfigProvider>

@@ -43,7 +43,7 @@ flowchart LR
 | --- | --- |
 | backend/internal/identity | bcrypt、8小时数据库会话、角色/课程/本人权限、CSRF与登录频率限制 |
 | backend/internal/learning | 课程/目录/资料/成员，作业/提交/评分，学情/路径/干预，互动和账号、教研/行业记录 |
-| backend/internal/store；backend/db | sqlc类型查询，Goose迁移00001—00016；原文和修订的唯一事实源 |
+| backend/internal/store；backend/db | sqlc类型查询，Goose迁移00001—00019；原文和修订的唯一事实源 |
 | backend/internal/agent | 对话与附件、单层委派、工具策略、问题审批、检查点、取消恢复及业务SSE；不复制业务状态机 |
 | web/src/live | course/curriculum/graph/notes、assessment、insight/path、communication、account、assistant |
 | web/src/shared | API、会话与错误恢复；原课程示例保留但不作为活动主入口 |
@@ -214,3 +214,9 @@ flowchart LR
 作业选题器嵌入原题目／解答／标准核对组件，保留作业草稿和固定版本规则。内容影响新增assignment_question精确引用，在原页打开重评并保留作业、题目和变更原因；切换标准会使预览失效，冻结与整组发布保持独立。诊断选项显示所属作业以区分同题干，确认且未过期报告才可按作答原位建单学生任务；迁移00016保存source_submission_id、diagnosis_report_id及diagnosis_label_id，后端锁定作业核验最新正式证据。正式结果改变后旧诊断不可继续安排任务。
 
 F01—F16实施、真实浏览器与私有schema回归范围见[协同修正记录](research/frontend-integration-2026-11-19.md)。构造模型只验证业务链路，不作为真实AI效果或生产部署证明。
+
+## 2026-11-19 本地架构加固（00019）
+
+- **数据库与索引（00019）**：为 1024 与 1536 维 `embedding` 增加 pgvector HNSW 部分索引、高频外键／状态局部索引、`interactions.evidence_refs` 与更严格的状态检查约束；知识与资源修订链维持不可变审计。
+- **后端与运行时**：`identity` 网关严格核对路径／方法及有界限流淘汰；`rag` 结算转为事务原子扣费、`4xx` 不扣费、Asynq 按恢复周期去重并关闭旧向量索引并发竞争；`agent` 事件持久化加行锁并使用线性 UTF-8 字节增量 SSE；`learning` 补齐课程存档／退课／目录点与专题 CRUD、流式上传限额（500 MiB）与 `REPEATABLE READ` + 最小堆 Kahn 学习路径排序。
+- **前端与安全头**：移除 Catch-all `antd-vendor` 分块实现路由级按需加载；新增 `/theme-init.js` 同源首屏主题预初始化以兼容严格 `script-src 'self'` CSP 策略，并对齐深色主题对比度及响应式批阅布局；`deploy/compose.production.yaml` 与 Nginx 强化只读安全头及请求追踪 `X-Request-Id`。

@@ -22,7 +22,10 @@ func SessionReference(c *gin.Context) string {
 	if ref, ok := c.Request.Context().Value(sessionReferenceKey{}).(sessionReference); ok {
 		return ref.hash
 	}
-	raw, _ := c.Cookie(CookieName)
+	raw, err := c.Cookie(CookieName)
+	if err != nil || raw == "" {
+		return ""
+	}
 	return hashToken(raw)
 }
 
@@ -55,48 +58,61 @@ func (w *boundedResponse) Write(b []byte) (int, error) {
 	return w.data.Write(b)
 }
 
-func validateGatewayPath(raw string) (string, error) {
+func validateGatewayPath(raw string) (*url.URL, error) {
 	if raw == "" || strings.ContainsAny(raw, "\r\n\x00\\") {
-		return "", errors.New("工具目标不允许")
+		return nil, errors.New("工具目标不允许")
 	}
 	u, err := url.Parse(raw)
 	if err != nil || u.Scheme != "" || u.Host != "" || u.User != nil || u.Fragment != "" {
-		return "", errors.New("工具目标不允许")
+		return nil, errors.New("工具目标不允许")
 	}
 	rawPathPart := u.EscapedPath()
 	lowerEscaped := strings.ToLower(rawPathPart)
 	if strings.Contains(lowerEscaped, "..") || strings.Contains(lowerEscaped, "//") ||
 		strings.Contains(lowerEscaped, "%2e") || strings.Contains(lowerEscaped, "%2f") ||
-		strings.Contains(lowerEscaped, "%5c") || strings.Contains(lowerEscaped, "%00") {
-		return "", errors.New("工具目标不允许")
+		strings.Contains(lowerEscaped, "%5c") || strings.Contains(lowerEscaped, "%00") ||
+		strings.Contains(lowerEscaped, "%25") || strings.Contains(lowerEscaped, "%23") ||
+		strings.Contains(lowerEscaped, "%3f") {
+		return nil, errors.New("工具目标不允许")
 	}
 	cleaned := stdpath.Clean(u.Path)
-	if !strings.HasPrefix(cleaned, "/api/v1/learning/courses/") {
-		return "", errors.New("工具目标不允许")
+	if !strings.HasPrefix(cleaned, "/api/v1/learning/courses/") || strings.Contains(cleaned, "%") {
+		return nil, errors.New("工具目标不允许")
 	}
 	for _, seg := range strings.Split(cleaned, "/") {
 		if seg == "agent" || seg == ".." || seg == "." {
-			return "", errors.New("工具目标不允许")
+			return nil, errors.New("工具目标不允许")
 		}
 	}
-	if u.RawQuery != "" {
-		return cleaned + "?" + u.RawQuery, nil
+	return &url.URL{Path: cleaned, RawQuery: u.RawQuery}, nil
+}
+
+func validGatewayMethod(method string) bool {
+	switch method {
+	case http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
+		return true
+	default:
+		return false
 	}
-	return cleaned, nil
 }
 
 // Invoke uses the mounted business routes, including session, course, role,
 // ownership and transaction checks. It never replays cookies or adds an admin.
 func (g Gateway) Invoke(ctx context.Context, sessionHash, method, path, contentType string, body io.Reader) (BusinessResponse, error) {
-	safePath, err := validateGatewayPath(path)
+	if !validGatewayMethod(method) {
+		return BusinessResponse{}, errors.New("工具方法不允许")
+	}
+	parsedURL, err := validateGatewayPath(path)
 	if err != nil {
 		return BusinessResponse{}, err
 	}
 	ctx = context.WithValue(ctx, sessionReferenceKey{}, sessionReference{hash: sessionHash})
-	req, err := http.NewRequestWithContext(ctx, method, safePath, body)
+	req, err := http.NewRequestWithContext(ctx, method, "/", body)
 	if err != nil {
 		return BusinessResponse{}, err
 	}
+	req.URL = parsedURL
+	req.RequestURI = parsedURL.RequestURI()
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	}

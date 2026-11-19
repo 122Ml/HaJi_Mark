@@ -847,9 +847,13 @@ func (q *Queries) ListCanceledAgentRuns(ctx context.Context) ([]string, error) {
 }
 
 const listReadyAgentRuns = `-- name: ListReadyAgentRuns :many
-SELECT a.id FROM agent_runs a WHERE state IN ('queued','running','waiting_job') OR
- (state IN ('waiting_input','waiting_approval') AND EXISTS(SELECT 1 FROM agent_requests r WHERE r.run_id=a.id AND r.state='pending' AND r.expires_at<=now()))
- ORDER BY CASE WHEN state='waiting_job' THEN 1 ELSE 0 END, updated_at, a.id LIMIT 16
+SELECT id FROM (
+  (SELECT a.id, a.updated_at FROM agent_runs a WHERE a.state IN ('queued','running') ORDER BY a.updated_at, a.id LIMIT 16)
+  UNION ALL
+  (SELECT a.id, a.updated_at FROM agent_runs a WHERE a.state='waiting_job' AND a.updated_at <= now() - interval '3 seconds' ORDER BY a.updated_at, a.id LIMIT 16)
+  UNION ALL
+  (SELECT a.id, a.updated_at FROM agent_runs a WHERE a.state IN ('waiting_input','waiting_approval') AND EXISTS(SELECT 1 FROM agent_requests r WHERE r.run_id=a.id AND r.state='pending' AND r.expires_at<=now()) ORDER BY a.updated_at, a.id LIMIT 16)
+) ready ORDER BY updated_at, id LIMIT 24
 `
 
 func (q *Queries) ListReadyAgentRuns(ctx context.Context) ([]string, error) {
@@ -928,6 +932,15 @@ func (q *Queries) LockAgentConversation(ctx context.Context, arg LockAgentConver
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const lockConversationEvents = `-- name: LockConversationEvents :exec
+SELECT pg_advisory_xact_lock(hashtextextended($1::text, 137))
+`
+
+func (q *Queries) LockConversationEvents(ctx context.Context, lockKey string) error {
+	_, err := q.db.Exec(ctx, lockConversationEvents, lockKey)
+	return err
 }
 
 const markAgentLearnerContext = `-- name: MarkAgentLearnerContext :exec

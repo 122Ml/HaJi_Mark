@@ -161,13 +161,9 @@ func (h *Handler) interventionEvidence(c *gin.Context) {
 	}
 	submissions := []store.ListInterventionSubmissionMatchesRow{}
 	if item.AssignmentID.Valid && item.AssignedAt.Valid {
-		practiceReady, e = h.q.HasInterventionSubmission(ctx, store.HasInterventionSubmissionParams{
-			StudentID:    item.StudentID,
-			AssignmentID: item.AssignmentID.String,
-			SubmittedAt:  item.AssignedAt,
-		})
-		if e != nil {
-			result(c, nil, e)
+		qs, err := h.q.ListBusinessQuestions(ctx, item.AssignmentID.String)
+		if err != nil {
+			result(c, nil, err)
 			return
 		}
 		rows, err := h.q.ListInterventionSubmissionMatches(ctx, store.ListInterventionSubmissionMatchesParams{
@@ -182,6 +178,11 @@ func (h *Handler) interventionEvidence(c *gin.Context) {
 		if rows != nil {
 			submissions = rows
 		}
+		answeredQs := make(map[string]bool, len(rows))
+		for _, r := range rows {
+			answeredQs[r.QuestionID] = true
+		}
+		practiceReady = len(qs) > 0 && len(answeredQs) == len(qs)
 	}
 	result(c, gin.H{
 		"assigned_at":    item.AssignedAt,

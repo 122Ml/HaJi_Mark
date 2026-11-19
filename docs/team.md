@@ -29,7 +29,7 @@
 2. **禁止各自擅自修改的共享基础清单**（需改动时统一由 **李然** 协调合入）：
    - 后端：`backend/internal/learning/http.go`、`backend/internal/server/*`、`backend/internal/identity/*`、`backend/internal/store/*`（`sqlc` 生成物）、`backend/config/models.json`、`go.mod` / `go.sum`
    - 前端：`web/package.json`、`web/package-lock.json`、`web/src/live/routes.tsx`、`web/src/live/types.ts`、`web/src/styles/*`
-   - 工程与迁移：Docker Compose、GitHub Actions / CI 配置；**数据库迁移 `00001—00018` 已分配使用，新迁移必须从 `00019` 起先向李然预约编号，严禁修改已执行迁移**。
+   - 工程与迁移：Docker Compose、GitHub Actions / CI 配置；**数据库迁移 `00001—00019` 已分配使用，新迁移必须从 `00020` 起先向李然预约编号，严禁修改已执行迁移**。
 3. **共同编辑文件的模块内分区约定**：
    - `web/src/live/assessment.tsx`：**张俊超**负责作业/测验列表、编辑、详情与提交名单；**李然**仅负责其中的 `GradePage` 批阅视图。
    - `backend/internal/learning/path.go`：**徐铂尧**负责知识图谱 `/graph` 与 `/edges`；**葛炫毅**负责学生学习路径 `/path`。

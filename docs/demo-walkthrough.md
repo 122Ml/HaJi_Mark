@@ -10,7 +10,7 @@
 
 | 顺序 | 打开位置 | 可以讲清或操作的内容 |
 | --- | --- | --- |
-| 1 | [课程目录与资料](https://hajistudy.online/teacher/course-twin?course=4ff04beb-fc6b-476e-809f-eeeef50e7886) | 3章、8个核心知识点、8份正文资料及来源；课程设置内可看知识点依赖。先打开“18—60岁：边界值怎样选、怎样判” |
+| 1 | [课程目录与资料](https://hajistudy.online/teacher/course-twin?course=4ff04beb-fc6b-476e-809f-eeeef50e7886) | 3章、8个核心知识点、8份正文资料及来源（旧 `/teacher/course-twin` 别名自动兼容跳转到课程目录/资料）。先打开“18—60岁：边界值怎样选、怎样判” |
 | 2 | [边界值题与独立标准](https://hajistudy.online/teacher/homework/0cfd8138-49a6-4dc6-87d6-57e4888963c2?course=4ff04beb-fc6b-476e-809f-eeeef50e7886) | 展开“逐点评分标准”；六值覆盖6分、分类2分、测试目的2分，确认版本独立于待评答案 |
 | 3 | [提交与批阅队列](https://hajistudy.online/teacher/homework/0cfd8138-49a6-4dc6-87d6-57e4888963c2/submissions?course=4ff04beb-fc6b-476e-809f-eeeef50e7886) | 8名模拟学员既有未提交，也有待批阅、草稿、待发布和正式反馈；原文、分项与状态可对照 |
 | 4 | [待评分示例](https://hajistudy.online/teacher/homework/submissions/4084cc24-fb4d-4e5f-a347-07f7bf568050/grade?course=4ff04beb-fc6b-476e-809f-eeeef50e7886) | 模块设计题尚未评分；可以现场选取原文、逐点写分和评语，再保存→确认→发布。当前留白用于现场演示，并非丢失数据 |

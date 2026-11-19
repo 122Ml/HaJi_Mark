@@ -9,6 +9,9 @@ const base = 'http://127.0.0.1:18080';
 const fixtures = JSON.parse(fs.readFileSync(path.join(root, '.local/s1-accounts.json'), 'utf8'));
 const out = path.join(root, '.local/navigation');
 const checks = [], errors = [], serverErrors = [];
+const watchdog = setTimeout(() => { console.error('HARD TIMEOUT: check-navigation-browser.cjs exceeded 120s'); process.exit(124); }, 120000);
+watchdog.unref();
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
 
 (async () => {
   fs.mkdirSync(out, { recursive: true });
@@ -42,6 +45,7 @@ const checks = [], errors = [], serverErrors = [];
     await t.getByLabel('新课程名称', { exact: true }).fill(title);
     await t.getByRole('button', { name: '新建课程', exact: true }).click();
     await t.waitForURL(u => u.pathname === '/teacher/courses' && u.searchParams.has('course'));
+    await t.locator('.ant-card-head-title').getByText(title, { exact: true }).waitFor();
     await t.getByLabel('课程名称', { exact: true }).waitFor();
     assert.equal(await t.getByLabel('课程名称', { exact: true }).inputValue(), title);
     const course = new URL(t.url()).searchParams.get('course');
@@ -54,6 +58,7 @@ const checks = [], errors = [], serverErrors = [];
     assert.equal(await t.getByLabel('课程名称', { exact: true }).count(), 0);
     await t.getByRole('tab', { name: '课程设置', exact: true }).click();
     await t.getByRole('button', { name: '发布课程', exact: true }).click();
+    await t.getByRole('button', { name: '确认', exact: true }).click();
     await t.getByRole('button', { name: '发布课程', exact: true }).waitFor({ state: 'hidden' });
     await t.goto(`${base}/teacher/curriculum?course=${course}`);
     await choose(t.getByRole('combobox', { name: '目录类型', exact: true }), 'point');
@@ -73,9 +78,10 @@ const checks = [], errors = [], serverErrors = [];
     await t.getByLabel('来源说明', { exact: true }).fill('自动化验收自编资料');
     await choose(t.getByRole('combobox', { name: '关联知识点', exact: true }), { label: '边界值分析' });
     await t.getByRole('button', { name: '保存资料草稿', exact: true }).click();
-    const row = t.locator('.live-row').filter({ has: t.getByText('路由验收资料', { exact: true }) });
-    await row.getByRole('button', { name: '审核通过并发布', exact: true }).click();
-    await row.getByRole('button', { name: '审核通过并发布', exact: true }).waitFor({ state: 'hidden' });
+    await t.getByText('路由验收资料', { exact: true }).first().waitFor();
+    await t.getByRole('button', { name: '审核通过并发布', exact: true }).click();
+    await t.getByRole('button', { name: '确认', exact: true }).click();
+    await t.getByRole('button', { name: '审核通过并发布', exact: true }).waitFor({ state: 'hidden' });
     const resources = (await (await t.request.get(base + '/api/v1' + prefix + '/resources')).json()).data;
     const resource = resources.find(r => r.title === '路由验收资料');
     assert.equal(resource.content, materialText, 'Rendering must not rewrite the saved source');
@@ -102,7 +108,7 @@ const checks = [], errors = [], serverErrors = [];
       const closeDrawer = t.locator('.ant-drawer:visible .ant-drawer-close');
       if (await closeDrawer.count()) {
         await closeDrawer.click();
-        await t.locator('.ant-drawer:visible').waitFor({ state: 'hidden' });
+        await t.locator('.ant-drawer-content:visible').waitFor({ state: 'hidden' });
       }
       await choose(t.getByRole('combobox', { name: '当前课程', exact: true }), other.title);
       const target = route.startsWith('homework/') ? 'homework' : route;
@@ -115,18 +121,25 @@ const checks = [], errors = [], serverErrors = [];
     await t.goto(`${base}/teacher/materials?course=${course}&tab=published`);
     await t.getByRole('button', { name: '新增资料', exact: true }).click();
     await t.getByLabel('资料标题', { exact: true }).fill('未保存的资料标题');
-    // The drawer covers the topbar: close it (retaining the draft), then switch course.
     await t.locator('.ant-drawer-close').click();
     await t.getByRole('button', { name: '确认', exact: true }).click();
-    await t.getByRole('dialog').waitFor({ state: 'hidden' });
-    await choose(t.getByRole('combobox', { name: '当前课程', exact: true }), other.title);
-    await t.getByRole('button', { name: '继续编辑', exact: true }).click();
-    assert.equal(new URL(t.url()).searchParams.get('course'), course);
-    assert.equal(await selectedText(t.getByRole('combobox', { name: '当前课程', exact: true })), title);
+    await t.locator('.ant-modal-confirm').waitFor({ state: 'hidden' });
+    await t.locator('.ant-drawer-content:visible').waitFor({ state: 'hidden' });
     await t.getByRole('button', { name: '新增资料', exact: true }).click();
     assert.equal(await t.getByLabel('资料标题', { exact: true }).inputValue(), '未保存的资料标题');
     await t.getByLabel('资料标题', { exact: true }).fill('');
     await t.locator('.ant-drawer-close').click();
+    await t.getByRole('button', { name: '确认', exact: true }).click();
+    await t.locator('.ant-modal-confirm').waitFor({ state: 'hidden' });
+    await t.locator('.ant-drawer-content:visible').waitFor({ state: 'hidden' });
+    await t.goto(`${base}/teacher/research?course=${course}`);
+    await t.getByLabel('标题', { exact: true }).fill('未保存的教研标题');
+    await choose(t.getByRole('combobox', { name: '当前课程', exact: true }), other.title);
+    await t.getByRole('button', { name: '继续编辑', exact: true }).click();
+    assert.equal(new URL(t.url()).searchParams.get('course'), course);
+    assert.equal(await selectedText(t.getByRole('combobox', { name: '当前课程', exact: true })), title);
+    assert.equal(await t.getByLabel('标题', { exact: true }).inputValue(), '未保存的教研标题');
+    await t.getByLabel('标题', { exact: true }).fill('');
     pass('取消课程切换保持课程选择和未保存资料，编辑内容未串课');
     await t.goto(`${base}/teacher/materials?course=00000000-0000-0000-0000-000000000000`);
     await t.getByText('无法访问该课程', { exact: true }).waitFor();
@@ -142,8 +155,10 @@ const checks = [], errors = [], serverErrors = [];
       const ids = JSON.parse(fs.readFileSync(idsFile, 'utf8'));
       const paper = ids.sources['paper.pdf'].source;
       await t.goto(`${base}/teacher/materials?course=${ids.course_id}&source=${paper.id}`);
-      const sourceDrawer = t.getByRole('dialog', { name: '资料核对与发布', exact: true });
-      await sourceDrawer.getByRole('link', { name: '到题库拆分试卷', exact: true }).click();
+      const sourceRegion = t.getByRole('region', { name: '资料核对与发布', exact: true });
+      await sourceRegion.getByRole('button', { name: '在此拆分试卷', exact: true }).click();
+      await t.locator('.ant-drawer-title').getByText('当前原件 · 整卷拆题', { exact: true }).waitFor();
+      await t.goto(`${base}/teacher/question-bank?course=${ids.course_id}&paper_source=${paper.id}`);
       const paperDrawer = t.getByRole('dialog', { name: '整卷导入', exact: true });
       await paperDrawer.locator('.ant-collapse-header').filter({ hasText: /^整卷拆题$/ }).waitFor();
       assert.equal(await selectedText(paperDrawer.getByRole('combobox', { name: '试卷原件', exact: true })), paper.title);
@@ -162,7 +177,7 @@ const checks = [], errors = [], serverErrors = [];
     }
     for (const [route, heading] of [['courses', '课程管理'], ['curriculum', '课程目录'], ['materials', '学习资料'], ['question-bank', '题库']]) {
       await t.goto(`${base}/teacher/${route}?course=${course}`);
-      await t.locator('main .live-page').waitFor();
+      await t.locator('main .live-page').first().waitFor();
       assert.equal(await t.locator('main > .live-page > h1, main .live-heading h1').count(), 0);
       for (const width of [1440, 390]) {
         await t.setViewportSize({ width, height: 1000 });
@@ -192,12 +207,12 @@ const checks = [], errors = [], serverErrors = [];
   } catch (e) {
     for (const [i, c] of browser.contexts().entries()) {
       const page = c.pages()[0];
-      if (page) await page.screenshot({ path: path.join(out, `failure-${i}.png`), fullPage: true }).catch(() => {});
+      if (page) await withTimeout(page.screenshot({ path: path.join(out, `failure-${i}.png`), fullPage: true }), 5000).catch(() => {});
     }
     throw e;
-  } finally { await browser.close(); }
+  } finally { await withTimeout(browser.close(), 5000).catch(() => {}); }
 })().catch(e => {
-  let message = e.stack;
+  let message = (e && e.stack) || String(e);
   for (const a of fixtures.accounts) message = message.replaceAll(a.password, '[redacted]');
   console.error(message); process.exitCode = 1;
-});
+}).finally(() => { clearTimeout(watchdog); process.exit(process.exitCode || 0); });

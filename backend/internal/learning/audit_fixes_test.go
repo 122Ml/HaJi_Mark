@@ -20,6 +20,9 @@ import (
 func TestAuditSecurityAndIntegrityFixes(t *testing.T) {
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
+		if os.Getenv("REQUIRE_INTEGRATION_TESTS") == "1" {
+			t.Fatal("TEST_DATABASE_URL must be set when REQUIRE_INTEGRATION_TESTS=1")
+		}
 		t.Skip("TEST_DATABASE_URL is not set")
 	}
 	t.Setenv("AI_ENABLED", "false")

@@ -75,3 +75,31 @@ export function isValidHTTPUrl(raw: string): boolean {
     return false;
   }
 }
+
+export function dedupeStrings(items: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of items) {
+    if (typeof item !== "string") continue;
+    const clean = item.trim();
+    if (clean && !seen.has(clean)) {
+      seen.add(clean);
+      out.push(clean);
+    }
+  }
+  return out;
+}
+
+export function cleanTags(items: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of items) {
+    if (typeof item !== "string") continue;
+    const clean = item.trim();
+    if (clean && !seen.has(clean)) {
+      seen.add(clean);
+      out.push(clean);
+    }
+  }
+  return out;
+}

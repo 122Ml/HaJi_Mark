@@ -1,6 +1,7 @@
 package learning
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"os"
@@ -12,7 +13,34 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+type studentMaterialAsset struct {
+	ID         string             `json:"id"`
+	SourceID   string             `json:"source_id"`
+	FragmentID string             `json:"fragment_id"`
+	MediaType  string             `json:"media_type"`
+	Kind       string             `json:"kind"`
+	Locator    json.RawMessage    `json:"locator"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+}
+
+func toStudentAssets(items []store.MaterialAsset) []studentMaterialAsset {
+	out := make([]studentMaterialAsset, 0, len(items))
+	for _, item := range items {
+		out = append(out, studentMaterialAsset{
+			ID:         item.ID,
+			SourceID:   item.SourceID,
+			FragmentID: item.FragmentID,
+			MediaType:  item.MediaType,
+			Kind:       item.Kind,
+			Locator:    item.Locator,
+			CreatedAt:  item.CreatedAt,
+		})
+	}
+	return out
+}
 
 var allowedAssetMIMEs = map[string]bool{
 	"image/png":  true,
@@ -67,7 +95,7 @@ func (h *Handler) assetFile(c *gin.Context) {
 		return
 	}
 	c.Header("X-Content-Type-Options", "nosniff")
-	c.Header("Content-Security-Policy", "default-src 'none'; sandbox")
+	c.Header("Content-Security-Policy", "default-src 'none'; sandbox; frame-ancestors 'none'")
 	c.Header("Cache-Control", "private, no-store")
 	c.Header("Content-Type", mimeType)
 	c.File(path)
@@ -86,8 +114,20 @@ func (h *Handler) saveAssetRevision(c *gin.Context) {
 		invalid(c, "请填写核对后的转写")
 		return
 	}
-	if len(in.Structured) == 0 {
+	trimmedStruct := bytes.TrimSpace(in.Structured)
+	if len(trimmedStruct) == 0 || string(trimmedStruct) == "null" {
 		in.Structured = []byte("{}")
+	} else {
+		if len(trimmedStruct) > 100000 || strings.ContainsRune(string(trimmedStruct), '\x00') {
+			invalid(c, "结构化标注过大或包含非法字符")
+			return
+		}
+		var obj map[string]any
+		if json.Unmarshal(trimmedStruct, &obj) != nil || obj == nil {
+			invalid(c, "结构化标注必须是有效的 JSON 对象")
+			return
+		}
+		in.Structured = trimmedStruct
 	}
 	ctx := c.Request.Context()
 	tx, e := h.db.Begin(ctx)
@@ -161,6 +201,7 @@ func (h *Handler) saveAssetRevision(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
+	fragMap := make(map[string]string, len(fs))
 	for i, f := range fs {
 		locator := f.Locator
 		body := f.Body
@@ -177,10 +218,16 @@ func (h *Handler) saveAssetRevision(c *gin.Context) {
 			body = in.Body
 			quality = "ready"
 		}
-		if _, e = q.InsertMaterialFragment(ctx, store.InsertMaterialFragmentParams{ID: uuid.NewString(), SourceID: src.ID, Revision: src.ParseRevision + 1, Position: f.Position, Heading: f.Heading, Body: body, Locator: locator, Quality: quality}); e != nil {
-			result(c, nil, e)
+		nf, err := q.InsertMaterialFragment(ctx, store.InsertMaterialFragmentParams{ID: uuid.NewString(), SourceID: src.ID, Revision: src.ParseRevision + 1, Position: f.Position, Heading: f.Heading, Body: body, Locator: locator, Quality: quality})
+		if err != nil {
+			result(c, nil, err)
 			return
 		}
+		fragMap[f.ID] = nf.ID
+	}
+	if e = carryForwardContentSections(ctx, q, src.CourseID, src.ID, src.ParseRevision, src.ParseRevision+1, fragMap); e != nil {
+		result(c, nil, e)
+		return
 	}
 	if _, e = q.UpdateSourceParse(ctx, store.UpdateSourceParseParams{ID: src.ID, CourseID: src.CourseID, ParseState: "ready", ParseRevision: src.ParseRevision + 1}); e != nil {
 		result(c, nil, e)
@@ -195,9 +242,7 @@ func (h *Handler) saveAssetRevision(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
-	if jobID != "" && h.rag != nil {
-		h.rag.Enqueue(jobID)
-	}
+	h.enqueueIndex(jobID)
 	result(c, r, nil)
 }
 func (h *Handler) resourceAssets(c *gin.Context) {
@@ -209,16 +254,29 @@ func (h *Handler) resourceAssets(c *gin.Context) {
 	if !scope(c, r.CourseID) {
 		return
 	}
-	if !teacher(c) && r.Status != "published" {
+	isTeacher := teacher(c)
+	if !isTeacher && r.Status != "published" {
 		identity.Fail(c, 403, "forbidden", "资料尚未发布")
 		return
 	}
 	if !r.SourceID.Valid || len(r.FragmentIds) == 0 {
-		result(c, []store.MaterialAsset{}, nil)
+		if isTeacher {
+			result(c, []store.MaterialAsset{}, nil)
+		} else {
+			result(c, []studentMaterialAsset{}, nil)
+		}
 		return
 	}
 	out, e := h.q.ListResourceAssetsBatch(c.Request.Context(), store.ListResourceAssetsBatchParams{SourceID: r.SourceID.String, FragmentIds: r.FragmentIds})
-	result(c, out, e)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	if !isTeacher {
+		result(c, toStudentAssets(out), nil)
+		return
+	}
+	result(c, out, nil)
 }
 func (h *Handler) questionAssets(c *gin.Context) {
 	q, e := h.q.GetBusinessQuestion(c.Request.Context(), c.Param("id"))
@@ -229,10 +287,29 @@ func (h *Handler) questionAssets(c *gin.Context) {
 	if _, ok := h.assignmentRecord(c, q.AssignmentID); !ok {
 		return
 	}
+	isTeacher := teacher(c)
 	if !q.BankQuestionVersionID.Valid {
-		result(c, []store.MaterialAsset{}, nil)
+		if isTeacher {
+			result(c, []store.MaterialAsset{}, nil)
+		} else {
+			result(c, []studentMaterialAsset{}, nil)
+		}
 		return
 	}
-	v, e := h.q.BankAssets(c.Request.Context(), q.BankQuestionVersionID.String)
-	result(c, v, e)
+	raw, e := h.q.BankAssets(c.Request.Context(), q.BankQuestionVersionID.String)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	filtered := make([]store.MaterialAsset, 0, len(raw))
+	for _, a := range raw {
+		if a.Kind != "page" {
+			filtered = append(filtered, a)
+		}
+	}
+	if !isTeacher {
+		result(c, toStudentAssets(filtered), nil)
+		return
+	}
+	result(c, filtered, nil)
 }

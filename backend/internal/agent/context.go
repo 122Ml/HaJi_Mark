@@ -20,7 +20,7 @@ func (s *Service) verifyContext(c *gin.Context, ref *businessContext) (string, b
 	if ref == nil {
 		return "", false, nil
 	}
-	if len(ref.ID) == 0 || len(ref.ID) > 100 || strings.ContainsRune(ref.ID, '\x00') {
+	if len(ref.ID) == 0 || len(ref.ID) > 100 || strings.ContainsRune(ref.ID, '\x00') || !safeID.MatchString(ref.ID) {
 		return "", false, fmt.Errorf("业务对象编号无效")
 	}
 	id := url.PathEscape(ref.ID)

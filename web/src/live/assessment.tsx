@@ -1337,6 +1337,13 @@ function QuestionAnswer({
   dirtyRef.current = draft.dirty;
 
   useEffect(() => {
+    setError("");
+    setReceipt(null);
+    setSavedAt("");
+    action.clearError();
+  }, [q.id, action.clearError]);
+
+  useEffect(() => {
     if (teacher || a.status !== "published" || !a.due_at) return;
     const timer = window.setInterval(() => setNow(Date.now()), 15000);
     return () => window.clearInterval(timer);
@@ -1576,6 +1583,13 @@ function QuestionAnswer({
               type="info"
               showIcon
               message={`${a.status === "closed" ? "作业已关闭" : "已过截止时间"}，停止接收新提交，可查看原作答与反馈。`}
+            />
+          )}
+          {!closed && q.type === "quiz" && submissions.length > 0 && (
+            <Alert
+              type="info"
+              showIcon
+              message="客观测验默认仅允许作答 1 次；若需重测，需先由教师下发针对本题的补学任务。"
             />
           )}
           <DraftNotice

@@ -36,7 +36,7 @@ func Register(api *gin.RouterGroup, db *pgxpool.Pool, auth *identity.Handler) {
 	RegisterWithModels(api, db, auth, models)
 }
 
-func RegisterWithModels(api *gin.RouterGroup, db *pgxpool.Pool, auth *identity.Handler, models *rag.Models) {
+func RegisterWithModels(api *gin.RouterGroup, db *pgxpool.Pool, auth *identity.Handler, models *rag.Models) func() {
 	h := &Handler{db: db, q: store.New(db), auth: auth}
 	if models != nil {
 		h.rag = rag.New(models)
@@ -52,9 +52,12 @@ func RegisterWithModels(api *gin.RouterGroup, db *pgxpool.Pool, auth *identity.H
 	h.registerMaterialWorkflows(g, auth)
 	h.registerIntelligence(g, auth)
 	g.POST("/publish", identity.RequireRole("teacher"), auth.RequireCSRF(), h.publishCourse)
+	g.POST("/state", identity.RequireRole("teacher"), auth.RequireCSRF(), h.courseState)
 	g.PUT("", identity.RequireRole("teacher"), auth.RequireCSRF(), h.renameCourse)
 	g.POST("/curriculum", identity.RequireRole("teacher"), auth.RequireCSRF(), h.importCurriculum)
 	g.POST("/points", identity.RequireRole("teacher"), auth.RequireCSRF(), h.createPoint)
+	g.PUT("/points/:pointID", identity.RequireRole("teacher"), auth.RequireCSRF(), h.updatePoint)
+	g.DELETE("/points/:pointID", identity.RequireRole("teacher"), auth.RequireCSRF(), h.deletePoint)
 	g.GET("/graph", h.graph)
 	g.POST("/edges", identity.RequireRole("teacher"), auth.RequireCSRF(), h.edge)
 	g.DELETE("/edges", identity.RequireRole("teacher"), auth.RequireCSRF(), h.deleteEdge)
@@ -62,11 +65,14 @@ func RegisterWithModels(api *gin.RouterGroup, db *pgxpool.Pool, auth *identity.H
 	g.POST("/path", identity.RequireRole("student"), auth.RequireCSRF(), h.planPath)
 	g.GET("/members", identity.RequireRole("teacher"), h.members)
 	g.POST("/members", identity.RequireRole("teacher"), auth.RequireCSRF(), h.enroll)
+	g.DELETE("/members/:studentID", identity.RequireRole("teacher"), auth.RequireCSRF(), h.removeMember)
 	g.POST("/students", identity.RequireRole("teacher"), auth.RequireCSRF(), h.createStudent)
 	g.GET("/resources", h.resources)
 	g.POST("/resources", identity.RequireRole("teacher"), auth.RequireCSRF(), h.createResource)
+	g.PUT("/resources/:id", identity.RequireRole("teacher"), auth.RequireCSRF(), h.updateDraftResource)
 	g.POST("/resources/:id/revisions", identity.RequireRole("teacher"), auth.RequireCSRF(), h.createResource)
 	g.POST("/resources/:id/publish", identity.RequireRole("teacher"), auth.RequireCSRF(), h.publishResource)
+	g.POST("/resources/:id/archive", identity.RequireRole("teacher"), auth.RequireCSRF(), h.archiveResource)
 	g.POST("/resources/:id/events", identity.RequireRole("student"), auth.RequireCSRF(), h.event)
 	g.GET("/events", h.events)
 	g.GET("/activity", h.activity)
@@ -112,6 +118,11 @@ func RegisterWithModels(api *gin.RouterGroup, db *pgxpool.Pool, auth *identity.H
 	g.POST("/industry", identity.RequireRole("teacher"), auth.RequireCSRF(), h.createIndustry)
 	g.PUT("/industry/:id", identity.RequireRole("teacher"), auth.RequireCSRF(), h.createIndustry)
 	g.DELETE("/industry/:id", identity.RequireRole("teacher"), auth.RequireCSRF(), h.deleteIndustry)
+	return func() {
+		if h.rag != nil {
+			_ = h.rag.Close()
+		}
+	}
 }
 func teacher(c *gin.Context) bool { return identity.Current(c).Role == "teacher" }
 func isPgCode(err error, code string) bool {
@@ -125,7 +136,7 @@ func result(c *gin.Context, v any, err error) bool {
 			identity.Fail(c, 404, "not_found", "记录不存在或状态已改变")
 		} else if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			identity.Fail(c, 409, "conflict", "记录已存在，请勿重复提交")
-		} else if errors.As(err, &pgErr) && (pgErr.Code == "22021" || pgErr.Code == "22P02") {
+		} else if errors.As(err, &pgErr) && (pgErr.Code == "22021" || pgErr.Code == "22P02" || pgErr.Code == "22P05") {
 			identity.Fail(c, 422, "invalid_input", "输入内容包含非法字符或格式无效")
 		} else {
 			identity.Fail(c, 503, "service_unavailable", "数据操作失败，请重试")
@@ -228,8 +239,25 @@ func (h *Handler) createPoint(c *gin.Context) {
 		invalid(c, "章必须位于课程顶层，不能嵌套在父节点下")
 		return
 	}
+	if in.Kind == "section" && in.ParentID == "" {
+		invalid(c, "节必须挂在章下")
+		return
+	}
+	ctx := c.Request.Context()
+	courseID := c.Param("courseID")
+	tx, e := h.db.Begin(ctx)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	defer tx.Rollback(ctx)
+	q := h.q.WithTx(tx)
+	if _, e = q.LockBusinessCourse(ctx, courseID); e != nil {
+		result(c, nil, e)
+		return
+	}
 	if in.ParentID != "" {
-		p, e := h.q.GetKnowledgePoint(c.Request.Context(), in.ParentID)
+		p, e := q.GetKnowledgePoint(ctx, in.ParentID)
 		if e != nil {
 			result(c, nil, e)
 			return
@@ -246,7 +274,10 @@ func (h *Handler) createPoint(c *gin.Context) {
 			return
 		}
 	}
-	v, e := h.q.AddBusinessPoint(c.Request.Context(), store.AddBusinessPointParams{ID: uuid.NewString(), CourseID: c.Param("courseID"), Title: in.Title, Position: in.Position, ParentID: text(in.ParentID), Kind: in.Kind, Description: in.Description})
+	v, e := q.AddBusinessPoint(ctx, store.AddBusinessPointParams{ID: uuid.NewString(), CourseID: courseID, Title: in.Title, Position: in.Position, ParentID: text(in.ParentID), Kind: in.Kind, Description: in.Description})
+	if e == nil {
+		e = tx.Commit(ctx)
+	}
 	result(c, v, e)
 }
 func (h *Handler) members(c *gin.Context) {

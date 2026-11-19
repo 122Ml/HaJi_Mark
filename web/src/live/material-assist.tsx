@@ -17,19 +17,12 @@ import { EmptyState, MetaTag, MetaTags } from "../shared/ui";
 import { Feedback, Link, useAction, useLearning, useLiveQuery } from "./context";
 import { RichContent } from "./content-render";
 import { type TopicData } from "./content-topics";
+import { ASSET_KIND_LABELS } from "./domain-meta";
 import { DraftNotice, useEditorDraft } from "./editing";
 import { IntegerInput } from "./shared-editors";
 import type { Job, Point } from "./types";
-import { hasControlNull, isValidHTTPUrl, utf8ByteLength } from "./validation";
+import { cleanTags, dedupeStrings, hasControlNull, isValidHTTPUrl, utf8ByteLength } from "./validation";
 import { WorkflowJob } from "./workflow-job";
-
-const ASSET_KIND_LABELS: Record<string, string> = {
-  page: "原页预览",
-  image: "图片",
-  formula: "公式",
-  chart: "数据图表",
-  diagram: "结构／流程图",
-};
 
 const QUESTION_TYPE_OPTIONS = [
   { value: "quiz", label: "单选" },
@@ -42,32 +35,6 @@ const ANSWER_ORIGIN_OPTIONS = [
   { value: "extracted", label: "原卷逐字提取" },
   { value: "teacher", label: "教师补录" },
 ];
-
-function dedupeStrings(items: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const raw of items) {
-    if (typeof raw !== "string") continue;
-    if (!seen.has(raw)) {
-      seen.add(raw);
-      out.push(raw);
-    }
-  }
-  return out;
-}
-
-function cleanTags(items: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const raw of items) {
-    if (typeof raw !== "string") continue;
-    const trimmed = raw.trim();
-    if (!trimmed || seen.has(trimmed)) continue;
-    seen.add(trimmed);
-    out.push(trimmed);
-  }
-  return out;
-}
 
 export function URLImport({
   onDone,
@@ -714,6 +681,12 @@ function sanitizeQuestion(raw: Partial<PaperQuestion>): PaperQuestion {
     raw.answer_origin === "teacher"
       ? raw.answer_origin
       : "missing";
+  const cleanStringList = (value: unknown) =>
+    dedupeStrings(
+      Array.isArray(value)
+        ? value.filter((x): x is string => typeof x === "string")
+        : [],
+    );
   return {
     title: typeof raw.title === "string" ? raw.title : "",
     prompt: typeof raw.prompt === "string" ? raw.prompt : "",
@@ -724,15 +697,9 @@ function sanitizeQuestion(raw: Partial<PaperQuestion>): PaperQuestion {
     reference_answer:
       typeof raw.reference_answer === "string" ? raw.reference_answer : "",
     answer_origin: answerOrigin,
-    source_fragment_ids: dedupeStrings(
-      Array.isArray(raw.source_fragment_ids) ? raw.source_fragment_ids : [],
-    ),
-    asset_ids: dedupeStrings(
-      Array.isArray(raw.asset_ids) ? raw.asset_ids : [],
-    ),
-    uncertain: dedupeStrings(
-      Array.isArray(raw.uncertain) ? raw.uncertain : [],
-    ),
+    source_fragment_ids: cleanStringList(raw.source_fragment_ids),
+    asset_ids: cleanStringList(raw.asset_ids),
+    uncertain: cleanStringList(raw.uncertain),
   };
 }
 
@@ -1802,6 +1769,30 @@ export function SourceSegments({ id }: { id: string }) {
                     >
                       接受全部切分
                     </Button>
+                    {shown.some((r) => r.state === "accepted") && (
+                      <Button
+                        htmlType="button"
+                        disabled={action.busy}
+                        onClick={async () => {
+                          if (
+                            !(await confirm(
+                              "按已接受切分批量发布为学习资料？每个切分段将生成一条已发布资料。",
+                            ))
+                          ) {
+                            return;
+                          }
+                          await action.run(
+                            `/sources/${id}/sections/publish`,
+                            {},
+                            "POST",
+                            "已按切分方案批量发布学习资料",
+                            { invalidatePrefixes: ["sources", "resources", "topics", "jobs"] },
+                          );
+                        }}
+                      >
+                        按已接受切分发布资料
+                      </Button>
+                    )}
                     <Button
                       htmlType="button"
                       disabled={action.busy}

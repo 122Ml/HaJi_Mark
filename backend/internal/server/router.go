@@ -4,9 +4,10 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
+	"regexp"
 	"sync"
 	"time"
 
@@ -32,6 +33,8 @@ func NewWithContext(ctx context.Context, db *pgxpool.Pool, cache *redis.Client, 
 	return r
 }
 
+var validRequestIDPattern = regexp.MustCompile(`^[A-Za-z0-9._-]{1,64}$`)
+
 func requestID() string {
 	var b [8]byte
 	if _, err := rand.Read(b[:]); err != nil {
@@ -43,11 +46,12 @@ func requestID() string {
 func NewApp(ctx context.Context, db *pgxpool.Pool, cache *redis.Client, cfg platform.Config) (*gin.Engine, func(context.Context)) {
 	r := gin.New()
 	if err := r.SetTrustedProxies(cfg.TrustedProxies); err != nil {
-		log.Printf("set trusted proxies: %v", err)
+		slog.Error("set trusted proxies failed", "error", err)
 	}
-	r.Use(gin.Logger(), gin.Recovery(), func(c *gin.Context) {
+	r.Use(gin.Recovery(), func(c *gin.Context) {
+		start := time.Now()
 		rid := c.GetHeader("X-Request-ID")
-		if rid == "" || len(rid) > 64 {
+		if !validRequestIDPattern.MatchString(rid) {
 			rid = requestID()
 		}
 		if rid != "" {
@@ -56,8 +60,27 @@ func NewApp(ctx context.Context, db *pgxpool.Pool, cache *redis.Client, cfg plat
 		c.Header("X-Content-Type-Options", "nosniff")
 		c.Header("X-Frame-Options", "DENY")
 		c.Header("Referrer-Policy", "same-origin")
+		c.Header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
 		c.Next()
+		slog.Info("http_request",
+			"request_id", rid,
+			"method", c.Request.Method,
+			"path", c.FullPath(),
+			"status", c.Writer.Status(),
+			"latency_ms", time.Since(start).Milliseconds(),
+		)
 	})
+	var modelsErr error
+	var models *rag.Models
+	if rag.Enabled() && db != nil {
+		loaded, err := rag.LoadModels(db)
+		if err != nil {
+			modelsErr = err
+			slog.Error("load model profiles failed", "error", err)
+		} else {
+			models = loaded
+		}
+	}
 	r.GET("/api/v1/health/live", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
@@ -66,26 +89,18 @@ func NewApp(ctx context.Context, db *pgxpool.Pool, cache *redis.Client, cfg plat
 		defer cancel()
 		databaseOK := db != nil && db.Ping(pingCtx) == nil
 		redisOK := cache != nil && cache.Ping(pingCtx).Err() == nil
+		modelsOK := modelsErr == nil
 		status := http.StatusOK
-		if !databaseOK || !redisOK {
+		if !databaseOK || !redisOK || !modelsOK {
 			status = http.StatusServiceUnavailable
 		}
-		c.JSON(status, gin.H{"database": databaseOK, "redis": redisOK})
+		c.JSON(status, gin.H{"database": databaseOK, "redis": redisOK, "models": modelsOK})
 	})
 	course.Register(r.Group("/api/v1"), db)
-	auth := identity.New(db, cfg.SecureSessionCookie)
+	auth := identity.NewWithOrigin(db, cfg.SecureSessionCookie, cfg.PublicOrigin)
 	auth.Register(r.Group("/api/v1"))
 	auth.RegisterContext(r.Group("/api/v1"))
-	var models *rag.Models
-	if rag.Enabled() && db != nil {
-		loaded, err := rag.LoadModels(db)
-		if err != nil {
-			log.Printf("load model profiles failed: %v", err)
-		} else {
-			models = loaded
-		}
-	}
-	learning.RegisterWithModels(r.Group("/api/v1"), db, auth, models)
+	learningCloser := learning.RegisterWithModels(r.Group("/api/v1"), db, auth, models)
 	var agentModels *rag.Models
 	if os.Getenv("AGENT_ENABLED") == "true" {
 		agentModels = models
@@ -101,11 +116,13 @@ func NewApp(ctx context.Context, db *pgxpool.Pool, cache *redis.Client, cfg plat
 		}()
 	}
 	if ctx != nil && agentModels != nil {
-		bg.Add(1)
-		go func() {
-			defer bg.Done()
-			harness.Serve(ctx)
-		}()
+		if _, err := agentModels.Profile("", "chat"); err == nil {
+			bg.Add(1)
+			go func() {
+				defer bg.Done()
+				harness.Serve(ctx)
+			}()
+		}
 	}
 	waitBg := func(waitCtx context.Context) {
 		done := make(chan struct{})
@@ -116,6 +133,9 @@ func NewApp(ctx context.Context, db *pgxpool.Pool, cache *redis.Client, cfg plat
 		select {
 		case <-done:
 		case <-waitCtx.Done():
+		}
+		if learningCloser != nil {
+			learningCloser()
 		}
 	}
 	return r, waitBg

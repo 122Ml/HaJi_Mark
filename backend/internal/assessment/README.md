@@ -4,4 +4,4 @@
 
 - **后端代码**：`learning/`（`question_bank.go`、`paper.go`、`rubrics.go`、`assessment.go`、`drafts.go`、`submission_import.go`、`submission_text.go`）与 `rag/question_bank.go`，SQL 位于 `backend/db/queries/`（`question_bank.sql`、`rubrics.sql`、`completion.sql`、`learning.sql` 对应段）。
 - **前端代码**：`web/src/live/`（`question-bank.tsx`、`rubrics.tsx`、`submission-import.tsx` 与 `assessment.tsx` 的作业/测验/提交部分，不含 `GradePage`）。
-- **迁移与边界**：出题与评分标准严格禁止读取学生作答；迁移 `00001—00018` 已使用，新增迁移从 `00019` 起向李然预约；完整边界与自查清单见 [docs/team.md](../../../docs/team.md)、[docs/handoffs/assessment.md](../../../docs/handoffs/assessment.md) 与 [docs/contracts.md](../../../docs/contracts.md)。
+- **迁移与边界**：出题与评分标准严格禁止读取学生作答；迁移 `00001—00019` 已使用，新增迁移从 `00020` 起向李然预约；完整边界与自查清单见 [docs/team.md](../../../docs/team.md)、[docs/handoffs/assessment.md](../../../docs/handoffs/assessment.md) 与 [docs/contracts.md](../../../docs/contracts.md)。

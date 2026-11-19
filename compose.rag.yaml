@@ -4,7 +4,9 @@ services:
     build:
       context: ./backend
       target: runtime
-    env_file: [.local/model-secrets.env]
+    env_file:
+      - path: .local/model-secrets.env
+        required: false
     environment:
       RAG_ENABLED: 'true'
       AGENT_ENABLED: 'true'
@@ -20,7 +22,9 @@ services:
     build:
       context: ./backend
       target: rag-worker
-    env_file: [.local/model-secrets.env]
+    env_file:
+      - path: .local/model-secrets.env
+        required: false
     environment:
       RAG_ENABLED: 'true'
       MATERIALS_DIR: /data/materials

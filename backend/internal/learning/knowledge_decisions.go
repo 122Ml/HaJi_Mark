@@ -113,6 +113,11 @@ func (h *Handler) knowledgeDecision(c *gin.Context) {
 		return
 	}
 	student, learning, grading := k.StudentVisible, k.UseForLearning, k.UseForGrading
+	pointIDs := append([]string{}, k.KnowledgePointIds...)
+	seenPointIDs := map[string]bool{}
+	for _, pid := range pointIDs {
+		seenPointIDs[pid] = true
+	}
 	for _, id := range in.RelatedIDs {
 		old := locked[id]
 		if old.State != "confirmed" {
@@ -122,6 +127,12 @@ func (h *Handler) knowledgeDecision(c *gin.Context) {
 		student = student && old.StudentVisible
 		learning = learning && old.UseForLearning
 		grading = grading && old.UseForGrading
+		for _, pid := range old.KnowledgePointIds {
+			if !seenPointIDs[pid] {
+				seenPointIDs[pid] = true
+				pointIDs = append(pointIDs, pid)
+			}
+		}
 		var ev []rag.Evidence
 		if err := json.Unmarshal(old.Evidence, &ev); err != nil {
 			result(c, nil, err)
@@ -144,12 +155,12 @@ func (h *Handler) knowledgeDecision(c *gin.Context) {
 			return
 		}
 		related := append(append([]string{}, in.RelatedIDs...), k.ID)
-		if e = h.rag.ValidateLinksWithQueries(ctx, q, k.CourseID, k.KnowledgePointIds, related, ""); e != nil {
+		if e = h.rag.ValidateLinksWithQueries(ctx, q, k.CourseID, pointIDs, related, ""); e != nil {
 			ragError(c, e)
 			return
 		}
 		raw, _ := json.Marshal(refs)
-		v, e := q.CreateKnowledgeEntry(ctx, store.CreateKnowledgeEntryParams{ID: uuid.NewString(), CourseID: k.CourseID, CreatedBy: identity.Current(c).ID, Title: in.Title, Body: in.Body, Category: k.Category, ContentKind: k.ContentKind, Conditions: in.Conditions, KnowledgePointIds: nonNilStrings(k.KnowledgePointIds), Evidence: raw, RelatedIds: related, StudentVisible: student, UseForLearning: learning, UseForGrading: grading, Version: 1})
+		v, e := q.CreateKnowledgeEntry(ctx, store.CreateKnowledgeEntryParams{ID: uuid.NewString(), CourseID: k.CourseID, CreatedBy: identity.Current(c).ID, Title: in.Title, Body: in.Body, Category: k.Category, ContentKind: k.ContentKind, Conditions: in.Conditions, KnowledgePointIds: nonNilStrings(pointIDs), Evidence: raw, RelatedIds: related, StudentVisible: student, UseForLearning: learning, UseForGrading: grading, Version: 1})
 		if e != nil {
 			result(c, nil, e)
 			return
@@ -179,6 +190,10 @@ func (h *Handler) knowledgeDecision(c *gin.Context) {
 			identity.Fail(c, 409, "stale_revision", "候选已改变，请重新核对")
 			return
 		}
+		archivedEntry := k
+		archivedEntry.State = "archived"
+		archivedEntry.EditVersion++
+		output = archivedEntry
 	} else if in.Action == "replace" || in.Action == "coexist" {
 		originalRefs := []rag.Evidence{}
 		if err := json.Unmarshal(k.Evidence, &originalRefs); err != nil {
@@ -285,6 +300,10 @@ func (h *Handler) adoptSuggestions(c *gin.Context) {
 	}
 	defer tx.Rollback(ctx)
 	q := h.q.WithTx(tx)
+	if _, e = q.LockBusinessCourse(ctx, j.CourseID); e != nil {
+		result(c, nil, e)
+		return
+	}
 	src, e := q.LockMaterialSource(ctx, store.LockMaterialSourceParams{ID: input.SourceID, CourseID: j.CourseID})
 	if e != nil {
 		result(c, nil, e)
@@ -392,33 +411,40 @@ func (h *Handler) adoptSuggestions(c *gin.Context) {
 		ragError(c, e)
 		return
 	}
-	// Only explicitly selected new sections are appended after existing max position; existing curriculum is untouched.
+	// Only explicitly selected new chapters not already present are appended after existing max position; existing curriculum is untouched.
 	if len(in.Outline) > 0 {
 		existingPoints, e := q.ListBusinessPoints(ctx, src.CourseID)
 		if e != nil {
 			result(c, nil, e)
 			return
 		}
-		var basePos int32
-		if len(existingPoints) > 0 {
-			maxPos := existingPoints[0].Position
-			for _, p := range existingPoints[1:] {
-				if p.Position > maxPos {
-					maxPos = p.Position
-				}
+		existingChapters := map[string]bool{}
+		var maxPos int32 = -1
+		for _, p := range existingPoints {
+			if p.Kind == "chapter" {
+				existingChapters[pointTitleKey(p.Title)] = true
 			}
-			basePos = maxPos + 1
+			if p.Position > maxPos {
+				maxPos = p.Position
+			}
 		}
-		for i, rawTitle := range in.Outline {
+		nextPos := maxPos + 1
+		for _, rawTitle := range in.Outline {
 			title := strings.TrimSpace(rawTitle)
 			if !validText(title, 500) {
 				invalid(c, "目录标题无效")
 				return
 			}
-			if _, e = q.AddBusinessPoint(ctx, store.AddBusinessPointParams{ID: uuid.NewString(), CourseID: src.CourseID, Title: title, Kind: "chapter", Position: basePos + int32(i)}); e != nil {
+			key := pointTitleKey(title)
+			if existingChapters[key] {
+				continue
+			}
+			existingChapters[key] = true
+			if _, e = q.AddBusinessPoint(ctx, store.AddBusinessPointParams{ID: uuid.NewString(), CourseID: src.CourseID, Title: title, Kind: "chapter", Position: nextPos}); e != nil {
 				result(c, nil, e)
 				return
 			}
+			nextPos++
 		}
 	}
 	decision, e := recordDecision(ctx, q, src.CourseID, identity.Current(c).ID, "source_suggestions", src.ID, in.Reason, map[string]any{"job_id": j.ID, "suggestions": json.RawMessage(j.Output)}, in)

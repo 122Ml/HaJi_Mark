@@ -117,14 +117,24 @@ func (h *Handler) saveBankQuestion(c *gin.Context) {
 	if in.Type == "" {
 		in.Type = "subjective"
 	}
-	if !validText(in.Title, 500) || !validText(in.Prompt, 30000) || in.MaxScore < 1 || in.MaxScore > 10000 || len(in.Requirements) > 12000 || len(in.ReferenceAnswer) > 30000 || (in.Type != "subjective" && in.Type != "code" && in.Type != "quiz") {
+	in.Title = strings.TrimSpace(in.Title)
+	in.Prompt = strings.TrimSpace(in.Prompt)
+	in.Requirements = strings.TrimSpace(in.Requirements)
+	in.ReferenceAnswer = strings.TrimSpace(in.ReferenceAnswer)
+	if !validText(in.Title, 500) || !validText(in.Prompt, 30000) || in.MaxScore < 1 || in.MaxScore > 10000 ||
+		len(in.Requirements) > 12000 || strings.ContainsRune(in.Requirements, '\x00') ||
+		len(in.ReferenceAnswer) > 30000 || strings.ContainsRune(in.ReferenceAnswer, '\x00') ||
+		(in.Type != "subjective" && in.Type != "code" && in.Type != "quiz") {
 		invalid(c, "请填写题目名称、题干、题型和1至10000的整数满分")
 		return
 	}
 	if in.Type == "quiz" {
 		seen := map[string]bool{}
 		found := false
-		for _, o := range in.Options {
+		in.CorrectAnswer = strings.TrimSpace(in.CorrectAnswer)
+		for i := range in.Options {
+			in.Options[i] = strings.TrimSpace(in.Options[i])
+			o := in.Options[i]
 			if !validText(o, 1000) || seen[o] {
 				invalid(c, "选项不能为空或重复")
 				return
@@ -265,6 +275,19 @@ func (h *Handler) saveBankQuestion(c *gin.Context) {
 				return
 			}
 			for _, a := range assets {
+				src, err := q.GetMaterialSource(ctx, store.GetMaterialSourceParams{ID: a.SourceID, CourseID: c.Param("courseID")})
+				if err != nil {
+					if errors.Is(err, pgx.ErrNoRows) {
+						invalid(c, "原版本关联的题图不属于当前课程")
+						return
+					}
+					result(c, nil, err)
+					return
+				}
+				if src.State != "active" {
+					invalid(c, "原版本关联的题图来源已归档，请勿沿用")
+					return
+				}
 				if err = q.LinkBankAsset(ctx, store.LinkBankAssetParams{VersionID: v.ID, AssetID: a.ID}); err != nil {
 					result(c, nil, err)
 					return
@@ -559,11 +582,24 @@ func (h *Handler) bankSelection(ctx context.Context, q *store.Queries, course, v
 	if e != nil {
 		return v, r, e
 	}
+	assets, e := q.BankAssets(ctx, v.ID)
+	if e != nil {
+		return v, r, e
+	}
+	for _, a := range assets {
+		src, err := q.GetMaterialSource(ctx, store.GetMaterialSourceParams{ID: a.SourceID, CourseID: course})
+		if err != nil || src.State != "active" {
+			return v, r, errors.New("题目关联的题图原件已归档或不属于本课程")
+		}
+	}
 	if v.Type == "quiz" {
 		if rubricID != "" {
 			return v, r, errors.New("客观题使用答案规则，无需逐点标准")
 		}
 		return v, r, nil
+	}
+	if strings.TrimSpace(rubricID) == "" {
+		return v, r, errors.New("标准必须为该题目版本的确认标准")
 	}
 	r, e = q.GetRubricVersion(ctx, rubricID)
 	if e != nil {

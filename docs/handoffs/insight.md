@@ -30,7 +30,7 @@
 - **共享文件约束**：
   - `backend/internal/learning/path.go`：你只修改 `/path` 学习路径逻辑，不动知识图谱 `/graph` 与 `/edges`（徐铂尧负责）。
   - `backend/internal/learning/feedback.go`：你只维护 `overview`、`evidence`、`interventions`、`interactions`、`research`、`industry` 处理器，不动 `grade` / `gradeState` / 导出核心逻辑（李然负责）。
-  - `backend/internal/learning/http.go`、`web/src/live/routes.tsx`、`web/src/live/types.ts`、`backend/config/models.json`、`web/src/styles/*`、`backend/internal/store/*` 由 **李然** 协调修改；新数据库迁移须从 **`00019`** 起预约。
+  - `backend/internal/learning/http.go`、`web/src/live/routes.tsx`、`web/src/live/types.ts`、`backend/config/models.json`、`web/src/styles/*`、`backend/internal/store/*` 由 **李然** 协调修改；新数据库迁移须从 **`00020`** 起预约。
 
 ## 4. 逐项自查挑错清单
 

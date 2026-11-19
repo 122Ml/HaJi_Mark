@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -22,6 +23,9 @@ import (
 func TestRAGIsolationAndBudget(t *testing.T) {
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
+		if os.Getenv("REQUIRE_INTEGRATION_TESTS") == "1" {
+			t.Fatal("TEST_DATABASE_URL must be set when REQUIRE_INTEGRATION_TESTS=1")
+		}
 		t.Skip("TEST_DATABASE_URL is not set")
 	}
 	ctx := context.Background()
@@ -63,7 +67,7 @@ func TestRAGIsolationAndBudget(t *testing.T) {
 		}
 	}
 	must(`INSERT INTO users(id,display_name,role) VALUES('t','Teacher','teacher');INSERT INTO courses(id,title,teacher_id) VALUES('c','RAG test','t'),('foreign','other','t');
- INSERT INTO material_sources(id,course_id,created_by,title,sha256,parse_state,parse_revision,allow_derived) VALUES('s','c','t','source','hash','ready',1,true),('f','foreign','t','foreign','hash','ready',1,true);
+ INSERT INTO material_sources(id,course_id,created_by,title,sha256,storage_path,parse_state,parse_revision,allow_derived) VALUES('s','c','t','source','hash','test/source.txt','ready',1,true),('f','foreign','t','foreign','hash','test/foreign.txt','ready',1,true);
  INSERT INTO material_fragments(id,source_id,revision,position,body,locator) VALUES('public','s',1,0,'公开边界值分析','{}'),('private','s',1,1,'内部评分细则','{}'),('foreign-f','f',1,0,'异课程机密','{}');
  INSERT INTO retrieval_chunks(id,course_id,source_id,fragment_ids,title,body,locator,input_hash,search_tokens) VALUES('p','c','s',ARRAY['public'],'public','公开边界值分析','{}','p','边界 测试'),('secret','c','s',ARRAY['private'],'secret','内部评分细则','{}','s','边界 测试'),('foreign-c','foreign','f',ARRAY['foreign-f'],'foreign','异课程机密','{}','f','边界 测试');
  INSERT INTO resources(id,course_id,title,content,locator,created_by,status,source_id,fragment_ids) VALUES('r','c','published','公开边界值分析','part','t','published','s',ARRAY['public']);`)
@@ -455,6 +459,65 @@ func TestRAGIsolationAndBudget(t *testing.T) {
 			t.Fatal("live model reservation was changed", state, err)
 		}
 	})
+	t.Run("keyword_only_index_succeeds_without_embedding_profile", func(t *testing.T) {
+		must(`INSERT INTO courses(id,title,teacher_id) VALUES('kw','Keyword only test','t');
+ INSERT INTO material_sources(id,course_id,created_by,title,sha256,storage_path,parse_state,parse_revision,allow_derived,state) VALUES('kw-src','kw','t','kw source','hash-kw','test/kw.txt','ready',1,true,'active'),('kw-arch','kw','t','kw archived','hash-arch','test/arch.txt','ready',1,true,'archived');
+ INSERT INTO material_fragments(id,source_id,revision,position,heading,body,locator,quality) VALUES('kw-frag','kw-src',1,0,'边界','等效类划分与边界值分析','{}','ready'),('kw-arch-frag','kw-arch',1,0,'旧版','已归档旧文档内容','{}','ready');
+ INSERT INTO knowledge_entries(id,course_id,created_by,title,body,category,conditions,state,student_visible,use_for_learning,evidence) VALUES('kw-kp','kw','t','等效类','等效类划分知识条目','方法','边界清晰','confirmed',true,true,'[{"source_id":"kw-src","fragment_id":"kw-frag","quote":"等效类划分与边界值分析"}]'),('kw-draft-kp','kw','t','草稿','草稿内容','方法','','draft',false,true,'[]');
+ INSERT INTO retrieval_chunks(id,course_id,source_id,fragment_ids,title,body,locator,input_hash,search_tokens,active) VALUES('kw-stale','kw','kw-arch',ARRAY['kw-arch-frag'],'kw archived','已归档旧文档内容','{}','stale-src','归档 旧文档',true);
+ INSERT INTO retrieval_chunks(id,course_id,knowledge_id,fragment_ids,title,body,locator,input_hash,search_tokens,active) VALUES('kw-stale-kp','kw','kw-draft-kp',ARRAY[]::text[],'草稿','草稿内容','{}','stale-kp','草稿',true);`)
+		kwSvc := New(&Models{DB: db})
+		defer kwSvc.Close()
+		j, err := q.CreateProcessingJob(ctx, store.CreateProcessingJobParams{ID: "index-keyword-only", CourseID: "kw", CreatedBy: "t", Kind: "index", Input: []byte("{}")})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = kwSvc.Process(ctx, asynq.NewTask(taskType, []byte(j.ID))); err != nil {
+			t.Fatal(err)
+		}
+		completed, err := q.GetProcessingJob(ctx, store.GetProcessingJobParams{ID: j.ID, CourseID: "kw"})
+		if err != nil || completed.State != "succeeded" {
+			t.Fatalf("keyword-only index did not succeed: state=%s err=%v msg=%s", completed.State, err, completed.Error)
+		}
+		var output struct {
+			Status   string `json:"status"`
+			Embedded int    `json:"embedded"`
+		}
+		if err = json.Unmarshal(completed.Output, &output); err != nil || output.Status != "keyword_only" || output.Embedded != 0 {
+			t.Fatalf("unexpected keyword-only index output: %s err=%v", string(completed.Output), err)
+		}
+		course, err := q.GetBusinessCourse(ctx, "kw")
+		if err != nil || course.EmbeddingSpaceID.Valid {
+			t.Fatal("keyword-only index unexpectedly activated an embedding space", err)
+		}
+		var staleSourceActive, staleKPActive bool
+		if err = db.QueryRow(ctx, `SELECT active FROM retrieval_chunks WHERE id='kw-stale'`).Scan(&staleSourceActive); err != nil || staleSourceActive {
+			t.Fatal("obsolete source chunk was not retired", staleSourceActive, err)
+		}
+		if err = db.QueryRow(ctx, `SELECT active FROM retrieval_chunks WHERE id='kw-stale-kp'`).Scan(&staleKPActive); err != nil || staleKPActive {
+			t.Fatal("obsolete knowledge chunk was not retired", staleKPActive, err)
+		}
+		hits, mode, err := kwSvc.Search(ctx, "kw", "t", "等效类划分", "learning", true)
+		if err != nil || !strings.HasPrefix(mode, "keyword") || len(hits) < 2 {
+			t.Fatalf("keyword search failed after keyword-only index: mode=%s hits=%d err=%v", mode, len(hits), err)
+		}
+		staleHits, _, err := kwSvc.Search(ctx, "kw", "t", "已归档旧文档", "learning", true)
+		if err != nil || len(staleHits) != 0 {
+			t.Fatalf("retired chunk remained searchable: hits=%d err=%v", len(staleHits), err)
+		}
+		explicitInput, _ := json.Marshal(JobInput{ProfileID: "missing-embed"})
+		j2, err := q.CreateProcessingJob(ctx, store.CreateProcessingJobParams{ID: "index-missing-profile", CourseID: "kw", CreatedBy: "t", Kind: "index", Input: explicitInput})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = kwSvc.Process(ctx, asynq.NewTask(taskType, []byte(j2.ID))); err != nil {
+			t.Fatal(err)
+		}
+		failed, err := q.GetProcessingJob(ctx, store.GetProcessingJobParams{ID: j2.ID, CourseID: "kw"})
+		if err != nil || failed.State != "failed" {
+			t.Fatalf("explicit missing embedding profile must fail: state=%s err=%v", failed.State, err)
+		}
+	})
 	t.Run("database_claim_failures_are_not_reported_as_success", func(t *testing.T) {
 		closed, err := pgxpool.NewWithConfig(ctx, config.Copy())
 		if err != nil {
@@ -468,11 +531,19 @@ func TestRAGIsolationAndBudget(t *testing.T) {
 	t.Run("outbox_recovers_after_redis_and_database_claim_failure", func(t *testing.T) {
 		addr := os.Getenv("TEST_REDIS_ADDR")
 		if addr == "" {
+			if os.Getenv("REQUIRE_INTEGRATION_TESTS") == "1" {
+				t.Fatal("TEST_REDIS_ADDR must be set when REQUIRE_INTEGRATION_TESTS=1")
+			}
 			t.Skip("TEST_REDIS_ADDR must point to an isolated test Redis")
 		}
 		bin := t.TempDir()
 		if err := os.WriteFile(filepath.Join(bin, "python"), []byte("#!/bin/sh\nprintf '%s' '{\"fragments\":[{\"body\":\"恢复测试正文\",\"locator\":{},\"quality\":\"ready\"}]}'\n"), 0700); err != nil {
 			t.Fatal(err)
+		}
+		if runtime.GOOS == "windows" {
+			if err := os.WriteFile(filepath.Join(bin, "python.bat"), []byte("@echo off\r\necho {\"fragments\":[{\"body\":\"恢复测试正文\",\"locator\":{},\"quality\":\"ready\"}]}\r\n"), 0600); err != nil {
+				t.Fatal(err)
+			}
 		}
 		t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 		t.Setenv("REDIS_ADDR", "127.0.0.1:1")

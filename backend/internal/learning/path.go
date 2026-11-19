@@ -1,9 +1,9 @@
 package learning
 
 import (
+	"container/heap"
 	"errors"
 	"net/http"
-	"sort"
 	"strings"
 
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
@@ -12,6 +12,70 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
+
+type pathSortKey struct {
+	chapterPos int32
+	sectionPos int32
+	pointPos   int32
+	id         string
+}
+
+type pathHeapItem struct {
+	point store.KnowledgePoint
+	key   pathSortKey
+}
+
+type pathNodeHeap []pathHeapItem
+
+func (h pathNodeHeap) Len() int { return len(h) }
+func (h pathNodeHeap) Less(i, j int) bool {
+	a, b := h[i].key, h[j].key
+	if a.chapterPos != b.chapterPos {
+		return a.chapterPos < b.chapterPos
+	}
+	if a.sectionPos != b.sectionPos {
+		return a.sectionPos < b.sectionPos
+	}
+	if a.pointPos != b.pointPos {
+		return a.pointPos < b.pointPos
+	}
+	return a.id < b.id
+}
+func (h pathNodeHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
+func (h *pathNodeHeap) Push(x any)   { *h = append(*h, x.(pathHeapItem)) }
+func (h *pathNodeHeap) Pop() any {
+	old := *h
+	n := len(old)
+	item := old[n-1]
+	*h = old[:n-1]
+	return item
+}
+
+func computePathSortKey(p store.KnowledgePoint, byID map[string]store.KnowledgePoint) pathSortKey {
+	key := pathSortKey{chapterPos: p.Position, sectionPos: -1, pointPos: p.Position, id: p.ID}
+	if !p.ParentID.Valid || p.ParentID.String == "" {
+		return key
+	}
+	parent, ok := byID[p.ParentID.String]
+	if !ok {
+		return key
+	}
+	if parent.Kind == "chapter" {
+		key.chapterPos = parent.Position
+		return key
+	}
+	if parent.Kind == "section" {
+		key.sectionPos = parent.Position
+		if parent.ParentID.Valid {
+			if gp, ok := byID[parent.ParentID.String]; ok {
+				key.chapterPos = gp.Position
+				return key
+			}
+		}
+		key.chapterPos = parent.Position
+	}
+	return key
+}
 
 func (h *Handler) graph(c *gin.Context) {
 	points, e := h.q.ListBusinessPoints(c.Request.Context(), c.Param("courseID"))
@@ -158,7 +222,8 @@ func (h *Handler) deleteEdge(c *gin.Context) {
 	result(c, gin.H{"deleted": true, "from_point_id": fromID, "to_point_id": toID}, nil)
 }
 func (h *Handler) path(c *gin.Context) {
-	p, e := h.q.LatestStudyPath(c.Request.Context(), store.LatestStudyPathParams{CourseID: c.Param("courseID"), StudentID: identity.Current(c).ID})
+	ctx := c.Request.Context()
+	p, e := h.q.LatestStudyPath(ctx, store.LatestStudyPathParams{CourseID: c.Param("courseID"), StudentID: identity.Current(c).ID})
 	if errors.Is(e, pgx.ErrNoRows) {
 		c.JSON(200, gin.H{"data": nil})
 		return
@@ -167,25 +232,47 @@ func (h *Handler) path(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
-	items, e := h.q.ListStudyPathItems(c.Request.Context(), p.ID)
-	if e == nil && items == nil {
+	items, e := h.q.ListStudyPathItems(ctx, p.ID)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	if items == nil {
 		items = []store.ListStudyPathItemsRow{}
 	}
-	result(c, gin.H{"path": p, "items": items}, e)
-}
-func (h *Handler) planPath(c *gin.Context) {
-	ctx := c.Request.Context()
 	points, e := h.q.ListBusinessPoints(ctx, c.Param("courseID"))
 	if e != nil {
 		result(c, nil, e)
 		return
 	}
-	edges, e := h.q.ListCourseEdges(ctx, c.Param("courseID"))
+	totalPoints := 0
+	for _, pt := range points {
+		if pt.Kind == "point" {
+			totalPoints++
+		}
+	}
+	result(c, gin.H{"path": p, "items": items, "total_points": totalPoints}, nil)
+}
+func (h *Handler) planPath(c *gin.Context) {
+	ctx := c.Request.Context()
+	tx, e := h.db.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead})
 	if e != nil {
 		result(c, nil, e)
 		return
 	}
-	summary, e := h.q.CoursePointScoreSummary(ctx, store.CoursePointScoreSummaryParams{CourseID: c.Param("courseID"), StudentID: identity.Current(c).ID})
+	defer tx.Rollback(ctx)
+	q := h.q.WithTx(tx)
+	points, e := q.ListBusinessPoints(ctx, c.Param("courseID"))
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	edges, e := q.ListCourseEdges(ctx, c.Param("courseID"))
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	summary, e := q.CoursePointScoreSummary(ctx, store.CoursePointScoreSummaryParams{CourseID: c.Param("courseID"), StudentID: identity.Current(c).ID})
 	if e != nil {
 		result(c, nil, e)
 		return
@@ -199,10 +286,14 @@ func (h *Handler) planPath(c *gin.Context) {
 	}
 	selected := map[string]store.KnowledgePoint{}
 	byID := make(map[string]store.KnowledgePoint, len(points))
+	totalPoints := 0
 	for _, p := range points {
 		byID[p.ID] = p
-		if p.Kind == "point" && (maxScore[p.ID] == 0 || float64(score[p.ID])/float64(maxScore[p.ID]) < 0.6) {
-			selected[p.ID] = p
+		if p.Kind == "point" {
+			totalPoints++
+			if maxScore[p.ID] == 0 || float64(score[p.ID])/float64(maxScore[p.ID]) < 0.6 {
+				selected[p.ID] = p
+			}
 		}
 	}
 	// Include prerequisites even if their latest result is adequate; O(V+E) reverse BFS.
@@ -226,7 +317,7 @@ func (h *Handler) planPath(c *gin.Context) {
 			}
 		}
 	}
-	// O(V+E) wave-based Kahn's topological sort preserving deterministic (Position, ID) order.
+	// Deterministic min-heap Kahn topological sort preserving hierarchical (chapter, section, point, id) order.
 	adj := make(map[string][]string, len(selected))
 	inDegree := make(map[string]int, len(selected))
 	for id := range selected {
@@ -242,43 +333,30 @@ func (h *Handler) planPath(c *gin.Context) {
 		adj[edge.FromID] = append(adj[edge.FromID], edge.ToID)
 		inDegree[edge.ToID]++
 	}
-	wave := make([]store.KnowledgePoint, 0, len(selected))
+	ready := &pathNodeHeap{}
+	heap.Init(ready)
 	for id, deg := range inDegree {
 		if deg == 0 {
-			wave = append(wave, selected[id])
+			pt := selected[id]
+			heap.Push(ready, pathHeapItem{point: pt, key: computePathSortKey(pt, byID)})
 		}
 	}
 	ordered := make([]store.KnowledgePoint, 0, len(selected))
-	for len(wave) > 0 {
-		sort.Slice(wave, func(i, j int) bool {
-			if wave[i].Position == wave[j].Position {
-				return wave[i].ID < wave[j].ID
-			}
-			return wave[i].Position < wave[j].Position
-		})
-		nextWave := []store.KnowledgePoint{}
-		for _, p := range wave {
-			ordered = append(ordered, p)
-			for _, nextID := range adj[p.ID] {
-				inDegree[nextID]--
-				if inDegree[nextID] == 0 {
-					nextWave = append(nextWave, selected[nextID])
-				}
+	for ready.Len() > 0 {
+		item := heap.Pop(ready).(pathHeapItem)
+		ordered = append(ordered, item.point)
+		for _, nextID := range adj[item.point.ID] {
+			inDegree[nextID]--
+			if inDegree[nextID] == 0 {
+				pt := selected[nextID]
+				heap.Push(ready, pathHeapItem{point: pt, key: computePathSortKey(pt, byID)})
 			}
 		}
-		wave = nextWave
 	}
 	if len(ordered) != len(selected) {
 		invalid(c, "知识点依赖存在循环，请教师修正")
 		return
 	}
-	tx, e := h.db.Begin(ctx)
-	if e != nil {
-		result(c, nil, e)
-		return
-	}
-	defer tx.Rollback(ctx)
-	q := h.q.WithTx(tx)
 	p, e := q.CreateStudyPath(ctx, store.CreateStudyPathParams{ID: uuid.NewString(), CourseID: c.Param("courseID"), StudentID: identity.Current(c).ID, RuleVersion: "released-performance-prerequisite-v1"})
 	if e != nil {
 		result(c, nil, e)
@@ -307,5 +385,5 @@ func (h *Handler) planPath(c *gin.Context) {
 		})
 	}
 	e = tx.Commit(ctx)
-	result(c, gin.H{"path": p, "items": items}, e)
+	result(c, gin.H{"path": p, "items": items, "total_points": totalPoints}, e)
 }

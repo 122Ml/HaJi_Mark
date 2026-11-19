@@ -14,24 +14,27 @@ import (
 const listAssignmentWorklist = `-- name: ListAssignmentWorklist :many
 SELECT a.id, a.course_id, a.title, a.description, a.type, a.status, a.version, a.max_score, a.due_at, a.created_by, a.created_at, a.published_at, count(*) OVER()::int AS total,
  (SELECT count(*)::int FROM questions q WHERE q.assignment_id=a.id) AS question_count,
- (SELECT count(DISTINCT s.question_id)::int FROM submissions s WHERE s.assignment_id=a.id AND s.student_id=$1) AS submitted_count,
- (SELECT count(DISTINCT d.question_id)::int FROM answer_drafts d JOIN questions q ON q.id=d.question_id WHERE q.assignment_id=a.id AND d.student_id=$1 AND length(d.answer_text)>0) AS draft_count,
- (SELECT count(DISTINCT s.question_id)::int FROM submissions s WHERE s.assignment_id=a.id AND s.student_id=$1 AND EXISTS(SELECT 1 FROM grading_revisions g WHERE g.submission_id=s.id AND g.state='released')) AS feedback_count
+ CASE WHEN NOT $1::boolean THEN (SELECT count(DISTINCT s.question_id)::int FROM submissions s WHERE s.assignment_id=a.id AND s.student_id=$2) ELSE 0 END AS submitted_count,
+ CASE WHEN NOT $1::boolean THEN (SELECT count(DISTINCT d.question_id)::int FROM answer_drafts d JOIN questions q ON q.id=d.question_id WHERE q.assignment_id=a.id AND d.student_id=$2 AND length(d.answer_text)>0) ELSE 0 END AS draft_count,
+ CASE WHEN NOT $1::boolean THEN (SELECT count(DISTINCT s.question_id)::int FROM submissions s WHERE s.assignment_id=a.id AND s.student_id=$2 AND EXISTS(SELECT 1 FROM grading_revisions g WHERE g.submission_id=s.id AND g.state='released')) ELSE 0 END AS feedback_count
 FROM assignments a
-WHERE a.course_id=$2
- AND ($3::boolean OR a.status IN ('published','closed'))
+WHERE a.course_id=$3
+ AND ($1::boolean OR a.status IN ('published','closed'))
  AND ($4::text='' OR a.type=$4 OR ($4='homework' AND a.type<>'quiz'))
  AND ($5::text='' OR a.status=$5)
  AND ($6::text='' OR a.title ILIKE '%' || $6 || '%' ESCAPE '\')
  AND ($7::text='' OR EXISTS(SELECT 1 FROM questions q WHERE q.assignment_id=a.id AND q.knowledge_point_id=$7))
-ORDER BY CASE WHEN $8::text='due' THEN a.due_at END ASC NULLS LAST, a.created_at DESC,a.id
+ORDER BY
+ CASE WHEN $8::text='due' THEN a.due_at END ASC NULLS LAST,
+ CASE WHEN $8::text='created' THEN a.created_at END ASC,
+ a.created_at DESC, a.id
 LIMIT $10 OFFSET $9
 `
 
 type ListAssignmentWorklistParams struct {
+	Teacher    bool   `json:"teacher"`
 	ActorID    string `json:"actor_id"`
 	CourseID   string `json:"course_id"`
-	Teacher    bool   `json:"teacher"`
 	Kind       string `json:"kind"`
 	State      string `json:"state"`
 	Search     string `json:"search"`
@@ -63,9 +66,9 @@ type ListAssignmentWorklistRow struct {
 
 func (q *Queries) ListAssignmentWorklist(ctx context.Context, arg ListAssignmentWorklistParams) ([]ListAssignmentWorklistRow, error) {
 	rows, err := q.db.Query(ctx, listAssignmentWorklist,
+		arg.Teacher,
 		arg.ActorID,
 		arg.CourseID,
-		arg.Teacher,
 		arg.Kind,
 		arg.State,
 		arg.Search,

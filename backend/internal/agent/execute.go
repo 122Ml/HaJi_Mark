@@ -34,7 +34,7 @@ func (s *Service) execute(ctx context.Context, run store.AgentRun, conv store.Ag
 		storedArgs = map[string]any{"raw_arguments": call.Function.Arguments}
 	} else if tool.Name != "" {
 		omitOptionalNulls(tool.Schema, args)
-		if tool.Method == "JOB" && tool.Path != "parse" && tool.Path != "index" && tool.Path != "vision" || tool.Name == "course_answer" || tool.Name == "regrade_ai" {
+		if tool.Method == "JOB" && tool.Path != "parse" && tool.Path != "index" && tool.Path != "vision" || tool.Name == "course_answer" || tool.Name == "regrade_ai" || tool.Name == "intelligence_create" {
 			if getString(args, "profile_id") == "" {
 				args["profile_id"] = rt.Profile
 			}
@@ -78,6 +78,22 @@ func (s *Service) execute(ctx context.Context, run store.AgentRun, conv store.Ag
 	if e = validate(tool.Schema, args); e != nil {
 		return complete("failed", map[string]any{"error": e.Error()})
 	}
+	if tool.Name == "assignment_create" && rt.Tainted {
+		if qs, ok := args["questions"].([]any); ok {
+			for _, rawQ := range qs {
+				if qMap, ok := rawQ.(map[string]any); ok {
+					for _, k := range []string{"prompt", "rubric", "options", "correct_answer", "max_score"} {
+						if v, exists := qMap[k]; exists && v != nil && fmt.Sprint(v) != "" && fmt.Sprint(v) != "[]" && fmt.Sprint(v) != "0" {
+							return complete("denied", map[string]any{"error": "受学生作答污染的会话仅可引用已有题库题目，不能内联新题干或评分标准"})
+						}
+					}
+					if getString(qMap, "bank_question_version_id") == "" {
+						return complete("denied", map[string]any{"error": "受学生作答污染的会话必须指定已有 bank_question_version_id"})
+					}
+				}
+			}
+		}
+	}
 	if rt.Mode == "read-only" && tool.Risk != "read" {
 		return complete("denied", map[string]any{"error": "当前为只读模式，未执行写操作。请结束运行后由用户修改模式"})
 	}
@@ -101,10 +117,10 @@ func (s *Service) execute(ctx context.Context, run store.AgentRun, conv store.Ag
 			return complete("failed", map[string]any{"error": "任务目标为空或过长"})
 		}
 		rt.Frames = append(rt.Frames, frame{Domain: domain, Messages: []rag.AgentMessage{{Role: "system", Content: systemPrompt(domain, role, conv.CourseID, rt.Profile)}, {Role: "user", Content: delegatedInput(rt.Frames[0].Messages, getString(args, "goal"))}}})
-		return s.event(ctx, s.Q, run, "delegated", map[string]any{"domain": domain, "step_id": id})
+		return s.eventTx(ctx, run, "delegated", map[string]any{"domain": domain, "step_id": id})
 	}
 	if tool.Method == "PLAN" {
-		if e = s.event(ctx, s.Q, run, "plan", args); e != nil {
+		if e = s.eventTx(ctx, run, "plan", args); e != nil {
 			return e
 		}
 		return complete("succeeded", map[string]any{"recorded": true})
@@ -143,8 +159,12 @@ func (s *Service) execute(ctx context.Context, run store.AgentRun, conv store.Ag
 			if time.Since(waitSince) > 30*time.Minute {
 				return complete("failed", map[string]any{"error": "已等待30分钟，请稍后用任务ID查询；后台任务未被取消"})
 			}
-			if e = s.checkpoint(ctx, run, rt, "waiting_job", ""); e != nil {
-				return e
+			if run.State != "waiting_job" {
+				if e = s.checkpoint(ctx, run, rt, "waiting_job", ""); e != nil {
+					return e
+				}
+			} else {
+				_ = s.Q.TouchAgentRun(ctx, run.ID)
 			}
 			return errWaiting
 		}
@@ -181,7 +201,7 @@ func (s *Service) execute(ctx context.Context, run store.AgentRun, conv store.Ag
 		value, e = s.invoke(ctx, run, conv, tool, args, step.ID)
 	}
 	if e != nil {
-		if tool.Risk != "read" {
+		if tool.Risk != "read" || tool.Name == "course_answer" {
 			_ = s.stepResult(ctx, run, id, "unknown", map[string]any{"error": e.Error()})
 			return errUnknown
 		}
@@ -260,7 +280,7 @@ func (s *Service) invoke(ctx context.Context, run store.AgentRun, conv store.Age
 			delete(body, "attachment_id")
 		}
 	}
-	if t.Name == "grade_save" || t.Name == "submission_import_confirm" || t.Name == "answer_submit" || t.Name == "intelligence_create" {
+	if t.Name == "grade_save" || t.Name == "submission_import_confirm" || t.Name == "answer_submit" || t.Name == "intelligence_create" || t.Name == "course_answer" {
 		body["request_id"] = requestID
 	}
 	if method == "JOB" {
@@ -343,7 +363,7 @@ func (s *Service) request(ctx context.Context, run store.AgentRun, conv store.Ag
 		if e != nil {
 			return false, nil, e
 		}
-		if e = s.event(ctx, s.Q, run, "request", map[string]any{"request_id": req.ID}); e != nil {
+		if e = s.eventTx(ctx, run, "request", map[string]any{"request_id": req.ID}); e != nil {
 			return false, nil, e
 		}
 	} else if e != nil {
@@ -355,6 +375,9 @@ func (s *Service) request(ctx context.Context, run store.AgentRun, conv store.Ag
 			state = "waiting_input"
 		}
 		return false, nil, s.checkpoint(ctx, run, rt, state, "")
+	}
+	if req.State == "pending" {
+		_ = s.Q.ExpireAgentRequests(ctx, run.ID)
 	}
 	if req.State != "answered" {
 		return false, map[string]any{"denied": true, "reason": "用户拒绝或请求过期，未执行"}, nil
@@ -372,7 +395,7 @@ func (s *Service) request(ctx context.Context, run store.AgentRun, conv store.Ag
 	if t.Snapshot != "" {
 		hash, _, e := s.snapshot(ctx, run, conv, t, args)
 		if e != nil {
-			return false, nil, e
+			return false, map[string]any{"error": e.Error()}, nil
 		}
 		if snapshot["business_hash"] != hash {
 			return false, map[string]any{"error": "审批后业务对象已变化，旧审批失效。请重新查询并提出新的操作"}, nil
@@ -384,6 +407,36 @@ func (s *Service) snapshot(ctx context.Context, run store.AgentRun, conv store.A
 	path, e := toolPath(t.Snapshot, args)
 	if e != nil {
 		return "", nil, e
+	}
+	if t.Snapshot == "@content_links" {
+		kind := getString(args, "kind")
+		id := getString(args, "id")
+		if (kind == "source" || kind == "question") && !safeID.MatchString(id) {
+			return "", nil, errors.New("对象ID无效")
+		}
+		switch kind {
+		case "source":
+			path = "/sources/" + id
+		case "knowledge":
+			path = "/knowledge"
+		case "question":
+			path = "/question-bank/" + id
+		default:
+			path = "/topics"
+		}
+	}
+	if t.Snapshot == "@regrade_create" {
+		qid := getString(args, "question_id")
+		q, err := s.Q.GetBusinessQuestion(ctx, qid)
+		if err != nil {
+			return "", nil, errors.New("无法读取待重评题目，未执行")
+		}
+		if rid := getString(args, "rubric_id"); rid != "" {
+			if _, err := s.Q.GetRubricVersion(ctx, rid); err != nil {
+				return "", nil, errors.New("无法读取指定评分标准，未执行")
+			}
+		}
+		path = "/assignments/" + q.AssignmentID + "/submissions"
 	}
 	if t.Snapshot == "@rubric" {
 		r, e := s.Q.GetRubricVersion(ctx, getString(args, "id"))

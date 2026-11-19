@@ -10,6 +10,12 @@ SELECT * FROM knowledge_topics WHERE id=$1 AND course_id=$2;
 -- name: UpdateTopic :one
 UPDATE knowledge_topics SET title=$3,description=$4,active=$5,edit_version=edit_version+1 WHERE id=$1 AND course_id=$2 AND edit_version=$6 RETURNING *;
 
+-- name: DeleteTopicLinksByTopic :exec
+DELETE FROM topic_links WHERE topic_id=$1;
+
+-- name: DeleteTopic :one
+DELETE FROM knowledge_topics WHERE id=$1 AND course_id=$2 RETURNING id;
+
 -- name: TopicLinks :many
 SELECT l.* FROM topic_links l JOIN knowledge_topics t ON t.id=l.topic_id WHERE t.course_id=$1;
 
@@ -147,7 +153,7 @@ UPDATE knowledge_entries SET related_ids=(SELECT array_agg(DISTINCT v) FROM unne
 
 -- name: BankProvenance :many
 SELECT * FROM content_decisions d WHERE d.course_id=$1 AND (d.object_id=$2 OR
- (d.kind='paper_adopt' AND EXISTS(SELECT 1 FROM jsonb_array_elements(d.output->'versions') v WHERE v->>'id'=$2))) ORDER BY d.created_at;
+ (d.kind='paper_adopt' AND jsonb_typeof(d.output->'versions')='array' AND EXISTS(SELECT 1 FROM jsonb_array_elements(d.output->'versions') v WHERE v->>'id'=$2))) ORDER BY d.created_at;
 
 -- name: DecisionByJob :one
 SELECT * FROM content_decisions WHERE course_id=$1 AND kind=$2 AND inputs->>'job_id'=sqlc.arg(job_id)::text ORDER BY created_at LIMIT 1;
@@ -155,26 +161,26 @@ SELECT * FROM content_decisions WHERE course_id=$1 AND kind=$2 AND inputs->>'job
 -- name: ContentImpact :many
 WITH RECURSIVE sk AS (
  SELECT k.id FROM knowledge_entries k WHERE k.course_id=sqlc.arg(course_id) AND
- (k.id=sqlc.arg(knowledge_id)::text OR EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev WHERE ev->>'source_id'=sqlc.arg(source_id)::text))
+ (k.id=ANY(sqlc.arg(knowledge_ids)::text[]) OR (jsonb_typeof(k.evidence)='array' AND EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev WHERE ev->>'source_id'=ANY(sqlc.arg(source_ids)::text[]))))
  UNION SELECT k.id FROM knowledge_entries k JOIN sk ON sk.id=ANY(k.related_ids) WHERE k.course_id=sqlc.arg(course_id)
 ), bq AS (
  SELECT v.id FROM bank_question_versions v JOIN question_bank b ON b.id=v.bank_id WHERE b.course_id=sqlc.arg(course_id) AND
- (EXISTS(SELECT 1 FROM jsonb_array_elements(v.evidence_refs) ev WHERE ev->>'source_id'=NULLIF(sqlc.arg(source_id)::text,'') OR ev->>'knowledge_id' IN (SELECT id FROM sk))
- OR EXISTS(SELECT 1 FROM content_decisions d, jsonb_array_elements(d.output->'versions') pv WHERE d.kind='paper_adopt' AND d.course_id=b.course_id AND d.object_id=NULLIF(sqlc.arg(source_id)::text,'') AND pv->>'id'=v.id)
- OR EXISTS(SELECT 1 FROM bank_question_assets l JOIN material_assets a ON a.id=l.asset_id WHERE l.version_id=v.id AND a.source_id=NULLIF(sqlc.arg(source_id)::text,'')))
+ ((jsonb_typeof(v.evidence_refs)='array' AND EXISTS(SELECT 1 FROM jsonb_array_elements(v.evidence_refs) ev WHERE ev->>'source_id'=ANY(sqlc.arg(source_ids)::text[]) OR ev->>'knowledge_id' IN (SELECT id FROM sk)))
+ OR EXISTS(SELECT 1 FROM content_decisions d, jsonb_array_elements(CASE WHEN jsonb_typeof(d.output->'versions')='array' THEN d.output->'versions' ELSE '[]'::jsonb END) pv WHERE d.kind='paper_adopt' AND jsonb_typeof(d.output->'versions')='array' AND d.course_id=b.course_id AND d.object_id=ANY(sqlc.arg(source_ids)::text[]) AND pv->>'id'=v.id)
+ OR EXISTS(SELECT 1 FROM bank_question_assets l JOIN material_assets a ON a.id=l.asset_id WHERE l.version_id=v.id AND a.source_id=ANY(sqlc.arg(source_ids)::text[])))
 ), rb AS (
- SELECT r.id FROM rubric_versions r WHERE r.bank_question_version_id IN(SELECT id FROM bq) OR EXISTS(
- SELECT 1 FROM jsonb_array_elements(r.evidence_refs) ev WHERE ev->>'source_id'=NULLIF(sqlc.arg(source_id)::text,'') OR ev->>'knowledge_id' IN(SELECT id FROM sk))
+ SELECT r.id FROM rubric_versions r WHERE r.bank_question_version_id IN(SELECT id FROM bq) OR (jsonb_typeof(r.evidence_refs)='array' AND EXISTS(
+ SELECT 1 FROM jsonb_array_elements(r.evidence_refs) ev WHERE ev->>'source_id'=ANY(sqlc.arg(source_ids)::text[]) OR ev->>'knowledge_id' IN(SELECT id FROM sk)))
 ), aq AS (
  SELECT q.id,q.assignment_id FROM questions q JOIN assignments a ON a.id=q.assignment_id WHERE a.course_id=sqlc.arg(course_id) AND
- (q.bank_question_version_id IN(SELECT id FROM bq) OR q.bound_rubric_id IN(SELECT id FROM rb) OR q.id IN(SELECT r.question_id FROM rubric_versions r WHERE r.id IN(SELECT id FROM rb)) OR q.resource_id IN(SELECT id FROM resources WHERE source_id=NULLIF(sqlc.arg(source_id)::text,'')))
+ (q.bank_question_version_id IN(SELECT id FROM bq) OR q.bound_rubric_id IN(SELECT id FROM rb) OR q.id IN(SELECT r.question_id FROM rubric_versions r WHERE r.id IN(SELECT id FROM rb)) OR q.resource_id IN(SELECT id FROM resources WHERE source_id=ANY(sqlc.arg(source_ids)::text[])))
 )
 SELECT 'knowledge'::text AS kind,k.id,k.title,k.state,k.version,NULL::text AS parent_id FROM knowledge_entries k WHERE k.id IN(SELECT id FROM sk)
 UNION ALL SELECT 'question',v.id,v.title,v.state,v.version,v.bank_id FROM bank_question_versions v WHERE v.id IN(SELECT id FROM bq)
 UNION ALL SELECT CASE WHEN r.bank_question_version_id IS NOT NULL THEN 'rubric' ELSE 'assignment_rubric' END,r.id,'评分标准',r.state,r.version,COALESCE(r.bank_question_version_id,(SELECT q.assignment_id FROM questions q WHERE q.id=r.question_id)) FROM rubric_versions r WHERE r.id IN(SELECT id FROM rb)
 UNION ALL SELECT 'assignment',a.id,a.title,a.status,a.version,NULL::text FROM assignments a WHERE a.id IN(SELECT assignment_id FROM aq)
 UNION ALL SELECT 'assignment_question',q.id,q.prompt,a.status,a.version,a.id FROM questions q JOIN assignments a ON a.id=q.assignment_id WHERE q.id IN(SELECT id FROM aq)
-UNION ALL SELECT 'resource',r.id,r.title,r.status,r.version,NULL::text FROM resources r WHERE r.course_id=sqlc.arg(course_id) AND r.source_id=NULLIF(sqlc.arg(source_id)::text,'')
+UNION ALL SELECT 'resource',r.id,r.title,r.status,r.version,NULL::text FROM resources r WHERE r.course_id=sqlc.arg(course_id) AND r.source_id=ANY(sqlc.arg(source_ids)::text[])
 UNION ALL SELECT 'result',g.id,'正式评分',g.state,g.revision,s.assignment_id FROM grading_revisions g JOIN submissions s ON s.id=g.submission_id WHERE s.course_id=sqlc.arg(course_id) AND g.state='released' AND (g.rubric_id IN(SELECT id FROM rb) OR s.question_id IN(SELECT id FROM aq));
 
 -- name: GetAssignmentForUpdate :one
@@ -188,5 +194,5 @@ SELECT a.* FROM material_assets a JOIN bank_question_assets l ON l.asset_id=a.id
 
 -- name: StudentAssetAccess :one
 SELECT EXISTS(SELECT 1 FROM material_assets a JOIN material_sources s ON s.id=a.source_id WHERE a.id=$1 AND s.course_id=$2 AND a.kind<>'page'
-AND (EXISTS(SELECT 1 FROM resources r JOIN material_fragments f ON f.id=ANY(r.fragment_ids) WHERE r.course_id=s.course_id AND r.status='published' AND f.locator->>'asset_id'=a.id)
+AND (EXISTS(SELECT 1 FROM resources r JOIN material_fragments f ON f.locator->>'asset_id'=a.id WHERE r.course_id=s.course_id AND r.status='published' AND s.state='active' AND r.fragment_ids @> ARRAY[f.id])
 OR EXISTS(SELECT 1 FROM bank_question_assets l JOIN questions q ON q.bank_question_version_id=l.version_id JOIN assignments w ON w.id=q.assignment_id WHERE l.asset_id=a.id AND w.course_id=s.course_id AND w.status IN ('published','closed'))));

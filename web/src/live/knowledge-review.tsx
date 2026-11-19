@@ -7,7 +7,7 @@ import { Feedback, useAction, useLiveQuery } from "./context";
 import { RichContent } from "./content-render";
 import { DraftNotice, useEditorDraft } from "./editing";
 import type { Knowledge } from "./types";
-import { hasControlNull, utf8ByteLength } from "./validation";
+import { dedupeStrings, hasControlNull, utf8ByteLength } from "./validation";
 
 type Comparison = {
   knowledge_id: string;
@@ -44,18 +44,6 @@ const ACTION_OPTIONS = [
   { value: "coexist", label: "按条件并存" },
   { value: "replace", label: "确认候选并停用所选旧条目" },
 ];
-
-function dedupeStrings(items: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const item of items) {
-    if (typeof item === "string" && item && !seen.has(item)) {
-      seen.add(item);
-      out.push(item);
-    }
-  }
-  return out;
-}
 
 function parseComparisons(raw: unknown): Comparison[] {
   if (!Array.isArray(raw)) return [];

@@ -12,8 +12,10 @@ WHERE s.token_hash = $1 AND s.expires_at > now();
 -- name: DeleteSession :exec
 DELETE FROM sessions WHERE token_hash = $1;
 
--- name: DeleteExpiredSessions :exec
-DELETE FROM sessions WHERE expires_at <= now();
+-- name: DeleteExpiredSessions :execrows
+DELETE FROM sessions WHERE token_hash IN (
+ SELECT token_hash FROM sessions WHERE expires_at <= now() LIMIT 1000
+);
 
 -- name: CanAccessCourse :one
 SELECT EXISTS (

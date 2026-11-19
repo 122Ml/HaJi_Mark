@@ -158,34 +158,55 @@ func (s *Service) Search(ctx context.Context, course, actor, query, purpose stri
 	mode := "keyword"
 	warning := ""
 	if c.EmbeddingSpaceID.Valid {
-		space, e := s.Q.GetEmbeddingSpace(ctx, c.EmbeddingSpaceID.String)
-		if e != nil {
-			return nil, "", e
-		}
-		p, e := s.Models.Profile(space.ProfileID, "embedding")
-		if e == nil && p.Fingerprint() != space.Fingerprint {
-			e = errors.New("向量配置已改变，请重建索引")
-		}
-		var vectors [][]float64
-		if e == nil {
-			vectors, e = s.Models.Embed(ctx, course, actor, p, []string{query})
-		}
-		if e == nil {
-			raw, _ := json.Marshal(vectors[0])
-			rows, err := s.Q.VectorSearch(ctx, store.VectorSearchParams{CourseID: course, SpaceID: space.ID, VectorText: string(raw), Teacher: teacher, Purpose: purpose})
-			if err != nil {
-				return nil, "", err
-			}
-			for i, r := range rows {
-				if old := merged[r.ID]; old != nil {
-					old.Score += 1. / float64(61+i)
-				} else {
-					merged[r.ID] = &Hit{ID: r.ID, SourceID: r.SourceID.String, KnowledgeID: r.KnowledgeID.String, ResourceID: r.ResourceID.String, FragmentIDs: r.FragmentIds, Title: r.Title, Heading: r.Heading, Body: r.Body, Locator: r.Locator, Score: 1. / float64(61+i)}
-				}
-			}
-			mode = "hybrid"
+		if len(Tokens(query)) == 0 {
+			warning = "查询词有效特征为空，仅使用关键词检索"
 		} else {
-			warning = e.Error()
+			space, e := s.Q.GetEmbeddingSpace(ctx, c.EmbeddingSpaceID.String)
+			if e != nil {
+				return nil, "", e
+			}
+			p, e := s.Models.Profile(space.ProfileID, "embedding")
+			if e == nil && p.Fingerprint() != space.Fingerprint {
+				e = errors.New("向量配置已改变，请重建索引")
+			}
+			var vectors [][]float64
+			if e == nil {
+				vectors, e = s.Models.Embed(ctx, course, actor, p, []string{query})
+			}
+			if e == nil {
+				raw, _ := json.Marshal(vectors[0])
+				var rows []store.VectorSearchRow
+				var err error
+				switch space.Dimensions {
+				case 1024:
+					r1024, e1024 := s.Q.VectorSearch1024(ctx, store.VectorSearch1024Params{CourseID: course, SpaceID: space.ID, VectorText: string(raw), Teacher: teacher, Purpose: purpose})
+					err = e1024
+					for _, r := range r1024 {
+						rows = append(rows, store.VectorSearchRow(r))
+					}
+				case 1536:
+					r1536, e1536 := s.Q.VectorSearch1536(ctx, store.VectorSearch1536Params{CourseID: course, SpaceID: space.ID, VectorText: string(raw), Teacher: teacher, Purpose: purpose})
+					err = e1536
+					for _, r := range r1536 {
+						rows = append(rows, store.VectorSearchRow(r))
+					}
+				default:
+					rows, err = s.Q.VectorSearch(ctx, store.VectorSearchParams{CourseID: course, SpaceID: space.ID, VectorText: string(raw), Teacher: teacher, Purpose: purpose})
+				}
+				if err != nil {
+					return nil, "", err
+				}
+				for i, r := range rows {
+					if old := merged[r.ID]; old != nil {
+						old.Score += 1. / float64(61+i)
+					} else {
+						merged[r.ID] = &Hit{ID: r.ID, SourceID: r.SourceID.String, KnowledgeID: r.KnowledgeID.String, ResourceID: r.ResourceID.String, FragmentIDs: r.FragmentIds, Title: r.Title, Heading: r.Heading, Body: r.Body, Locator: r.Locator, Score: 1. / float64(61+i)}
+					}
+				}
+				mode = "hybrid"
+			} else {
+				warning = e.Error()
+			}
 		}
 	} else {
 		warning = "尚无可用向量索引，仅使用关键词检索"
@@ -281,14 +302,6 @@ func putChunksWithQueries(ctx context.Context, q *store.Queries, course, source,
 }
 func nullable(s string) pgtype.Text { return pgtype.Text{String: s, Valid: s != ""} }
 func (s *Service) Index(ctx context.Context, j store.ProcessingJob, in JobInput) (any, error) {
-	p, e := s.Models.Profile(in.ProfileID, "embedding")
-	if e != nil {
-		return nil, e
-	}
-	space, e := s.Q.PutEmbeddingSpace(ctx, store.PutEmbeddingSpaceParams{ID: Hash(p.Fingerprint())[:32], ProfileID: p.ID, Fingerprint: p.Fingerprint(), Model: p.Model, Dimensions: int32(p.Dimensions), ChunkerVersion: "structure-v1"})
-	if e != nil {
-		return nil, e
-	}
 	indexTx, e := s.Models.DB.Begin(ctx)
 	if e != nil {
 		return nil, e
@@ -348,6 +361,31 @@ func (s *Service) Index(ctx context.Context, j store.ProcessingJob, in JobInput)
 	if e = indexTx.Commit(ctx); e != nil {
 		return nil, e
 	}
+	p, e := s.Models.Profile(in.ProfileID, "embedding")
+	if e != nil {
+		if in.ProfileID != "" {
+			return nil, e
+		}
+		tx, err := s.Models.DB.Begin(ctx)
+		if err != nil {
+			return nil, err
+		}
+		defer tx.Rollback(ctx)
+		q := s.Q.WithTx(tx)
+		if err = lockRunningJob(ctx, q, j); err != nil {
+			return nil, err
+		}
+		output := map[string]any{"status": "keyword_only", "embedded": 0}
+		raw, _ := json.Marshal(output)
+		if err = q.FinishProcessingJob(ctx, store.FinishProcessingJobParams{ID: j.ID, State: "succeeded", Output: raw}); err != nil {
+			return nil, err
+		}
+		return output, tx.Commit(ctx)
+	}
+	space, e := s.Q.PutEmbeddingSpace(ctx, store.PutEmbeddingSpaceParams{ID: Hash(p.Fingerprint())[:32], ProfileID: p.ID, Fingerprint: p.Fingerprint(), Model: p.Model, Dimensions: int32(p.Dimensions), ChunkerVersion: "structure-v1"})
+	if e != nil {
+		return nil, e
+	}
 	pending, e := s.Q.MissingChunkEmbeddings(ctx, store.MissingChunkEmbeddingsParams{CourseID: j.CourseID, SpaceID: space.ID})
 	if e != nil {
 		return nil, e
@@ -389,6 +427,21 @@ func (s *Service) Index(ctx context.Context, j store.ProcessingJob, in JobInput)
 	q := s.Q.WithTx(tx)
 	if e = lockRunningJob(ctx, q, j); e != nil {
 		return nil, e
+	}
+	if _, e = q.LockBusinessCourse(ctx, j.CourseID); e != nil {
+		return nil, e
+	}
+	newer, e := q.HasNewerIndexJob(ctx, store.HasNewerIndexJobParams{CourseID: j.CourseID, ID: j.ID})
+	if e != nil {
+		return nil, e
+	}
+	if newer {
+		output := map[string]any{"space_id": space.ID, "embedded": len(pending), "status": "superseded"}
+		raw, _ := json.Marshal(output)
+		if e = q.FinishProcessingJob(ctx, store.FinishProcessingJobParams{ID: j.ID, State: "succeeded", Output: raw}); e != nil {
+			return nil, e
+		}
+		return output, tx.Commit(ctx)
 	}
 	if e = q.ActivateEmbeddingSpace(ctx, store.ActivateEmbeddingSpaceParams{ID: j.CourseID, EmbeddingSpaceID: nullable(space.ID)}); e != nil {
 		return nil, e

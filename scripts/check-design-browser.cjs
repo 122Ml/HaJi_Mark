@@ -8,6 +8,9 @@ const root = path.resolve(__dirname, '..');
 const base = 'http://127.0.0.1:18080';
 const output = path.join(root, '.local/design');
 const fixtures = JSON.parse(fs.readFileSync(path.join(root, '.local/s1-accounts.json'), 'utf8'));
+const watchdog = setTimeout(() => { console.error('HARD TIMEOUT: check-design-browser.cjs exceeded 180s'); process.exit(124); }, 180000);
+watchdog.unref();
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
 
 (async () => {
   fs.mkdirSync(output, {recursive: true});
@@ -19,6 +22,8 @@ const fixtures = JSON.parse(fs.readFileSync(path.join(root, '.local/s1-accounts.
     page.on('pageerror', error => errors.push(error.message));
     async function capture(name, fullPage = false) {
       await page.waitForLoadState('networkidle');
+      await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+      await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth, null, { timeout: 2000 }).catch(() => {});
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `${name}: horizontal overflow`);
       await page.screenshot({path: path.join(output, name + '.png'), fullPage});
     }
@@ -49,15 +54,19 @@ const fixtures = JSON.parse(fs.readFileSync(path.join(root, '.local/s1-accounts.
       assert.equal(await page.getByText(/维护知识目录|准备并审核学习资料|基于实际学习、提交|PREPARE|SUPPORT/).count(), 0, 'README-style interface copy returned');
       await capture(role + '-overview', true);
       const nav = page.getByRole('navigation', {name: role === 'teacher' ? '教师导航' : '学生导航', exact: true});
-      assert.equal(await nav.getByRole('group').count(), 5, 'Sidebar must keep four business groups plus account');
-      await nav.getByRole('link', {name: role === 'teacher' ? '作业中心' : '作业', exact: true}).click();
+      assert.equal(await nav.getByRole('link').count(), role === 'teacher' ? 7 : 6, 'Sidebar must keep Studio top-level module links');
+      await nav.getByRole('link', {name: role === 'teacher' ? '作业与批阅' : '作业与反馈', exact: true}).click();
       await page.waitForURL(u=>u.pathname===`/${role}/homework`);
       assert.equal(await page.evaluate(() => document.activeElement.id), 'main-content', 'SPA navigation must focus main');
       await capture(role + '-assignments', true);
-      const aliases = role === 'teacher' ? ['teacher-twin/drilldown', 'insight', 'home'] : ['student-twin', 'insight', 'dashboard'];
+      const aliases = role === 'teacher' ? ['teacher-twin/drilldown', 'home'] : ['student-twin', 'insight', 'dashboard'];
       for (const alias of aliases) {
         await page.goto(`${base}/${role}/${alias}?student=design-check`);
         await page.waitForURL(u=>u.pathname===`/${role}/${home}` && u.searchParams.get("student")==="design-check");
+      }
+      if (role === 'teacher') {
+        await page.goto(`${base}/teacher/insight?student=design-check`);
+        await page.waitForURL(u=>u.pathname==='/teacher/insight' && u.searchParams.get("student")==="design-check");
       }
       await page.goto(`${base}/${role}/grading`);
       await page.waitForURL(u=>u.pathname===`/${role}/homework`);
@@ -75,7 +84,7 @@ const fixtures = JSON.parse(fs.readFileSync(path.join(root, '.local/s1-accounts.
       await page.setViewportSize({width: 390, height: 844});
       const toggle = page.getByRole('button', {name: '打开导航', exact: true});
       await toggle.click();
-      await nav.getByRole('link', {name: role === 'teacher' ? '课程目录' : '课程学习', exact: true}).waitFor({state: 'visible'});
+      await page.locator('.mobile-nav-drawer').getByRole('link', {name: role === 'teacher' ? '课程管理' : '课程学习', exact: true}).waitFor({state: 'visible'});
       await capture(`${role}-390-menu`);
       await page.keyboard.press('Escape');
       await page.getByRole('button', {name: '打开导航', exact: true}).waitFor();
@@ -103,6 +112,8 @@ const fixtures = JSON.parse(fs.readFileSync(path.join(root, '.local/s1-accounts.
           status: 422, contentType: 'application/json',
           body: JSON.stringify({error: {code: 'test_profile_rejected', message: '测试：资料保存被拒绝'}}),
         }));
+        const nameInput = page.getByLabel('显示姓名', {exact: true});
+        await nameInput.fill((await nameInput.inputValue()) + '（测试）');
         await page.getByRole('button', {name: '保存资料', exact: true}).click();
         await page.locator('.ant-alert-error').getByText('测试：资料保存被拒绝', {exact: true}).waitFor();
         assert.equal(await page.locator('.ant-alert-success').count(), 0, 'A rejected save must not appear as success');
@@ -116,10 +127,10 @@ const fixtures = JSON.parse(fs.readFileSync(path.join(root, '.local/s1-accounts.
     }
     assert.deepEqual(errors, [], 'Unexpected browser exceptions');
     console.log('PASS: design acceptance; screenshots in .local/design');
-  } finally { await browser.close(); }
+  } finally { await withTimeout(browser.close(), 5000).catch(() => {}); }
 })().catch(error => {
-  let message = error.message;
+  let message = (error && error.stack) || error.message;
   for (const account of fixtures.accounts) message = message.replaceAll(account.password, '[redacted]');
   console.error(message);
   process.exitCode = 1;
-});
+}).finally(() => { clearTimeout(watchdog); process.exit(process.exitCode || 0); });

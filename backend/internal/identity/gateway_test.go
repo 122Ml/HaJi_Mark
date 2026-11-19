@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 func TestGatewayPathTraversalAndAgentBypassBlocked(t *testing.T) {
@@ -30,6 +33,9 @@ func TestGatewayPathTraversalAndAgentBypassBlocked(t *testing.T) {
 		"/api/v1/learning/courses/c1/foo%2f..%2fagent",
 		"/api/v1/learning/courses/c1//resources",
 		"/api/v1/learning/courses/c1\\resources",
+		"/api/v1/learning/courses/c1/%252e%252e/agent",
+		"/api/v1/learning/courses/c1/foo%23bar",
+		"/api/v1/learning/courses/c1/foo%3fbar=1",
 		"http://evil.example/api/v1/learning/courses/c1/resources",
 		"/api/v1/learning/courses/c1/resources\r\nX-Injected: 1",
 		"/api/v1/learning/courses/c1/resources#frag",
@@ -42,6 +48,18 @@ func TestGatewayPathTraversalAndAgentBypassBlocked(t *testing.T) {
 		if called {
 			t.Errorf("handler should not have been invoked for rejected path %q", p)
 		}
+	}
+
+	if _, err := gw.Invoke(context.Background(), "hash", http.MethodTrace, "/api/v1/learning/courses/c1/resources", "", nil); err == nil {
+		t.Fatal("unsupported HTTP method TRACE was allowed")
+	}
+
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+	if ref := SessionReference(c); ref != "" {
+		t.Fatalf("missing cookie must return empty reference, got %q", ref)
 	}
 
 	called = false

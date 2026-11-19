@@ -160,10 +160,10 @@ SELECT u.id AS student_id,u.display_name,
  (SELECT count(DISTINCT s.question_id)::integer FROM submissions s WHERE s.assignment_id=$1 AND s.student_id=u.id) AS submitted_questions,
  (SELECT count(*)::integer FROM questions q WHERE q.assignment_id=$1) AS total_questions,
  COALESCE(latest.id,'')::text AS submission_id,COALESCE(latest.attempt,0)::integer AS attempt,
- COALESCE(latest.answer_text,'')::text AS answer_text,COALESCE(latest.answer_sha256,'')::text AS answer_sha256,latest.submitted_at
+ ''::text AS answer_text,COALESCE(latest.answer_sha256,'')::text AS answer_sha256,latest.submitted_at
 FROM enrollments e JOIN users u ON u.id=e.student_id
 LEFT JOIN LATERAL (
- SELECT s.id,s.attempt,s.answer_text,s.answer_sha256,s.submitted_at FROM submissions s
+ SELECT s.id,s.attempt,s.answer_sha256,s.submitted_at FROM submissions s
  WHERE s.assignment_id=$1 AND s.student_id=u.id
  ORDER BY s.submitted_at DESC,s.id DESC LIMIT 1
 ) latest ON true
@@ -259,9 +259,48 @@ func (q *Queries) BusinessOverview(ctx context.Context, courseID string) ([]Busi
 	return items, nil
 }
 
+const coursePointScoreSummary = `-- name: CoursePointScoreSummary :many
+SELECT DISTINCT ON (s.student_id,s.question_id) q.knowledge_point_id,r.score,q.max_score
+FROM submissions s JOIN questions q ON q.id=s.question_id
+JOIN LATERAL (SELECT score FROM grading_revisions g WHERE g.submission_id=s.id AND g.state='released' ORDER BY g.revision DESC LIMIT 1) r ON true
+WHERE s.course_id=$1 AND s.student_id=$2
+ORDER BY s.student_id,s.question_id,s.attempt DESC
+`
+
+type CoursePointScoreSummaryParams struct {
+	CourseID  string `json:"course_id"`
+	StudentID string `json:"student_id"`
+}
+
+type CoursePointScoreSummaryRow struct {
+	KnowledgePointID pgtype.Text `json:"knowledge_point_id"`
+	Score            int32       `json:"score"`
+	MaxScore         int32       `json:"max_score"`
+}
+
+func (q *Queries) CoursePointScoreSummary(ctx context.Context, arg CoursePointScoreSummaryParams) ([]CoursePointScoreSummaryRow, error) {
+	rows, err := q.db.Query(ctx, coursePointScoreSummary, arg.CourseID, arg.StudentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CoursePointScoreSummaryRow{}
+	for rows.Next() {
+		var i CoursePointScoreSummaryRow
+		if err := rows.Scan(&i.KnowledgePointID, &i.Score, &i.MaxScore); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const courseReleasedEvidence = `-- name: CourseReleasedEvidence :many
-SELECT DISTINCT ON (s.student_id,s.question_id) s.id AS submission_id,s.student_id,s.question_id,s.assignment_id,a.title AS assignment_title,s.answer_text,s.attempt,r.id AS revision_id,r.score,r.feedback,q.max_score,q.prompt,q.knowledge_point_id,q.resource_id,r.released_at,r.rubric_id,r.point_scores,rv.version AS rubric_version
-FROM submissions s JOIN questions q ON q.id=s.question_id JOIN assignments a ON a.id=s.assignment_id
+SELECT DISTINCT ON (s.student_id,s.question_id) s.id AS submission_id,s.student_id,u.display_name AS student_name,s.question_id,s.assignment_id,a.title AS assignment_title,s.answer_text,s.attempt,r.id AS revision_id,r.score,r.feedback,q.max_score,q.prompt,q.knowledge_point_id,q.resource_id,r.released_at,r.rubric_id,r.point_scores,rv.version AS rubric_version
+FROM submissions s JOIN users u ON u.id=s.student_id JOIN questions q ON q.id=s.question_id JOIN assignments a ON a.id=s.assignment_id
 JOIN LATERAL (SELECT id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id, regrade_batch_id FROM grading_revisions g WHERE g.submission_id=s.id AND g.state='released' ORDER BY g.revision DESC LIMIT 1) r ON true
 LEFT JOIN rubric_versions rv ON rv.id=r.rubric_id
 WHERE s.course_id=$1 AND ($2::boolean OR s.student_id=$3)
@@ -277,6 +316,7 @@ type CourseReleasedEvidenceParams struct {
 type CourseReleasedEvidenceRow struct {
 	SubmissionID     string             `json:"submission_id"`
 	StudentID        string             `json:"student_id"`
+	StudentName      string             `json:"student_name"`
 	QuestionID       string             `json:"question_id"`
 	AssignmentID     string             `json:"assignment_id"`
 	AssignmentTitle  string             `json:"assignment_title"`
@@ -307,6 +347,83 @@ func (q *Queries) CourseReleasedEvidence(ctx context.Context, arg CourseReleased
 		if err := rows.Scan(
 			&i.SubmissionID,
 			&i.StudentID,
+			&i.StudentName,
+			&i.QuestionID,
+			&i.AssignmentID,
+			&i.AssignmentTitle,
+			&i.AnswerText,
+			&i.Attempt,
+			&i.RevisionID,
+			&i.Score,
+			&i.Feedback,
+			&i.MaxScore,
+			&i.Prompt,
+			&i.KnowledgePointID,
+			&i.ResourceID,
+			&i.ReleasedAt,
+			&i.RubricID,
+			&i.PointScores,
+			&i.RubricVersion,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const courseReleasedEvidenceForStudent = `-- name: CourseReleasedEvidenceForStudent :many
+SELECT DISTINCT ON (s.student_id,s.question_id) s.id AS submission_id,s.student_id,u.display_name AS student_name,s.question_id,s.assignment_id,a.title AS assignment_title,s.answer_text,s.attempt,r.id AS revision_id,r.score,r.feedback,q.max_score,q.prompt,q.knowledge_point_id,q.resource_id,r.released_at,r.rubric_id,r.point_scores,rv.version AS rubric_version
+FROM submissions s JOIN users u ON u.id=s.student_id JOIN questions q ON q.id=s.question_id JOIN assignments a ON a.id=s.assignment_id
+JOIN LATERAL (SELECT id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id, regrade_batch_id FROM grading_revisions g WHERE g.submission_id=s.id AND g.state='released' ORDER BY g.revision DESC LIMIT 1) r ON true
+LEFT JOIN rubric_versions rv ON rv.id=r.rubric_id
+WHERE s.course_id=$1 AND s.student_id=$2
+ORDER BY s.student_id,s.question_id,s.attempt DESC
+`
+
+type CourseReleasedEvidenceForStudentParams struct {
+	CourseID  string `json:"course_id"`
+	StudentID string `json:"student_id"`
+}
+
+type CourseReleasedEvidenceForStudentRow struct {
+	SubmissionID     string             `json:"submission_id"`
+	StudentID        string             `json:"student_id"`
+	StudentName      string             `json:"student_name"`
+	QuestionID       string             `json:"question_id"`
+	AssignmentID     string             `json:"assignment_id"`
+	AssignmentTitle  string             `json:"assignment_title"`
+	AnswerText       string             `json:"answer_text"`
+	Attempt          int32              `json:"attempt"`
+	RevisionID       string             `json:"revision_id"`
+	Score            int32              `json:"score"`
+	Feedback         string             `json:"feedback"`
+	MaxScore         int32              `json:"max_score"`
+	Prompt           string             `json:"prompt"`
+	KnowledgePointID pgtype.Text        `json:"knowledge_point_id"`
+	ResourceID       pgtype.Text        `json:"resource_id"`
+	ReleasedAt       pgtype.Timestamptz `json:"released_at"`
+	RubricID         pgtype.Text        `json:"rubric_id"`
+	PointScores      json.RawMessage    `json:"point_scores"`
+	RubricVersion    pgtype.Int4        `json:"rubric_version"`
+}
+
+func (q *Queries) CourseReleasedEvidenceForStudent(ctx context.Context, arg CourseReleasedEvidenceForStudentParams) ([]CourseReleasedEvidenceForStudentRow, error) {
+	rows, err := q.db.Query(ctx, courseReleasedEvidenceForStudent, arg.CourseID, arg.StudentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CourseReleasedEvidenceForStudentRow{}
+	for rows.Next() {
+		var i CourseReleasedEvidenceForStudentRow
+		if err := rows.Scan(
+			&i.SubmissionID,
+			&i.StudentID,
+			&i.StudentName,
 			&i.QuestionID,
 			&i.AssignmentID,
 			&i.AssignmentTitle,
@@ -766,19 +883,20 @@ func (q *Queries) CreateResearchRecord(ctx context.Context, arg CreateResearchRe
 }
 
 const createResourceRevision = `-- name: CreateResourceRevision :one
-INSERT INTO resources(id,course_id,knowledge_point_id,title,content,source_url,locator,version,created_by,supersedes_id,source_note)
-SELECT $1,r.course_id,r.knowledge_point_id,$2,$3,$4,$5,r.version+1,$6,r.id,$8 FROM resources r WHERE r.id=$7 AND r.status='published' RETURNING id, course_id, knowledge_point_id, title, content, source_url, locator, version, status, created_by, reviewed_by, created_at, published_at, supersedes_id, source_note, source_id, fragment_ids, full_source
+INSERT INTO resources(id,course_id,knowledge_point_id,title,content,source_url,locator,version,created_by,supersedes_id,source_note,source_id,fragment_ids,full_source)
+SELECT $1,r.course_id,COALESCE($9::text,r.knowledge_point_id),$2,$3,$4,$5,r.version+1,$6,r.id,$8,r.source_id,r.fragment_ids,r.full_source FROM resources r WHERE r.id=$7 AND r.status='published' RETURNING id, course_id, knowledge_point_id, title, content, source_url, locator, version, status, created_by, reviewed_by, created_at, published_at, supersedes_id, source_note, source_id, fragment_ids, full_source
 `
 
 type CreateResourceRevisionParams struct {
-	ID         string `json:"id"`
-	Title      string `json:"title"`
-	Content    string `json:"content"`
-	SourceUrl  string `json:"source_url"`
-	Locator    string `json:"locator"`
-	CreatedBy  string `json:"created_by"`
-	ID_2       string `json:"id_2"`
-	SourceNote string `json:"source_note"`
+	ID               string      `json:"id"`
+	Title            string      `json:"title"`
+	Content          string      `json:"content"`
+	SourceUrl        string      `json:"source_url"`
+	Locator          string      `json:"locator"`
+	CreatedBy        string      `json:"created_by"`
+	ID_2             string      `json:"id_2"`
+	SourceNote       string      `json:"source_note"`
+	KnowledgePointID pgtype.Text `json:"knowledge_point_id"`
 }
 
 func (q *Queries) CreateResourceRevision(ctx context.Context, arg CreateResourceRevisionParams) (Resource, error) {
@@ -791,6 +909,7 @@ func (q *Queries) CreateResourceRevision(ctx context.Context, arg CreateResource
 		arg.CreatedBy,
 		arg.ID_2,
 		arg.SourceNote,
+		arg.KnowledgePointID,
 	)
 	var i Resource
 	err := row.Scan(
@@ -896,12 +1015,43 @@ func (q *Queries) DeleteActorSessions(ctx context.Context, userID string) error 
 	return err
 }
 
+const deleteCourseEdge = `-- name: DeleteCourseEdge :one
+DELETE FROM course_edges WHERE course_id=$1 AND from_id=$2 AND to_id=$3 RETURNING from_id
+`
+
+type DeleteCourseEdgeParams struct {
+	CourseID string `json:"course_id"`
+	FromID   string `json:"from_id"`
+	ToID     string `json:"to_id"`
+}
+
+func (q *Queries) DeleteCourseEdge(ctx context.Context, arg DeleteCourseEdgeParams) (string, error) {
+	row := q.db.QueryRow(ctx, deleteCourseEdge, arg.CourseID, arg.FromID, arg.ToID)
+	var from_id string
+	err := row.Scan(&from_id)
+	return from_id, err
+}
+
 const deleteDraftQuestions = `-- name: DeleteDraftQuestions :exec
 DELETE FROM questions WHERE assignment_id=$1
 `
 
 func (q *Queries) DeleteDraftQuestions(ctx context.Context, assignmentID string) error {
 	_, err := q.db.Exec(ctx, deleteDraftQuestions, assignmentID)
+	return err
+}
+
+const deleteDraftQuestionsExcept = `-- name: DeleteDraftQuestionsExcept :exec
+DELETE FROM questions WHERE assignment_id=$1 AND NOT (id=ANY($2::text[]))
+`
+
+type DeleteDraftQuestionsExceptParams struct {
+	AssignmentID string   `json:"assignment_id"`
+	KeepIds      []string `json:"keep_ids"`
+}
+
+func (q *Queries) DeleteDraftQuestionsExcept(ctx context.Context, arg DeleteDraftQuestionsExceptParams) error {
+	_, err := q.db.Exec(ctx, deleteDraftQuestionsExcept, arg.AssignmentID, arg.KeepIds)
 	return err
 }
 
@@ -1245,6 +1395,47 @@ func (q *Queries) GetBusinessSubmission(ctx context.Context, id string) (Submiss
 		&i.RequestID,
 		&i.SubmittedAt,
 		&i.AssignmentVersion,
+	)
+	return i, err
+}
+
+const getBusinessSubmissionWithStudent = `-- name: GetBusinessSubmissionWithStudent :one
+SELECT s.id, s.assignment_id, s.question_id, s.course_id, s.student_id, s.attempt, s.answer_text, s.answer_sha256, s.status, s.request_id, s.submitted_at, s.assignment_version,u.display_name AS student_name FROM submissions s JOIN users u ON u.id=s.student_id WHERE s.id=$1
+`
+
+type GetBusinessSubmissionWithStudentRow struct {
+	ID                string             `json:"id"`
+	AssignmentID      string             `json:"assignment_id"`
+	QuestionID        string             `json:"question_id"`
+	CourseID          string             `json:"course_id"`
+	StudentID         string             `json:"student_id"`
+	Attempt           int32              `json:"attempt"`
+	AnswerText        string             `json:"answer_text"`
+	AnswerSha256      string             `json:"answer_sha256"`
+	Status            string             `json:"status"`
+	RequestID         string             `json:"request_id"`
+	SubmittedAt       pgtype.Timestamptz `json:"submitted_at"`
+	AssignmentVersion int32              `json:"assignment_version"`
+	StudentName       string             `json:"student_name"`
+}
+
+func (q *Queries) GetBusinessSubmissionWithStudent(ctx context.Context, id string) (GetBusinessSubmissionWithStudentRow, error) {
+	row := q.db.QueryRow(ctx, getBusinessSubmissionWithStudent, id)
+	var i GetBusinessSubmissionWithStudentRow
+	err := row.Scan(
+		&i.ID,
+		&i.AssignmentID,
+		&i.QuestionID,
+		&i.CourseID,
+		&i.StudentID,
+		&i.Attempt,
+		&i.AnswerText,
+		&i.AnswerSha256,
+		&i.Status,
+		&i.RequestID,
+		&i.SubmittedAt,
+		&i.AssignmentVersion,
+		&i.StudentName,
 	)
 	return i, err
 }
@@ -1851,13 +2042,14 @@ func (q *Queries) ListBusinessSubmissions(ctx context.Context, arg ListBusinessS
 }
 
 const listCourseActivity = `-- name: ListCourseActivity :many
-SELECT e.id,e.actor_id,u.display_name,e.verb,e.resource_id,e.submission_id,e.object_version,e.occurred_at,
+SELECT e.id,e.actor_id,COALESCE(su.display_name,u.display_name)::text AS display_name,u.display_name AS actor_name,e.verb,e.resource_id,e.submission_id,e.object_version,e.occurred_at,
  COALESCE(r.title,a.title,'')::text AS title,COALESCE(r.locator,'')::text AS locator,
  COALESCE(r.source_note,'')::text AS source_note,COALESCE(r.source_url,'')::text AS source_url,
  COALESCE(s.attempt,0)::integer AS attempt,COALESCE(s.answer_sha256,'')::text AS answer_sha256
 FROM learning_events e JOIN users u ON u.id=e.actor_id
 LEFT JOIN resources r ON r.id=e.resource_id
 LEFT JOIN submissions s ON s.id=e.submission_id
+LEFT JOIN users su ON su.id=s.student_id
 LEFT JOIN assignments a ON a.id=s.assignment_id
 WHERE e.course_id=$1 AND ($2::text='' OR e.actor_id=$2 OR s.student_id=$2)
 ORDER BY e.occurred_at DESC,e.id DESC LIMIT 500
@@ -1872,6 +2064,7 @@ type ListCourseActivityRow struct {
 	ID            string             `json:"id"`
 	ActorID       string             `json:"actor_id"`
 	DisplayName   string             `json:"display_name"`
+	ActorName     string             `json:"actor_name"`
 	Verb          string             `json:"verb"`
 	ResourceID    pgtype.Text        `json:"resource_id"`
 	SubmissionID  pgtype.Text        `json:"submission_id"`
@@ -1898,6 +2091,7 @@ func (q *Queries) ListCourseActivity(ctx context.Context, arg ListCourseActivity
 			&i.ID,
 			&i.ActorID,
 			&i.DisplayName,
+			&i.ActorName,
 			&i.Verb,
 			&i.ResourceID,
 			&i.SubmissionID,
@@ -1965,6 +2159,89 @@ func (q *Queries) ListIndustryRecords(ctx context.Context, courseID string) ([]I
 			&i.Skills,
 			&i.TeacherID,
 			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listInterventionLearningMatches = `-- name: ListInterventionLearningMatches :many
+SELECT id,resource_id,occurred_at FROM learning_events
+WHERE actor_id=$1 AND resource_id=$2 AND verb='completed' AND occurred_at >= $3
+ORDER BY occurred_at DESC
+`
+
+type ListInterventionLearningMatchesParams struct {
+	ActorID    string             `json:"actor_id"`
+	ResourceID pgtype.Text        `json:"resource_id"`
+	OccurredAt pgtype.Timestamptz `json:"occurred_at"`
+}
+
+type ListInterventionLearningMatchesRow struct {
+	ID         string             `json:"id"`
+	ResourceID pgtype.Text        `json:"resource_id"`
+	OccurredAt pgtype.Timestamptz `json:"occurred_at"`
+}
+
+func (q *Queries) ListInterventionLearningMatches(ctx context.Context, arg ListInterventionLearningMatchesParams) ([]ListInterventionLearningMatchesRow, error) {
+	rows, err := q.db.Query(ctx, listInterventionLearningMatches, arg.ActorID, arg.ResourceID, arg.OccurredAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListInterventionLearningMatchesRow{}
+	for rows.Next() {
+		var i ListInterventionLearningMatchesRow
+		if err := rows.Scan(&i.ID, &i.ResourceID, &i.OccurredAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listInterventionSubmissionMatches = `-- name: ListInterventionSubmissionMatches :many
+SELECT id,question_id,attempt,submitted_at FROM submissions s
+WHERE s.student_id=$1 AND s.assignment_id=$2 AND s.submitted_at >= $3
+AND NOT EXISTS(SELECT 1 FROM submission_import_items i WHERE i.submission_id=s.id)
+ORDER BY s.submitted_at DESC
+`
+
+type ListInterventionSubmissionMatchesParams struct {
+	StudentID    string             `json:"student_id"`
+	AssignmentID string             `json:"assignment_id"`
+	SubmittedAt  pgtype.Timestamptz `json:"submitted_at"`
+}
+
+type ListInterventionSubmissionMatchesRow struct {
+	ID          string             `json:"id"`
+	QuestionID  string             `json:"question_id"`
+	Attempt     int32              `json:"attempt"`
+	SubmittedAt pgtype.Timestamptz `json:"submitted_at"`
+}
+
+func (q *Queries) ListInterventionSubmissionMatches(ctx context.Context, arg ListInterventionSubmissionMatchesParams) ([]ListInterventionSubmissionMatchesRow, error) {
+	rows, err := q.db.Query(ctx, listInterventionSubmissionMatches, arg.StudentID, arg.AssignmentID, arg.SubmittedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListInterventionSubmissionMatchesRow{}
+	for rows.Next() {
+		var i ListInterventionSubmissionMatchesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.QuestionID,
+			&i.Attempt,
+			&i.SubmittedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -2131,6 +2408,16 @@ func (q *Queries) LockBusinessAssignment(ctx context.Context, id string) (string
 	return id, err
 }
 
+const lockBusinessAssignmentShare = `-- name: LockBusinessAssignmentShare :one
+SELECT id FROM assignments WHERE id=$1 FOR KEY SHARE
+`
+
+func (q *Queries) LockBusinessAssignmentShare(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRow(ctx, lockBusinessAssignmentShare, id)
+	err := row.Scan(&id)
+	return id, err
+}
+
 const lockBusinessCourse = `-- name: LockBusinessCourse :one
 SELECT id FROM courses WHERE id=$1 FOR UPDATE
 `
@@ -2139,6 +2426,36 @@ func (q *Queries) LockBusinessCourse(ctx context.Context, id string) (string, er
 	row := q.db.QueryRow(ctx, lockBusinessCourse, id)
 	err := row.Scan(&id)
 	return id, err
+}
+
+const lockBusinessIntervention = `-- name: LockBusinessIntervention :one
+SELECT id, course_id, student_id, title, description, status, teacher_id, answer_text, review_note, created_at, assigned_at, submitted_at, reviewed_at, resource_id, assignment_id, source_submission_id, diagnosis_report_id, diagnosis_label_id FROM interventions WHERE id=$1 FOR UPDATE
+`
+
+func (q *Queries) LockBusinessIntervention(ctx context.Context, id string) (Intervention, error) {
+	row := q.db.QueryRow(ctx, lockBusinessIntervention, id)
+	var i Intervention
+	err := row.Scan(
+		&i.ID,
+		&i.CourseID,
+		&i.StudentID,
+		&i.Title,
+		&i.Description,
+		&i.Status,
+		&i.TeacherID,
+		&i.AnswerText,
+		&i.ReviewNote,
+		&i.CreatedAt,
+		&i.AssignedAt,
+		&i.SubmittedAt,
+		&i.ReviewedAt,
+		&i.ResourceID,
+		&i.AssignmentID,
+		&i.SourceSubmissionID,
+		&i.DiagnosisReportID,
+		&i.DiagnosisLabelID,
+	)
+	return i, err
 }
 
 const lockBusinessSubmission = `-- name: LockBusinessSubmission :one
@@ -2187,8 +2504,44 @@ func (q *Queries) NextSubmissionAttempt(ctx context.Context, arg NextSubmissionA
 	return next_attempt, err
 }
 
+const nextSubmissionAttemptsForQuestion = `-- name: NextSubmissionAttemptsForQuestion :many
+SELECT student_id,(COALESCE(max(attempt),0)+1)::integer AS next_attempt
+FROM submissions WHERE question_id=$1 AND student_id=ANY($2::text[])
+GROUP BY student_id
+`
+
+type NextSubmissionAttemptsForQuestionParams struct {
+	QuestionID string   `json:"question_id"`
+	StudentIds []string `json:"student_ids"`
+}
+
+type NextSubmissionAttemptsForQuestionRow struct {
+	StudentID   string `json:"student_id"`
+	NextAttempt int32  `json:"next_attempt"`
+}
+
+func (q *Queries) NextSubmissionAttemptsForQuestion(ctx context.Context, arg NextSubmissionAttemptsForQuestionParams) ([]NextSubmissionAttemptsForQuestionRow, error) {
+	rows, err := q.db.Query(ctx, nextSubmissionAttemptsForQuestion, arg.QuestionID, arg.StudentIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []NextSubmissionAttemptsForQuestionRow{}
+	for rows.Next() {
+		var i NextSubmissionAttemptsForQuestionRow
+		if err := rows.Scan(&i.StudentID, &i.NextAttempt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const publishBusinessCourse = `-- name: PublishBusinessCourse :one
-UPDATE courses SET status='published',version=version+1 WHERE id=$1 AND teacher_id=$2 RETURNING id, title, teacher_id, status, version, created_at, embedding_space_id
+UPDATE courses SET status='published',version=version+1 WHERE id=$1 AND teacher_id=$2 AND status='draft' RETURNING id, title, teacher_id, status, version, created_at, embedding_space_id
 `
 
 type PublishBusinessCourseParams struct {
@@ -2244,6 +2597,83 @@ func (q *Queries) PublishBusinessResource(ctx context.Context, arg PublishBusine
 		&i.FullSource,
 	)
 	return i, err
+}
+
+const questionReleasedEvidence = `-- name: QuestionReleasedEvidence :many
+SELECT DISTINCT ON (s.student_id,s.question_id) s.id AS submission_id,s.student_id,u.display_name AS student_name,s.question_id,s.assignment_id,a.title AS assignment_title,s.answer_text,s.attempt,r.id AS revision_id,r.score,r.feedback,q.max_score,q.prompt,q.knowledge_point_id,q.resource_id,r.released_at,r.rubric_id,r.point_scores,rv.version AS rubric_version
+FROM submissions s JOIN users u ON u.id=s.student_id JOIN questions q ON q.id=s.question_id JOIN assignments a ON a.id=s.assignment_id
+JOIN LATERAL (SELECT id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id, regrade_batch_id FROM grading_revisions g WHERE g.submission_id=s.id AND g.state='released' ORDER BY g.revision DESC LIMIT 1) r ON true
+LEFT JOIN rubric_versions rv ON rv.id=r.rubric_id
+WHERE s.course_id=$1 AND s.question_id=$2 AND ($3::text='' OR r.rubric_id=$3)
+ORDER BY s.student_id,s.question_id,s.attempt DESC
+`
+
+type QuestionReleasedEvidenceParams struct {
+	CourseID   string `json:"course_id"`
+	QuestionID string `json:"question_id"`
+	RubricID   string `json:"rubric_id"`
+}
+
+type QuestionReleasedEvidenceRow struct {
+	SubmissionID     string             `json:"submission_id"`
+	StudentID        string             `json:"student_id"`
+	StudentName      string             `json:"student_name"`
+	QuestionID       string             `json:"question_id"`
+	AssignmentID     string             `json:"assignment_id"`
+	AssignmentTitle  string             `json:"assignment_title"`
+	AnswerText       string             `json:"answer_text"`
+	Attempt          int32              `json:"attempt"`
+	RevisionID       string             `json:"revision_id"`
+	Score            int32              `json:"score"`
+	Feedback         string             `json:"feedback"`
+	MaxScore         int32              `json:"max_score"`
+	Prompt           string             `json:"prompt"`
+	KnowledgePointID pgtype.Text        `json:"knowledge_point_id"`
+	ResourceID       pgtype.Text        `json:"resource_id"`
+	ReleasedAt       pgtype.Timestamptz `json:"released_at"`
+	RubricID         pgtype.Text        `json:"rubric_id"`
+	PointScores      json.RawMessage    `json:"point_scores"`
+	RubricVersion    pgtype.Int4        `json:"rubric_version"`
+}
+
+func (q *Queries) QuestionReleasedEvidence(ctx context.Context, arg QuestionReleasedEvidenceParams) ([]QuestionReleasedEvidenceRow, error) {
+	rows, err := q.db.Query(ctx, questionReleasedEvidence, arg.CourseID, arg.QuestionID, arg.RubricID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []QuestionReleasedEvidenceRow{}
+	for rows.Next() {
+		var i QuestionReleasedEvidenceRow
+		if err := rows.Scan(
+			&i.SubmissionID,
+			&i.StudentID,
+			&i.StudentName,
+			&i.QuestionID,
+			&i.AssignmentID,
+			&i.AssignmentTitle,
+			&i.AnswerText,
+			&i.Attempt,
+			&i.RevisionID,
+			&i.Score,
+			&i.Feedback,
+			&i.MaxScore,
+			&i.Prompt,
+			&i.KnowledgePointID,
+			&i.ResourceID,
+			&i.ReleasedAt,
+			&i.RubricID,
+			&i.PointScores,
+			&i.RubricVersion,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const renameBusinessCourse = `-- name: RenameBusinessCourse :one
@@ -2514,6 +2944,58 @@ func (q *Queries) UpdateBusinessAssignmentState(ctx context.Context, arg UpdateB
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.PublishedAt,
+	)
+	return i, err
+}
+
+const updateDraftQuestion = `-- name: UpdateDraftQuestion :one
+UPDATE questions SET prompt=$3,type=$4,max_score=$5,rubric=$6,position=$7,options=$8,correct_answer=$9,knowledge_point_id=$10,resource_id=$11
+WHERE id=$1 AND assignment_id=$2 RETURNING id, assignment_id, prompt, type, max_score, rubric, options, correct_answer, position, knowledge_point_id, resource_id, bank_question_version_id, bound_rubric_id
+`
+
+type UpdateDraftQuestionParams struct {
+	ID               string      `json:"id"`
+	AssignmentID     string      `json:"assignment_id"`
+	Prompt           string      `json:"prompt"`
+	Type             string      `json:"type"`
+	MaxScore         int32       `json:"max_score"`
+	Rubric           string      `json:"rubric"`
+	Position         int32       `json:"position"`
+	Options          []string    `json:"options"`
+	CorrectAnswer    string      `json:"correct_answer"`
+	KnowledgePointID pgtype.Text `json:"knowledge_point_id"`
+	ResourceID       pgtype.Text `json:"resource_id"`
+}
+
+func (q *Queries) UpdateDraftQuestion(ctx context.Context, arg UpdateDraftQuestionParams) (Question, error) {
+	row := q.db.QueryRow(ctx, updateDraftQuestion,
+		arg.ID,
+		arg.AssignmentID,
+		arg.Prompt,
+		arg.Type,
+		arg.MaxScore,
+		arg.Rubric,
+		arg.Position,
+		arg.Options,
+		arg.CorrectAnswer,
+		arg.KnowledgePointID,
+		arg.ResourceID,
+	)
+	var i Question
+	err := row.Scan(
+		&i.ID,
+		&i.AssignmentID,
+		&i.Prompt,
+		&i.Type,
+		&i.MaxScore,
+		&i.Rubric,
+		&i.Options,
+		&i.CorrectAnswer,
+		&i.Position,
+		&i.KnowledgePointID,
+		&i.ResourceID,
+		&i.BankQuestionVersionID,
+		&i.BoundRubricID,
 	)
 	return i, err
 }

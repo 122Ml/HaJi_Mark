@@ -21,6 +21,23 @@ func TestChunksPreserveChinese(t *testing.T) {
 	if strings.Join(parts, "") != input {
 		t.Fatal("source content lost")
 	}
+	// Hard-cut unpunctuated text must terminate with overlap and bounded chunks.
+	unpunctuated := strings.Repeat("a", 2500)
+	hard := chunks(unpunctuated)
+	if len(hard) != 3 {
+		t.Fatalf("unexpected hard-cut chunk count: %d", len(hard))
+	}
+	for _, p := range hard {
+		if len([]rune(p)) > 1200 {
+			t.Fatalf("oversized hard chunk: %d", len([]rune(p)))
+		}
+	}
+	// English sentence punctuation splits cleanly without splitting decimal numbers.
+	english := strings.Repeat("Value 3.14 is valid. Another sentence! ", 60)
+	engParts := chunks(english)
+	if len(engParts) < 2 || strings.Join(engParts, "") != english {
+		t.Fatalf("english chunking lost content: parts=%d", len(engParts))
+	}
 }
 func TestTokensChinese(t *testing.T) {
 	tokens := Tokens("边界值分析 测试17与18 PostgreSQL")
@@ -30,6 +47,14 @@ func TestTokensChinese(t *testing.T) {
 	query := queryTokens("' | ! () <=>")
 	if strings.Contains(query, " | ") {
 		t.Fatal("operators must not survive as tokens")
+	}
+	// Backslashes inside lexemes must be safely escaped for PostgreSQL to_tsquery.
+	escaped := queryTokens(`a\b 的 测试`)
+	if strings.Contains(escaped, "'的'") {
+		t.Fatalf("stop-word was not filtered: %s", escaped)
+	}
+	if strings.Contains(escaped, `\b`) && !strings.Contains(escaped, `\\b`) {
+		t.Fatalf("backslash was not escaped: %s", escaped)
 	}
 }
 func TestGradeRejectsInventedEvidence(t *testing.T) {

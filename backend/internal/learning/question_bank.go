@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sort"
 	"strings"
 
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
@@ -11,6 +12,8 @@ import (
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func (h *Handler) registerQuestionBank(g *gin.RouterGroup, auth *identity.Handler) {
@@ -52,18 +55,27 @@ func (h *Handler) questionBank(c *gin.Context) {
 	v, e := h.q.ListQuestionBank(c.Request.Context(), c.Param("courseID"))
 	result(c, v, e)
 }
-func (h *Handler) bankVersion(c *gin.Context, id string) (store.BankQuestionVersion, bool) {
+func (h *Handler) bankVersionWithBank(c *gin.Context, id string) (store.BankQuestionVersion, store.QuestionBank, bool) {
 	v, e := h.q.GetBankQuestionVersion(c.Request.Context(), id)
+	var b store.QuestionBank
 	if e != nil {
 		result(c, nil, e)
-		return v, false
+		return v, b, false
 	}
-	_, e = h.q.GetQuestionBank(c.Request.Context(), store.GetQuestionBankParams{ID: v.BankID, CourseID: c.Param("courseID")})
+	b, e = h.q.GetQuestionBank(c.Request.Context(), store.GetQuestionBankParams{ID: v.BankID, CourseID: c.Param("courseID")})
 	if e != nil {
-		identity.Fail(c, 403, "forbidden", "题目不属于当前课程")
-		return v, false
+		if errors.Is(e, pgx.ErrNoRows) {
+			identity.Fail(c, 403, "forbidden", "题目不属于当前课程")
+			return v, b, false
+		}
+		result(c, nil, e)
+		return v, b, false
 	}
-	return v, true
+	return v, b, true
+}
+func (h *Handler) bankVersion(c *gin.Context, id string) (store.BankQuestionVersion, bool) {
+	v, _, ok := h.bankVersionWithBank(c, id)
+	return v, ok
 }
 func (h *Handler) bankDetail(c *gin.Context) {
 	ctx := c.Request.Context()
@@ -94,6 +106,7 @@ type bankQuestionInput struct {
 	EvidenceIDs      []string    `json:"evidence_ids"`
 	Criteria         []criterion `json:"criteria"`
 	AIJobID          string      `json:"ai_job_id"`
+	BaseVersionID    string      `json:"base_version_id"`
 }
 
 func (h *Handler) saveBankQuestion(c *gin.Context) {
@@ -139,15 +152,31 @@ func (h *Handler) saveBankQuestion(c *gin.Context) {
 	q := h.q.WithTx(tx)
 	if in.AIJobID != "" {
 		j, err := q.GetProcessingJob(ctx, store.GetProcessingJobParams{ID: in.AIJobID, CourseID: c.Param("courseID")})
-		if err != nil || j.Kind != "question_generate" || j.State != "succeeded" {
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				invalid(c, "出题草稿来源无效")
+				return
+			}
+			result(c, nil, err)
+			return
+		}
+		if j.Kind != "question_generate" || j.State != "succeeded" {
 			invalid(c, "出题草稿来源无效")
 			return
 		}
 	}
 	if in.KnowledgePointID != "" {
 		p, e := q.GetKnowledgePoint(ctx, in.KnowledgePointID)
-		if e != nil || p.CourseID != c.Param("courseID") || p.Kind != "point" {
-			invalid(c, "知识点不属于本课程")
+		if e != nil {
+			if errors.Is(e, pgx.ErrNoRows) {
+				invalid(c, "知识点不属于本课程")
+				return
+			}
+			result(c, nil, e)
+			return
+		}
+		if p.CourseID != c.Param("courseID") || p.Kind != "point" {
+			invalid(c, "只能关联本课程内的叶子知识点")
 			return
 		}
 	}
@@ -203,13 +232,34 @@ func (h *Handler) saveBankQuestion(c *gin.Context) {
 		}
 	}
 	if c.Param("bankID") != "" {
-		versions, err := q.ListBankQuestionVersions(ctx, v.BankID)
-		if err != nil {
-			result(c, nil, err)
-			return
+		sourceVersionID := ""
+		if in.BaseVersionID != "" {
+			baseVer, err := q.GetBankQuestionVersion(ctx, in.BaseVersionID)
+			if err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					invalid(c, "基线版本不存在")
+					return
+				}
+				result(c, nil, err)
+				return
+			}
+			if baseVer.BankID != v.BankID {
+				invalid(c, "基线版本不属于当前题目")
+				return
+			}
+			sourceVersionID = baseVer.ID
+		} else {
+			versions, err := q.ListBankQuestionVersions(ctx, v.BankID)
+			if err != nil {
+				result(c, nil, err)
+				return
+			}
+			if len(versions) > 1 {
+				sourceVersionID = versions[1].ID
+			}
 		}
-		if len(versions) > 1 {
-			assets, err := q.BankAssets(ctx, versions[1].ID)
+		if sourceVersionID != "" {
+			assets, err := q.BankAssets(ctx, sourceVersionID)
 			if err != nil {
 				result(c, nil, err)
 				return
@@ -234,6 +284,10 @@ func (h *Handler) bankEvidence(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
+	if len(in.Query) > 4000 || strings.ContainsRune(in.Query, '\x00') {
+		invalid(c, "检索词不能超过4000字节")
+		return
+	}
 	ctx := c.Request.Context()
 	course := c.Param("courseID")
 	if in.SourceID != "" || in.KnowledgeID != "" {
@@ -243,13 +297,77 @@ func (h *Handler) bankEvidence(c *gin.Context) {
 			return
 		}
 		hits := []rag.Hit{}
-		for _, id := range ids {
-			refs, e := rag.ResolveEvidence(ctx, h.q, course, []string{id})
-			if e != nil {
-				ragError(c, e)
+		if len(ids) > 0 {
+			rows, err := h.db.Query(ctx, `SELECT c.id,c.source_id,c.knowledge_id,c.resource_id,c.fragment_ids,c.title,c.heading,c.body,c.locator
+FROM retrieval_chunks c
+LEFT JOIN material_sources s ON s.id=c.source_id
+LEFT JOIN knowledge_entries k ON k.id=c.knowledge_id
+LEFT JOIN resources r ON r.id=c.resource_id
+WHERE c.id=ANY($1::text[]) AND c.course_id=$2 AND c.active
+AND ((s.state='active') OR
+ (k.state='confirmed' AND k.use_for_grading AND NOT EXISTS(
+  SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id'
+  WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived)) OR
+ (r.status='published' AND r.source_id IS NULL))
+ORDER BY c.id`, ids, course)
+			if err != nil {
+				result(c, nil, err)
 				return
 			}
-			hits = append(hits, refs...)
+			defer rows.Close()
+			lowerQ := strings.ToLower(strings.TrimSpace(in.Query))
+			tokens := []string{}
+			if lowerQ != "" {
+				tokens = rag.Tokens(in.Query)
+			}
+			for rows.Next() {
+				var (
+					id, title, heading, body       string
+					sourceID, knowledgeID, resID   pgtype.Text
+					fragmentIDs                    []string
+					locator                        json.RawMessage
+				)
+				if err := rows.Scan(&id, &sourceID, &knowledgeID, &resID, &fragmentIDs, &title, &heading, &body, &locator); err != nil {
+					result(c, nil, err)
+					return
+				}
+				score := 0.0
+				if lowerQ != "" {
+					haystack := strings.ToLower(title + " " + heading + " " + body)
+					matched := 0
+					for _, tok := range tokens {
+						if strings.Contains(haystack, tok) {
+							matched++
+						}
+					}
+					if matched == 0 && strings.Contains(haystack, lowerQ) {
+						matched = 1
+					}
+					if matched == 0 {
+						continue
+					}
+					score = float64(matched)
+				}
+				hits = append(hits, rag.Hit{
+					ID:          id,
+					SourceID:    sourceID.String,
+					KnowledgeID: knowledgeID.String,
+					ResourceID:  resID.String,
+					FragmentIDs: nonNilStrings(fragmentIDs),
+					Title:       title,
+					Heading:     heading,
+					Body:        body,
+					Locator:     locator,
+					Score:       score,
+				})
+			}
+			if err := rows.Err(); err != nil {
+				result(c, nil, err)
+				return
+			}
+			if lowerQ != "" {
+				sort.SliceStable(hits, func(i, j int) bool { return hits[i].Score > hits[j].Score })
+			}
 		}
 		result(c, gin.H{"hits": hits, "mode": "scope"}, nil)
 		return
@@ -326,8 +444,12 @@ func (h *Handler) confirmBankPart(c *gin.Context, reference bool) {
 	} else {
 		v, e = q.ConfirmBankQuestion(ctx, v.ID)
 	}
-	if e != nil {
+	if errors.Is(e, pgx.ErrNoRows) {
 		identity.Fail(c, 409, "state_conflict", "内容状态已改变，请刷新")
+		return
+	}
+	if e != nil {
+		result(c, nil, e)
 		return
 	}
 	result(c, v, tx.Commit(ctx))
@@ -509,7 +631,7 @@ func (h *Handler) createBankJob(c *gin.Context) {
 		}
 		in.QuestionID = ""
 	} else {
-		v, ok := h.bankVersion(c, req.QuestionID)
+		v, b, ok := h.bankVersionWithBank(c, req.QuestionID)
 		if !ok {
 			return
 		}
@@ -517,8 +639,7 @@ func (h *Handler) createBankJob(c *gin.Context) {
 			invalid(c, "客观题使用答案规则")
 			return
 		}
-		b, e := h.q.GetQuestionBank(ctx, store.GetQuestionBankParams{ID: v.BankID, CourseID: c.Param("courseID")})
-		if e != nil || b.Archived {
+		if b.Archived {
 			invalid(c, "题目已停用")
 			return
 		}

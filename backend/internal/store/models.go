@@ -128,15 +128,16 @@ type Assignment struct {
 }
 
 type AssistTurn struct {
-	ID        string             `json:"id"`
-	CourseID  string             `json:"course_id"`
-	OwnerID   string             `json:"owner_id"`
-	RequestID string             `json:"request_id"`
-	Question  string             `json:"question"`
-	ProfileID string             `json:"profile_id"`
-	State     string             `json:"state"`
-	Response  json.RawMessage    `json:"response"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ID         string             `json:"id"`
+	CourseID   string             `json:"course_id"`
+	OwnerID    string             `json:"owner_id"`
+	RequestID  string             `json:"request_id"`
+	Question   string             `json:"question"`
+	ProfileID  string             `json:"profile_id"`
+	State      string             `json:"state"`
+	Response   json.RawMessage    `json:"response"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	ResourceID pgtype.Text        `json:"resource_id"`
 }
 
 type BankQuestionAsset struct {

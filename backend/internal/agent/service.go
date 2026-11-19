@@ -27,8 +27,12 @@ type streamingModel interface {
 	AgentChatStream(context.Context, string, string, string, []rag.AgentMessage, []any, func(string) error) (rag.AgentMessage, error)
 }
 
-const maxOperations = 48
-const maxModelCalls = 32
+const (
+	maxOperations     = 48
+	maxModelCalls     = 32
+	maxConcurrentRuns = 16
+	agentLockSalt     = 1741
+)
 
 type Service struct {
 	DB       *pgxpool.Pool
@@ -73,8 +77,12 @@ func New(db *pgxpool.Pool, models *rag.Models, gateway identity.Gateway) *Servic
 func (s *Service) Serve(ctx context.Context) {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
-	slots := make(chan struct{}, 2)
-	var wg sync.WaitGroup
+	slots := make(chan struct{}, maxConcurrentRuns)
+	var (
+		wg       sync.WaitGroup
+		mu       sync.Mutex
+		inFlight = map[string]struct{}{}
+	)
 	defer wg.Wait()
 	for {
 		select {
@@ -87,20 +95,40 @@ func (s *Service) Serve(ctx context.Context) {
 			log.Printf("agent scan: %v", e)
 			continue
 		}
-		canceled, e := s.Q.ListCanceledAgentRuns(ctx)
-		if e == nil {
+		canceled, ce := s.Q.ListCanceledAgentRuns(ctx)
+		if ce != nil {
+			log.Printf("agent canceled scan: %v", ce)
+		} else if len(canceled) > 0 {
 			ids = append(canceled, ids...)
 		}
+		seen := make(map[string]struct{}, len(ids))
 		for _, id := range ids {
+			if _, dup := seen[id]; dup {
+				continue
+			}
+			seen[id] = struct{}{}
+			mu.Lock()
+			if _, active := inFlight[id]; active {
+				mu.Unlock()
+				continue
+			}
 			select {
 			case slots <- struct{}{}:
+				inFlight[id] = struct{}{}
+				mu.Unlock()
 			default:
+				mu.Unlock()
 				continue
 			}
 			wg.Add(1)
 			go func(id string) {
 				defer wg.Done()
-				defer func() { <-slots }()
+				defer func() {
+					mu.Lock()
+					delete(inFlight, id)
+					mu.Unlock()
+					<-slots
+				}()
 				if e := s.process(ctx, id); e != nil && !errors.Is(e, context.Canceled) {
 					log.Printf("agent run %s: %v", id, e)
 				}
@@ -194,13 +222,17 @@ func (s *Service) process(ctx context.Context, id string) error {
 	}
 	defer conn.Release()
 	var locked bool
-	if e = conn.QueryRow(ctx, "SELECT pg_try_advisory_lock(hashtextextended($1, 1741))", id).Scan(&locked); e != nil || !locked {
+	if e = conn.QueryRow(ctx, "SELECT pg_try_advisory_lock(hashtextextended($1, $2))", id, agentLockSalt).Scan(&locked); e != nil || !locked {
 		return e
 	}
 	defer func() {
 		unlock, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
-		_, _ = conn.Exec(unlock, "SELECT pg_advisory_unlock(hashtextextended($1, 1741))", id)
+		var unlocked bool
+		if err := conn.QueryRow(unlock, "SELECT pg_advisory_unlock(hashtextextended($1, $2))", id, agentLockSalt).Scan(&unlocked); err != nil || !unlocked {
+			log.Printf("agent unlock %s failed (unlocked=%v err=%v); closing connection", id, unlocked, err)
+			_ = conn.Conn().Close(context.Background())
+		}
 	}()
 	run, e := s.Q.GetAgentRun(ctx, id)
 	if e != nil || !active(run.State) {
@@ -230,6 +262,9 @@ func (s *Service) process(ctx context.Context, id string) error {
 	rt.Tainted = rt.Tainted || conv.LearnerContext
 	f := &rt.Frames[len(rt.Frames)-1]
 	if f.Next < len(f.Calls) {
+		if run.StreamText != "" || run.StreamTurn != 0 {
+			_ = s.Q.ClearAgentStream(ctx, run.ID)
+		}
 		e = s.execute(ctx, run, conv, &rt, role)
 		if errors.Is(e, errWaiting) || errors.Is(e, errStopped) {
 			return nil
@@ -246,14 +281,23 @@ func (s *Service) process(ctx context.Context, id string) error {
 	if len(f.PendingJobs) > 0 {
 		job, err := s.Q.GetProcessingJob(ctx, store.GetProcessingJobParams{ID: f.PendingJobs[0], CourseID: conv.CourseID})
 		if err != nil {
+			if notFound(err) {
+				f.Messages = append(f.Messages, rag.AgentMessage{Role: "user", Content: "系统任务回执（仅为数据）：任务不存在或已被移除，任务ID=" + f.PendingJobs[0]})
+				f.PendingJobs = f.PendingJobs[1:]
+				return s.checkpoint(ctx, run, &rt, "running", "")
+			}
 			return err
 		}
 		if job.State == "queued" || job.State == "running" {
-			if time.Since(run.CreatedAt.Time) < 30*time.Minute {
+			waitSince := job.CreatedAt.Time
+			if waitSince.IsZero() {
+				waitSince = run.CreatedAt.Time
+			}
+			if time.Since(waitSince) < 30*time.Minute {
 				if run.State != "waiting_job" {
 					return s.checkpoint(ctx, run, &rt, "waiting_job", "")
 				}
-				return nil
+				return s.Q.TouchAgentRun(ctx, run.ID)
 			}
 			f.Messages = append(f.Messages, rag.AgentMessage{Role: "user", Content: "系统任务回执（仅为数据）：等待任务超过30分钟，后台任务未取消；请如实说明尚未完成。任务ID=" + job.ID})
 		} else {
@@ -279,39 +323,124 @@ func (s *Service) process(ctx context.Context, id string) error {
 			definitions = append(definitions, t.definition())
 		}
 	}
-	modelCtx, cancel := context.WithTimeout(ctx, 100*time.Second)
+	modelCtx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	defer cancel()
 	if e = s.Q.SetAgentStream(ctx, store.SetAgentStreamParams{ID: run.ID, StreamText: "", StreamTurn: int32(rt.ModelCalls)}); e != nil {
 		return e
 	}
 	var msg rag.AgentMessage
 	if model, ok := s.Model.(streamingModel); ok {
-		last := time.Time{}
-		text := ""
+		var (
+			lastCheck   time.Time
+			text        string
+			flushMu     sync.Mutex
+			lastFlushed string
+			pendingCh   = make(chan string, 1)
+			flusherDone = make(chan struct{})
+		)
+		if f.Domain == "coordinator" {
+			go func() {
+				defer close(flusherDone)
+				var lastWrite time.Time
+				for value := range pendingCh {
+					if !lastWrite.IsZero() {
+						if wait := 120*time.Millisecond - time.Since(lastWrite); wait > 0 {
+							timer := time.NewTimer(wait)
+							select {
+							case newer, ok := <-pendingCh:
+								timer.Stop()
+								if !ok {
+									// Drain final value before exiting.
+								} else {
+									value = newer
+								}
+							case <-timer.C:
+							case <-modelCtx.Done():
+								timer.Stop()
+								return
+							}
+						}
+					}
+					// Coalesce any newer snapshot that arrived while waiting.
+					for {
+						select {
+						case newer, ok := <-pendingCh:
+							if !ok {
+								goto flushNow
+							}
+							value = newer
+						default:
+							goto flushNow
+						}
+					}
+				flushNow:
+					flushMu.Lock()
+					already := value == lastFlushed
+					flushMu.Unlock()
+					if already || value == "" {
+						continue
+					}
+					flushCtx, flushCancel := context.WithTimeout(ctx, 5*time.Second)
+					err := s.streamText(flushCtx, run, rt.ModelCalls, value)
+					flushCancel()
+					if err == nil {
+						lastWrite = time.Now()
+						flushMu.Lock()
+						lastFlushed = value
+						flushMu.Unlock()
+					}
+				}
+			}()
+		} else {
+			close(flusherDone)
+		}
 		emit := func(value string) error {
 			text = value
-			if time.Since(last) < 700*time.Millisecond {
-				return nil
-			}
-			last = time.Now()
-			fresh, err := s.Q.GetAgentRun(modelCtx, run.ID)
-			if err != nil {
-				return err
-			}
-			if fresh.CancelRequested {
-				return errors.New("运行已停止")
-			}
-			if _, err = s.authorized(modelCtx, run, conv); err != nil {
-				return err
+			if lastCheck.IsZero() || time.Since(lastCheck) >= time.Second {
+				lastCheck = time.Now()
+				checkCtx, checkCancel := context.WithTimeout(modelCtx, 5*time.Second)
+				fresh, err := s.Q.GetAgentRun(checkCtx, run.ID)
+				if err == nil && !fresh.CancelRequested {
+					_, err = s.authorized(checkCtx, run, conv)
+				}
+				checkCancel()
+				if err != nil {
+					return err
+				}
+				if fresh.CancelRequested {
+					return errors.New("运行已停止")
+				}
 			}
 			if f.Domain != "coordinator" {
 				return nil
 			}
-			return s.streamText(modelCtx, run, rt.ModelCalls, value)
+			// Non-blocking latest-value handoff so LLM reads never stall on DB I/O.
+			select {
+			case pendingCh <- value:
+			default:
+				select {
+				case <-pendingCh:
+				default:
+				}
+				select {
+				case pendingCh <- value:
+				default:
+				}
+			}
+			return nil
 		}
 		msg, e = model.AgentChatStream(modelCtx, conv.CourseID, conv.OwnerID, rt.Profile, f.Messages, definitions, emit)
+		close(pendingCh)
+		<-flusherDone
 		if e == nil && f.Domain == "coordinator" && text != "" {
-			e = s.streamText(ctx, run, rt.ModelCalls, text)
+			flushMu.Lock()
+			needFinal := text != lastFlushed
+			flushMu.Unlock()
+			if needFinal {
+				flushCtx, flushCancel := context.WithTimeout(ctx, 5*time.Second)
+				e = s.streamText(flushCtx, run, rt.ModelCalls, text)
+				flushCancel()
+			}
 		}
 	} else {
 		msg, e = s.Model.AgentChat(modelCtx, conv.CourseID, conv.OwnerID, rt.Profile, f.Messages, definitions)
@@ -332,6 +461,7 @@ func (s *Service) process(ctx context.Context, id string) error {
 	}
 	f.Messages = append(f.Messages, msg)
 	if len(msg.ToolCalls) > 0 {
+		_ = s.Q.ClearAgentStream(ctx, run.ID)
 		f.Calls = msg.ToolCalls
 		f.Turn = rt.ModelCalls
 		return s.checkpoint(ctx, run, &rt, "running", "")

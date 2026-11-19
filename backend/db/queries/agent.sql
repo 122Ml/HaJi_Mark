@@ -49,7 +49,25 @@ SELECT id,conversation_id,request_id,state,error,cancel_requested,created_at,upd
 -- name: ListReadyAgentRuns :many
 SELECT a.id FROM agent_runs a WHERE state IN ('queued','running','waiting_job') OR
  (state IN ('waiting_input','waiting_approval') AND EXISTS(SELECT 1 FROM agent_requests r WHERE r.run_id=a.id AND r.state='pending' AND r.expires_at<=now()))
- ORDER BY updated_at,a.id LIMIT 8;
+ ORDER BY CASE WHEN state='waiting_job' THEN 1 ELSE 0 END, updated_at, a.id LIMIT 16;
+
+-- name: TouchAgentRun :exec
+UPDATE agent_runs SET updated_at=now() WHERE id=$1;
+
+-- name: ListAgentRunRuntimes :many
+SELECT id,runtime FROM agent_runs WHERE id=ANY(sqlc.arg(ids)::text[]);
+
+-- name: ListRecentAgentMessages :many
+SELECT * FROM (SELECT * FROM agent_messages WHERE conversation_id=$1 ORDER BY created_at DESC,id DESC LIMIT 12) m ORDER BY created_at,id;
+
+-- name: ListAgentAttachmentsByIDs :many
+SELECT * FROM agent_attachments WHERE conversation_id=$1 AND id=ANY(sqlc.arg(ids)::text[]);
+
+-- name: GetLatestAgentEventID :one
+SELECT COALESCE(max(id),0)::bigint FROM agent_events WHERE conversation_id=$1;
+
+-- name: ClearAgentStream :exec
+UPDATE agent_runs SET stream_text='',stream_turn=0 WHERE id=$1;
 
 -- name: UpdateAgentRun :exec
 UPDATE agent_runs SET state=$2,runtime=$3,error=$4,updated_at=now() WHERE id=$1;

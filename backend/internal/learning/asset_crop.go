@@ -2,10 +2,12 @@ package learning
 
 import (
 	"encoding/json"
+	"errors"
 	"image"
 	_ "image/gif"
 	_ "image/jpeg"
 	"image/png"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -15,6 +17,11 @@ import (
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+)
+
+const (
+	maxCropImagePixels = 24_000_000
+	maxCropImageDim    = 16384
 )
 
 func (h *Handler) cropAsset(c *gin.Context) {
@@ -29,7 +36,13 @@ func (h *Handler) cropAsset(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
-	if in.X < 0 || in.Y < 0 || in.Width <= 0 || in.Height <= 0 || in.X+in.Width > 1 || in.Y+in.Height > 1 || (in.Kind != "image" && in.Kind != "formula" && in.Kind != "chart" && in.Kind != "diagram") {
+	if math.IsNaN(in.X) || math.IsInf(in.X, 0) ||
+		math.IsNaN(in.Y) || math.IsInf(in.Y, 0) ||
+		math.IsNaN(in.Width) || math.IsInf(in.Width, 0) ||
+		math.IsNaN(in.Height) || math.IsInf(in.Height, 0) ||
+		in.X < 0 || in.Y < 0 || in.Width <= 0 || in.Height <= 0 ||
+		in.X+in.Width > 1+1e-6 || in.Y+in.Height > 1+1e-6 ||
+		(in.Kind != "image" && in.Kind != "formula" && in.Kind != "chart" && in.Kind != "diagram") {
 		invalid(c, "请选择图像内的有效区域与类型")
 		return
 	}
@@ -39,29 +52,47 @@ func (h *Handler) cropAsset(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
-	tx, e := h.db.Begin(ctx)
+	preSrc, e := h.q.GetMaterialSource(ctx, store.GetMaterialSourceParams{ID: a.SourceID, CourseID: c.Param("courseID")})
 	if e != nil {
 		result(c, nil, e)
 		return
 	}
-	defer tx.Rollback(ctx)
-	q := h.q.WithTx(tx)
-	s, e := q.LockMaterialSource(ctx, store.LockMaterialSourceParams{ID: a.SourceID, CourseID: c.Param("courseID")})
-	if e != nil {
-		result(c, nil, e)
-		return
-	}
-	if s.State != "active" || s.ParseState != "ready" || s.ParseRevision != in.ParseRevision {
+	if preSrc.State != "active" || preSrc.ParseState != "ready" || preSrc.ParseRevision != in.ParseRevision {
 		identity.Fail(c, 409, "stale_revision", "来源已变化，请刷新后裁剪")
 		return
 	}
-	f, e := os.Open(filepath.Join(rag.MaterialsDir(), a.StoragePath))
+	srcPath, e := rag.SafeMaterialPath(a.StoragePath)
 	if e != nil {
+		invalid(c, "图像路径无效")
+		return
+	}
+	f, e := os.Open(srcPath)
+	if e != nil {
+		if errors.Is(e, os.ErrNotExist) {
+			identity.Fail(c, 404, "not_found", "原始图像不存在")
+			return
+		}
+		result(c, nil, e)
+		return
+	}
+	cfg, _, e := image.DecodeConfig(f)
+	if e != nil {
+		_ = f.Close()
+		invalid(c, "图像无法解码")
+		return
+	}
+	if cfg.Width <= 0 || cfg.Height <= 0 || cfg.Width > maxCropImageDim || cfg.Height > maxCropImageDim || int64(cfg.Width)*int64(cfg.Height) > maxCropImagePixels {
+		_ = f.Close()
+		invalid(c, "图片分辨率过大，无法裁剪")
+		return
+	}
+	if _, e = f.Seek(0, io.SeekStart); e != nil {
+		_ = f.Close()
 		result(c, nil, e)
 		return
 	}
 	img, _, e := image.Decode(f)
-	f.Close()
+	_ = f.Close()
 	if e != nil {
 		invalid(c, "图像无法解码")
 		return
@@ -88,19 +119,38 @@ func (h *Handler) cropAsset(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
-	e = png.Encode(out, sub.SubImage(box))
-	out.Close()
-	if e != nil {
-		os.Remove(path)
-		result(c, nil, e)
-		return
-	}
 	committed := false
 	defer func() {
 		if !committed {
-			os.Remove(path)
+			_ = os.Remove(path)
 		}
 	}()
+	encErr := png.Encode(out, sub.SubImage(box))
+	closeErr := out.Close()
+	if encErr != nil {
+		result(c, nil, encErr)
+		return
+	}
+	if closeErr != nil {
+		result(c, nil, closeErr)
+		return
+	}
+	tx, e := h.db.Begin(ctx)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	defer tx.Rollback(ctx)
+	q := h.q.WithTx(tx)
+	s, e := q.LockMaterialSource(ctx, store.LockMaterialSourceParams{ID: a.SourceID, CourseID: c.Param("courseID")})
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	if s.State != "active" || s.ParseState != "ready" || s.ParseRevision != in.ParseRevision {
+		identity.Fail(c, 409, "stale_revision", "来源已变化，请刷新后裁剪")
+		return
+	}
 	var loc map[string]any
 	_ = json.Unmarshal(a.Locator, &loc)
 	if loc == nil {

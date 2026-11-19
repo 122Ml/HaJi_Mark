@@ -22,7 +22,7 @@ WHERE a.course_id=$2
  AND ($3::boolean OR a.status IN ('published','closed'))
  AND ($4::text='' OR a.type=$4 OR ($4='homework' AND a.type<>'quiz'))
  AND ($5::text='' OR a.status=$5)
- AND ($6::text='' OR a.title ILIKE '%' || $6 || '%')
+ AND ($6::text='' OR a.title ILIKE '%' || $6 || '%' ESCAPE '\')
  AND ($7::text='' OR EXISTS(SELECT 1 FROM questions q WHERE q.assignment_id=a.id AND q.knowledge_point_id=$7))
 ORDER BY CASE WHEN $8::text='due' THEN a.due_at END ASC NULLS LAST, a.created_at DESC,a.id
 LIMIT $10 OFFSET $9
@@ -118,7 +118,7 @@ SELECT s.id,s.assignment_id,s.question_id,s.student_id,s.attempt,s.status,s.subm
 FROM submissions s JOIN users u ON u.id=s.student_id JOIN questions q ON q.id=s.question_id
 LEFT JOIN LATERAL (SELECT state FROM grading_revisions WHERE submission_id=s.id ORDER BY revision DESC LIMIT 1) g ON true
 WHERE s.assignment_id=$1
- AND ($2::text='' OR u.display_name ILIKE '%' || $2 || '%' OR u.username ILIKE '%' || $2 || '%')
+ AND ($2::text='' OR u.display_name ILIKE '%' || $2 || '%' ESCAPE '\' OR u.username ILIKE '%' || $2 || '%' ESCAPE '\')
  AND ($3::text='' OR COALESCE(g.state,'pending')=$3)
 ORDER BY s.submitted_at,s.id
 LIMIT $5 OFFSET $4

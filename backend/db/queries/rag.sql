@@ -121,8 +121,21 @@ SELECT * FROM processing_jobs WHERE course_id=$1 AND kind='index' AND state='que
 
 -- name: RetireObsoleteSourceChunks :exec
 UPDATE retrieval_chunks c SET active=false FROM material_sources s WHERE c.source_id=s.id AND s.course_id=$1
-AND NOT EXISTS(SELECT 1 FROM material_fragments f WHERE f.id=ANY(c.fragment_ids) AND f.revision=s.parse_revision)
-AND NOT EXISTS(SELECT 1 FROM resources r WHERE r.status='published' AND c.fragment_ids <@ r.fragment_ids);
+AND (s.state<>'active' OR (NOT EXISTS(SELECT 1 FROM material_fragments f WHERE f.id=ANY(c.fragment_ids) AND f.revision=s.parse_revision)
+AND NOT EXISTS(SELECT 1 FROM resources r WHERE r.status='published' AND c.fragment_ids <@ r.fragment_ids)));
+
+-- name: RetireObsoleteKnowledgeChunks :exec
+UPDATE retrieval_chunks c SET active=false FROM knowledge_entries k
+WHERE c.knowledge_id=k.id AND k.course_id=$1 AND k.state<>'confirmed' AND c.active;
+
+-- name: RetireObsoleteResourceChunks :exec
+UPDATE retrieval_chunks c SET active=false FROM resources r
+WHERE c.resource_id=r.id AND r.course_id=$1 AND (r.status<>'published' OR r.source_id IS NOT NULL) AND c.active;
+
+-- name: ReconcileStuckSourceParse :exec
+UPDATE material_sources s SET parse_state='failed',parse_error='解析任务已中断或取消，请重新解析'
+WHERE s.parse_state='running'
+AND NOT EXISTS(SELECT 1 FROM processing_jobs j WHERE j.course_id=s.course_id AND j.kind='parse' AND j.state IN ('queued','running') AND j.input->>'source_id'=s.id);
 
 -- name: GetProcessingJob :one
 SELECT * FROM processing_jobs WHERE id=$1 AND course_id=$2;

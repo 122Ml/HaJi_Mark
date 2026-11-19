@@ -24,6 +24,9 @@ func Register(r *gin.RouterGroup, db *pgxpool.Pool) {
 			c.JSON(http.StatusServiceUnavailable, gin.H{"error": gin.H{"code": "service_unavailable", "message": "课程查询失败，请稍后重试"}})
 			return
 		}
+		if courses == nil {
+			courses = []store.ListPublishedCoursesRow{}
+		}
 		c.JSON(http.StatusOK, gin.H{"data": courses})
 	})
 }

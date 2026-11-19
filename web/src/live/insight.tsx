@@ -1,38 +1,48 @@
-import { Field } from "../shared/Field";
-import { Table, Progress, Tabs, Input, Pagination, Button, Card, Select, Statistic, Typography } from "antd";
-import { LoadingState, ErrorState, MetaTag, MetaTags, StatusTag } from "../shared/ui";
-import { useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Link } from "./context";
-import { ActivityTimeline } from "./activity";
-import { EmptyState } from "../shared/ui";
+import {
+  Alert,
+  Button,
+  Card,
+  Input,
+  Pagination,
+  Progress,
+  Select,
+  Space,
+  Statistic,
+  Table,
+  Tabs,
+  Tag,
+  Tooltip,
+  Typography,
+} from "antd";
+import {
+  AlertCircle,
+  BookOpen,
+  ClipboardCheck,
+  Compass,
+  Download,
+  Target,
+  TrendingUp,
+  Users,
+} from "lucide-react";
+import { PageHeader } from "../shared/PageHeader";
 import { useSession } from "../shared/session";
-import { useLiveQuery, Feedback, when } from "./context";
-import type { Resource } from "./course";
-import type { Assignment } from "./assessment";
-import type { Point } from "./course";
-import { RevisionPoints, PointFeedback } from "./rubrics";
-import { LearningGaps } from "./learning-gaps";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  MetaTag,
+  MetaTags,
+  StatusTag,
+} from "../shared/ui";
+import { ActivityTimeline } from "./activity";
+import { Link, useLearning, useLiveQuery, when } from "./context";
 import { DiagnosisPanel } from "./intelligence";
-interface Evidence {
-  assignment_title: string;
-  rubric_version: number | null;
-  rubric_id: string | null;
-  point_scores: PointFeedback[];
-  submission_id: string;
-  student_id: string;
-  question_id: string;
-  answer_text: string;
-  attempt: number;
-  revision_id: string;
-  score: number;
-  feedback: string;
-  max_score: number;
-  prompt: string;
-  released_at: string;
-  knowledge_point_id: string | null;
-  resource_id: string | null;
-}
+import { LearningGaps, type ReleasedEvidence } from "./learning-gaps";
+import { RevisionPoints } from "./rubrics";
+import type { Assignment, Point, Resource } from "./types";
+
 interface Overview {
   id: string;
   display_name: string;
@@ -40,335 +50,673 @@ interface Overview {
   submitted_assignments: number;
   pending_interventions: number;
 }
+
+interface StudentRiskRow extends Overview {
+  releasedCount: number;
+  avgPct: number | null;
+  minPct: number | null;
+}
+
+interface KnowledgeMasteryItem {
+  id: string;
+  title: string;
+  count: number;
+  rate: number | null;
+}
+
+const TEACHER_VIEWS = ["overview", "students", "evidence", "gaps"] as const;
+type TeacherView = (typeof TEACHER_VIEWS)[number];
+
+const SCORE_BANDS = [
+  { key: "b0", label: "<60%", color: "var(--danger)" },
+  { key: "b1", label: "60-69%", color: "var(--warning)" },
+  { key: "b2", label: "70-79%", color: "var(--teal-bright)" },
+  { key: "b3", label: "80-89%", color: "var(--teal)" },
+  { key: "b4", label: "90-100%", color: "var(--success)" },
+] as const;
+
+function escapeCSVCell(raw: string): string {
+  const value = String(raw ?? "");
+  const trimmed = value.replace(/^[\s\u0000-\u001f]+/, "");
+  const safe = /^[=+@\-]/.test(trimmed) ? `'${value}` : value;
+  return `"${safe.replaceAll('"', '""')}"`;
+}
+
+function exportEvidenceCSV(
+  rows: ReleasedEvidence[],
+  studentNames: Map<string, string>,
+) {
+  const cells = [
+    [
+      "学生姓名",
+      "学生ID",
+      "作业名称",
+      "题目",
+      "得分",
+      "满分",
+      "得分率",
+      "发布时间",
+      "提交ID",
+      "评分修订ID",
+      "标准版本ID",
+      "逐点评分与依据",
+      "总评",
+    ],
+    ...rows.map((r) => [
+      r.student_name || studentNames.get(r.student_id) || "",
+      r.student_id,
+      r.assignment_title || "",
+      r.prompt,
+      String(r.score),
+      String(r.max_score),
+      r.max_score > 0 ? `${Math.round((r.score / r.max_score) * 100)}%` : "",
+      r.released_at || "",
+      r.submission_id,
+      r.revision_id,
+      r.rubric_id || "",
+      JSON.stringify(r.point_scores || []),
+      r.feedback || "",
+    ]),
+  ];
+  const csv =
+    "\uFEFF" +
+    cells.map((row) => row.map(escapeCSVCell).join(",")).join("\r\n");
+  const url = URL.createObjectURL(
+    new Blob([csv], { type: "text/csv;charset=utf-8" }),
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "课程正式评分证据.csv";
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+function ScoreHistogramCard({ rows }: { rows: ReleasedEvidence[] }) {
+  const { counts, maxCount, total, lowCount } = useMemo(() => {
+    const bucketCounts = [0, 0, 0, 0, 0];
+    let scored = 0;
+    for (const r of rows) {
+      if (!r.max_score || r.max_score <= 0) continue;
+      scored += 1;
+      const pct = (r.score / r.max_score) * 100;
+      if (pct < 60) bucketCounts[0] += 1;
+      else if (pct < 70) bucketCounts[1] += 1;
+      else if (pct < 80) bucketCounts[2] += 1;
+      else if (pct < 90) bucketCounts[3] += 1;
+      else bucketCounts[4] += 1;
+    }
+    return {
+      counts: bucketCounts,
+      maxCount: Math.max(1, ...bucketCounts),
+      total: scored,
+      lowCount: bucketCounts[0],
+    };
+  }, [rows]);
+
+  return (
+    <Card className="card-panel" title="成绩分布直方图">
+      {!total ? (
+        <EmptyState title="暂无正式成绩分布">
+          发布正式评分后，系统会自动按分数段统计分布情况。
+        </EmptyState>
+      ) : (
+        <Space direction="vertical" className="live-full-width" size="small">
+          <svg
+            className="score-histogram-svg"
+            viewBox="0 0 440 196"
+            role="img"
+            aria-label="成绩分布直方图"
+          >
+            <line
+              x1="20"
+              y1="44"
+              x2="420"
+              y2="44"
+              stroke="var(--line)"
+              strokeDasharray="3 3"
+            />
+            <line
+              x1="20"
+              y1="98"
+              x2="420"
+              y2="98"
+              stroke="var(--line)"
+              strokeDasharray="3 3"
+            />
+            <line x1="20" y1="154" x2="420" y2="154" stroke="var(--line)" />
+            {SCORE_BANDS.map((band, idx) => {
+              const count = counts[idx];
+              const slotWidth = 80;
+              const barWidth = 44;
+              const x = 20 + idx * slotWidth + (slotWidth - barWidth) / 2;
+              const maxBarHeight = 116;
+              const barHeight =
+                count > 0 ? Math.max(8, Math.round((count / maxCount) * maxBarHeight)) : 0;
+              const y = 154 - barHeight;
+              const centerX = x + barWidth / 2;
+              return (
+                <g key={band.key}>
+                  {barHeight > 0 && (
+                    <rect
+                      x={x}
+                      y={y}
+                      width={barWidth}
+                      height={barHeight}
+                      rx={6}
+                      fill={band.color}
+                    />
+                  )}
+                  <text
+                    x={centerX}
+                    y={Math.max(18, y - 8)}
+                    textAnchor="middle"
+                    fill="var(--ink)"
+                    fontSize="12"
+                    fontWeight="600"
+                  >
+                    {count}
+                  </text>
+                  <text
+                    x={centerX}
+                    y={178}
+                    textAnchor="middle"
+                    fill="var(--muted)"
+                    fontSize="12"
+                  >
+                    {band.label}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+          <MetaTags>
+            <MetaTag>有效成绩 {total} 条</MetaTag>
+            <Tag color={lowCount > 0 ? "error" : "success"}>
+              低于 60%：{lowCount} 条
+            </Tag>
+          </MetaTags>
+        </Space>
+      )}
+    </Card>
+  );
+}
+
+function MasteryBarsCard({ items }: { items: KnowledgeMasteryItem[] }) {
+  const scored = items.filter((item) => item.rate !== null);
+  const ungradedCount = items.length - scored.length;
+
+  return (
+    <Card className="card-panel" title="知识点掌握率对比">
+      {!scored.length ? (
+        <EmptyState title="暂无知识点掌握数据">
+          发布关联知识点的正式评分后，这里会按掌握率由低到高排序对比。
+        </EmptyState>
+      ) : (
+        <Space direction="vertical" className="live-full-width" size="small">
+          <div className="mastery-bar-list">
+            {scored.map((item) => {
+              const rate = item.rate ?? 0;
+              const tone =
+                rate < 60
+                  ? "tone-low"
+                  : rate < 80
+                    ? "tone-mid"
+                    : "tone-good";
+              return (
+                <div className="mastery-bar-row" key={item.id}>
+                  <Tooltip
+                    title={`${item.title}：${rate}%（${item.count} 条有效结果）`}
+                  >
+                    <span className="mastery-bar-label">
+                      {item.title}（{item.count}条）
+                    </span>
+                  </Tooltip>
+                  <div className="mastery-bar-track" aria-hidden="true">
+                    <div
+                      className={`mastery-bar-fill ${tone}`}
+                      style={{ width: `${rate}%` }}
+                    />
+                  </div>
+                  <span className="mastery-bar-val">{rate}%</span>
+                </div>
+              );
+            })}
+          </div>
+          {ungradedCount > 0 && (
+            <Typography.Text type="secondary">
+              另有 {ungradedCount} 个知识点尚无正式评分证据。
+            </Typography.Text>
+          )}
+        </Space>
+      )}
+    </Card>
+  );
+}
+
 export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
   const { session } = useSession();
+  const { course } = useLearning();
   const teacher = session?.user.role === "teacher";
-  const evidence = useLiveQuery<Evidence[]>("/evidence");
+  const pageHeading = teacher ? (analysis ? "学情分析" : "教学看板") : "我的概览";
+  const [params, setParams] = useSearchParams();
+  const studentParam = params.get("student") || "";
+  const rawView = params.get("view") || "";
+  const view: TeacherView = (TEACHER_VIEWS as readonly string[]).includes(
+    rawView,
+  )
+    ? (rawView as TeacherView)
+    : studentParam
+      ? "students"
+      : analysis
+        ? "gaps"
+        : "overview";
+
+  const [studentSearch, setStudentSearch] = useState("");
+  const [evidencePage, setEvidencePage] = useState(1);
+
   const overview = useLiveQuery<Overview[]>("/overview", teacher);
-  const resources = useLiveQuery<Resource[]>("/resources");
-  const assignments = useLiveQuery<Assignment[]>("/assignments");
+  const matchedStudent = useMemo(
+    () =>
+      teacher && studentParam
+        ? overview.data?.find((s) => s.id === studentParam)
+        : undefined,
+    [teacher, studentParam, overview.data],
+  );
+  const validStudentFilter = matchedStudent ? matchedStudent.id : "";
+  const invalidStudentParam = Boolean(
+    teacher && studentParam && overview.data && !matchedStudent,
+  );
+
+  // Conditionally enable API queries per active role and view so hidden tabs never over-fetch.
+  const useServerStudentEvidence =
+    teacher && view === "evidence" && !!validStudentFilter;
+  const classEvidenceEnabled =
+    !teacher ||
+    view !== "evidence" ||
+    !studentParam ||
+    invalidStudentParam;
+
+  const classEvidence = useLiveQuery<ReleasedEvidence[]>(
+    "/evidence",
+    classEvidenceEnabled,
+  );
+  const studentEvidence = useLiveQuery<ReleasedEvidence[]>(
+    `/evidence?student_id=${encodeURIComponent(validStudentFilter)}`,
+    useServerStudentEvidence,
+  );
+  const activeEvidence = useServerStudentEvidence
+    ? studentEvidence
+    : classEvidence;
+
+  const needAssignments = !teacher || view === "overview";
+  const needPoints = !teacher || view === "overview";
+  const assignments = useLiveQuery<Assignment[]>(
+    "/assignments",
+    needAssignments,
+  );
+  const points = useLiveQuery<{ points: Point[] }>("", needPoints);
+  const resources = useLiveQuery<Resource[]>("/resources", !teacher);
   const events = useLiveQuery<{ resource_id: string; verb: string }[]>(
     "/events",
     !teacher,
   );
-  const points = useLiveQuery<{ points: Point[] }>("");
-  const [params, setParams] = useSearchParams();
-  const studentFilter = params.get("student") || "";
-  const [studentSearch, setStudentSearch] = useState("");
-  const [studentPage, setStudentPage] = useState(1);
-  const [evidencePage, setEvidencePage] = useState(1);
-  const students = (overview.data || []).filter(
-    (s) =>
-      (!studentFilter || s.id === studentFilter) &&
-      s.display_name.includes(studentSearch),
+
+  const studentNames = useMemo(
+    () => new Map((overview.data || []).map((s) => [s.id, s.display_name])),
+    [overview.data],
   );
+
   const setStudentFilter = (id: string) => {
-    setStudentPage(1);
     setEvidencePage(1);
     const next = new URLSearchParams(params);
     if (id) next.set("student", id);
     else next.delete("student");
-    next.set("view", "students");
-    setParams(next);
+    setParams(next, { replace: true });
   };
-  const view = params.get("view") || (studentFilter ? "students" : analysis ? "gaps" : "overview");
-  const rows = (evidence.data || []).filter(
-    (r) => !studentFilter || r.student_id === studentFilter,
+
+  const setView = (nextView: string) => {
+    setEvidencePage(1);
+    const next = new URLSearchParams(params);
+    next.set("view", nextView);
+    setParams(next, { replace: true });
+  };
+
+  const rows = useMemo(() => {
+    const list = activeEvidence.data || [];
+    if (!teacher || !validStudentFilter || useServerStudentEvidence) {
+      return list;
+    }
+    return list.filter((r) => r.student_id === validStudentFilter);
+  }, [activeEvidence.data, teacher, validStudentFilter, useServerStudentEvidence]);
+
+  const knowledgeMastery = useMemo<KnowledgeMasteryItem[]>(() => {
+    const kpList = (points.data?.points || []).filter((p) => p.kind === "point");
+    return kpList
+      .map((p) => {
+        const group = rows.filter((r) => r.knowledge_point_id === p.id);
+        const sum = group.reduce((v, r) => v + r.score, 0);
+        const maximum = group.reduce((v, r) => v + r.max_score, 0);
+        return {
+          id: p.id,
+          title: p.title,
+          count: group.length,
+          rate: maximum > 0 ? Math.round((sum / maximum) * 100) : null,
+        };
+      })
+      .sort((a, b) => {
+        if (a.rate === null && b.rate === null)
+          return a.title.localeCompare(b.title);
+        if (a.rate === null) return 1;
+        if (b.rate === null) return -1;
+        return a.rate - b.rate || b.count - a.count;
+      });
+  }, [points.data, rows]);
+
+  const studentRiskRows = useMemo<StudentRiskRow[]>(() => {
+    if (!teacher) return [];
+    const byStudent = new Map<
+      string,
+      { count: number; scoreSum: number; maxSum: number; minPct: number | null }
+    >();
+    for (const r of classEvidence.data || []) {
+      const cur = byStudent.get(r.student_id) || {
+        count: 0,
+        scoreSum: 0,
+        maxSum: 0,
+        minPct: null,
+      };
+      cur.count += 1;
+      cur.scoreSum += r.score;
+      cur.maxSum += r.max_score;
+      if (r.max_score > 0) {
+        const pct = Math.round((r.score / r.max_score) * 100);
+        cur.minPct = cur.minPct === null ? pct : Math.min(cur.minPct, pct);
+      }
+      byStudent.set(r.student_id, cur);
+    }
+    const needle = studentSearch.trim().toLocaleLowerCase();
+    return (overview.data || [])
+      .filter(
+        (s) =>
+          (!validStudentFilter || s.id === validStudentFilter) &&
+          (!needle || s.display_name.toLocaleLowerCase().includes(needle)),
+      )
+      .map((s) => {
+        const stats = byStudent.get(s.id);
+        const avgPct =
+          stats && stats.maxSum > 0
+            ? Math.round((stats.scoreSum / stats.maxSum) * 100)
+            : null;
+        return {
+          ...s,
+          releasedCount: stats?.count || 0,
+          avgPct,
+          minPct: stats?.minPct ?? null,
+        };
+      });
+  }, [teacher, classEvidence.data, overview.data, validStudentFilter, studentSearch]);
+
+  const completedResourceSet = useMemo(
+    () =>
+      new Set(
+        (events.data || [])
+          .filter((e) => e.verb === "completed")
+          .map((e) => e.resource_id),
+      ),
+    [events.data],
   );
+
   const score = rows.reduce((v, r) => v + r.score, 0);
   const max = rows.reduce((v, r) => v + r.max_score, 0);
-  const low = rows.filter((r) => r.score / r.max_score < 0.6);
-  if (
-    evidence.isPending ||
-    assignments.isPending ||
-    points.isPending ||
-    (teacher && overview.isPending)
-  )
-    return <LoadingState />;
-  if (evidence.error || overview.error || assignments.error || points.error)
+  const low = rows.filter((r) => r.max_score > 0 && r.score / r.max_score < 0.6);
+
+  const isLoading =
+    (teacher && overview.isPending) ||
+    (classEvidenceEnabled && classEvidence.isPending) ||
+    (useServerStudentEvidence && studentEvidence.isPending) ||
+    (needAssignments && assignments.isPending) ||
+    (needPoints && points.isPending) ||
+    (!teacher && (resources.isPending || events.isPending));
+
+  const firstError =
+    (teacher ? overview.error : null) ||
+    (classEvidenceEnabled ? classEvidence.error : null) ||
+    (useServerStudentEvidence ? studentEvidence.error : null) ||
+    (needAssignments ? assignments.error : null) ||
+    (needPoints ? points.error : null) ||
+    (!teacher ? resources.error || events.error : null);
+
+  if (isLoading) {
     return (
-      <ErrorState
-        message={
-          (evidence.error ||
-            overview.error ||
-            assignments.error ||
-            points.error)!.message
-        }
-        onRetry={() => {
-          void evidence.refetch();
-          void assignments.refetch();
-          void points.refetch();
-          if (teacher) void overview.refetch();
-        }}
-      />
-    );
-  return (
-    <div
-      className={`live-page overview-page ${teacher ? `teacher-overview-${view}` : "student-overview"}`}
-    >
-      {teacher && (
-        <Tabs
-          activeKey={view}
-          onChange={(v) => {
-            const next = new URLSearchParams(params);
-            next.set("view", v);
-            setParams(next);
-          }}
-          items={[
-            { key: "overview", label: "班级总览" },
-            { key: "students", label: "学生与进度" },
-            { key: "evidence", label: "评分证据" },
-            { key: "gaps", label: "评分缺口" },
-          ]}
-        />
-      )}
-      {studentFilter && teacher && (
-        <div className="context-banner">
-          <strong>
-            {overview.data?.find((s) => s.id === studentFilter)?.display_name}
-            的学习详情
-          </strong>
-          <Link
-            className="primary-link"
-            to={`/teacher/intervention?new=1&student=${studentFilter}`}
-          >
-            安排补学补练
-          </Link>
-          <Button onClick={() => setStudentFilter("")}>返回全班</Button>
-        </div>
-      )}
-      <nav className="live-shortcuts" aria-label="工作台快捷入口">
-        {(teacher
-          ? [
-              [
-                "学习资料",
-                "/teacher/materials",
-                "M6 5h12v14H6z M9 9h6 M9 13h6",
-              ],
-              [
-                "作业中心",
-                "/teacher/homework",
-                "M7 4h10v16H7z M10 9l2 2 3-3 M10 15h4",
-              ],
-              [
-                "干预任务",
-                "/teacher/intervention",
-                "M5 6h14v11h-8l-4 3v-3H5z M8 10h8 M8 13h5",
-              ],
-            ]
-          : [
-              [
-                "课程学习",
-                "/student/course-content",
-                "M6 5h12v14H6z M9 9h6 M9 13h6",
-              ],
-              [
-                "作业测验",
-                "/student/homework",
-                "M7 4h10v16H7z M10 9l2 2 3-3 M10 15h4",
-              ],
-              [
-                "学习路径",
-                "/student/learning",
-                "M5 6h14v11h-8l-4 3v-3H5z M8 10h8 M8 13h5",
-              ],
-            ]
-        ).map(([title, to, icon]) => (
-          <Link className="live-shortcut" to={to} key={to}>
-            <strong>
-              {title}
-              <span aria-hidden="true">›</span>
-            </strong>
-            <div className="shortcut-art" aria-hidden="true">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.1"
-                strokeLinejoin="round"
-              >
-                <path d={icon} />
-              </svg>
-            </div>
-          </Link>
-        ))}
-      </nav>
-      <Feedback error={evidence.error || overview.error} />
-      {!teacher && resources.data && events.data && (
-        <Card className="card-panel" title={<>资料学习进度</>}>
-
-          <p>
-            已完成{" "}
-            {
-              resources.data.filter((r) =>
-                events.data.some(
-                  (e) => e.resource_id === r.id && e.verb === "completed",
-                ),
-              ).length
-            }{" "}
-            / {resources.data.length}份资料
-          </p>
-          <Link to="/student/course-content">继续学习课程资料</Link>
-        </Card>
-      )}
-      {teacher && view !== "gaps" && (
-        <div className="live-inline">
-          <Field className="ui-field" label={<>学生范围</>}>
-            <Select
-              aria-label="学生范围"
-              value={studentFilter}
-              onChange={(e) => setStudentFilter(e)}
-              showSearch
-              optionFilterProp="children"
-            >
-              <Select.Option value="">全班</Select.Option>
-              {overview.data?.map((s) => (
-                <Select.Option value={s.id} key={s.id}>
-                  {s.display_name}
-                </Select.Option>
-              ))}
-            </Select>
-          </Field>
-          <Button
-            disabled={!evidence.data || evidence.isFetching || !!evidence.error}
-            onClick={() => {
-              const cells = [
-                [
-                  "学生ID",
-                  "题目",
-                  "得分",
-                  "满分",
-                  "提交ID",
-                  "评分修订ID",
-                  "标准版本ID",
-                  "逐点评分与依据",
-                  "总评",
-                ],
-                ...rows.map((r) => [
-                  r.student_id,
-                  r.prompt,
-                  String(r.score),
-                  String(r.max_score),
-                  r.submission_id,
-                  r.revision_id,
-                  r.rubric_id || "",
-                  JSON.stringify(r.point_scores || []),
-                  r.feedback,
-                ]),
-              ];
-              const csv =
-                "\uFEFF" +
-                cells
-                  .map((row) =>
-                    row
-                      .map(
-                        (v) =>
-                          '"' +
-                          (/^[=+@\-]/.test(v) ? "'" : "") +
-                          v.replaceAll('"', '""') +
-                          '"',
-                      )
-                      .join(","),
-                  )
-                  .join("\r\n");
-              const url = URL.createObjectURL(
-                new Blob([csv], { type: "text/csv;charset=utf-8" }),
-              );
-              const link = document.createElement("a");
-              link.href = url;
-              link.download = "课程正式评分证据.csv";
-              link.click();
-              URL.revokeObjectURL(url);
-            }}
-          >
-            导出当前正式结果
-          </Button>
-        </div>
-      )}
-      <div className="live-metrics">
-        <Card className="card-panel">
-          <Statistic title={teacher && !studentFilter ? "课程学生" : "有效评分记录"}
-            value={teacher && !studentFilter
-              ? overview.data?.length || 0
-              : rows.length}
-          />
-        </Card>
-        <Card className="card-panel">
-          <Statistic title="已发布作业"
-            value={assignments.data?.filter((a) => a.status === "published").length ||
-              0}
-          />
-        </Card>
-        <Card className="card-panel">
-          <Statistic title="正式结果表现" value={max ? Math.round((score / max) * 100) : "证据不足"} suffix={max ? "%" : undefined} />
-        </Card>
-        <Card className="card-panel">
-          <Statistic title="需复习记录" value={low.length} />
-        </Card>
+      <div className="live-page overview-page">
+        <PageHeader title={pageHeading} subtitle={course?.title} />
+        <LoadingState />
       </div>
-      <Card className="card-panel knowledge-section" title={<>知识点表现</>}>
+    );
+  }
+  if (firstError) {
+    return (
+      <div className="live-page overview-page">
+        <PageHeader title={pageHeading} subtitle={course?.title} />
+        <ErrorState
+          message={firstError.message}
+          onRetry={() => {
+            if (teacher) void overview.refetch();
+            if (classEvidenceEnabled) void classEvidence.refetch();
+            if (useServerStudentEvidence) void studentEvidence.refetch();
+            if (needAssignments) void assignments.refetch();
+            if (needPoints) void points.refetch();
+            if (!teacher) {
+              void resources.refetch();
+              void events.refetch();
+            }
+          }}
+        />
+      </div>
+    );
+  }
 
-        <div className="live-performance">
-          {points.data?.points
-            .filter((p) => p.kind === "point")
-            .map((p) => {
-              const group = rows.filter((r) => r.knowledge_point_id === p.id);
-              const sum = group.reduce((v, r) => v + r.score, 0);
-              const maximum = group.reduce((v, r) => v + r.max_score, 0);
-              return (
-                <article key={p.id}>
-                  <strong>{p.title}</strong>
-                  <MetaTags>
-                    {maximum ? <>
-                      <MetaTag>{Math.round((sum / maximum) * 100)}%</MetaTag>
-                      <MetaTag>{group.length} 条有效结果</MetaTag>
-                    </> : <StatusTag status="pending" label="证据不足" />}
-                  </MetaTags>
-                  {maximum > 0 && (
-                    <Progress aria-label={`${p.title}表现`} percent={Math.round(sum / maximum * 100)} showInfo={false} size="small" />
-                  )}
-                </article>
-              );
-            })}
-        </div>
-      </Card>
-      {teacher ? (
-        <Card className="card-panel student-section" title={<>{studentFilter ? "该学生完成情况" : "班级完成与风险"}</>}>
+  const evidenceTotalPages = Math.max(1, Math.ceil(rows.length / 10));
+  const safeEvidencePage = Math.min(evidencePage, evidenceTotalPages);
 
-          {!studentFilter && (
-            <Input.Search
-              aria-label="搜索学生姓名"
-              placeholder="搜索学生姓名"
-              value={studentSearch}
-              onChange={(e) => {
-                setStudentSearch(e.target.value);
-                setStudentPage(1);
-              }}
-            />
-          )}
-          <div className="table-wrap">
-            <Table rowKey="id" pagination={false} scroll={{ x: 650 }}
-              dataSource={students.slice((studentPage - 1) * 10, studentPage * 10)}
-              columns={[
-                { title: "学生", key: "student", render: (_, s) => <Button type="link" onClick={() => setStudentFilter(s.id)}>{s.display_name}</Button> },
-                { title: "完成学习事件", dataIndex: "completed_events" },
-                { title: "已提交作业", dataIndex: "submitted_assignments" },
-                { title: "待执行任务", dataIndex: "pending_interventions" },
-                { title: "正式结果", key: "results", render: (_, s) => <>{rows.filter((r) => r.student_id === s.id).length}条 <Link to={`/teacher/intervention?new=1&student=${s.id}`}>安排任务</Link></> },
-              ]}
-            />
+  const shortcutItems: Array<[string, string, ReactNode]> = teacher
+    ? [
+        ["学习资料", "/teacher/materials", <BookOpen size={20} aria-hidden="true" />],
+        ["作业中心", "/teacher/homework", <ClipboardCheck size={20} aria-hidden="true" />],
+        ["干预任务", "/teacher/intervention", <Target size={20} aria-hidden="true" />],
+      ]
+    : [
+        ["课程学习", "/student/course-content", <BookOpen size={20} aria-hidden="true" />],
+        ["作业测验", "/student/homework", <ClipboardCheck size={20} aria-hidden="true" />],
+        ["学习路径", "/student/learning", <Compass size={20} aria-hidden="true" />],
+      ];
+
+  const renderShortcuts = () => (
+    <nav className="live-shortcuts" aria-label="工作台快捷入口">
+      {shortcutItems.map(([title, to, iconNode]) => (
+        <Link className="live-shortcut" to={to} key={to}>
+          <strong>
+            {title}
+            <span aria-hidden="true">›</span>
+          </strong>
+          <div className="shortcut-art" aria-hidden="true">
+            {iconNode}
           </div>
-          <Pagination
-            current={studentPage}
-            pageSize={10}
-            total={students.length}
-            onChange={setStudentPage}
-            showSizeChanger={false}
-          />
-        </Card>
-      ) : (
-        <Card className="card-panel" title={<>继续学习</>}>
+        </Link>
+      ))}
+    </nav>
+  );
 
+  const renderMetrics = () => (
+    <div className="live-metrics">
+      <Card className="card-panel">
+        <Statistic
+          prefix={<Users size={15} aria-hidden="true" />}
+          title={teacher && !validStudentFilter ? "课程学生" : "有效评分记录"}
+          value={
+            teacher && !validStudentFilter
+              ? overview.data?.length || 0
+              : rows.length
+          }
+        />
+      </Card>
+      <Card className="card-panel">
+        <Statistic
+          prefix={<ClipboardCheck size={15} aria-hidden="true" />}
+          title="已发布作业"
+          value={
+            assignments.data?.filter((a) => a.status === "published").length || 0
+          }
+        />
+      </Card>
+      <Card className="card-panel">
+        <Statistic
+          prefix={<TrendingUp size={15} aria-hidden="true" />}
+          title="正式结果表现"
+          value={max ? Math.round((score / max) * 100) : "证据不足"}
+          suffix={max ? "%" : undefined}
+        />
+      </Card>
+      <Card className="card-panel">
+        <Statistic
+          prefix={<AlertCircle size={15} aria-hidden="true" />}
+          title="需复习记录"
+          value={low.length}
+        />
+      </Card>
+    </div>
+  );
+
+  const renderKnowledgePerformance = () => (
+    <Card className="card-panel knowledge-section" title={<>知识点表现</>}>
+      {!knowledgeMastery.length ? (
+        <EmptyState title="尚未维护知识点" />
+      ) : (
+        <div className="live-performance">
+          {knowledgeMastery.map((p) => (
+            <article key={p.id}>
+              <strong>{p.title}</strong>
+              <MetaTags>
+                {p.rate !== null ? (
+                  <>
+                    <MetaTag>{p.rate}%</MetaTag>
+                    <MetaTag>{p.count} 条有效结果</MetaTag>
+                  </>
+                ) : (
+                  <StatusTag status="pending" label="证据不足" />
+                )}
+              </MetaTags>
+              {p.rate !== null && (
+                <Progress
+                  aria-label={`${p.title}表现`}
+                  percent={p.rate}
+                  status={
+                    p.rate < 60
+                      ? "exception"
+                      : p.rate >= 80
+                        ? "success"
+                        : "normal"
+                  }
+                  showInfo={false}
+                  size="small"
+                />
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+
+  const renderEvidenceCard = () => (
+    <Card className="card-panel evidence-section" title={<>正式评分证据</>}>
+      {!rows.length ? (
+        <EmptyState title="暂无已发布评分">
+          教师确认并发布评分后，正式结果会显示在这里。
+        </EmptyState>
+      ) : (
+        rows
+          .slice((safeEvidencePage - 1) * 10, safeEvidencePage * 10)
+          .map((r) => {
+            const studentDisplayName =
+              r.student_name || studentNames.get(r.student_id) || r.student_id;
+            return (
+              <article className="live-row" key={r.submission_id}>
+                <div>
+                  <Typography.Text strong className="item-title">
+                    {r.prompt}
+                  </Typography.Text>
+                  <MetaTags>
+                    {teacher && <MetaTag>{studentDisplayName}</MetaTag>}
+                    {r.assignment_title && (
+                      <MetaTag>{r.assignment_title}</MetaTag>
+                    )}
+                    <MetaTag>
+                      {r.score}/{r.max_score} 分
+                    </MetaTag>
+                    <MetaTag>第 {r.attempt} 次作答</MetaTag>
+                    <span className="live-meta">{when(r.released_at)}</span>
+                  </MetaTags>
+                  <p>{r.feedback}</p>
+                  <RevisionPoints points={r.point_scores} />
+                  {teacher && (
+                    <Link
+                      className="ghost-btn"
+                      to={`/teacher/intervention?new=1&student=${encodeURIComponent(r.student_id)}&submission=${encodeURIComponent(r.submission_id)}&point=${encodeURIComponent(r.knowledge_point_id || "")}`}
+                    >
+                      根据本次反馈安排任务
+                    </Link>
+                  )}
+                </div>
+                <Link
+                  to={`/${teacher ? "teacher" : "student"}/homework/submissions/${r.submission_id}/${teacher ? "grade" : "feedback"}`}
+                >
+                  查看原始证据
+                </Link>
+              </article>
+            );
+          })
+      )}
+      <Pagination
+        current={safeEvidencePage}
+        pageSize={10}
+        total={rows.length}
+        onChange={setEvidencePage}
+        showSizeChanger={false}
+        hideOnSinglePage
+      />
+    </Card>
+  );
+
+  if (!teacher) {
+    const publishedResources = (resources.data || []).filter(
+      (r) => r.status === "published",
+    );
+    const completedCount = publishedResources.filter((r) =>
+      completedResourceSet.has(r.id),
+    ).length;
+    const progressPct = publishedResources.length
+      ? Math.round((completedCount / publishedResources.length) * 100)
+      : 0;
+
+    return (
+      <div className="live-page overview-page student-overview">
+        <PageHeader title={pageHeading} subtitle={course?.title} />
+        {renderMetrics()}
+        <Card className="card-panel" title={<>资料学习进度</>}>
+          <Space direction="vertical" className="live-full-width" size="small">
+            <Progress
+              percent={progressPct}
+              status={progressPct === 100 && publishedResources.length > 0 ? "success" : "active"}
+            />
+            <p>
+              已完成 {completedCount} / {publishedResources.length} 份资料
+            </p>
+            <Link to="/student/course-content">继续学习课程资料</Link>
+          </Space>
+        </Card>
+        {renderKnowledgePerformance()}
+        <Card className="card-panel" title={<>继续学习</>}>
           <div className="live-inline">
             <Link className="primary-link" to="/student/course-content">
               进入学习中心
@@ -380,68 +728,288 @@ export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
               老师任务
             </Link>
           </div>
-          {resources.data
-            ?.filter((r) => r.status === "published")
-            .slice(0, 6)
-            .map((r) => (
-              <p key={r.id}>
-                {r.title} · {r.locator} · v{r.version}
-              </p>
-            ))}
+          {!publishedResources.length ? (
+            <EmptyState title="暂无已发布课程资料" />
+          ) : (
+            publishedResources.slice(0, 6).map((r) => {
+              const done = completedResourceSet.has(r.id);
+              return (
+                <article className="live-row" key={r.id}>
+                  <div>
+                    <Link
+                      to={`/student/course-content?resource=${encodeURIComponent(r.id)}`}
+                    >
+                      {r.title}
+                    </Link>
+                    <MetaTags>
+                      <StatusTag
+                        status={done ? "completed" : "pending"}
+                        label={done ? "已完成" : "待学习"}
+                      />
+                      {r.locator && <MetaTag>{r.locator}</MetaTag>}
+                      <MetaTag>v{r.version}</MetaTag>
+                    </MetaTags>
+                  </div>
+                </article>
+              );
+            })
+          )}
         </Card>
-      )}
-      <ActivityTimeline
-        key={studentFilter}
-        teacher={teacher}
-        studentID={teacher ? studentFilter : ""}
-      />
-      <Card className="card-panel evidence-section" title={<>正式评分证据</>}>
+        <ActivityTimeline teacher={false} studentID="" />
+        {renderEvidenceCard()}
+        {renderShortcuts()}
+      </div>
+    );
+  }
 
-        {!rows.length ? (
-          <EmptyState title="暂无已发布评分">
-            教师确认并发布评分后，正式结果会显示在这里。
-          </EmptyState>
-        ) : (
-          rows.slice((evidencePage - 1) * 10, evidencePage * 10).map((r) => (
-            <article className="live-row" key={r.submission_id}>
-              <div>
-                <Typography.Text strong className="item-title">{r.prompt}</Typography.Text>
-                <MetaTags>
-                  <MetaTag>{r.score}/{r.max_score} 分</MetaTag>
-                  <MetaTag>第 {r.attempt} 次作答</MetaTag>
-                  <span className="live-meta">{when(r.released_at)}</span>
-                </MetaTags>
-                <p>{r.feedback}</p>
-                <RevisionPoints points={r.point_scores} />
-                {teacher && (
-                  <Link
-                    className="ghost-btn"
-                    to={`/teacher/intervention?new=1&student=${r.student_id}&submission=${r.submission_id}&point=${r.knowledge_point_id || ""}`}
-                  >
-                    根据本次反馈安排任务
-                  </Link>
-                )}
-              </div>
-              <Link
-                to={`/${teacher ? "teacher" : "student"}/homework/submissions/${r.submission_id}/${teacher ? "grade" : "feedback"}`}
+  return (
+    <div className={`live-page overview-page teacher-overview-${view}`}>
+      <PageHeader
+        title={pageHeading}
+        subtitle={course?.title}
+        extra={
+          view !== "gaps" ? (
+            <>
+              <Select
+                aria-label="学生范围"
+                style={{ minWidth: 164 }}
+                value={validStudentFilter}
+                onChange={(v) => setStudentFilter(v || "")}
+                showSearch
+                allowClear
+                placeholder="全班学生"
+                optionFilterProp="label"
+                options={[
+                  { value: "", label: "全班" },
+                  ...(overview.data || []).map((s) => ({
+                    value: s.id,
+                    label: s.display_name,
+                  })),
+                ]}
+              />
+              <Button
+                icon={<Download size={14} aria-hidden="true" />}
+                disabled={
+                  !activeEvidence.data ||
+                  activeEvidence.isFetching ||
+                  !!activeEvidence.error
+                }
+                onClick={() => exportEvidenceCSV(rows, studentNames)}
               >
-                查看原始证据
-              </Link>
-            </article>
-          ))
-        )}
-        <Pagination
-          current={evidencePage}
-          pageSize={10}
-          total={rows.length}
-          onChange={setEvidencePage}
-          showSizeChanger={false}
+                {view === "evidence" ? "导出 CSV" : "导出当前正式结果"}
+              </Button>
+            </>
+          ) : undefined
+        }
+      />
+      <Tabs
+        activeKey={view}
+        onChange={setView}
+        items={[
+          { key: "overview", label: "班级总览" },
+          { key: "students", label: "学生与进度" },
+          { key: "evidence", label: "评分证据" },
+          { key: "gaps", label: "评分缺口" },
+        ]}
+      />
+      {invalidStudentParam && (
+        <Alert
+          type="warning"
+          showIcon
+          message="指定的学生不在当前课程名单内，已切换为展示全班数据。"
+          action={
+            <Button size="small" onClick={() => setStudentFilter("")}>
+              清除筛选
+            </Button>
+          }
         />
-      </Card>
-      {teacher && view === "gaps" && (
-        <><DiagnosisPanel evidence={evidence.data || []} /><LearningGaps evidence={evidence.data || []} members={overview.data || []} /></>
+      )}
+      {validStudentFilter && view !== "gaps" && (
+        <div className="context-banner">
+          <strong>{matchedStudent?.display_name}的学习详情</strong>
+          <Link
+            className="primary-link"
+            to={`/teacher/intervention?new=1&student=${encodeURIComponent(validStudentFilter)}`}
+          >
+            安排补学补练
+          </Link>
+          <Button onClick={() => setStudentFilter("")}>返回全班</Button>
+        </div>
+      )}
+      {validStudentFilter && view === "gaps" && (
+        <Alert
+          type="info"
+          showIcon
+          message="评分缺口与共性问题分析基于全班同题同标准的正式评分结果统计，不受单个学生筛选限制。"
+          action={
+            <Button size="small" onClick={() => setStudentFilter("")}>
+              清除学生筛选
+            </Button>
+          }
+        />
+      )}
+
+      {view === "overview" && (
+        <>
+          {renderMetrics()}
+          {rows.length > 0 ? (
+            <div className="insight-charts-grid">
+              <ScoreHistogramCard rows={rows} />
+              <MasteryBarsCard items={knowledgeMastery} />
+            </div>
+          ) : (
+            <Card className="card-panel">
+              <EmptyState title="暂无已发布的正式评分数据">
+                发布作业并确认评分后，此处将自动呈现班级分数分布与知识点掌握度。
+              </EmptyState>
+            </Card>
+          )}
+          {renderKnowledgePerformance()}
+          {renderShortcuts()}
+        </>
+      )}
+
+      {view === "students" && (
+        <>
+          <Card
+            className="card-panel student-section"
+            title={
+              <>{validStudentFilter ? "该学生完成情况" : "班级完成与风险"}</>
+            }
+          >
+            <Space direction="vertical" className="live-full-width" size="middle">
+              {!validStudentFilter && (
+                <Input.Search
+                  aria-label="搜索学生姓名"
+                  placeholder="搜索学生姓名"
+                  allowClear
+                  value={studentSearch}
+                  onChange={(e) => setStudentSearch(e.target.value)}
+                />
+              )}
+              <Table<StudentRiskRow>
+                rowKey="id"
+                scroll={{ x: 760 }}
+                pagination={{
+                  pageSize: 10,
+                  showSizeChanger: false,
+                  hideOnSinglePage: true,
+                }}
+                dataSource={studentRiskRows}
+                locale={{ emptyText: "暂无匹配的学生数据" }}
+                columns={[
+                  {
+                    title: "学生",
+                    key: "student",
+                    sorter: (a, b) =>
+                      a.display_name.localeCompare(b.display_name, "zh-CN"),
+                    render: (_, s) => (
+                      <Space wrap size={4}>
+                        <Button
+                          type="link"
+                          className="table-text-action"
+                          onClick={() => setStudentFilter(s.id)}
+                        >
+                          {s.display_name}
+                        </Button>
+                        {s.avgPct !== null && s.avgPct < 60 && (
+                          <Tag color="error">需关注</Tag>
+                        )}
+                        {s.pending_interventions > 0 && (
+                          <Tag color="warning">待补学</Tag>
+                        )}
+                      </Space>
+                    ),
+                  },
+                  {
+                    title: "正式结果数",
+                    dataIndex: "releasedCount",
+                    sorter: (a, b) => a.releasedCount - b.releasedCount,
+                  },
+                  {
+                    title: "平均得分率",
+                    dataIndex: "avgPct",
+                    sorter: (a, b) => (a.avgPct ?? -1) - (b.avgPct ?? -1),
+                    render: (v: number | null) =>
+                      v !== null ? (
+                        <Tag
+                          color={
+                            v < 60 ? "error" : v < 80 ? "warning" : "success"
+                          }
+                        >
+                          {v}%
+                        </Tag>
+                      ) : (
+                        <Typography.Text type="secondary">暂无</Typography.Text>
+                      ),
+                  },
+                  {
+                    title: "最低得分率",
+                    dataIndex: "minPct",
+                    sorter: (a, b) => (a.minPct ?? -1) - (b.minPct ?? -1),
+                    render: (v: number | null) =>
+                      v !== null ? (
+                        `${v}%`
+                      ) : (
+                        <Typography.Text type="secondary">暂无</Typography.Text>
+                      ),
+                  },
+                  {
+                    title: "已提交作业",
+                    dataIndex: "submitted_assignments",
+                    sorter: (a, b) =>
+                      a.submitted_assignments - b.submitted_assignments,
+                  },
+                  {
+                    title: "完成学习",
+                    dataIndex: "completed_events",
+                    sorter: (a, b) => a.completed_events - b.completed_events,
+                  },
+                  {
+                    title: "待执行任务",
+                    dataIndex: "pending_interventions",
+                    sorter: (a, b) =>
+                      a.pending_interventions - b.pending_interventions,
+                  },
+                  {
+                    title: "操作",
+                    key: "actions",
+                    render: (_, s) => (
+                      <Link
+                        to={`/teacher/intervention?new=1&student=${encodeURIComponent(s.id)}`}
+                      >
+                        创建补学任务
+                      </Link>
+                    ),
+                  },
+                ]}
+              />
+            </Space>
+          </Card>
+          <ActivityTimeline
+            key={validStudentFilter}
+            teacher
+            studentID={validStudentFilter}
+          />
+        </>
+      )}
+
+      {view === "evidence" && renderEvidenceCard()}
+
+      {view === "gaps" && (
+        <>
+          <DiagnosisPanel
+            evidence={classEvidence.data || []}
+            members={overview.data || []}
+          />
+          <LearningGaps
+            evidence={classEvidence.data || []}
+            members={overview.data || []}
+          />
+        </>
       )}
     </div>
   );
 }
+
 export { InterventionPage } from "./interventions";

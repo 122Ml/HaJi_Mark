@@ -26,20 +26,23 @@ func main() {
 	defer db.Close()
 	cache := redis.NewClient(&redis.Options{Addr: config.RedisAddr})
 	defer cache.Close()
-	app := &http.Server{Addr: config.HTTPAddr, Handler: server.NewWithContext(ctx, db, cache, config.SecureSessionCookie), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 120 * time.Second, WriteTimeout: 120 * time.Second, IdleTimeout: 60 * time.Second}
+	handler, waitBg := server.NewApp(ctx, db, cache, config)
+	app := &http.Server{Addr: config.HTTPAddr, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 120 * time.Second, WriteTimeout: 120 * time.Second, IdleTimeout: 60 * time.Second}
 	serverErrors := make(chan error, 1)
 	go func() { serverErrors <- app.ListenAndServe() }()
 	log.Printf("api listening on %s", config.HTTPAddr)
 	select {
 	case err := <-serverErrors:
+		cancel()
 		if err != nil && err != http.ErrServerClosed {
 			log.Fatal(err)
 		}
 	case <-ctx.Done():
-		shutdownCtx, done := context.WithTimeout(context.Background(), 10*time.Second)
+		shutdownCtx, done := context.WithTimeout(context.Background(), 15*time.Second)
 		defer done()
 		if err := app.Shutdown(shutdownCtx); err != nil {
 			log.Printf("shutdown: %v", err)
 		}
+		waitBg(shutdownCtx)
 	}
 }

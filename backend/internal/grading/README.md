@@ -1,7 +1,7 @@
-# grading 责任导航
+# grading 责任导航（成员 C：李然）
 
-当前活动业务在 `backend/internal/learning` 与 `web/src/live`，定位：feedback.go的grade/gradeState；assessment.tsx的GradePage。本目录保留原纵向责任入口，不另外注册重复服务。
+当前活动业务集中在 `backend/internal/learning`、`backend/internal/agent`、`backend/internal/rag`、`backend/internal/identity` 与 `web/src/live`，本目录保留为纵切面与公共底座责任入口，不另外注册重复 HTTP 服务。
 
-课程/提交/评分/路径/干预均已接PostgreSQL，实际契约见 docs/contracts.md；每个对象校验课程和本人权限，认证写操作校验CSRF。查询在learning.sql，经sqlc生成store；迁移00001—00007已使用。AI按用户要求关闭，不返回假模型结果。
-
-后续按docs/team.md领取垂直改进，修改后运行相应真实HTTP/Go/浏览器验收。结构化rubric、E6模型评阅和独立实验仍未完成，不能把整题人工评分或规则路径当作AI能力。
+- **后端代码**：`learning/`（`feedback.go` 评分/发布/导出段、`regrade.go`、`account.go`、`workspace.go`、`http.go` 公共路由）及 `agent/*`、`identity/*`、`platform/*`、`server/*`、`rag/`（`models.go`、`jobs.go`、`agent.go`、`agent_stream.go`）；SQL 位于 `backend/db/queries/`（`agent.sql`、`identity.sql`、`workspace.sql`、`workflows.sql` 重评影响段）。
+- **前端代码**：`web/src/live/`（`grading.tsx`、`assessment.tsx` 的 `GradePage`、`content-impact.tsx`、`regrades.tsx`、`agent.tsx`、`agent-editor.tsx`、`context*.tsx`、`account.tsx`、`ai-jobs.tsx`、`workflow-job.tsx`、`routes.tsx`）及 `web/src/{app,shared,styles}/*`。
+- **迁移与边界**：迁移 `00001—00017` 已使用，后续从 `00018` 起统一预约编号；完整边界与自查清单见 [docs/team.md](../../../docs/team.md)、[docs/handoffs/grading.md](../../../docs/handoffs/grading.md) 与 [docs/contracts.md](../../../docs/contracts.md)。

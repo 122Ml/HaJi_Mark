@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
@@ -187,7 +188,8 @@ func (s *Service) BankDraft(ctx context.Context, j store.ProcessingJob, in JobIn
 	if j.Kind == "question_generate" {
 		var questions []map[string]json.RawMessage
 		if err := json.Unmarshal(out["questions"], &questions); err != nil {
-			return failed, err
+			log.Printf("bank draft %s unmarshal questions failed: %v", j.ID, err)
+			return failed, errors.New("AI候选题目格式无效")
 		}
 		for _, q := range questions {
 			if q == nil {
@@ -210,7 +212,8 @@ func (s *Service) BankDraft(ctx context.Context, j store.ProcessingJob, in JobIn
 	case "question_generate":
 		var candidates []BankCandidate
 		if err := json.Unmarshal(out["questions"], &candidates); err != nil {
-			return failed, fmt.Errorf("AI题目字段格式无效：%w", err)
+			log.Printf("bank draft %s unmarshal candidates failed: %v", j.ID, err)
+			return failed, errors.New("AI题目字段格式无效")
 		}
 		if len(candidates) != in.Count {
 			return failed, fmt.Errorf("AI候选数量不符：要求%d，实际%d", in.Count, len(candidates))
@@ -226,7 +229,8 @@ func (s *Service) BankDraft(ctx context.Context, j store.ProcessingJob, in JobIn
 	case "bank_rubric":
 		var criteria []Criterion
 		if err := json.Unmarshal(out["criteria"], &criteria); err != nil {
-			return failed, fmt.Errorf("AI标准字段格式无效：%w", err)
+			log.Printf("bank draft %s unmarshal criteria failed: %v", j.ID, err)
+			return failed, errors.New("AI标准字段格式无效")
 		}
 		if err = ValidateCriteria(criteria, in.MaxScore, refs); err != nil {
 			return failed, err

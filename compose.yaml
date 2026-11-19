@@ -8,6 +8,7 @@ x-backend: &backend
     REDIS_ADDR: redis:6379
     GIN_MODE: release
     SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+    PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-}
     AI_BASE_URL: ${AI_BASE_URL:-}
     AI_API_KEY: ${AI_API_KEY:-}
     AI_MODEL: ${AI_MODEL:-}

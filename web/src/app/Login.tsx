@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
 import { Alert, Button, Card, Input, Form } from "antd";
-import { Link, useNavigate } from "react-router-dom";
+import { Moon, Sun } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { homeFor, useSession } from "../shared/session";
+import { useThemeMode } from "./theme-mode";
 
 export function Login() {
   const { login, session, loading } = useSession();
+  const { mode, toggleMode } = useThemeMode();
   const navigate = useNavigate();
+  const location = useLocation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -23,21 +27,51 @@ export function Login() {
             </span>
             HaJi Mark
           </Link>
-          {!loading && session ? (
-            <Link className="welcome-jump" to={homeFor(session.user)}>
-              返回我的工作台
-            </Link>
-          ) : (
-            <a className="welcome-jump" href="#sign-in">
-              登录
-            </a>
-          )}
+          <div className="welcome-nav-actions">
+            <Button
+              htmlType="button"
+              size="small"
+              className="lab-mode-btn"
+              icon={mode === "dark" ? <Sun size={14} aria-hidden="true" /> : <Moon size={14} aria-hidden="true" />}
+              aria-pressed={mode === "dark"}
+              onClick={toggleMode}
+            >
+              {mode === "dark" ? "浅色" : "深色"}
+            </Button>
+            {!loading && session ? (
+              <Link className="welcome-jump" to={homeFor(session.user)}>
+                返回我的工作台
+              </Link>
+            ) : (
+              <a className="welcome-jump" href="#sign-in">
+                登录
+              </a>
+            )}
+          </div>
         </header>
         <main className="welcome-main">
           <section className="welcome-story">
             <h1>让每一步学习，都看得见成长</h1>
+            <p className="welcome-sub">课程资料 · 作业批阅 · 知识图谱 · 课程助理</p>
           </section>
           <Card className="sign-in-card" id="sign-in" title="登录">
+            {!loading && session && (
+              <Alert
+                type="info"
+                showIcon
+                style={{ marginBottom: 16 }}
+                message={`已登录：${session.user.display_name}`}
+                action={
+                  <Button
+                    size="small"
+                    type="primary"
+                    onClick={() => navigate(homeFor(session.user))}
+                  >
+                    进入工作台
+                  </Button>
+                }
+              />
+            )}
             <Form
               className="sign-in-form"
               onFinish={async () => {
@@ -46,7 +80,13 @@ export function Login() {
                 try {
                   const user = await login(username.trim(), password);
                   setPassword("");
-                  navigate(homeFor(user), { replace: true });
+                  const from = (location.state as { from?: string } | null)?.from;
+                  const rolePrefix = `/${user.role}/`;
+                  const target =
+                    from && from.startsWith(rolePrefix) && !from.startsWith("//")
+                      ? from
+                      : homeFor(user);
+                  navigate(target, { replace: true });
                 } catch (err) {
                   setError(
                     err instanceof Error ? err.message : "登录失败，请重试",

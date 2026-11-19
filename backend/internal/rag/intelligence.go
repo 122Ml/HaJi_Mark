@@ -61,9 +61,9 @@ type RankedCandidate struct {
 	Reason string `json:"reason"`
 }
 type IntelligenceOutput struct {
-	Findings     []DiagnosisFinding `json:"findings,omitempty"`
-	Unclassified []string           `json:"unclassified,omitempty"`
-	Ranking      []RankedCandidate  `json:"ranking,omitempty"`
+	Findings     []DiagnosisFinding `json:"findings"`
+	Unclassified []string           `json:"unclassified"`
+	Ranking      []RankedCandidate  `json:"ranking"`
 }
 
 type diagnosisSpan struct {
@@ -103,7 +103,11 @@ func decodeDiagnosis(raw string, spans []diagnosisSpan) (IntelligenceOutput, err
 		} `json:"findings"`
 		Unclassified []string `json:"unclassified"`
 	}
-	out := IntelligenceOutput{}
+	out := IntelligenceOutput{
+		Findings:     []DiagnosisFinding{},
+		Unclassified: []string{},
+		Ranking:      []RankedCandidate{},
+	}
 	if err := json.Unmarshal([]byte(raw), &model); err != nil {
 		return out, errors.New("诊断未返回有效结构")
 	}
@@ -115,6 +119,7 @@ func decodeDiagnosis(raw string, spans []diagnosisSpan) (IntelligenceOutput, err
 		if len(f.Evidence) != 0 || len(f.EvidenceIDs) == 0 {
 			return out, errors.New("诊断须选择作答片段ID，原文由服务端附上")
 		}
+		f.Evidence = make([]DiagnosisQuote, 0, len(f.EvidenceIDs))
 		for _, id := range f.EvidenceIDs {
 			span, ok := byID[id]
 			if !ok {
@@ -124,7 +129,9 @@ func decodeDiagnosis(raw string, spans []diagnosisSpan) (IntelligenceOutput, err
 		}
 		out.Findings = append(out.Findings, f.DiagnosisFinding)
 	}
-	out.Unclassified = model.Unclassified
+	if model.Unclassified != nil {
+		out.Unclassified = model.Unclassified
+	}
 	return out, nil
 }
 
@@ -249,6 +256,20 @@ func (s *Service) Intelligence(ctx context.Context, j store.ProcessingJob, job J
 	if e = ValidateIntelligence(r.Kind, in, out, false); e != nil {
 		return failedDraft, e
 	}
+	if out.Findings == nil {
+		out.Findings = []DiagnosisFinding{}
+	}
+	for i := range out.Findings {
+		if out.Findings[i].Evidence == nil {
+			out.Findings[i].Evidence = []DiagnosisQuote{}
+		}
+	}
+	if out.Unclassified == nil {
+		out.Unclassified = []string{}
+	}
+	if out.Ranking == nil {
+		out.Ranking = []RankedCandidate{}
+	}
 	data, _ := json.Marshal(out)
 	tx, e := s.Models.DB.Begin(ctx)
 	if e != nil {
@@ -259,13 +280,22 @@ func (s *Service) Intelligence(ctx context.Context, j store.ProcessingJob, job J
 	if e = lockRunningJob(ctx, q, j); e != nil {
 		return nil, e
 	}
-	if _, e = q.FinishIntelligenceReport(ctx, store.FinishIntelligenceReportParams{ID: r.ID, Output: data}); e != nil {
+	affected, e := q.FinishIntelligenceReport(ctx, store.FinishIntelligenceReportParams{ID: r.ID, Output: data})
+	if e != nil {
+		return nil, e
+	}
+	if affected != 1 {
+		return nil, errors.New("智能分析报告已更新或重复写入")
+	}
+	result := map[string]string{"report_id": r.ID}
+	jobOut, _ := json.Marshal(result)
+	if e = q.FinishProcessingJob(ctx, store.FinishProcessingJobParams{ID: j.ID, State: "succeeded", Output: jobOut}); e != nil {
 		return nil, e
 	}
 	if e = tx.Commit(ctx); e != nil {
 		return nil, e
 	}
-	return map[string]string{"report_id": r.ID}, nil
+	return result, nil
 }
 
 func SortCandidates(c []LearningCandidate) {

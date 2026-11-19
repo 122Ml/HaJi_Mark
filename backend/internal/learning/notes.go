@@ -1,17 +1,23 @@
 package learning
 
 import (
-	"errors"
+	"regexp"
+	"strings"
+
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 )
 
+var usernamePattern = regexp.MustCompile(`^[A-Za-z0-9._@-]{3,64}$`)
+
 func (h *Handler) notes(c *gin.Context) {
 	v, e := h.q.ListLearningNotes(c.Request.Context(), store.ListLearningNotesParams{ActorID: identity.Current(c).ID, CourseID: c.Param("courseID")})
+	if e == nil && v == nil {
+		v = []store.LearningNote{}
+	}
 	result(c, v, e)
 }
 func (h *Handler) note(c *gin.Context) {
@@ -22,8 +28,9 @@ func (h *Handler) note(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
-	if len(in.Note) > 100000 {
-		invalid(c, "笔记过长")
+	in.Note = strings.TrimSpace(in.Note)
+	if len(in.Note) > 100000 || strings.ContainsRune(in.Note, '\x00') {
+		invalid(c, "笔记过长或包含非法字符")
 		return
 	}
 	r, e := h.q.GetBusinessResource(c.Request.Context(), c.Param("id"))
@@ -50,8 +57,18 @@ func (h *Handler) createStudent(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
-	if !validText(in.Username, 64) || !validText(in.Name, 200) || len(in.Password) < 12 || len(in.Password) > 72 {
-		invalid(c, "请填写用户名、姓名及12到72字节初始密码")
+	in.Username = strings.TrimSpace(in.Username)
+	in.Name = strings.TrimSpace(in.Name)
+	if !usernamePattern.MatchString(in.Username) {
+		invalid(c, "用户名须为3到64位字母、数字或._@-，不能包含空白字符")
+		return
+	}
+	if !validText(in.Name, 200) {
+		invalid(c, "请填写不超过200字节的学生姓名")
+		return
+	}
+	if len(in.Password) < 12 || len(in.Password) > 72 || strings.TrimSpace(in.Password) == "" || strings.ContainsRune(in.Password, '\x00') {
+		invalid(c, "初始密码须为12到72字节且不能全为空白")
 		return
 	}
 	hash, e := bcrypt.GenerateFromPassword([]byte(in.Password), bcrypt.DefaultCost)
@@ -70,9 +87,8 @@ func (h *Handler) createStudent(c *gin.Context) {
 	id := uuid.NewString()
 	e = q.CreateLocalUser(ctx, store.CreateLocalUserParams{ID: id, Username: text(in.Username), DisplayName: in.Name, Role: "student", PasswordHash: text(string(hash))})
 	if e != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(e, &pgErr) && pgErr.Code == "23505" {
-			identity.Fail(c, 409, "username_exists", "用户名已存在，请使用加入课程")
+		if isPgCode(e, "23505") {
+			identity.Fail(c, 409, "conflict", "用户名已存在")
 			return
 		}
 		result(c, nil, e)

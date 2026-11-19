@@ -9,7 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"math"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -17,6 +19,7 @@ import (
 
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -52,7 +55,18 @@ func LoadModels(db *pgxpool.Pool) (*Models, error) {
 	if e != nil {
 		return nil, e
 	}
-	m := &Models{DB: db, Client: &http.Client{Timeout: 90 * time.Second}}
+	transport := &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   10 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ResponseHeaderTimeout: 60 * time.Second,
+		IdleConnTimeout:       90 * time.Second,
+		MaxIdleConns:          100,
+		MaxIdleConnsPerHost:   20,
+	}
+	m := &Models{DB: db, Client: &http.Client{Transport: transport}}
 	if e = json.Unmarshal(raw, &m.Profiles); e != nil {
 		return nil, e
 	}
@@ -95,7 +109,19 @@ type usage struct {
 	Total      int64 `json:"total_tokens"`
 }
 
+func redactSecret(s, secret string) string {
+	if secret != "" {
+		s = strings.ReplaceAll(s, secret, "[REDACTED]")
+	}
+	return s
+}
+
 func (m *Models) call(ctx context.Context, course, actor, purpose string, p Profile, path string, payload any, inputBytes, maxOutput int, out any) error {
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 180*time.Second)
+		defer cancel()
+	}
 	return m.callDecoded(ctx, course, actor, purpose, p, path, payload, inputBytes, maxOutput, func(resp *http.Response) (usage, error) {
 		data, e := io.ReadAll(io.LimitReader(resp.Body, (8<<20)+1))
 		if e != nil || len(data) > 8<<20 {
@@ -126,19 +152,26 @@ func (m *Models) callDecoded(ctx context.Context, course, actor, purpose string,
 	}
 	tx, e := m.DB.Begin(ctx)
 	if e != nil {
-		return e
+		log.Printf("model call begin tx failed: %v", e)
+		return errors.New("模型预算服务暂时不可用，请稍后重试")
 	}
 	defer tx.Rollback(ctx)
 	q := store.New(tx)
 	if _, e = q.ReserveModelBudget(ctx, reserve); e != nil {
-		return errors.New("本次50元联调预算不足，调用未发出")
+		if errors.Is(e, pgx.ErrNoRows) {
+			return errors.New("模型调用预算不足，调用未发出")
+		}
+		log.Printf("reserve model budget failed (%s/%s): %v", p.ID, purpose, e)
+		return errors.New("模型预算服务暂时不可用，请稍后重试")
 	}
 	id := uuid.NewString()
 	if e = q.CreateModelCall(ctx, store.CreateModelCallParams{ID: id, CourseID: course, ActorID: actor, ProfileID: p.ID, Purpose: purpose, ReservedMicroCny: reserve}); e != nil {
-		return e
+		log.Printf("create model call %s failed: %v", id, e)
+		return errors.New("模型调用登记失败，请稍后重试")
 	}
 	if e = tx.Commit(ctx); e != nil {
-		return e
+		log.Printf("commit model call %s failed: %v", id, e)
+		return errors.New("模型调用登记失败，请稍后重试")
 	}
 	started := time.Now()
 	state, code := "unknown", "request_failed"
@@ -149,15 +182,21 @@ func (m *Models) callDecoded(ctx context.Context, course, actor, purpose string,
 		defer cancel()
 		t, err := m.DB.Begin(settleCtx)
 		if err != nil {
+			log.Printf("settle model call %s begin failed: %v", id, err)
 			return
 		}
 		defer t.Rollback(settleCtx)
 		sq := store.New(t)
 		if _, err = sq.FinishModelCall(settleCtx, store.FinishModelCallParams{ID: id, State: state, ChargedMicroCny: charge, InputTokens: u.Prompt, OutputTokens: u.Completion, DurationMs: time.Since(started).Milliseconds(), ErrorCode: code}); err != nil {
+			log.Printf("settle model call %s finish failed: %v", id, err)
 			return
 		}
-		if err = sq.SettleModelBudget(settleCtx, store.SettleModelBudgetParams{ReservedMicroCny: reserve, SpentMicroCny: charge}); err == nil {
-			_ = t.Commit(settleCtx)
+		if err = sq.SettleModelBudget(settleCtx, store.SettleModelBudgetParams{ReservedMicroCny: reserve, SpentMicroCny: charge}); err != nil {
+			log.Printf("settle model call %s budget failed: %v", id, err)
+			return
+		}
+		if err = t.Commit(settleCtx); err != nil {
+			log.Printf("settle model call %s commit failed: %v", id, err)
 		}
 	}()
 	raw, _ := json.Marshal(payload)
@@ -165,15 +204,22 @@ func (m *Models) callDecoded(ctx context.Context, course, actor, purpose string,
 	if e != nil {
 		return errors.New("模型接口配置无效")
 	}
-	req.Header.Set("Authorization", "Bearer "+os.Getenv(p.KeyEnv))
+	apiKey := os.Getenv(p.KeyEnv)
+	req.Header.Set("Authorization", "Bearer "+apiKey)
 	req.Header.Set("Content-Type", "application/json")
 	resp, e := m.Client.Do(req)
 	if e != nil {
+		log.Printf("model call %s (%s/%s) request failed: %s", id, p.ID, purpose, redactSecret(e.Error(), apiKey))
+		if errors.Is(e, context.Canceled) {
+			code = "canceled"
+		}
 		return errors.New("模型连接失败或超时；未知调用保留预算，不自动重试")
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		code = fmt.Sprintf("http_%d", resp.StatusCode)
+		bodySnippet, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		log.Printf("model call %s (%s/%s) upstream HTTP %d: %s", id, p.ID, purpose, resp.StatusCode, redactSecret(strings.TrimSpace(string(bodySnippet)), apiKey))
 		return fmt.Errorf("模型服务返回HTTP %d，请检查服务端配置及额度", resp.StatusCode)
 	}
 	u, e = decode(resp)
@@ -192,7 +238,11 @@ func (m *Models) callDecoded(ctx context.Context, course, actor, purpose string,
 		u = usage{}
 	}
 	if e != nil {
-		code = "invalid_response"
+		if errors.Is(e, context.Canceled) {
+			code = "canceled"
+		} else {
+			code = "invalid_response"
+		}
 		return e
 	}
 	state, code = "completed", ""

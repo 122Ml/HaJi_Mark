@@ -4,6 +4,9 @@ SELECT * FROM knowledge_topics WHERE course_id=$1 ORDER BY title,id;
 -- name: CreateTopic :one
 INSERT INTO knowledge_topics(id,course_id,title,description) VALUES($1,$2,$3,$4) RETURNING *;
 
+-- name: GetTopicByID :one
+SELECT * FROM knowledge_topics WHERE id=$1 AND course_id=$2;
+
 -- name: UpdateTopic :one
 UPDATE knowledge_topics SET title=$3,description=$4,active=$5,edit_version=edit_version+1 WHERE id=$1 AND course_id=$2 AND edit_version=$6 RETURNING *;
 
@@ -84,6 +87,9 @@ AND (sqlc.arg(topic_id)::text='' OR EXISTS(SELECT 1 FROM topic_links l WHERE l.b
 -- name: CreateRegradeBatch :one
 INSERT INTO regrade_batches(id,course_id,question_id,rubric_id,correct_answer,reason,question_snapshot,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *;
 
+-- name: GetRegradeBatch :one
+SELECT * FROM regrade_batches WHERE id=$1 AND course_id=$2;
+
 -- name: LockRegradeBatch :one
 SELECT * FROM regrade_batches WHERE id=$1 AND course_id=$2 FOR UPDATE;
 
@@ -99,6 +105,9 @@ INSERT INTO regrade_items(batch_id,submission_id,answer_sha256,baseline_revision
 -- name: ListRegradeItems :many
 SELECT i.*,s.student_id,s.answer_text,s.attempt,u.display_name FROM regrade_items i JOIN submissions s ON s.id=i.submission_id JOIN users u ON u.id=s.student_id WHERE i.batch_id=$1 ORDER BY s.student_id;
 
+-- name: GetRegradeItem :one
+SELECT i.*,s.student_id,s.answer_text,s.attempt,u.display_name FROM regrade_items i JOIN submissions s ON s.id=i.submission_id JOIN users u ON u.id=s.student_id WHERE i.batch_id=$1 AND i.submission_id=$2;
+
 -- name: SaveRegradeItem :one
 UPDATE regrade_items SET score=$3,feedback=$4,point_scores=$5,confirmed=$6,ai_job_id=$7,edit_version=edit_version+1 WHERE batch_id=$1 AND submission_id=$2 AND edit_version=$8 RETURNING *;
 
@@ -108,11 +117,27 @@ UPDATE regrade_batches SET state=$3,released_at=CASE WHEN $3='released' THEN now
 -- name: AttachRegradeRevision :exec
 UPDATE grading_revisions SET regrade_batch_id=$2 WHERE id=$1;
 
+-- name: CreateReleasedRegradeRevision :one
+INSERT INTO grading_revisions(id,submission_id,revision,score,feedback,method,state,reviewer_id,request_id,rubric_id,point_scores,ai_job_id,regrade_batch_id,released_at)
+VALUES($1,$2,$3,$4,$5,$6,'released',$7,$8,$9,$10,$11,$12,now()) RETURNING *;
+
 -- name: ActiveRegradeForQuestion :one
 SELECT EXISTS(SELECT 1 FROM regrade_batches WHERE question_id=$1 AND state='active');
 
+-- name: GetActiveRegradeBatchForQuestion :one
+SELECT id FROM regrade_batches WHERE question_id=$1 AND state='active' ORDER BY created_at DESC LIMIT 1;
+
 -- name: GradingManagedByRegrade :one
 SELECT EXISTS(SELECT 1 FROM regrade_batches WHERE question_id=$1 AND state IN('active','released'));
+
+-- name: ListResourceAssetsBatch :many
+SELECT DISTINCT a.* FROM material_assets a
+JOIN material_fragments f ON f.locator->>'asset_id'=a.id
+WHERE a.source_id=$1 AND f.id=ANY(sqlc.arg(fragment_ids)::text[]) AND a.kind<>'page'
+ORDER BY a.created_at,a.id;
+
+-- name: GetLatestAssetRevision :one
+SELECT * FROM asset_revisions WHERE asset_id=$1 ORDER BY revision DESC LIMIT 1;
 
 -- name: SetRevisionMethod :exec
 UPDATE grading_revisions SET method=$2 WHERE id=$1;
@@ -146,7 +171,7 @@ WITH RECURSIVE sk AS (
 )
 SELECT 'knowledge'::text AS kind,k.id,k.title,k.state,k.version,NULL::text AS parent_id FROM knowledge_entries k WHERE k.id IN(SELECT id FROM sk)
 UNION ALL SELECT 'question',v.id,v.title,v.state,v.version,v.bank_id FROM bank_question_versions v WHERE v.id IN(SELECT id FROM bq)
-UNION ALL SELECT 'rubric',r.id,'评分标准',r.state,r.version,COALESCE(r.bank_question_version_id,r.question_id) FROM rubric_versions r WHERE r.id IN(SELECT id FROM rb)
+UNION ALL SELECT CASE WHEN r.bank_question_version_id IS NOT NULL THEN 'rubric' ELSE 'assignment_rubric' END,r.id,'评分标准',r.state,r.version,COALESCE(r.bank_question_version_id,(SELECT q.assignment_id FROM questions q WHERE q.id=r.question_id)) FROM rubric_versions r WHERE r.id IN(SELECT id FROM rb)
 UNION ALL SELECT 'assignment',a.id,a.title,a.status,a.version,NULL::text FROM assignments a WHERE a.id IN(SELECT assignment_id FROM aq)
 UNION ALL SELECT 'assignment_question',q.id,q.prompt,a.status,a.version,a.id FROM questions q JOIN assignments a ON a.id=q.assignment_id WHERE q.id IN(SELECT id FROM aq)
 UNION ALL SELECT 'resource',r.id,r.title,r.status,r.version,NULL::text FROM resources r WHERE r.course_id=sqlc.arg(course_id) AND r.source_id=NULLIF(sqlc.arg(source_id)::text,'')

@@ -1,5 +1,6 @@
 [
   {"id":"bailian-embedding","label":"百炼 · text-embedding-v4","kind":"embedding","protocol":"openai","base_url_env":"DASHSCOPE_BASE_URL","key_env":"DASHSCOPE_API_KEY","model":"text-embedding-v4","dimensions":1024,"send_dimensions":true,"batch_size":10,"input_micro_cny_per_token":1,"output_micro_cny_per_token":0},
+  {"id":"deepseek-chat","label":"DeepSeek · deepseek-chat","kind":"chat","protocol":"openai","base_url_env":"DEEPSEEK_BASE_URL","key_env":"DEEPSEEK_API_KEY","model":"deepseek-chat","batch_size":1,"input_micro_cny_per_token":2,"output_micro_cny_per_token":8},
   {"id":"bailian-qwen","label":"百炼 · qwen-plus","kind":"chat","protocol":"openai","base_url_env":"DASHSCOPE_BASE_URL","key_env":"DASHSCOPE_API_KEY","model":"qwen-plus","batch_size":1,"input_micro_cny_per_token":10,"output_micro_cny_per_token":40},
   {"id":"deepseek-vision","label":"DeepSeek · 图像理解","kind":"vision","protocol":"openai","base_url_env":"DEEPSEEK_BASE_URL","key_env":"DEEPSEEK_API_KEY","model":"deepseek-flash","thinking":"disabled","batch_size":1,"image_token_limit":1024,"input_micro_cny_per_token":10,"output_micro_cny_per_token":40}
 ]

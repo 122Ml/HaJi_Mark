@@ -1,13 +1,16 @@
 package learning
 
 import (
+	"net/http"
+	"strconv"
+	"strings"
+
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/crypto/bcrypt"
-	"net/url"
 )
 
 func (h *Handler) profile(c *gin.Context) {
@@ -17,14 +20,26 @@ func (h *Handler) profile(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
-	if !validText(in.Name, 200) {
-		invalid(c, "请填写不超过200字节的姓名")
+	in.Name = strings.TrimSpace(in.Name)
+	if !validText(in.Name, 100) {
+		invalid(c, "请填写不超过100字节的姓名")
 		return
 	}
 	v, e := h.q.UpdateActorName(c.Request.Context(), store.UpdateActorNameParams{ID: identity.Current(c).ID, DisplayName: in.Name})
-	result(c, v, e)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	result(c, identity.Actor{ID: v.ID, Username: v.Username.String, DisplayName: v.DisplayName, Role: v.Role}, nil)
 }
 func (h *Handler) password(c *gin.Context) {
+	if h.auth != nil {
+		if ok, retry := h.auth.AllowPasswordChange(identity.Current(c).ID); !ok {
+			c.Header("Retry-After", strconv.Itoa(retry))
+			identity.Fail(c, http.StatusTooManyRequests, "too_many_requests", "修改密码请求过于频繁，请稍后重试")
+			return
+		}
+	}
 	var in struct {
 		Old string `json:"old_password"`
 		New string `json:"new_password"`
@@ -32,8 +47,16 @@ func (h *Handler) password(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
-	if len(in.New) < 12 || len(in.New) > 72 || len(in.Old) > 72 {
-		invalid(c, "新密码须为12到72字节")
+	if len(in.Old) < 1 || len(in.Old) > 72 || strings.ContainsRune(in.Old, '\x00') {
+		invalid(c, "请输入有效的原密码")
+		return
+	}
+	if len(in.New) < 12 || len(in.New) > 72 || strings.TrimSpace(in.New) == "" || strings.ContainsRune(in.New, '\x00') {
+		invalid(c, "新密码须为12到72字节且不能全为空白")
+		return
+	}
+	if in.New == in.Old {
+		invalid(c, "新密码不能与原密码相同")
 		return
 	}
 	ctx := c.Request.Context()
@@ -42,7 +65,7 @@ func (h *Handler) password(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
-	if bcrypt.CompareHashAndPassword([]byte(hash.String), []byte(in.Old)) != nil {
+	if !hash.Valid || hash.String == "" || bcrypt.CompareHashAndPassword([]byte(hash.String), []byte(in.Old)) != nil {
 		identity.Fail(c, 401, "invalid_credentials", "原密码错误")
 		return
 	}
@@ -65,10 +88,16 @@ func (h *Handler) password(c *gin.Context) {
 	if e == nil {
 		e = tx.Commit(ctx)
 	}
+	if e == nil && h.auth != nil {
+		h.auth.ClearSessionCookie(c)
+	}
 	result(c, gin.H{"changed": true, "reauthenticate": true}, e)
 }
 func (h *Handler) research(c *gin.Context) {
 	v, e := h.q.ListResearchRecords(c.Request.Context(), c.Param("courseID"))
+	if e == nil && v == nil {
+		v = []store.ResearchRecord{}
+	}
 	result(c, v, e)
 }
 func (h *Handler) createResearch(c *gin.Context) {
@@ -79,6 +108,8 @@ func (h *Handler) createResearch(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
+	in.Title = strings.TrimSpace(in.Title)
+	in.Content = strings.TrimSpace(in.Content)
 	if !validText(in.Title, 500) || !validText(in.Content, 30000) {
 		invalid(c, "请填写教研标题与内容")
 		return
@@ -93,6 +124,9 @@ func (h *Handler) createResearch(c *gin.Context) {
 }
 func (h *Handler) industry(c *gin.Context) {
 	v, e := h.q.ListIndustryRecords(c.Request.Context(), c.Param("courseID"))
+	if e == nil && v == nil {
+		v = []store.IndustryRecord{}
+	}
 	result(c, v, e)
 }
 func (h *Handler) createIndustry(c *gin.Context) {
@@ -104,9 +138,11 @@ func (h *Handler) createIndustry(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
-	u, e := url.Parse(in.SourceURL)
-	if !validText(in.Title, 500) || !validText(in.Skills, 30000) || e != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		invalid(c, "请填写岗位标题、技能和有效来源链接")
+	in.Title = strings.TrimSpace(in.Title)
+	in.SourceURL = strings.TrimSpace(in.SourceURL)
+	in.Skills = strings.TrimSpace(in.Skills)
+	if !validText(in.Title, 500) || !validText(in.Skills, 30000) || !validHTTPURL(in.SourceURL, 2000) {
+		invalid(c, "请填写岗位标题、技能和有效来源链接（http/https且不超过2000字节）")
 		return
 	}
 	if c.Param("id") != "" {

@@ -32,6 +32,15 @@ func (q *Queries) CancelAgentRun(ctx context.Context, id string) error {
 	return err
 }
 
+const clearAgentStream = `-- name: ClearAgentStream :exec
+UPDATE agent_runs SET stream_text='',stream_turn=0 WHERE id=$1
+`
+
+func (q *Queries) ClearAgentStream(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, clearAgentStream, id)
+	return err
+}
+
 const createAgentAttachment = `-- name: CreateAgentAttachment :one
 INSERT INTO agent_attachments(id,conversation_id,filename,storage_path,sha256,size_bytes,kind) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id, conversation_id, filename, storage_path, sha256, size_bytes, kind, created_at
 `
@@ -469,6 +478,17 @@ func (q *Queries) GetAgentStep(ctx context.Context, id string) (AgentStep, error
 	return i, err
 }
 
+const getLatestAgentEventID = `-- name: GetLatestAgentEventID :one
+SELECT COALESCE(max(id),0)::bigint FROM agent_events WHERE conversation_id=$1
+`
+
+func (q *Queries) GetLatestAgentEventID(ctx context.Context, conversationID string) (int64, error) {
+	row := q.db.QueryRow(ctx, getLatestAgentEventID, conversationID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const listAgentAttachments = `-- name: ListAgentAttachments :many
 SELECT id,conversation_id,filename,sha256,size_bytes,kind,created_at FROM agent_attachments WHERE conversation_id=$1 ORDER BY created_at,id LIMIT 200
 `
@@ -496,6 +516,44 @@ func (q *Queries) ListAgentAttachments(ctx context.Context, conversationID strin
 			&i.ID,
 			&i.ConversationID,
 			&i.Filename,
+			&i.Sha256,
+			&i.SizeBytes,
+			&i.Kind,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAgentAttachmentsByIDs = `-- name: ListAgentAttachmentsByIDs :many
+SELECT id, conversation_id, filename, storage_path, sha256, size_bytes, kind, created_at FROM agent_attachments WHERE conversation_id=$1 AND id=ANY($2::text[])
+`
+
+type ListAgentAttachmentsByIDsParams struct {
+	ConversationID string   `json:"conversation_id"`
+	Ids            []string `json:"ids"`
+}
+
+func (q *Queries) ListAgentAttachmentsByIDs(ctx context.Context, arg ListAgentAttachmentsByIDsParams) ([]AgentAttachment, error) {
+	rows, err := q.db.Query(ctx, listAgentAttachmentsByIDs, arg.ConversationID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AgentAttachment{}
+	for rows.Next() {
+		var i AgentAttachment
+		if err := rows.Scan(
+			&i.ID,
+			&i.ConversationID,
+			&i.Filename,
+			&i.StoragePath,
 			&i.Sha256,
 			&i.SizeBytes,
 			&i.Kind,
@@ -655,6 +713,35 @@ func (q *Queries) ListAgentRequests(ctx context.Context, conversationID string) 
 	return items, nil
 }
 
+const listAgentRunRuntimes = `-- name: ListAgentRunRuntimes :many
+SELECT id,runtime FROM agent_runs WHERE id=ANY($1::text[])
+`
+
+type ListAgentRunRuntimesRow struct {
+	ID      string          `json:"id"`
+	Runtime json.RawMessage `json:"runtime"`
+}
+
+func (q *Queries) ListAgentRunRuntimes(ctx context.Context, ids []string) ([]ListAgentRunRuntimesRow, error) {
+	rows, err := q.db.Query(ctx, listAgentRunRuntimes, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAgentRunRuntimesRow{}
+	for rows.Next() {
+		var i ListAgentRunRuntimesRow
+		if err := rows.Scan(&i.ID, &i.Runtime); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAgentRuns = `-- name: ListAgentRuns :many
 SELECT id,conversation_id,request_id,state,error,cancel_requested,created_at,updated_at FROM agent_runs WHERE conversation_id=$1 ORDER BY created_at DESC,id DESC LIMIT 30
 `
@@ -762,7 +849,7 @@ func (q *Queries) ListCanceledAgentRuns(ctx context.Context) ([]string, error) {
 const listReadyAgentRuns = `-- name: ListReadyAgentRuns :many
 SELECT a.id FROM agent_runs a WHERE state IN ('queued','running','waiting_job') OR
  (state IN ('waiting_input','waiting_approval') AND EXISTS(SELECT 1 FROM agent_requests r WHERE r.run_id=a.id AND r.state='pending' AND r.expires_at<=now()))
- ORDER BY updated_at,a.id LIMIT 8
+ ORDER BY CASE WHEN state='waiting_job' THEN 1 ELSE 0 END, updated_at, a.id LIMIT 16
 `
 
 func (q *Queries) ListReadyAgentRuns(ctx context.Context) ([]string, error) {
@@ -778,6 +865,37 @@ func (q *Queries) ListReadyAgentRuns(ctx context.Context) ([]string, error) {
 			return nil, err
 		}
 		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRecentAgentMessages = `-- name: ListRecentAgentMessages :many
+SELECT id, conversation_id, role, content, attachment_ids, created_at FROM (SELECT id, conversation_id, role, content, attachment_ids, created_at FROM agent_messages WHERE conversation_id=$1 ORDER BY created_at DESC,id DESC LIMIT 12) m ORDER BY created_at,id
+`
+
+func (q *Queries) ListRecentAgentMessages(ctx context.Context, conversationID string) ([]AgentMessage, error) {
+	rows, err := q.db.Query(ctx, listRecentAgentMessages, conversationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AgentMessage{}
+	for rows.Next() {
+		var i AgentMessage
+		if err := rows.Scan(
+			&i.ID,
+			&i.ConversationID,
+			&i.Role,
+			&i.Content,
+			&i.AttachmentIds,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -899,6 +1017,15 @@ UPDATE agent_conversations SET updated_at=now() WHERE id=$1
 
 func (q *Queries) TouchAgentConversation(ctx context.Context, id string) error {
 	_, err := q.db.Exec(ctx, touchAgentConversation, id)
+	return err
+}
+
+const touchAgentRun = `-- name: TouchAgentRun :exec
+UPDATE agent_runs SET updated_at=now() WHERE id=$1
+`
+
+func (q *Queries) TouchAgentRun(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, touchAgentRun, id)
 	return err
 }
 

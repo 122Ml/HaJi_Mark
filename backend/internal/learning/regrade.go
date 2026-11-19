@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
@@ -13,8 +14,15 @@ import (
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+type regradeConflictError struct {
+	msg string
+}
+
+func (e regradeConflictError) Error() string { return e.msg }
 
 func (h *Handler) regrades(c *gin.Context) {
 	v, e := h.q.ListRegradeBatches(c.Request.Context(), c.Param("courseID"))
@@ -22,32 +30,25 @@ func (h *Handler) regrades(c *gin.Context) {
 }
 func (h *Handler) regradeDetail(c *gin.Context) {
 	ctx := c.Request.Context()
-	tx, e := h.db.Begin(ctx)
+	b, e := h.q.GetRegradeBatch(ctx, store.GetRegradeBatchParams{ID: c.Param("batchID"), CourseID: c.Param("courseID")})
 	if e != nil {
 		result(c, nil, e)
 		return
 	}
-	defer tx.Rollback(ctx)
-	q := h.q.WithTx(tx)
-	b, e := q.LockRegradeBatch(ctx, store.LockRegradeBatchParams{ID: c.Param("batchID"), CourseID: c.Param("courseID")})
-	if e != nil {
-		result(c, nil, e)
-		return
-	}
-	items, e := q.ListRegradeItems(ctx, b.ID)
+	items, e := h.q.ListRegradeItems(ctx, b.ID)
 	if e != nil {
 		result(c, nil, e)
 		return
 	}
 	var r any
 	if b.RubricID.Valid {
-		r, e = q.GetRubricVersion(ctx, b.RubricID.String)
+		r, e = h.q.GetRubricVersion(ctx, b.RubricID.String)
 		if e != nil {
 			result(c, nil, e)
 			return
 		}
 	}
-	result(c, gin.H{"batch": b, "items": items, "rubric": r}, tx.Commit(ctx))
+	result(c, gin.H{"batch": b, "items": items, "rubric": r}, nil)
 }
 func sameQuestion(a, b store.Question) bool {
 	return a.Prompt == b.Prompt && a.Type == b.Type && a.MaxScore == b.MaxScore && reflect.DeepEqual(a.Options, b.Options)
@@ -68,19 +69,29 @@ func (h *Handler) createRegrade(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	tx, e := h.db.Begin(ctx)
-	if e != nil {
-		result(c, nil, e)
-		return
+	q := h.q
+	var tx pgx.Tx
+	if !in.Preview {
+		var e error
+		tx, e = h.db.Begin(ctx)
+		if e != nil {
+			result(c, nil, e)
+			return
+		}
+		defer tx.Rollback(ctx)
+		q = h.q.WithTx(tx)
 	}
-	defer tx.Rollback(ctx)
-	q := h.q.WithTx(tx)
 	question, e := q.GetBusinessQuestion(ctx, in.QuestionID)
 	if e != nil {
 		result(c, nil, e)
 		return
 	}
-	a, e := q.GetAssignmentForUpdate(ctx, question.AssignmentID)
+	var a store.Assignment
+	if in.Preview {
+		a, e = q.GetBusinessAssignment(ctx, question.AssignmentID)
+	} else {
+		a, e = q.GetAssignmentForUpdate(ctx, question.AssignmentID)
+	}
 	if e != nil {
 		result(c, nil, e)
 		return
@@ -101,14 +112,14 @@ func (h *Handler) createRegrade(c *gin.Context) {
 		identity.Fail(c, 409, "regrade_active", "本题已有活动重评批次")
 		return
 	}
-	var r store.RubricVersion
+	var rubricOut any
 	if question.Type == "quiz" {
 		if in.RubricID != "" || !stringIn(question.Options, in.CorrectAnswer) {
 			invalid(c, "请选择原选项中的更正答案")
 			return
 		}
 	} else {
-		r, e = q.GetRubricVersion(ctx, in.RubricID)
+		r, e := q.GetRubricVersion(ctx, in.RubricID)
 		if e != nil {
 			result(c, nil, e)
 			return
@@ -124,11 +135,19 @@ func (h *Handler) createRegrade(c *gin.Context) {
 				return
 			}
 			b, e := q.GetQuestionBank(ctx, store.GetQuestionBankParams{ID: v.BankID, CourseID: a.CourseID})
-			if e != nil || b.Archived || v.State != "confirmed" {
+			if e != nil {
+				if errors.Is(e, pgx.ErrNoRows) {
+					invalid(c, "新标准的题目不可用")
+					return
+				}
+				result(c, nil, e)
+				return
+			}
+			if b.Archived || v.State != "confirmed" {
 				invalid(c, "新标准的题目不可用")
 				return
 			}
-			if v.Prompt != question.Prompt || v.Type != question.Type || v.MaxScore != question.MaxScore || !reflect.DeepEqual(v.Options, question.Options) {
+			if !sameQuestion(store.Question{Prompt: v.Prompt, Type: v.Type, MaxScore: v.MaxScore, Options: v.Options}, question) {
 				invalid(c, "题干、题型、选项或满分改变须另建任务")
 				return
 			}
@@ -157,6 +176,7 @@ func (h *Handler) createRegrade(c *gin.Context) {
 			ragError(c, e)
 			return
 		}
+		rubricOut = r
 	}
 	submissions, e := q.EffectiveQuestionSubmissions(ctx, question.ID)
 	if e != nil {
@@ -168,7 +188,7 @@ func (h *Handler) createRegrade(c *gin.Context) {
 		return
 	}
 	if in.Preview {
-		result(c, gin.H{"question": question, "rubric": r, "submissions": submissions, "count": len(submissions)}, nil)
+		result(c, gin.H{"question": question, "rubric": rubricOut, "submissions": submissions, "count": len(submissions)}, nil)
 		return
 	}
 	snapshot, _ := json.Marshal(question)
@@ -255,19 +275,13 @@ func (h *Handler) saveRegradeItem(c *gin.Context) {
 		identity.Fail(c, 409, "state_conflict", "批次已结束")
 		return
 	}
-	items, e := q.ListRegradeItems(ctx, b.ID)
+	item, e := q.GetRegradeItem(ctx, store.GetRegradeItemParams{BatchID: b.ID, SubmissionID: c.Param("submissionID")})
 	if e != nil {
-		result(c, nil, e)
-		return
-	}
-	var item *store.ListRegradeItemsRow
-	for i := range items {
-		if items[i].SubmissionID == c.Param("submissionID") {
-			item = &items[i]
+		if errors.Is(e, pgx.ErrNoRows) {
+			identity.Fail(c, 404, "not_found", "提交不在冻结名单中")
+			return
 		}
-	}
-	if item == nil {
-		identity.Fail(c, 404, "not_found", "提交不在冻结名单中")
+		result(c, nil, e)
 		return
 	}
 	if item.EditVersion != in.EditVersion {
@@ -275,7 +289,10 @@ func (h *Handler) saveRegradeItem(c *gin.Context) {
 		return
 	}
 	var question store.Question
-	_ = json.Unmarshal(b.QuestionSnapshot, &question)
+	if err := json.Unmarshal(b.QuestionSnapshot, &question); err != nil {
+		result(c, nil, err)
+		return
+	}
 	if in.Score < 0 || in.Score > question.MaxScore {
 		invalid(c, "分数超出满分")
 		return
@@ -288,11 +305,18 @@ func (h *Handler) saveRegradeItem(c *gin.Context) {
 			return
 		}
 		var criteria []criterion
-		_ = json.Unmarshal(r.Criteria, &criteria)
+		if err := json.Unmarshal(r.Criteria, &criteria); err != nil {
+			result(c, nil, err)
+			return
+		}
 		var total int32
 		raw, total, e = regradePoints(criteria, in.Points, item.AnswerText)
-		if e != nil || total != in.Score {
-			invalid(c, "逐点给分、引用或总分加和不正确")
+		if e != nil {
+			invalid(c, e.Error())
+			return
+		}
+		if total != in.Score {
+			invalid(c, "逐点给分总和与总分不一致")
 			return
 		}
 	} else {
@@ -306,13 +330,25 @@ func (h *Handler) saveRegradeItem(c *gin.Context) {
 		}
 	}
 	if in.AIJobID != "" {
-		_, snapshot, e := h.draftJob(c, in.AIJobID, "grade")
-		if e != nil || snapshot.SubmissionID != item.SubmissionID || snapshot.AnswerHash != item.AnswerSha256 || snapshot.RubricID != b.RubricID.String {
+		_, snapshot, e := h.draftJobWithQueries(ctx, q, c.Param("courseID"), in.AIJobID, "grade")
+		if e != nil {
+			if errors.Is(e, pgx.ErrNoRows) || isUserValidationError(e) {
+				invalid(c, "AI草稿与重评输入不符")
+				return
+			}
+			result(c, nil, e)
+			return
+		}
+		if snapshot.SubmissionID != item.SubmissionID || snapshot.AnswerHash != item.AnswerSha256 || snapshot.RubricID != b.RubricID.String {
 			invalid(c, "AI草稿与重评输入不符")
 			return
 		}
 	}
 	v, e := q.SaveRegradeItem(ctx, store.SaveRegradeItemParams{BatchID: b.ID, SubmissionID: item.SubmissionID, Score: pgtype.Int4{Int32: in.Score, Valid: true}, Feedback: in.Feedback, PointScores: raw, Confirmed: in.Confirmed, AiJobID: text(in.AIJobID), EditVersion: in.EditVersion})
+	if errors.Is(e, pgx.ErrNoRows) {
+		identity.Fail(c, 409, "stale_revision", "本份重评已改变，请刷新")
+		return
+	}
 	if e != nil {
 		result(c, nil, e)
 		return
@@ -332,6 +368,17 @@ func (h *Handler) regradeState(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
+	// Pre-read metadata to acquire locks in canonical order: assignments -> regrade_batches -> submissions.
+	meta, e := h.q.GetRegradeBatch(ctx, store.GetRegradeBatchParams{ID: c.Param("batchID"), CourseID: c.Param("courseID")})
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	qMeta, e := h.q.GetBusinessQuestion(ctx, meta.QuestionID)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
 	tx, e := h.db.Begin(ctx)
 	if e != nil {
 		result(c, nil, e)
@@ -339,7 +386,12 @@ func (h *Handler) regradeState(c *gin.Context) {
 	}
 	defer tx.Rollback(ctx)
 	q := h.q.WithTx(tx)
-	b, e := q.LockRegradeBatch(ctx, store.LockRegradeBatchParams{ID: c.Param("batchID"), CourseID: c.Param("courseID")})
+	a, e := q.GetAssignmentForUpdate(ctx, qMeta.AssignmentID)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	b, e := q.LockRegradeBatch(ctx, store.LockRegradeBatchParams{ID: meta.ID, CourseID: meta.CourseID})
 	if e != nil {
 		result(c, nil, e)
 		return
@@ -353,42 +405,55 @@ func (h *Handler) regradeState(c *gin.Context) {
 		return
 	}
 	if in.State == "released" {
-		if e = h.publishRegrade(ctx, q, b, identity.Current(c).ID); e != nil {
-			identity.Fail(c, 409, "regrade_conflict", e.Error())
+		if e = h.publishRegrade(ctx, q, a, b, identity.Current(c).ID); e != nil {
+			var conflict regradeConflictError
+			if errors.As(e, &conflict) {
+				identity.Fail(c, 409, "regrade_conflict", conflict.msg)
+				return
+			}
+			result(c, nil, e)
 			return
 		}
 	}
 	v, e := q.RegradeBatchState(ctx, store.RegradeBatchStateParams{ID: b.ID, CourseID: b.CourseID, State: in.State})
+	if errors.Is(e, pgx.ErrNoRows) {
+		identity.Fail(c, 409, "state_conflict", "批次已结束")
+		return
+	}
 	if e != nil {
 		result(c, nil, e)
 		return
 	}
 	result(c, v, tx.Commit(ctx))
 }
-func (h *Handler) publishRegrade(ctx context.Context, q *store.Queries, b store.RegradeBatch, actor string) error {
+func (h *Handler) publishRegrade(ctx context.Context, q *store.Queries, a store.Assignment, b store.RegradeBatch, actor string) error {
 	current, e := q.GetBusinessQuestion(ctx, b.QuestionID)
 	if e != nil {
 		return e
 	}
-	a, e := q.GetAssignmentForUpdate(ctx, current.AssignmentID)
-	if e != nil {
-		return e
-	}
 	var frozen store.Question
-	_ = json.Unmarshal(b.QuestionSnapshot, &frozen)
+	if err := json.Unmarshal(b.QuestionSnapshot, &frozen); err != nil {
+		return err
+	}
 	if a.Status != "closed" || !sameQuestion(current, frozen) {
-		return errors.New("作业状态或题目内容已改变，重新预览后建立批次")
+		return regradeConflictError{msg: "作业状态或题目内容已改变，重新预览后建立批次"}
 	}
 	if b.RubricID.Valid {
 		r, err := q.GetRubricVersion(ctx, b.RubricID.String)
 		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return regradeConflictError{msg: "重评标准不存在"}
+			}
 			return err
 		}
 		ids, err := rag.EvidenceIDs(r.EvidenceRefs)
 		if err != nil {
-			return err
+			return regradeConflictError{msg: "重评标准依据格式无效"}
 		}
 		if _, err = rag.ResolveEvidence(ctx, q, b.CourseID, ids); err != nil {
+			if isUserValidationError(err) {
+				return regradeConflictError{msg: err.Error()}
+			}
 			return err
 		}
 	}
@@ -401,12 +466,21 @@ func (h *Handler) publishRegrade(ctx context.Context, q *store.Queries, b store.
 		return e
 	}
 	if len(submissions) != len(items) || len(items) == 0 {
-		return errors.New("冻结名单发生变化")
+		return regradeConflictError{msg: "冻结名单发生变化"}
 	}
-	for i, item := range items {
-		s := submissions[i]
-		if s.ID != item.SubmissionID || s.AnswerSha256 != item.AnswerSha256 || !item.Confirmed || !item.Score.Valid {
-			return errors.New("整组尚未全部确认或提交发生变化")
+	submissionsByID := make(map[string]store.Submission, len(submissions))
+	for _, s := range submissions {
+		submissionsByID[s.ID] = s
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].SubmissionID < items[j].SubmissionID })
+	method := "manual"
+	if current.Type == "quiz" {
+		method = "rule"
+	}
+	for _, item := range items {
+		s, ok := submissionsByID[item.SubmissionID]
+		if !ok || s.AnswerSha256 != item.AnswerSha256 || !item.Confirmed || !item.Score.Valid {
+			return regradeConflictError{msg: "整组尚未全部确认或提交发生变化"}
 		}
 		if _, e = q.LockBusinessSubmission(ctx, s.ID); e != nil {
 			return e
@@ -416,29 +490,22 @@ func (h *Handler) publishRegrade(ctx context.Context, q *store.Queries, b store.
 			return e
 		}
 		if next-1 != item.BaselineRevision {
-			return errors.New("存在并行评分修订，请重新预览")
+			return regradeConflictError{msg: "存在并行评分修订，请重新预览"}
 		}
-		revision, e := q.CreatePointRevision(ctx, store.CreatePointRevisionParams{ID: uuid.NewString(), SubmissionID: s.ID, Revision: next, Score: item.Score.Int32, Feedback: item.Feedback, ReviewerID: actor, RequestID: fmt.Sprintf("regrade:%s:%s", b.ID, s.ID), RubricID: b.RubricID, PointScores: item.PointScores})
-		if e != nil {
-			return e
-		}
-		if e = q.AttachRegradeRevision(ctx, store.AttachRegradeRevisionParams{ID: revision.ID, RegradeBatchID: text(b.ID)}); e != nil {
-			return e
-		}
-		if current.Type == "quiz" {
-			if e = q.SetRevisionMethod(ctx, store.SetRevisionMethodParams{ID: revision.ID, Method: "rule"}); e != nil {
-				return e
-			}
-		}
-		if item.AiJobID.Valid {
-			if e = q.AttachGradingJob(ctx, store.AttachGradingJobParams{ID: revision.ID, AiJobID: item.AiJobID}); e != nil {
-				return e
-			}
-		}
-		if _, e = q.TransitionBusinessRevision(ctx, store.TransitionBusinessRevisionParams{ID: revision.ID, State: "confirmed", State_2: "draft"}); e != nil {
-			return e
-		}
-		if _, e = q.TransitionBusinessRevision(ctx, store.TransitionBusinessRevisionParams{ID: revision.ID, State: "released", State_2: "confirmed"}); e != nil {
+		if _, e = q.CreateReleasedRegradeRevision(ctx, store.CreateReleasedRegradeRevisionParams{
+			ID:             uuid.NewString(),
+			SubmissionID:   s.ID,
+			Revision:       next,
+			Score:          item.Score.Int32,
+			Feedback:       item.Feedback,
+			Method:         method,
+			ReviewerID:     actor,
+			RequestID:      fmt.Sprintf("regrade:%s:%s", b.ID, s.ID),
+			RubricID:       b.RubricID,
+			PointScores:    item.PointScores,
+			AiJobID:        item.AiJobID,
+			RegradeBatchID: text(b.ID),
+		}); e != nil {
 			return e
 		}
 		if e = q.MarkBusinessSubmissionGraded(ctx, s.ID); e != nil {
@@ -449,7 +516,7 @@ func (h *Handler) publishRegrade(ctx context.Context, q *store.Queries, b store.
 }
 func (h *Handler) regradeAI(c *gin.Context) {
 	if h.rag == nil {
-		invalid(c, "模型未启用")
+		identity.Fail(c, 503, "rag_not_configured", "模型尚未启用")
 		return
 	}
 	var in struct {
@@ -458,15 +525,12 @@ func (h *Handler) regradeAI(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
-	ctx := c.Request.Context()
-	tx, e := h.db.Begin(ctx)
-	if e != nil {
-		result(c, nil, e)
+	if _, e := h.rag.Models.Profile(in.ProfileID, "chat"); e != nil {
+		ragError(c, e)
 		return
 	}
-	defer tx.Rollback(ctx)
-	q := h.q.WithTx(tx)
-	b, e := q.LockRegradeBatch(ctx, store.LockRegradeBatchParams{ID: c.Param("batchID"), CourseID: c.Param("courseID")})
+	ctx := c.Request.Context()
+	b, e := h.q.GetRegradeBatch(ctx, store.GetRegradeBatchParams{ID: c.Param("batchID"), CourseID: c.Param("courseID")})
 	if e != nil {
 		result(c, nil, e)
 		return
@@ -475,25 +539,36 @@ func (h *Handler) regradeAI(c *gin.Context) {
 		invalid(c, "批次不可生成主观评分草稿")
 		return
 	}
-	items, e := q.ListRegradeItems(ctx, b.ID)
+	item, e := h.q.GetRegradeItem(ctx, store.GetRegradeItemParams{BatchID: b.ID, SubmissionID: c.Param("submissionID")})
+	if e != nil {
+		if errors.Is(e, pgx.ErrNoRows) {
+			identity.Fail(c, 404, "not_found", "提交不在冻结名单中")
+			return
+		}
+		result(c, nil, e)
+		return
+	}
+	r, e := h.q.GetRubricVersion(ctx, b.RubricID.String)
 	if e != nil {
 		result(c, nil, e)
 		return
 	}
-	for _, item := range items {
-		if item.SubmissionID != c.Param("submissionID") {
-			continue
-		}
-		r, e := q.GetRubricVersion(ctx, b.RubricID.String)
-		if e != nil {
-			result(c, nil, e)
-			return
-		}
-		var question store.Question
-		_ = json.Unmarshal(b.QuestionSnapshot, &question)
-		j, e := h.rag.CreateJob(ctx, b.CourseID, identity.Current(c).ID, "grade", rag.JobInput{SubmissionID: item.SubmissionID, QuestionID: question.ID, AnswerHash: item.AnswerSha256, Answer: item.AnswerText, Prompt: question.Prompt, MaxScore: question.MaxScore, RubricID: r.ID, Criteria: r.Criteria, EvidenceRefs: r.EvidenceRefs, ProfileID: in.ProfileID})
-		result(c, j, e)
+	var question store.Question
+	if err := json.Unmarshal(b.QuestionSnapshot, &question); err != nil {
+		result(c, nil, err)
 		return
 	}
-	identity.Fail(c, 404, "not_found", "提交不在冻结名单中")
+	j, e := h.rag.CreateJob(ctx, b.CourseID, identity.Current(c).ID, "grade", rag.JobInput{
+		SubmissionID: item.SubmissionID,
+		QuestionID:   question.ID,
+		AnswerHash:   item.AnswerSha256,
+		Answer:       item.AnswerText,
+		Prompt:       question.Prompt,
+		MaxScore:     question.MaxScore,
+		RubricID:     r.ID,
+		Criteria:     r.Criteria,
+		EvidenceRefs: r.EvidenceRefs,
+		ProfileID:    in.ProfileID,
+	})
+	result(c, j, e)
 }

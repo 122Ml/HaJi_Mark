@@ -5,7 +5,7 @@ SELECT * FROM courses WHERE id=$1;
 INSERT INTO courses(id,title,teacher_id) VALUES($1,$2,$3) RETURNING *;
 
 -- name: PublishBusinessCourse :one
-UPDATE courses SET status='published',version=version+1 WHERE id=$1 AND teacher_id=$2 RETURNING *;
+UPDATE courses SET status='published',version=version+1 WHERE id=$1 AND teacher_id=$2 AND status='draft' RETURNING *;
 
 -- name: ListBusinessPoints :many
 SELECT * FROM knowledge_points WHERE course_id=$1 ORDER BY position,id;
@@ -85,11 +85,19 @@ ON CONFLICT(student_id,question_id) DO UPDATE SET answer_text=excluded.answer_te
 -- name: GetBusinessSubmission :one
 SELECT * FROM submissions WHERE id=$1;
 
+-- name: GetBusinessSubmissionWithStudent :one
+SELECT s.*,u.display_name AS student_name FROM submissions s JOIN users u ON u.id=s.student_id WHERE s.id=$1;
+
 -- name: GetSubmissionByRequest :one
 SELECT * FROM submissions WHERE student_id=$1 AND request_id=$2;
 
 -- name: NextSubmissionAttempt :one
 SELECT (COALESCE(max(attempt),0)+1)::integer AS next_attempt FROM submissions WHERE student_id=$1 AND question_id=$2;
+
+-- name: NextSubmissionAttemptsForQuestion :many
+SELECT student_id,(COALESCE(max(attempt),0)+1)::integer AS next_attempt
+FROM submissions WHERE question_id=$1 AND student_id=ANY(sqlc.arg(student_ids)::text[])
+GROUP BY student_id;
 
 -- name: CreateBusinessSubmission :one
 INSERT INTO submissions(id,assignment_id,question_id,course_id,student_id,attempt,answer_text,answer_sha256,request_id,assignment_version)
@@ -102,6 +110,9 @@ WHERE s.assignment_id=$1 AND (sqlc.arg(teacher)::boolean OR s.student_id=sqlc.ar
 -- name: LockBusinessAssignment :one
 SELECT id FROM assignments WHERE id=$1 FOR UPDATE;
 
+-- name: LockBusinessAssignmentShare :one
+SELECT id FROM assignments WHERE id=$1 FOR KEY SHARE;
+
 -- name: LockBusinessSubmission :one
 SELECT id FROM submissions WHERE id=$1 FOR UPDATE;
 
@@ -113,11 +124,34 @@ INSERT INTO grading_revisions(id,submission_id,revision,score,feedback,method,st
 VALUES($1,$2,1,$3,'根据教师已发布的标准答案自动判分','rule','released',$4,$5,now()) RETURNING *;
 
 -- name: CourseReleasedEvidence :many
-SELECT DISTINCT ON (s.student_id,s.question_id) s.id AS submission_id,s.student_id,s.question_id,s.assignment_id,a.title AS assignment_title,s.answer_text,s.attempt,r.id AS revision_id,r.score,r.feedback,q.max_score,q.prompt,q.knowledge_point_id,q.resource_id,r.released_at,r.rubric_id,r.point_scores,rv.version AS rubric_version
-FROM submissions s JOIN questions q ON q.id=s.question_id JOIN assignments a ON a.id=s.assignment_id
+SELECT DISTINCT ON (s.student_id,s.question_id) s.id AS submission_id,s.student_id,u.display_name AS student_name,s.question_id,s.assignment_id,a.title AS assignment_title,s.answer_text,s.attempt,r.id AS revision_id,r.score,r.feedback,q.max_score,q.prompt,q.knowledge_point_id,q.resource_id,r.released_at,r.rubric_id,r.point_scores,rv.version AS rubric_version
+FROM submissions s JOIN users u ON u.id=s.student_id JOIN questions q ON q.id=s.question_id JOIN assignments a ON a.id=s.assignment_id
 JOIN LATERAL (SELECT * FROM grading_revisions g WHERE g.submission_id=s.id AND g.state='released' ORDER BY g.revision DESC LIMIT 1) r ON true
 LEFT JOIN rubric_versions rv ON rv.id=r.rubric_id
 WHERE s.course_id=$1 AND (sqlc.arg(teacher)::boolean OR s.student_id=sqlc.arg(actor_id))
+ORDER BY s.student_id,s.question_id,s.attempt DESC;
+
+-- name: CourseReleasedEvidenceForStudent :many
+SELECT DISTINCT ON (s.student_id,s.question_id) s.id AS submission_id,s.student_id,u.display_name AS student_name,s.question_id,s.assignment_id,a.title AS assignment_title,s.answer_text,s.attempt,r.id AS revision_id,r.score,r.feedback,q.max_score,q.prompt,q.knowledge_point_id,q.resource_id,r.released_at,r.rubric_id,r.point_scores,rv.version AS rubric_version
+FROM submissions s JOIN users u ON u.id=s.student_id JOIN questions q ON q.id=s.question_id JOIN assignments a ON a.id=s.assignment_id
+JOIN LATERAL (SELECT * FROM grading_revisions g WHERE g.submission_id=s.id AND g.state='released' ORDER BY g.revision DESC LIMIT 1) r ON true
+LEFT JOIN rubric_versions rv ON rv.id=r.rubric_id
+WHERE s.course_id=$1 AND s.student_id=$2
+ORDER BY s.student_id,s.question_id,s.attempt DESC;
+
+-- name: QuestionReleasedEvidence :many
+SELECT DISTINCT ON (s.student_id,s.question_id) s.id AS submission_id,s.student_id,u.display_name AS student_name,s.question_id,s.assignment_id,a.title AS assignment_title,s.answer_text,s.attempt,r.id AS revision_id,r.score,r.feedback,q.max_score,q.prompt,q.knowledge_point_id,q.resource_id,r.released_at,r.rubric_id,r.point_scores,rv.version AS rubric_version
+FROM submissions s JOIN users u ON u.id=s.student_id JOIN questions q ON q.id=s.question_id JOIN assignments a ON a.id=s.assignment_id
+JOIN LATERAL (SELECT * FROM grading_revisions g WHERE g.submission_id=s.id AND g.state='released' ORDER BY g.revision DESC LIMIT 1) r ON true
+LEFT JOIN rubric_versions rv ON rv.id=r.rubric_id
+WHERE s.course_id=$1 AND s.question_id=$2 AND (sqlc.arg(rubric_id)::text='' OR r.rubric_id=sqlc.arg(rubric_id))
+ORDER BY s.student_id,s.question_id,s.attempt DESC;
+
+-- name: CoursePointScoreSummary :many
+SELECT DISTINCT ON (s.student_id,s.question_id) q.knowledge_point_id,r.score,q.max_score
+FROM submissions s JOIN questions q ON q.id=s.question_id
+JOIN LATERAL (SELECT score FROM grading_revisions g WHERE g.submission_id=s.id AND g.state='released' ORDER BY g.revision DESC LIMIT 1) r ON true
+WHERE s.course_id=$1 AND s.student_id=$2
 ORDER BY s.student_id,s.question_id,s.attempt DESC;
 
 -- name: GetBusinessRevision :one
@@ -205,6 +239,30 @@ UPDATE assignments SET title=$2,description=$3,type=$4,max_score=$5,due_at=$6,ve
 -- name: DeleteDraftQuestions :exec
 DELETE FROM questions WHERE assignment_id=$1;
 
+-- name: UpdateDraftQuestion :one
+UPDATE questions SET prompt=$3,type=$4,max_score=$5,rubric=$6,position=$7,options=$8,correct_answer=$9,knowledge_point_id=$10,resource_id=$11
+WHERE id=$1 AND assignment_id=$2 RETURNING *;
+
+-- name: DeleteDraftQuestionsExcept :exec
+DELETE FROM questions WHERE assignment_id=$1 AND NOT (id=ANY(sqlc.arg(keep_ids)::text[]));
+
+-- name: LockBusinessIntervention :one
+SELECT * FROM interventions WHERE id=$1 FOR UPDATE;
+
+-- name: ListInterventionLearningMatches :many
+SELECT id,resource_id,occurred_at FROM learning_events
+WHERE actor_id=$1 AND resource_id=$2 AND verb='completed' AND occurred_at >= $3
+ORDER BY occurred_at DESC;
+
+-- name: ListInterventionSubmissionMatches :many
+SELECT id,question_id,attempt,submitted_at FROM submissions s
+WHERE s.student_id=$1 AND s.assignment_id=$2 AND s.submitted_at >= $3
+AND NOT EXISTS(SELECT 1 FROM submission_import_items i WHERE i.submission_id=s.id)
+ORDER BY s.submitted_at DESC;
+
+-- name: DeleteCourseEdge :one
+DELETE FROM course_edges WHERE course_id=$1 AND from_id=$2 AND to_id=$3 RETURNING from_id;
+
 -- name: ListLearningNotes :many
 SELECT n.* FROM learning_notes n JOIN resources r ON r.id=n.resource_id WHERE n.actor_id=$1 AND r.course_id=$2 ORDER BY n.updated_at DESC;
 
@@ -234,31 +292,32 @@ SELECT * FROM study_paths WHERE course_id=$1 AND student_id=$2 ORDER BY created_
 SELECT i.*,k.title,k.description FROM study_path_items i JOIN knowledge_points k ON k.id=i.knowledge_point_id WHERE path_id=$1 ORDER BY i.position;
 
 -- name: CreateResourceRevision :one
-INSERT INTO resources(id,course_id,knowledge_point_id,title,content,source_url,locator,version,created_by,supersedes_id,source_note)
-SELECT $1,r.course_id,r.knowledge_point_id,$2,$3,$4,$5,r.version+1,$6,r.id,$8 FROM resources r WHERE r.id=$7 AND r.status='published' RETURNING *;
+INSERT INTO resources(id,course_id,knowledge_point_id,title,content,source_url,locator,version,created_by,supersedes_id,source_note,source_id,fragment_ids,full_source)
+SELECT $1,r.course_id,COALESCE(sqlc.narg(knowledge_point_id)::text,r.knowledge_point_id),$2,$3,$4,$5,r.version+1,$6,r.id,$8,r.source_id,r.fragment_ids,r.full_source FROM resources r WHERE r.id=$7 AND r.status='published' RETURNING *;
 
 -- name: AssignmentSubmissionRoster :many
 SELECT u.id AS student_id,u.display_name,
  (SELECT count(DISTINCT s.question_id)::integer FROM submissions s WHERE s.assignment_id=sqlc.arg(assignment_id) AND s.student_id=u.id) AS submitted_questions,
  (SELECT count(*)::integer FROM questions q WHERE q.assignment_id=sqlc.arg(assignment_id)) AS total_questions,
  COALESCE(latest.id,'')::text AS submission_id,COALESCE(latest.attempt,0)::integer AS attempt,
- COALESCE(latest.answer_text,'')::text AS answer_text,COALESCE(latest.answer_sha256,'')::text AS answer_sha256,latest.submitted_at
+ ''::text AS answer_text,COALESCE(latest.answer_sha256,'')::text AS answer_sha256,latest.submitted_at
 FROM enrollments e JOIN users u ON u.id=e.student_id
 LEFT JOIN LATERAL (
- SELECT s.id,s.attempt,s.answer_text,s.answer_sha256,s.submitted_at FROM submissions s
+ SELECT s.id,s.attempt,s.answer_sha256,s.submitted_at FROM submissions s
  WHERE s.assignment_id=sqlc.arg(assignment_id) AND s.student_id=u.id
  ORDER BY s.submitted_at DESC,s.id DESC LIMIT 1
 ) latest ON true
 WHERE e.course_id=sqlc.arg(course_id) ORDER BY u.display_name,u.id;
 
 -- name: ListCourseActivity :many
-SELECT e.id,e.actor_id,u.display_name,e.verb,e.resource_id,e.submission_id,e.object_version,e.occurred_at,
+SELECT e.id,e.actor_id,COALESCE(su.display_name,u.display_name)::text AS display_name,u.display_name AS actor_name,e.verb,e.resource_id,e.submission_id,e.object_version,e.occurred_at,
  COALESCE(r.title,a.title,'')::text AS title,COALESCE(r.locator,'')::text AS locator,
  COALESCE(r.source_note,'')::text AS source_note,COALESCE(r.source_url,'')::text AS source_url,
  COALESCE(s.attempt,0)::integer AS attempt,COALESCE(s.answer_sha256,'')::text AS answer_sha256
 FROM learning_events e JOIN users u ON u.id=e.actor_id
 LEFT JOIN resources r ON r.id=e.resource_id
 LEFT JOIN submissions s ON s.id=e.submission_id
+LEFT JOIN users su ON su.id=s.student_id
 LEFT JOIN assignments a ON a.id=s.assignment_id
 WHERE e.course_id=sqlc.arg(course_id) AND (sqlc.arg(student_id)::text='' OR e.actor_id=sqlc.arg(student_id) OR s.student_id=sqlc.arg(student_id))
 ORDER BY e.occurred_at DESC,e.id DESC LIMIT 500;

@@ -1,6 +1,7 @@
 package identity
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,6 +26,7 @@ import (
 const CookieName = "haji_session"
 const sessionLifetime = 8 * time.Hour
 const actorKey = "haji.actor"
+const dummyPasswordHash = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
 
 type Actor struct {
 	ID          string `json:"id"`
@@ -33,14 +36,52 @@ type Actor struct {
 }
 
 type Handler struct {
-	db           *pgxpool.Pool
-	queries      *store.Queries
-	secureCookie bool
-	limiter      *loginLimiter
+	db              *pgxpool.Pool
+	queries         *store.Queries
+	secureCookie    bool
+	limiter         *loginLimiter
+	ipLimiter       *loginLimiter
+	passwordLimiter *loginLimiter
 }
 
 func New(db *pgxpool.Pool, secureCookie bool) *Handler {
-	return &Handler{db: db, queries: store.New(db), secureCookie: secureCookie, limiter: newLoginLimiter()}
+	return &Handler{
+		db:              db,
+		queries:         store.New(db),
+		secureCookie:    secureCookie,
+		limiter:         newLoginLimiter(),
+		ipLimiter:       newRateLimiter(120, time.Minute, 10000),
+		passwordLimiter: newRateLimiter(10, 15*time.Minute, 10000),
+	}
+}
+
+func (h *Handler) AllowPasswordChange(actorID string) (bool, int) {
+	if h == nil || h.passwordLimiter == nil {
+		return true, 0
+	}
+	return h.passwordLimiter.allowWithRetry(actorID, time.Now())
+}
+
+func (h *Handler) ClearSessionCookie(c *gin.Context) {
+	h.cookie(c, "", -1)
+}
+
+func (h *Handler) StartReaper(ctx context.Context) {
+	if h == nil || h.db == nil || ctx == nil {
+		return
+	}
+	ticker := time.NewTicker(15 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			reapCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			_ = h.queries.DeleteExpiredSessions(reapCtx)
+			cancel()
+		}
+	}
 }
 
 func Fail(c *gin.Context, status int, code, message string) {
@@ -64,22 +105,33 @@ func Current(c *gin.Context) Actor { return c.MustGet(actorKey).(Actor) }
 
 // Same-origin JSON is required even at login, before a session/CSRF token exists.
 func SameOrigin(c *gin.Context) bool {
-	origin := c.GetHeader("Origin")
-	if origin == "" {
-		return true
-	} // Non-browser clients still need CSRF for authenticated writes.
-	parsed, err := url.Parse(origin)
+	if strings.EqualFold(strings.TrimSpace(c.GetHeader("Sec-Fetch-Site")), "cross-site") {
+		Fail(c, http.StatusForbidden, "origin_forbidden", "请求来源不匹配")
+		return false
+	}
 	scheme := "http"
 	if c.Request.TLS != nil {
 		scheme = "https"
 	}
 	expectedOrigin := scheme + "://" + c.Request.Host
-	if configured := os.Getenv("PUBLIC_ORIGIN"); configured != "" {
+	if configured := strings.TrimRight(strings.TrimSpace(os.Getenv("PUBLIC_ORIGIN")), "/"); configured != "" {
 		expectedOrigin = configured
 	}
-	if err != nil || parsed.User != nil || parsed.Host != c.Request.Host || origin != expectedOrigin || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
-		Fail(c, http.StatusForbidden, "origin_forbidden", "请求来源不匹配")
-		return false
+	origin := strings.TrimSpace(c.GetHeader("Origin"))
+	if origin != "" {
+		parsed, err := url.Parse(origin)
+		if err != nil || parsed.User != nil || parsed.Host != c.Request.Host || origin != expectedOrigin || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+			Fail(c, http.StatusForbidden, "origin_forbidden", "请求来源不匹配")
+			return false
+		}
+		return true
+	}
+	if referer := strings.TrimSpace(c.GetHeader("Referer")); referer != "" {
+		parsed, err := url.Parse(referer)
+		if err != nil || parsed.User != nil || parsed.Host != c.Request.Host || parsed.Scheme+"://"+parsed.Host != expectedOrigin {
+			Fail(c, http.StatusForbidden, "origin_forbidden", "请求来源不匹配")
+			return false
+		}
 	}
 	return true
 }
@@ -123,23 +175,33 @@ func (h *Handler) login(c *gin.Context) {
 		Fail(c, http.StatusServiceUnavailable, "service_unavailable", "身份服务暂不可用")
 		return
 	}
-	if !h.limiter.allow(strings.TrimSpace(input.Username), time.Now()) {
-		c.Header("Retry-After", "60")
-		Fail(c, 429, "too_many_requests", "该账号登录请求过于频繁，请稍后重试")
+	now := time.Now()
+	if ip := c.ClientIP(); ip != "" {
+		if ok, retry := h.ipLimiter.allowWithRetry(ip, now); !ok {
+			c.Header("Retry-After", strconv.Itoa(retry))
+			Fail(c, http.StatusTooManyRequests, "too_many_requests", "登录请求过于频繁，请稍后重试")
+			return
+		}
+	}
+	username := strings.TrimSpace(input.Username)
+	if ok, retry := h.limiter.allowWithRetry(username, now); !ok {
+		c.Header("Retry-After", strconv.Itoa(retry))
+		Fail(c, http.StatusTooManyRequests, "too_many_requests", "该账号登录请求过于频繁，请稍后重试")
 		return
 	}
-	user, err := h.queries.GetLoginUser(c.Request.Context(), pgtype.Text{String: strings.TrimSpace(input.Username), Valid: true})
+	user, err := h.queries.GetLoginUser(c.Request.Context(), pgtype.Text{String: username, Valid: true})
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		Fail(c, http.StatusServiceUnavailable, "service_unavailable", "身份服务暂不可用")
 		return
 	}
-	// Unknown users perform the same bcrypt work and receive the same error.
+	// Unknown or passwordless users perform the same bcrypt work and receive the same error.
+	passwordMissing := errors.Is(err, pgx.ErrNoRows) || !user.PasswordHash.Valid || user.PasswordHash.String == ""
 	passwordHash := user.PasswordHash.String
-	if errors.Is(err, pgx.ErrNoRows) {
-		passwordHash = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
+	if passwordMissing {
+		passwordHash = dummyPasswordHash
 	}
 	mismatch := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(input.Password))
-	if err != nil || mismatch != nil {
+	if passwordMissing || mismatch != nil {
 		Fail(c, http.StatusUnauthorized, "invalid_credentials", "用户名或密码错误")
 		return
 	}
@@ -157,10 +219,8 @@ func (h *Handler) login(c *gin.Context) {
 	}
 	defer tx.Rollback(ctx)
 	q := h.queries.WithTx(tx)
-	if err = q.DeleteExpiredSessions(ctx); err == nil {
-		if old, e := c.Cookie(CookieName); e == nil {
-			err = q.DeleteSession(ctx, hashToken(old))
-		}
+	if old, e := c.Cookie(CookieName); e == nil && old != "" {
+		err = q.DeleteSession(ctx, hashToken(old))
 	}
 	if err == nil {
 		err = q.CreateSession(ctx, store.CreateSessionParams{TokenHash: hashToken(raw), UserID: user.ID, ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(sessionLifetime), Valid: true}})
@@ -189,6 +249,10 @@ func (h *Handler) RequireSession() gin.HandlerFunc {
 			Fail(c, http.StatusUnauthorized, "unauthorized", "会话无效，请重新登录")
 			return
 		}
+		if internal && ref.hash == "" {
+			Fail(c, http.StatusUnauthorized, "unauthorized", "请先登录")
+			return
+		}
 		if h.db == nil {
 			Fail(c, http.StatusServiceUnavailable, "service_unavailable", "身份服务暂不可用")
 			return
@@ -199,7 +263,9 @@ func (h *Handler) RequireSession() gin.HandlerFunc {
 		}
 		row, err := h.queries.GetSessionUser(c.Request.Context(), hash)
 		if errors.Is(err, pgx.ErrNoRows) {
-			h.cookie(c, "", -1)
+			if !internal {
+				h.cookie(c, "", -1)
+			}
 			Fail(c, http.StatusUnauthorized, "unauthorized", "会话已失效，请重新登录")
 			return
 		}
@@ -279,14 +345,19 @@ func (h *Handler) myCourses(c *gin.Context) {
 		Fail(c, http.StatusServiceUnavailable, "service_unavailable", "课程查询失败")
 		return
 	}
+	if rows == nil {
+		rows = []store.ListActorCoursesRow{}
+	}
 	c.JSON(http.StatusOK, gin.H{"data": rows})
 }
 
 func (h *Handler) logout(c *gin.Context) {
-	raw, _ := c.Cookie(CookieName)
-	if err := h.queries.DeleteSession(c.Request.Context(), hashToken(raw)); err != nil {
-		Fail(c, http.StatusServiceUnavailable, "service_unavailable", "退出失败，请重试")
-		return
+	hash := SessionReference(c)
+	if hash != "" {
+		if err := h.queries.DeleteSession(c.Request.Context(), hash); err != nil {
+			Fail(c, http.StatusServiceUnavailable, "service_unavailable", "退出失败，请重试")
+			return
+		}
 	}
 	h.cookie(c, "", -1)
 	c.Status(http.StatusNoContent)

@@ -1,25 +1,67 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Drawer } from "antd";
-import { AgentPage } from "./agent";
 import { useConfirm } from "../shared/confirm";
-import { useUnsavedChanges } from "./editing";
+import { AgentPage } from "./agent";
+import { EditorScope } from "./editing";
 
 export type BusinessContext = {
-  kind: "source" | "resource" | "knowledge" | "question" | "assignment" | "submission" | "diagnosis" | "intervention";
+  kind:
+    | "source"
+    | "resource"
+    | "knowledge"
+    | "question"
+    | "assignment"
+    | "submission"
+    | "diagnosis"
+    | "intervention";
   id: string;
   title: string;
 };
 
 export function ContextAgent({ context }: { context: BusinessContext }) {
   const [open, setOpen] = useState(false);
+  const [scopeDirty, setScopeDirty] = useState(false);
+  const [composerDirty, setComposerDirty] = useState(false);
   const confirm = useConfirm();
-  const dirty = useUnsavedChanges();
-  return <>
-    <Button onClick={() => setOpen(true)}>助理协作</Button>
-    <Drawer title={`助理协作 · ${context.title}`} open={open} width={780} destroyOnHidden onClose={async () => {
-      if (!dirty || await confirm("关闭助理？未保存内容保留在当前浏览器会话。")) setOpen(false);
-    }}>
-      {open && <AgentPage key={`${context.kind}:${context.id}`} embedded context={context} />}
-    </Drawer>
-  </>;
+  const dirty = scopeDirty || composerDirty;
+
+  // Reset local drawer state cleanly when opening against a new context target.
+  useEffect(() => {
+    setScopeDirty(false);
+    setComposerDirty(false);
+  }, [context.kind, context.id]);
+
+  return (
+    <>
+      <Button onClick={() => setOpen(true)}>助理协作</Button>
+      <Drawer
+        title={`助理协作 · ${context.title}`}
+        open={open}
+        width="min(100vw, 780px)"
+        push={false}
+        destroyOnHidden
+        onClose={async () => {
+          if (
+            !dirty ||
+            (await confirm("关闭助理？未保存内容保留在当前浏览器会话。"))
+          ) {
+            setOpen(false);
+            setScopeDirty(false);
+            setComposerDirty(false);
+          }
+        }}
+      >
+        {open && (
+          <EditorScope isolated onDirtyChange={setScopeDirty}>
+            <AgentPage
+              key={`${context.kind}:${context.id}`}
+              embedded
+              context={context}
+              onDirtyChange={setComposerDirty}
+            />
+          </EditorScope>
+        )}
+      </Drawer>
+    </>
+  );
 }

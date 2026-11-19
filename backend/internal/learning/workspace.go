@@ -2,6 +2,7 @@ package learning
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
@@ -22,8 +23,48 @@ func (h *Handler) assignmentWorklist(c *gin.Context) {
 	if !ok {
 		return
 	}
+	kind := strings.TrimSpace(c.Query("kind"))
+	switch kind {
+	case "", "homework", "quiz", "subjective", "code":
+	default:
+		invalid(c, "作业类型筛选无效")
+		return
+	}
+	state := strings.TrimSpace(c.Query("state"))
+	switch state {
+	case "", "draft", "published", "closed":
+	default:
+		invalid(c, "作业状态筛选无效")
+		return
+	}
+	sortOrder := strings.TrimSpace(c.Query("sort"))
+	switch sortOrder {
+	case "", "new", "due", "created":
+	default:
+		invalid(c, "排序参数无效")
+		return
+	}
+	search := strings.TrimSpace(c.Query("search"))
+	if len(search) > 200 || strings.ContainsRune(search, '\x00') {
+		invalid(c, "搜索词过长或包含非法字符")
+		return
+	}
+	pointID := strings.TrimSpace(c.Query("point"))
+	if len(pointID) > 128 || strings.ContainsRune(pointID, '\x00') {
+		invalid(c, "知识点筛选参数无效")
+		return
+	}
 	params := store.ListAssignmentWorklistParams{
-		CourseID: c.Param("courseID"), ActorID: identity.Current(c).ID, Teacher: teacher(c), Kind: c.Query("kind"), State: c.Query("state"), Search: c.Query("search"), PointID: c.Query("point"), SortOrder: c.Query("sort"), PageSize: size, PageOffset: offset,
+		CourseID:   c.Param("courseID"),
+		ActorID:    identity.Current(c).ID,
+		Teacher:    teacher(c),
+		Kind:       kind,
+		State:      state,
+		Search:     escapeLike(search),
+		PointID:    pointID,
+		SortOrder:  sortOrder,
+		PageSize:   size,
+		PageOffset: offset,
 	}
 	rows, e := h.q.ListAssignmentWorklist(c.Request.Context(), params)
 	var total int32
@@ -37,6 +78,9 @@ func (h *Handler) assignmentWorklist(c *gin.Context) {
 			total = first[0].Total
 		}
 	}
+	if e == nil && rows == nil {
+		rows = []store.ListAssignmentWorklistRow{}
+	}
 	result(c, gin.H{"rows": rows, "total": total}, e)
 }
 func (h *Handler) submissionWorklist(c *gin.Context) {
@@ -48,7 +92,25 @@ func (h *Handler) submissionWorklist(c *gin.Context) {
 	if !ok {
 		return
 	}
-	params := store.ListSubmissionWorklistParams{AssignmentID: a.ID, Search: c.Query("search"), State: c.Query("state"), PageSize: size, PageOffset: offset}
+	state := strings.TrimSpace(c.Query("state"))
+	switch state {
+	case "", "pending", "draft", "confirmed", "released":
+	default:
+		invalid(c, "批阅状态筛选无效")
+		return
+	}
+	search := strings.TrimSpace(c.Query("search"))
+	if len(search) > 200 || strings.ContainsRune(search, '\x00') {
+		invalid(c, "搜索词过长或包含非法字符")
+		return
+	}
+	params := store.ListSubmissionWorklistParams{
+		AssignmentID: a.ID,
+		Search:       escapeLike(search),
+		State:        state,
+		PageSize:     size,
+		PageOffset:   offset,
+	}
 	rows, e := h.q.ListSubmissionWorklist(c.Request.Context(), params)
 	var total int32
 	if len(rows) > 0 {
@@ -61,10 +123,14 @@ func (h *Handler) submissionWorklist(c *gin.Context) {
 			total = first[0].Total
 		}
 	}
+	if e == nil && rows == nil {
+		rows = []store.ListSubmissionWorklistRow{}
+	}
 	result(c, gin.H{"rows": rows, "total": total}, e)
 }
 func (h *Handler) interventionEvidence(c *gin.Context) {
-	item, e := h.q.GetBusinessIntervention(c.Request.Context(), c.Param("id"))
+	ctx := c.Request.Context()
+	item, e := h.q.GetBusinessIntervention(ctx, c.Param("id"))
 	if e != nil {
 		result(c, nil, e)
 		return
@@ -77,43 +143,51 @@ func (h *Handler) interventionEvidence(c *gin.Context) {
 		return
 	}
 	learningReady, practiceReady := !item.ResourceID.Valid, !item.AssignmentID.Valid
-	if item.ResourceID.Valid {
-		learningReady, e = h.q.HasInterventionLearning(c.Request.Context(), store.HasInterventionLearningParams{ActorID: item.StudentID, ResourceID: item.ResourceID, OccurredAt: item.AssignedAt})
-		if e != nil {
-			result(c, nil, e)
-			return
-		}
-	}
-	if item.AssignmentID.Valid {
-		practiceReady, e = h.q.HasInterventionSubmission(c.Request.Context(), store.HasInterventionSubmissionParams{StudentID: item.StudentID, AssignmentID: item.AssignmentID.String, SubmittedAt: item.AssignedAt})
-		if e != nil {
-			result(c, nil, e)
-			return
-		}
-	}
-	events, e := h.q.ListMyLearningEvents(c.Request.Context(), store.ListMyLearningEventsParams{CourseID: item.CourseID, ActorID: item.StudentID})
-	if e != nil {
-		result(c, nil, e)
-		return
-	}
-	learning := []gin.H{}
-	for _, v := range events {
-		if item.AssignedAt.Valid && v.OccurredAt.Time.Compare(item.AssignedAt.Time) >= 0 && v.ResourceID == item.ResourceID && v.Verb == "completed" {
-			learning = append(learning, gin.H{"resource_id": v.ResourceID, "occurred_at": v.OccurredAt})
-		}
-	}
-	submissions := []gin.H{}
-	if item.AssignmentID.Valid {
-		rows, err := h.q.ListBusinessSubmissions(c.Request.Context(), store.ListBusinessSubmissionsParams{AssignmentID: item.AssignmentID.String, ActorID: item.StudentID, Teacher: false})
+	learning := []store.ListInterventionLearningMatchesRow{}
+	if item.ResourceID.Valid && item.AssignedAt.Valid {
+		rows, err := h.q.ListInterventionLearningMatches(ctx, store.ListInterventionLearningMatchesParams{
+			ActorID:    item.StudentID,
+			ResourceID: item.ResourceID,
+			OccurredAt: item.AssignedAt,
+		})
 		if err != nil {
 			result(c, nil, err)
 			return
 		}
-		for _, v := range rows {
-			if !v.TeacherImported && item.AssignedAt.Valid && v.SubmittedAt.Time.Compare(item.AssignedAt.Time) >= 0 {
-				submissions = append(submissions, gin.H{"id": v.ID, "question_id": v.QuestionID, "attempt": v.Attempt, "submitted_at": v.SubmittedAt})
-			}
+		if rows != nil {
+			learning = rows
+		}
+		learningReady = len(learning) > 0
+	}
+	submissions := []store.ListInterventionSubmissionMatchesRow{}
+	if item.AssignmentID.Valid && item.AssignedAt.Valid {
+		practiceReady, e = h.q.HasInterventionSubmission(ctx, store.HasInterventionSubmissionParams{
+			StudentID:    item.StudentID,
+			AssignmentID: item.AssignmentID.String,
+			SubmittedAt:  item.AssignedAt,
+		})
+		if e != nil {
+			result(c, nil, e)
+			return
+		}
+		rows, err := h.q.ListInterventionSubmissionMatches(ctx, store.ListInterventionSubmissionMatchesParams{
+			StudentID:    item.StudentID,
+			AssignmentID: item.AssignmentID.String,
+			SubmittedAt:  item.AssignedAt,
+		})
+		if err != nil {
+			result(c, nil, err)
+			return
+		}
+		if rows != nil {
+			submissions = rows
 		}
 	}
-	result(c, gin.H{"assigned_at": item.AssignedAt, "learning_ready": learningReady, "practice_ready": practiceReady, "learning": learning, "submissions": submissions}, nil)
+	result(c, gin.H{
+		"assigned_at":    item.AssignedAt,
+		"learning_ready": learningReady,
+		"practice_ready": practiceReady,
+		"learning":       learning,
+		"submissions":    submissions,
+	}, nil)
 }

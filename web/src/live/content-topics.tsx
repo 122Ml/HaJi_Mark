@@ -1,8 +1,10 @@
+import { useEffect, useMemo, useState } from "react";
+import { Alert, Button, Collapse, Form, Input, Select, Space } from "antd";
 import { Field } from "../shared/Field";
-import { useEffect, useState } from "react";
-import { Select, Collapse, Button, Form, Input } from "antd";
-import { Feedback, useAction, useLiveQuery } from "./context";
-import { StatusTag } from "../shared/ui";
+import { LoadingState, StatusTag } from "../shared/ui";
+import { Feedback, useAction, useLiveQuery, when } from "./context";
+import type { Point } from "./types";
+import { hasControlNull, utf8ByteLength } from "./validation";
 
 export type Topic = {
   id: string;
@@ -11,6 +13,7 @@ export type Topic = {
   active: boolean;
   edit_version: number;
 };
+
 export type TopicData = {
   topics: Topic[];
   links: {
@@ -27,15 +30,82 @@ export type TopicData = {
   }[];
 };
 
+function dedupeStrings(items: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of items) {
+    if (!seen.has(item)) {
+      seen.add(item);
+      out.push(item);
+    }
+  }
+  return out;
+}
+
+function cleanTags(items: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of items) {
+    const trimmed = raw.trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    out.push(trimmed);
+  }
+  return out;
+}
+
 export function TopicManager() {
-  const q = useLiveQuery<TopicData>("/topics"),
-    action = useAction();
-  const [editing, setEditing] = useState<Topic | null>(null),
-    [title, setTitle] = useState(""),
-    [description, setDescription] = useState("");
+  const [open, setOpen] = useState(false);
+  const q = useLiveQuery<TopicData>("/topics", open);
+  const action = useAction();
+  const [editing, setEditing] = useState<Topic | null>(null);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [search, setSearch] = useState("");
+  const [formError, setFormError] = useState("");
+
+  const topics = q.data?.topics || [];
+  const visibleTopics = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    if (!needle) return topics;
+    return topics.filter((t) =>
+      `${t.title} ${t.description}`.toLowerCase().includes(needle),
+    );
+  }, [topics, search]);
+
+  const staleConflict =
+    action.error?.status === 409 && action.error.code === "stale_revision";
+  const duplicateConflict =
+    action.error?.status === 409 && action.error.code === "duplicate_topic";
+
+  function clearEditor() {
+    setEditing(null);
+    setTitle("");
+    setDescription("");
+    setFormError("");
+  }
+
+  function validateTopicInput(rawTitle: string, rawDescription: string): string {
+    const trimmed = rawTitle.trim();
+    if (!trimmed) return "请填写专题名称";
+    if (hasControlNull(trimmed) || hasControlNull(rawDescription)) {
+      return "专题名称或说明包含非法字符";
+    }
+    if (utf8ByteLength(trimmed) > 300) {
+      return "专题名称不能超过 300 字节";
+    }
+    if (utf8ByteLength(rawDescription) > 5000) {
+      return "专题说明不能超过 5000 字节";
+    }
+    return "";
+  }
+
   return (
     <Collapse
       className="card-panel"
+      onChange={(keys) =>
+        setOpen(Array.isArray(keys) ? keys.length > 0 : Boolean(keys))
+      }
       items={[
         {
           key: "content",
@@ -43,42 +113,111 @@ export function TopicManager() {
           children: (
             <>
               <Feedback
-                error={q.error}
+                error={q.error || (formError ? new Error(formError) : undefined)}
                 message={action.message}
                 failed={action.failed}
               />
-              <div className="live-inline">
-                {q.data?.topics.map((t) => (
-                  <Button
-                    key={t.id}
-                    onClick={() => {
-                      setEditing(t);
-                      setTitle(t.title);
-                      setDescription(t.description);
-                    }}
-                  >
-                    {t.title}
-                    {!t.active && <StatusTag status="archived" label="已停用" />}
-                  </Button>
-                ))}
-              </div>
+              {staleConflict && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message="专题版本已变化，请刷新后再保存。"
+                  action={
+                    <Button
+                      size="small"
+                      htmlType="button"
+                      onClick={async () => {
+                        const refreshed = await q.refetch();
+                        const latest = refreshed.data?.topics.find(
+                          (t) => t.id === editing?.id,
+                        );
+                        if (latest) {
+                          setEditing(latest);
+                          setTitle(latest.title);
+                          setDescription(latest.description);
+                        } else {
+                          clearEditor();
+                        }
+                        action.setMessage("");
+                      }}
+                    >
+                      刷新专题列表
+                    </Button>
+                  }
+                />
+              )}
+              {duplicateConflict && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message="课程内已存在同名专题，请更换名称或直接选择已有专题编辑。"
+                />
+              )}
+              {q.isPending ? (
+                <LoadingState />
+              ) : (
+                <>
+                  {topics.length > 8 && (
+                    <Input.Search
+                      aria-label="搜索专题"
+                      placeholder="筛选已有专题"
+                      allowClear
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                    />
+                  )}
+                  {!topics.length ? (
+                    <p className="live-meta">暂无专题，可在下方新建课程专题。</p>
+                  ) : !visibleTopics.length ? (
+                    <p className="live-meta">没有匹配的专题。</p>
+                  ) : (
+                    <div className="live-inline">
+                      {visibleTopics.map((t) => (
+                        <Button
+                          key={t.id}
+                          htmlType="button"
+                          type={editing?.id === t.id ? "primary" : "default"}
+                          onClick={() => {
+                            setEditing(t);
+                            setTitle(t.title);
+                            setDescription(t.description);
+                            setFormError("");
+                          }}
+                        >
+                          {t.title}
+                          {!t.active && (
+                            <StatusTag status="archived" label="已停用" />
+                          )}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
               <Form
                 className="live-form"
                 onFinish={async () => {
-                  const r = await action.run(
+                  const err = validateTopicInput(title, description);
+                  if (err) {
+                    setFormError(err);
+                    return;
+                  }
+                  setFormError("");
+                  const trimmedTitle = title.trim();
+                  const r = await action.run<Topic>(
                     editing ? `/topics/${editing.id}` : "/topics",
                     {
-                      title,
+                      title: trimmedTitle,
                       description,
                       active: editing?.active ?? true,
                       edit_version: editing?.edit_version,
                     },
                     editing ? "PUT" : "POST",
+                    undefined,
+                    { invalidatePrefixes: ["topics", "question-bank"] },
                   );
                   if (r) {
-                    setEditing(null);
-                    setTitle("");
-                    setDescription("");
+                    clearEditor();
                   }
                 }}
                 layout="vertical"
@@ -93,19 +232,25 @@ export function TopicManager() {
                     required
                     maxLength={100}
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
+                    onChange={(e) => {
+                      setTitle(e.target.value);
+                      if (formError) setFormError("");
+                    }}
                   />
                 </Field>
                 <Field className="ui-field" label={<>说明</>}>
                   <Input.TextArea
                     aria-label="说明"
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
+                    onChange={(e) => {
+                      setDescription(e.target.value);
+                      if (formError) setFormError("");
+                    }}
                   />
                 </Field>
                 <div className="live-inline">
                   <Button
-                    disabled={action.busy}
+                    disabled={action.busy || !title.trim()}
                     htmlType="submit"
                     type="primary"
                   >
@@ -116,30 +261,46 @@ export function TopicManager() {
                       <Button
                         disabled={action.busy}
                         onClick={async () => {
+                          const nextTitle = title.trim() || editing.title;
+                          const err = validateTopicInput(nextTitle, description);
+                          if (err) {
+                            setFormError(err);
+                            return;
+                          }
+                          setFormError("");
                           const updated = await action.run<Topic>(
                             `/topics/${editing.id}`,
-                            { ...editing, active: !editing.active },
+                            {
+                              title: nextTitle,
+                              description,
+                              active: !editing.active,
+                              edit_version: editing.edit_version,
+                            },
                             "PUT",
+                            undefined,
+                            { invalidatePrefixes: ["topics", "question-bank"] },
                           );
-                          if (updated) setEditing(updated);
+                          if (updated) {
+                            setEditing(updated);
+                            setTitle(updated.title);
+                            setDescription(updated.description);
+                          }
                         }}
                         htmlType="button"
                       >
                         {editing.active ? "停用" : "恢复"}
                       </Button>
-                      <Button
-                        onClick={() => {
-                          setEditing(null);
-                          setTitle("");
-                          setDescription("");
-                        }}
-                        htmlType="button"
-                      >
+                      <Button onClick={clearEditor} htmlType="button">
                         取消
                       </Button>
                     </>
                   )}
                 </div>
+                {editing?.active && (
+                  <p className="live-meta">
+                    停用后，已关联该专题的资料或知识再次保存关联时需先移除已停用专题。
+                  </p>
+                )}
               </Form>
             </>
           ),
@@ -156,111 +317,247 @@ export function ContentLinks({
   kind: "source" | "knowledge" | "question";
   id: string;
 }) {
-  const q = useLiveQuery<TopicData>("/topics"),
-    action = useAction();
-  const [ids, setIds] = useState<string[]>([]),
-    [tags, setTags] = useState<string[]>([]),
-    [dirty, setDirty] = useState(false),
-    [pointIDs, setPoints] = useState<string[]>([]);
-  const points = useLiveQuery<{
-    points: { id: string; title: string; kind: string }[];
-  }>("", kind === "source");
+  const [open, setOpen] = useState(false);
+  const q = useLiveQuery<TopicData>("/topics", open && !!id);
+  const action = useAction();
+  const [ids, setIds] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
+  const [dirty, setDirty] = useState(false);
+  const [pointIDs, setPoints] = useState<string[]>([]);
+  const [validationError, setValidationError] = useState("");
+  const points = useLiveQuery<{ points: Point[] }>(
+    "",
+    open && kind === "source",
+  );
   const key =
     kind === "source"
       ? "source_id"
       : kind === "knowledge"
         ? "knowledge_id"
         : "bank_version_id";
+
+  useEffect(() => {
+    setDirty(false);
+    setValidationError("");
+  }, [id, kind]);
+
   useEffect(() => {
     if (!dirty && q.data) {
-      setIds(q.data.links.filter((l) => l[key] === id).map((l) => l.topic_id));
+      setIds(
+        dedupeStrings(
+          q.data.links.filter((l) => l[key] === id).map((l) => l.topic_id),
+        ),
+      );
       const meta = q.data.tags.find(
         (t) => t.object_kind === kind && t.object_id === id,
       );
-      setTags(meta?.tags || []);
-      setPoints(meta?.knowledge_point_ids || []);
+      setTags(cleanTags(meta?.tags || []));
+      setPoints(dedupeStrings(meta?.knowledge_point_ids || []));
     }
   }, [q.data, id, dirty, key, kind]);
+
+  const topics = q.data?.topics || [];
+  const activeTopicIDs = useMemo(
+    () => new Set(topics.filter((t) => t.active).map((t) => t.id)),
+    [topics],
+  );
+  const inactiveSelected = useMemo(
+    () => (q.data ? ids.filter((tid) => !activeTopicIDs.has(tid)) : []),
+    [q.data, ids, activeTopicIDs],
+  );
+
+  const validPoints = useMemo(
+    () => (points.data?.points || []).filter((p) => p.kind === "point"),
+    [points.data?.points],
+  );
+
+  function validateLinks(
+    nextIDs: string[],
+    nextTags: string[],
+    nextPoints: string[],
+  ): string {
+    if (nextIDs.length > 30) return "关联专题最多 30 项";
+    if (nextTags.length > 30) return "标签最多 30 项";
+    if (nextPoints.length > 100) return "关联知识点最多 100 项";
+    for (const tag of nextTags) {
+      if (hasControlNull(tag) || utf8ByteLength(tag) > 100) {
+        return `标签「${tag}」长度不能超过 100 字节`;
+      }
+    }
+    if (q.data && nextIDs.some((tid) => !activeTopicIDs.has(tid))) {
+      return "所选专题包含已停用或已失效专题，请先移除后再保存";
+    }
+    return "";
+  }
+
   return (
     <Collapse
+      onChange={(keys) =>
+        setOpen(Array.isArray(keys) ? keys.length > 0 : Boolean(keys))
+      }
       items={[
         {
           key: "content",
           label: <>专题与标签</>,
           children: (
-            <>
-              <div className="live-form">
-                <Feedback
-                  error={q.error}
-                  message={action.message}
-                  failed={action.failed}
-                />
-                <Field className="ui-field" label={<>所属专题</>}>
-                  <Select
-                    aria-label="所属专题"
-                    mode="multiple"
-                    value={ids}
-                    options={q.data?.topics.map((t) => ({
-                      value: t.id,
-                      label: t.title + (t.active ? "" : "（已停用）"),
-                      disabled: !t.active,
-                    }))}
-                    onChange={(v) => {
-                      setIds(v);
-                      setDirty(true);
-                    }}
-                  />
-                </Field>
-                <Field className="ui-field" label={<>标签</>}>
-                  <Select
-                    aria-label="内容标签"
-                    mode="tags"
-                    value={tags}
-                    onChange={(v) => {
-                      setTags(v);
-                      setDirty(true);
-                    }}
-                  />
-                </Field>
-                {kind === "source" && (
-                  <Field className="ui-field" label={<>课程知识点</>}>
+            <div className="live-form">
+              <Feedback
+                error={
+                  q.error ||
+                  points.error ||
+                  (validationError ? new Error(validationError) : undefined)
+                }
+                message={action.message}
+                failed={action.failed}
+              />
+              {q.isPending ? (
+                <LoadingState />
+              ) : (
+                <>
+                  {inactiveSelected.length > 0 && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      message={`当前关联包含 ${inactiveSelected.length} 个已停用专题，保存前需移除。`}
+                      action={
+                        <Button
+                          size="small"
+                          htmlType="button"
+                          onClick={() => {
+                            setIds(
+                              ids.filter((tid) => activeTopicIDs.has(tid)),
+                            );
+                            setDirty(true);
+                            setValidationError("");
+                          }}
+                        >
+                          移除已停用专题
+                        </Button>
+                      }
+                    />
+                  )}
+                  <Field className="ui-field" label={<>所属专题</>}>
                     <Select
+                      aria-label="所属专题"
                       mode="multiple"
-                      aria-label="资料关联知识点"
-                      value={pointIDs}
+                      optionFilterProp="label"
+                      placeholder={
+                        topics.length
+                          ? "选择课程专题"
+                          : "暂无可用专题，请先在专题管理中创建"
+                      }
+                      value={ids}
+                      options={topics.map((t) => ({
+                        value: t.id,
+                        label: t.title + (t.active ? "" : "（已停用）"),
+                        disabled: !t.active,
+                      }))}
                       onChange={(v) => {
-                        setPoints(v);
+                        setIds(dedupeStrings(v));
                         setDirty(true);
+                        setValidationError("");
                       }}
-                      options={points.data?.points
-                        .filter((p) => p.kind === "point")
-                        .map((p) => ({ value: p.id, label: p.title }))}
                     />
                   </Field>
-                )}
-                <Button
-                  disabled={action.busy || !dirty}
-                  onClick={async () => {
-                    if (
-                      await action.run(
-                        "/content-links",
-                        {
-                          kind,
-                          id,
-                          topic_ids: ids,
-                          tags,
-                          knowledge_point_ids: pointIDs,
-                        },
-                        "PUT",
-                      )
-                    )
-                      setDirty(false);
-                  }}
-                >
-                  保存关联
-                </Button>
-              </div>
-            </>
+                  <Field className="ui-field" label={<>标签</>}>
+                    <Select
+                      aria-label="内容标签"
+                      mode="tags"
+                      placeholder="输入标签后按回车（最多 30 项）"
+                      value={tags}
+                      onChange={(v) => {
+                        setTags(cleanTags(v));
+                        setDirty(true);
+                        setValidationError("");
+                      }}
+                    />
+                  </Field>
+                  {kind === "source" && (
+                    <Field className="ui-field" label={<>课程知识点</>}>
+                      <Select
+                        mode="multiple"
+                        aria-label="资料关联知识点"
+                        optionFilterProp="label"
+                        loading={points.isPending}
+                        placeholder={
+                          validPoints.length
+                            ? "选择关联知识点"
+                            : "当前课程暂无可选知识点"
+                        }
+                        value={pointIDs}
+                        onChange={(v) => {
+                          setPoints(dedupeStrings(v));
+                          setDirty(true);
+                          setValidationError("");
+                        }}
+                        options={validPoints.map((p) => ({
+                          value: p.id,
+                          label: p.title,
+                        }))}
+                      />
+                    </Field>
+                  )}
+                  <Space wrap>
+                    <Button
+                      htmlType="button"
+                      disabled={action.busy || !dirty}
+                      onClick={async () => {
+                        const cleanIDs = dedupeStrings(ids);
+                        const normalizedTags = cleanTags(tags);
+                        const validPointSet = new Set(
+                          validPoints.map((p) => p.id),
+                        );
+                        const cleanPointIDs =
+                          kind === "source"
+                            ? dedupeStrings(pointIDs).filter(
+                                (pid) =>
+                                  !points.data || validPointSet.has(pid),
+                              )
+                            : [];
+                        const err = validateLinks(
+                          cleanIDs,
+                          normalizedTags,
+                          cleanPointIDs,
+                        );
+                        if (err) {
+                          setValidationError(err);
+                          return;
+                        }
+                        setValidationError("");
+                        const saved = await action.run(
+                          "/content-links",
+                          {
+                            kind,
+                            id,
+                            topic_ids: cleanIDs,
+                            tags: normalizedTags,
+                            knowledge_point_ids: cleanPointIDs,
+                          },
+                          "PUT",
+                          undefined,
+                          {
+                            invalidatePrefixes: [
+                              "topics",
+                              "question-bank",
+                              "sources",
+                              "knowledge",
+                            ],
+                          },
+                        );
+                        if (saved) {
+                          setIds(cleanIDs);
+                          setTags(normalizedTags);
+                          setPoints(cleanPointIDs);
+                          setDirty(false);
+                        }
+                      }}
+                    >
+                      保存关联
+                    </Button>
+                  </Space>
+                </>
+              )}
+            </div>
           ),
         },
       ]}
@@ -270,6 +567,7 @@ export function ContentLinks({
 
 const decisionNames: Record<string, string> = {
   source_suggestions: "资料归类确认",
+  asset_crop: "图像区域裁剪",
   paper_adopt: "试卷拆题入库",
   question_adopt: "题目草稿采纳",
   rubric_adopt: "标准草稿采纳",
@@ -284,6 +582,7 @@ const decisionNames: Record<string, string> = {
 };
 
 export function DecisionHistory({ id }: { id: string }) {
+  const [open, setOpen] = useState(false);
   const q = useLiveQuery<
     {
       id: string;
@@ -291,9 +590,13 @@ export function DecisionHistory({ id }: { id: string }) {
       reason: string;
       created_at: string;
     }[]
-  >(`/decisions?object_id=${encodeURIComponent(id)}`);
+  >(`/decisions?object_id=${encodeURIComponent(id)}`, open && !!id);
+
   return (
     <Collapse
+      onChange={(keys) =>
+        setOpen(Array.isArray(keys) ? keys.length > 0 : Boolean(keys))
+      }
       items={[
         {
           key: "content",
@@ -301,12 +604,14 @@ export function DecisionHistory({ id }: { id: string }) {
           children: (
             <>
               <Feedback error={q.error} />
-              {q.data?.length ? (
+              {q.isPending ? (
+                <LoadingState />
+              ) : q.data?.length ? (
                 q.data.map((d) => (
                   <article className="rag-hit" key={d.id}>
                     <strong>{decisionNames[d.kind] || "内容处理"}</strong>
-                    <p>{d.reason}</p>
-                    <small>{new Date(d.created_at).toLocaleString()}</small>
+                    {d.reason && <p>{d.reason}</p>}
+                    <small>{when(d.created_at)}</small>
                   </article>
                 ))
               ) : (

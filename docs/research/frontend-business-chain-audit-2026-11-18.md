@@ -296,7 +296,7 @@ P1：核心教学任务出现状态误解、结果难找或关键上下文断裂
 
 现有 `/retrieval/status`只表示课程级状态，也不足以证明“本资料当前版本已索引”。要实现准确的对象级反馈，需要补充对象／修订与索引任务的关联和时间，而不是把一个 `indexed=true`显示成全部资料最新。
 
-依据：[后端状态](../../backend/internal/learning/materials.go#L632)，[活动检索页](../../web/src/live/knowledge.tsx#L1570)，[旧未挂载助教](../../web/src/live/assistant.tsx#L6)，[模型选择](../../web/src/live/knowledge.tsx#L217)。
+依据：[后端状态](../../backend/internal/learning/materials.go#L632)，[活动检索页](../../web/src/live/retrieval.tsx)，旧未挂载助教 `web/src/live/assistant.tsx`（已移除），[模型选择](../../web/src/live/ai-jobs.tsx)。
 
 ## 5. 纵向业务链：现状、断点与同页目标
 

@@ -38,7 +38,7 @@
 | 独立题库、标准和固定绑定 | [题库HTTP](../../backend/internal/learning/question_bank.go)、[生成任务](../../backend/internal/rag/question_bank.go)、[题库页面](../../web/src/live/question-bank.tsx)、[题库方案与实施边界](../research/question-bank-rubric-plan.md) |
 | 规则路径、授权知识与学生收藏 | [path.go](../../backend/internal/learning/path.go)、[路径页面](../../web/src/live/path.tsx)、[笔记与收藏](../../backend/internal/learning/notes.go) |
 | 问答历史、作答导入与评分缺口 | [问答持久化](../../backend/internal/learning/assist.go)、[CSV导入](../../backend/internal/learning/submission_import.go)、[正式评分证据](../../web/src/live/learning-gaps.tsx)、[本轮验收](../research/partial-completion-2026-11-17.md) |
-| 对话助理、权限门禁和授权执行 | [Agent服务](../../backend/internal/agent/service.go)、[工具目录](../../backend/internal/agent/catalog.go)、[助理页面](../../web/src/live/assistant.tsx)、[实现与验收](../research/agent-acceptance-2026-11-17.md) |
+| 对话助理、权限门禁和授权执行 | [Agent服务](../../backend/internal/agent/service.go)、[工具目录](../../backend/internal/agent/catalog.go)、[助理页面](../../web/src/live/agent.tsx)、[实现与验收](../research/agent-acceptance-2026-11-17.md) |
 | 原全景结构 | [原模块标注SVG快照](base-network.svg)；来自课程目录20261108的原总图，不修改历史三个SVG |
 
 本轮补入公开URL快照、按需视觉与教师确认、多专题与标签、知识双侧比较和五类人工决定、跨页整卷拆题、题库筛选和采纳审计、站内内容影响与整组重评。普通新版保留旧版，明确撤回才限制未来使用。重评一次管理已关闭作业的一道题，不是跨作业自动改分。

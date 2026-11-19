@@ -7,11 +7,15 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
 	"github.com/122Ml/HaJi_Mark/backend/internal/rag"
@@ -19,9 +23,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
-func validateKnowledgeOrigin(s *rag.Service, ctx context.Context, course, origin, kind string, grading bool, refs []rag.Evidence, visible bool) error {
+func validateKnowledgeOriginWithQueries(s *rag.Service, ctx context.Context, q *store.Queries, course, origin, kind string, grading bool, refs []rag.Evidence, visible bool) error {
 	if origin == "teacher_example" {
 		if kind != "example" || grading || len(refs) != 0 {
 			return errors.New("教师自编示例只能用于学习，不附学生作答或来源引用，不用于评分")
@@ -31,7 +36,11 @@ func validateKnowledgeOrigin(s *rag.Service, ctx context.Context, course, origin
 	if origin != "source" {
 		return errors.New("知识来源类型无效")
 	}
-	return s.ValidateEvidence(ctx, course, refs, visible)
+	return s.ValidateEvidenceWithQueries(ctx, q, course, refs, visible)
+}
+
+func validateKnowledgeOrigin(s *rag.Service, ctx context.Context, course, origin, kind string, grading bool, refs []rag.Evidence, visible bool) error {
+	return validateKnowledgeOriginWithQueries(s, ctx, s.Q, course, origin, kind, grading, refs, visible)
 }
 
 func (h *Handler) registerRAG(g *gin.RouterGroup, auth *identity.Handler) {
@@ -65,13 +74,84 @@ func (h *Handler) registerRAG(g *gin.RouterGroup, auth *identity.Handler) {
 	g.POST("/retrieval", auth.RequireCSRF(), h.retrieval)
 	g.GET("/retrieval/status", h.retrievalStatus)
 }
-func ragError(c *gin.Context, e error) { identity.Fail(c, 422, "rag_error", e.Error()) }
+
+func isUserValidationError(e error) bool {
+	if e == nil {
+		return false
+	}
+	var pgErr *pgconn.PgError
+	var syntaxErr *json.SyntaxError
+	var typeErr *json.UnmarshalTypeError
+	var netErr *net.OpError
+	var urlErr *url.Error
+	var pathErr *os.PathError
+	if errors.As(e, &pgErr) || errors.As(e, &syntaxErr) || errors.As(e, &typeErr) ||
+		errors.As(e, &netErr) || errors.As(e, &urlErr) || errors.As(e, &pathErr) ||
+		errors.Is(e, pgx.ErrNoRows) || errors.Is(e, context.Canceled) || errors.Is(e, context.DeadlineExceeded) {
+		return false
+	}
+	msg := e.Error()
+	if msg == "" || len(msg) > 500 || strings.ContainsAny(msg, "\r\n") {
+		return false
+	}
+	for _, noise := range []string{"SQLSTATE", "ERROR:", "pq:", "pgx", "dial tcp", "EOF", "panic", "runtime error"} {
+		if strings.Contains(msg, noise) {
+			return false
+		}
+	}
+	for _, r := range msg {
+		if unicode.Is(unicode.Han, r) {
+			return true
+		}
+	}
+	return false
+}
+
+func ragError(c *gin.Context, e error) {
+	if e == nil {
+		return
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(e, &pgErr) {
+		log.Printf("rag db error (%s): %v", pgErr.Code, e)
+		result(c, nil, e)
+		return
+	}
+	if errors.Is(e, pgx.ErrNoRows) {
+		identity.Fail(c, 404, "not_found", "记录不存在或状态已改变")
+		return
+	}
+	if errors.Is(e, context.Canceled) || errors.Is(e, context.DeadlineExceeded) {
+		log.Printf("rag context error: %v", e)
+		identity.Fail(c, 503, "service_unavailable", "请求超时或已取消，请稍后重试")
+		return
+	}
+	if isUserValidationError(e) {
+		identity.Fail(c, 422, "rag_error", e.Error())
+		return
+	}
+	log.Printf("internal rag error: %v", e)
+	identity.Fail(c, 503, "service_unavailable", "服务暂时不可用，请稍后重试")
+}
+
+func setAttachmentDisposition(c *gin.Context, filename string) {
+	base := filepath.Base(strings.TrimSpace(filename))
+	base = strings.NewReplacer("\r", "", "\n", "", "\x00", "", "\"", "").Replace(base)
+	if base == "" || base == "." || base == "/" || base == "\\" {
+		base = "download"
+	}
+	ext := strings.ToLower(filepath.Ext(base))
+	asciiFallback := "download" + ext
+	c.Header("Content-Disposition", `attachment; filename="`+asciiFallback+`"; filename*=UTF-8''`+url.PathEscape(base))
+}
+
 func (h *Handler) models(c *gin.Context) {
 	budget, e := h.q.GetModelBudget(c.Request.Context())
-	calls, err := h.q.ListCourseModelCalls(c.Request.Context(), c.Param("courseID"))
-	if e == nil {
-		e = err
+	if e != nil {
+		result(c, nil, e)
+		return
 	}
+	calls, e := h.q.ListCourseModelCalls(c.Request.Context(), c.Param("courseID"))
 	result(c, gin.H{"profiles": h.rag.Models.Public(), "budget": budget, "calls": calls}, e)
 }
 func (h *Handler) sources(c *gin.Context) {
@@ -94,7 +174,15 @@ func (h *Handler) sourceDetail(c *gin.Context) {
 	revision := src.ParseRevision
 	if id := c.Query("fragment_id"); id != "" {
 		f, e := h.q.GetMaterialFragment(c.Request.Context(), store.GetMaterialFragmentParams{ID: id, CourseID: src.CourseID})
-		if e != nil || f.SourceID != src.ID {
+		if e != nil {
+			if errors.Is(e, pgx.ErrNoRows) {
+				identity.Fail(c, 404, "not_found", "原文片段不存在")
+				return
+			}
+			result(c, nil, e)
+			return
+		}
+		if f.SourceID != src.ID {
 			identity.Fail(c, 404, "not_found", "原文片段不存在")
 			return
 		}
@@ -115,41 +203,63 @@ func (h *Handler) uploadSources(c *gin.Context) {
 		invalid(c, "每次请选择1到10个文件")
 		return
 	}
-	note := c.PostForm("source_note")
+	note := strings.TrimSpace(c.PostForm("source_note"))
 	if !validText(note, 1000) {
 		invalid(c, "请登记资料来源")
 		return
 	}
-	allowed := map[string]bool{".pdf": true, ".docx": true, ".pptx": true, ".txt": true, ".md": true, ".html": true, ".htm": true, ".csv": true}
+	allowedMIME := map[string]string{
+		".pdf":  "application/pdf",
+		".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+		".txt":  "text/plain; charset=utf-8",
+		".md":   "text/markdown; charset=utf-8",
+		".html": "text/html; charset=utf-8",
+		".htm":  "text/html; charset=utf-8",
+		".csv":  "text/csv; charset=utf-8",
+	}
 	for _, f := range files {
-		if f.Size > 30<<20 || f.Size < 1 || !allowed[strings.ToLower(filepath.Ext(f.Filename))] {
+		ext := strings.ToLower(filepath.Ext(f.Filename))
+		if f.Size > 30<<20 || f.Size < 1 || allowedMIME[ext] == "" {
 			invalid(c, "文件为空、超过30MiB或类型不支持")
 			return
 		}
 	}
-	supersedes := c.PostForm("supersedes_id")
-	version := int32(1)
-	if supersedes != "" {
-		if len(files) != 1 {
-			invalid(c, "替换原件时一次只能上传一个文件")
-			return
-		}
-		old, e := h.q.GetMaterialSource(c.Request.Context(), store.GetMaterialSourceParams{ID: supersedes, CourseID: c.Param("courseID")})
-		if e != nil {
-			result(c, nil, e)
-			return
-		}
-		version = old.Version + 1
+	supersedes := strings.TrimSpace(c.PostForm("supersedes_id"))
+	if supersedes != "" && len(files) != 1 {
+		invalid(c, "替换原件时一次只能上传一个文件")
+		return
 	}
 	base := rag.MaterialsDir()
 	if e := os.MkdirAll(base, 0700); e != nil {
 		result(c, nil, e)
 		return
 	}
-	jobs := []store.ProcessingJob{}
+	type stagedFile struct {
+		id        string
+		name      string
+		path      string
+		sha256    string
+		title     string
+		filename  string
+		mediaType string
+	}
+	staged := make([]stagedFile, 0, len(files))
+	committed := false
+	defer func() {
+		if committed {
+			return
+		}
+		for _, item := range staged {
+			_ = os.Remove(item.path)
+		}
+	}()
+	seenHashes := map[string]bool{}
+	rawFormTitle := strings.TrimSpace(c.PostForm("title"))
 	for _, file := range files {
 		id := uuid.NewString()
-		name := id + strings.ToLower(filepath.Ext(file.Filename))
+		ext := strings.ToLower(filepath.Ext(file.Filename))
+		name := id + ext
 		path := filepath.Join(base, name)
 		in, e := file.Open()
 		if e != nil {
@@ -158,23 +268,78 @@ func (h *Handler) uploadSources(c *gin.Context) {
 		}
 		out, e := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 		if e != nil {
-			in.Close()
+			_ = in.Close()
 			result(c, nil, e)
 			return
 		}
+		staged = append(staged, stagedFile{id: id, name: name, path: path})
 		hash := sha256.New()
-		_, e = io.Copy(io.MultiWriter(out, hash), io.LimitReader(in, 30<<20+1))
-		in.Close()
-		out.Close()
+		n, copyErr := io.Copy(io.MultiWriter(out, hash), io.LimitReader(in, 30<<20+1))
+		_ = in.Close()
+		closeErr := out.Close()
+		if copyErr != nil {
+			result(c, nil, copyErr)
+			return
+		}
+		if closeErr != nil {
+			result(c, nil, closeErr)
+			return
+		}
+		if n < 1 || n > 30<<20 {
+			invalid(c, "文件为空或超过30MiB")
+			return
+		}
+		sum := hex.EncodeToString(hash.Sum(nil))
+		if supersedes == "" {
+			if seenHashes[sum] {
+				identity.Fail(c, 409, "duplicate_source", "同一批次包含重复文件内容")
+				return
+			}
+			seenHashes[sum] = true
+		}
+		baseFilename := filepath.Base(strings.ReplaceAll(file.Filename, `\`, `/`))
+		title := rawFormTitle
+		if title == "" || len(files) > 1 {
+			title = strings.TrimSpace(baseFilename)
+		}
+		title = strings.ReplaceAll(title, "\x00", "")
+		if title == "" {
+			title = id + ext
+		}
+		if len(title) > 500 {
+			title = string([]rune(title)[:100])
+		}
+		last := &staged[len(staged)-1]
+		last.sha256 = sum
+		last.title = title
+		last.filename = baseFilename
+		last.mediaType = allowedMIME[ext]
+	}
+	ctx := c.Request.Context()
+	courseID := c.Param("courseID")
+	actorID := identity.Current(c).ID
+	allowDerived := c.PostForm("allow_derived") == "true"
+	tx, e := h.db.Begin(ctx)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	defer tx.Rollback(ctx)
+	q := h.q.WithTx(tx)
+	version := int32(1)
+	if supersedes != "" {
+		old, e := q.LockMaterialSource(ctx, store.LockMaterialSourceParams{ID: supersedes, CourseID: courseID})
 		if e != nil {
-			_ = os.Remove(path)
 			result(c, nil, e)
 			return
 		}
+		version = old.Version + 1
+	}
+	jobs := make([]store.ProcessingJob, 0, len(staged))
+	for _, item := range staged {
 		if supersedes == "" {
-			old, err := h.q.SourceDuplicate(c.Request.Context(), store.SourceDuplicateParams{CourseID: c.Param("courseID"), Sha256: hex.EncodeToString(hash.Sum(nil))})
+			old, err := q.SourceDuplicate(ctx, store.SourceDuplicateParams{CourseID: courseID, Sha256: item.sha256})
 			if err == nil {
-				_ = os.Remove(path)
 				identity.Fail(c, 409, "duplicate_source", "内容已导入，请复用原件："+old.Title)
 				return
 			}
@@ -183,25 +348,45 @@ func (h *Handler) uploadSources(c *gin.Context) {
 				return
 			}
 		}
-		title := c.PostForm("title")
-		if title == "" || len(files) > 1 {
-			title = file.Filename
-		}
-		if len(title) > 500 {
-			title = string([]rune(title)[:100])
-		}
-		src, e := h.q.CreateMaterialSource(c.Request.Context(), store.CreateMaterialSourceParams{ID: id, CourseID: c.Param("courseID"), CreatedBy: identity.Current(c).ID, Title: title, Filename: filepath.Base(file.Filename), MediaType: "application/octet-stream", StoragePath: name, SourceNote: note, Sha256: hex.EncodeToString(hash.Sum(nil)), AllowDerived: c.PostForm("allow_derived") == "true", Version: version, SupersedesID: text(supersedes)})
+		src, e := q.CreateMaterialSource(ctx, store.CreateMaterialSourceParams{
+			ID:           item.id,
+			CourseID:     courseID,
+			CreatedBy:    actorID,
+			Title:        item.title,
+			Filename:     item.filename,
+			MediaType:    item.mediaType,
+			StoragePath:  item.name,
+			SourceNote:   note,
+			Sha256:       item.sha256,
+			AllowDerived: allowDerived,
+			Version:      version,
+			SupersedesID: text(supersedes),
+		})
 		if e != nil {
-			_ = os.Remove(path)
 			result(c, nil, e)
 			return
 		}
-		j, e := h.rag.CreateJob(c.Request.Context(), src.CourseID, identity.Current(c).ID, "parse", rag.JobInput{SourceID: id})
+		jobInput, _ := json.Marshal(rag.JobInput{SourceID: item.id})
+		j, e := q.CreateProcessingJob(ctx, store.CreateProcessingJobParams{
+			ID:        uuid.NewString(),
+			CourseID:  src.CourseID,
+			CreatedBy: actorID,
+			Kind:      "parse",
+			Input:     jobInput,
+		})
 		if e != nil {
 			result(c, nil, e)
 			return
 		}
 		jobs = append(jobs, j)
+	}
+	if e = tx.Commit(ctx); e != nil {
+		result(c, nil, e)
+		return
+	}
+	committed = true
+	for _, j := range jobs {
+		h.rag.Enqueue(j.ID)
 	}
 	result(c, jobs, nil)
 }
@@ -212,13 +397,28 @@ func (h *Handler) downloadSource(c *gin.Context) {
 	}
 	if !teacher(c) {
 		allowed, e := h.q.StudentCanDownloadSource(c.Request.Context(), store.StudentCanDownloadSourceParams{ID: src.ID, CourseID: src.CourseID})
-		if e != nil || !allowed {
+		if e != nil {
+			result(c, nil, e)
+			return
+		}
+		if !allowed {
 			identity.Fail(c, 403, "forbidden", "当前资料只发布了选中片段，完整原件不可下载")
 			return
 		}
 	}
+	path, e := rag.SafeMaterialPath(src.StoragePath)
+	if e != nil {
+		identity.Fail(c, 404, "not_found", "原始文件不存在")
+		return
+	}
+	info, e := os.Stat(path)
+	if e != nil || info.IsDir() {
+		identity.Fail(c, 404, "not_found", "原始文件不存在")
+		return
+	}
 	c.Header("X-Content-Type-Options", "nosniff")
-	c.FileAttachment(filepath.Join(rag.MaterialsDir(), src.StoragePath), src.Filename)
+	setAttachmentDisposition(c, src.Filename)
+	c.File(path)
 }
 func (h *Handler) correctFragments(c *gin.Context) {
 	var in struct {
@@ -266,8 +466,8 @@ func (h *Handler) correctFragments(c *gin.Context) {
 		return
 	}
 	for i, f := range in.Fragments {
-		if old[i].ID != f.ID || !validText(f.Body, 500000) || (f.Quality != "ready" && f.Quality != "needs_review") {
-			invalid(c, "片段顺序、正文或核对状态无效")
+		if old[i].ID != f.ID || len(f.Heading) > 500 || strings.ContainsRune(f.Heading, '\x00') || !validText(f.Body, 500000) || (f.Quality != "ready" && f.Quality != "needs_review") {
+			invalid(c, "片段顺序、标题、正文或核对状态无效")
 			return
 		}
 		_, e = q.InsertMaterialFragment(ctx, store.InsertMaterialFragmentParams{ID: uuid.NewString(), SourceID: src.ID, Revision: src.ParseRevision + 1, Position: int32(i), Heading: f.Heading, Body: f.Body, Locator: old[i].Locator, Quality: f.Quality})
@@ -281,13 +481,17 @@ func (h *Handler) correctFragments(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
-	if e = rag.QueueIndex(ctx, q, src.CourseID, identity.Current(c).ID); e != nil {
+	jobID, e := rag.QueueIndexID(ctx, q, src.CourseID, identity.Current(c).ID)
+	if e != nil {
 		result(c, nil, e)
 		return
 	}
 	if e = tx.Commit(ctx); e != nil {
 		result(c, nil, e)
 		return
+	}
+	if jobID != "" && h.rag != nil {
+		h.rag.Enqueue(jobID)
 	}
 	result(c, v, nil)
 }
@@ -318,7 +522,7 @@ func (h *Handler) publishFragments(c *gin.Context) {
 		invalid(c, "请填写标题并选择已核对片段")
 		return
 	}
-	if e := h.rag.ValidateLinks(c.Request.Context(), src.CourseID, filterID(in.KnowledgePointID), nil); e != nil {
+	if e := h.rag.ValidateLinksWithQueries(ctx, q, src.CourseID, filterID(in.KnowledgePointID), nil, ""); e != nil {
 		ragError(c, e)
 		return
 	}
@@ -335,25 +539,32 @@ func (h *Handler) publishFragments(c *gin.Context) {
 		}
 		selected[id] = true
 	}
-	content := ""
-	locators := []json.RawMessage{}
+	var content strings.Builder
+	locators := make([]json.RawMessage, 0, len(in.FragmentIDs))
 	for _, f := range fs {
 		if selected[f.ID] {
 			if f.Quality != "ready" {
 				invalid(c, "OCR或异常片段须先人工核对")
 				return
 			}
-			content += f.Heading + "\n" + f.Body + "\n\n"
+			if content.Len()+len(f.Heading)+len(f.Body)+3 > 200000 {
+				invalid(c, "片段版本无效、内容过长，或尚未选择全部原文")
+				return
+			}
+			content.WriteString(f.Heading)
+			content.WriteByte('\n')
+			content.WriteString(f.Body)
+			content.WriteString("\n\n")
 			locators = append(locators, f.Locator)
 			delete(selected, f.ID)
 		}
 	}
-	if len(selected) > 0 || len(content) > 200000 || in.FullSource && len(in.FragmentIDs) != len(fs) {
+	if len(selected) > 0 || (in.FullSource && len(in.FragmentIDs) != len(fs)) {
 		invalid(c, "片段版本无效、内容过长，或尚未选择全部原文")
 		return
 	}
 	loc, _ := json.Marshal(locators)
-	r, e := q.CreateBusinessResource(ctx, store.CreateBusinessResourceParams{ID: uuid.NewString(), CourseID: src.CourseID, CreatedBy: identity.Current(c).ID, Title: in.Title, Content: content, SourceUrl: src.SourceUrl, SourceNote: src.SourceNote, Locator: src.Filename + " " + string(loc), KnowledgePointID: text(in.KnowledgePointID)})
+	r, e := q.CreateBusinessResource(ctx, store.CreateBusinessResourceParams{ID: uuid.NewString(), CourseID: src.CourseID, CreatedBy: identity.Current(c).ID, Title: in.Title, Content: content.String(), SourceUrl: src.SourceUrl, SourceNote: src.SourceNote, Locator: src.Filename + " " + string(loc), KnowledgePointID: text(in.KnowledgePointID)})
 	if e != nil {
 		result(c, nil, e)
 		return
@@ -367,7 +578,19 @@ func (h *Handler) publishFragments(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
-	result(c, r, tx.Commit(ctx))
+	jobID, e := rag.QueueIndexID(ctx, q, src.CourseID, identity.Current(c).ID)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	if e = tx.Commit(ctx); e != nil {
+		result(c, nil, e)
+		return
+	}
+	if jobID != "" && h.rag != nil {
+		h.rag.Enqueue(jobID)
+	}
+	result(c, r, nil)
 }
 func filterID(s string) []string {
 	if s == "" {
@@ -390,8 +613,29 @@ func (h *Handler) sourceDerivation(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
-	v, e := h.q.SetSourceDerivation(c.Request.Context(), store.SetSourceDerivationParams{ID: c.Param("sourceID"), CourseID: c.Param("courseID"), AllowDerived: in.Allow})
-	result(c, v, e)
+	ctx := c.Request.Context()
+	tx, e := h.db.Begin(ctx)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	defer tx.Rollback(ctx)
+	q := h.q.WithTx(tx)
+	src, e := q.LockMaterialSource(ctx, store.LockMaterialSourceParams{ID: c.Param("sourceID"), CourseID: c.Param("courseID")})
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	if src.State != "active" {
+		identity.Fail(c, 409, "state_conflict", "原件已归档，不可更改提炼许可")
+		return
+	}
+	v, e := q.SetSourceDerivation(ctx, store.SetSourceDerivationParams{ID: src.ID, CourseID: src.CourseID, AllowDerived: in.Allow})
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	result(c, v, tx.Commit(ctx))
 }
 func (h *Handler) knowledge(c *gin.Context) {
 	v, e := h.q.ListKnowledgeEntries(c.Request.Context(), store.ListKnowledgeEntriesParams{CourseID: c.Param("courseID"), Teacher: teacher(c)})
@@ -410,23 +654,32 @@ func (h *Handler) saveKnowledge(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
-	if !validText(in.Title, 500) || !validText(in.Body, 60000) || !rag.ValidContentKind(in.ContentKind) {
-		invalid(c, "知识标题、正文或类型无效")
+	if !validText(in.Title, 500) || !validText(in.Body, 60000) || !rag.ValidContentKind(in.ContentKind) ||
+		len(in.Category) > 200 || strings.ContainsRune(in.Category, '\x00') ||
+		len(in.Conditions) > 10000 || strings.ContainsRune(in.Conditions, '\x00') ||
+		len(in.Evidence) > 30 || len(in.KnowledgePointIDs) > 100 || len(in.RelatedIDs) > 30 {
+		invalid(c, "知识标题、正文、类型或关联字段无效")
 		return
 	}
-	ctx := c.Request.Context()
 	if in.Origin == "" {
 		in.Origin = "source"
 	}
 	if in.Evidence == nil {
 		in.Evidence = []rag.Evidence{}
 	}
-	previous := c.Param("knowledgeID")
-	if previous == "" {
-		previous = in.SupersedesID
+	ctx := c.Request.Context()
+	courseID := c.Param("courseID")
+	editID := c.Param("knowledgeID")
+	tx, e := h.db.Begin(ctx)
+	if e != nil {
+		result(c, nil, e)
+		return
 	}
-	if previous != "" {
-		old, e := h.q.GetKnowledgeEntry(ctx, store.GetKnowledgeEntryParams{ID: previous, CourseID: c.Param("courseID")})
+	defer tx.Rollback(ctx)
+	q := h.q.WithTx(tx)
+	version := int32(1)
+	if editID != "" {
+		old, e := q.LockKnowledgeEntry(ctx, store.LockKnowledgeEntryParams{ID: editID, CourseID: courseID})
 		if e != nil {
 			result(c, nil, e)
 			return
@@ -435,26 +688,18 @@ func (h *Handler) saveKnowledge(c *gin.Context) {
 			invalid(c, "知识来源类型不能通过编辑或修订改变")
 			return
 		}
-	}
-	if e := validateKnowledgeOrigin(h.rag, ctx, c.Param("courseID"), in.Origin, in.ContentKind, in.UseForGrading, in.Evidence, in.StudentVisible); e != nil {
-		ragError(c, e)
-		return
-	}
-	if e := h.rag.ValidateLinks(c.Request.Context(), c.Param("courseID"), in.KnowledgePointIDs, in.RelatedIDs); e != nil {
-		ragError(c, e)
-		return
-	}
-	refs, _ := json.Marshal(in.Evidence)
-	if id := c.Param("knowledgeID"); id != "" {
-		v, e := h.q.EditKnowledgeEntry(ctx, store.EditKnowledgeEntryParams{ID: id, CourseID: c.Param("courseID"), Title: in.Title, Body: in.Body, Category: in.Category, ContentKind: in.ContentKind, Conditions: in.Conditions, KnowledgePointIds: nonNilStrings(in.KnowledgePointIDs), RelatedIds: nonNilStrings(in.RelatedIDs), Evidence: refs, StudentVisible: in.StudentVisible, UseForLearning: in.UseForLearning, UseForGrading: in.UseForGrading, EditVersion: in.EditVersion})
-		result(c, v, e)
-		return
-	}
-	version := int32(1)
-	if in.SupersedesID != "" {
-		old, e := h.q.GetKnowledgeEntry(ctx, store.GetKnowledgeEntryParams{ID: in.SupersedesID, CourseID: c.Param("courseID")})
+		if old.State != "draft" || old.EditVersion != in.EditVersion {
+			identity.Fail(c, 409, "stale_revision", "知识已被修改或状态已改变，请刷新")
+			return
+		}
+	} else if in.SupersedesID != "" {
+		old, e := q.GetKnowledgeEntry(ctx, store.GetKnowledgeEntryParams{ID: in.SupersedesID, CourseID: courseID})
 		if e != nil {
 			result(c, nil, e)
+			return
+		}
+		if old.Origin != in.Origin {
+			invalid(c, "知识来源类型不能通过编辑或修订改变")
 			return
 		}
 		if old.State == "draft" {
@@ -463,8 +708,79 @@ func (h *Handler) saveKnowledge(c *gin.Context) {
 		}
 		version = old.Version + 1
 	}
-	v, e := h.q.CreateKnowledgeEntry(ctx, store.CreateKnowledgeEntryParams{ID: uuid.NewString(), CourseID: c.Param("courseID"), CreatedBy: identity.Current(c).ID, Title: in.Title, Body: in.Body, Category: in.Category, ContentKind: in.ContentKind, Conditions: in.Conditions, KnowledgePointIds: nonNilStrings(in.KnowledgePointIDs), RelatedIds: nonNilStrings(in.RelatedIDs), Evidence: refs, StudentVisible: in.StudentVisible, UseForLearning: in.UseForLearning, UseForGrading: in.UseForGrading, Version: version, SupersedesID: text(in.SupersedesID), Origin: in.Origin})
-	result(c, v, e)
+	if e := validateKnowledgeOriginWithQueries(h.rag, ctx, q, courseID, in.Origin, in.ContentKind, in.UseForGrading, in.Evidence, in.StudentVisible); e != nil {
+		ragError(c, e)
+		return
+	}
+	if e := h.rag.ValidateLinksWithQueries(ctx, q, courseID, in.KnowledgePointIDs, in.RelatedIDs, editID); e != nil {
+		ragError(c, e)
+		return
+	}
+	refs, _ := json.Marshal(in.Evidence)
+	if editID != "" {
+		v, e := q.EditKnowledgeEntry(ctx, store.EditKnowledgeEntryParams{
+			ID:                editID,
+			CourseID:          courseID,
+			Title:             in.Title,
+			Body:              in.Body,
+			Category:          in.Category,
+			ContentKind:       in.ContentKind,
+			Conditions:        in.Conditions,
+			KnowledgePointIds: nonNilStrings(in.KnowledgePointIDs),
+			RelatedIds:        nonNilStrings(in.RelatedIDs),
+			Evidence:          refs,
+			StudentVisible:    in.StudentVisible,
+			UseForLearning:    in.UseForLearning,
+			UseForGrading:     in.UseForGrading,
+			EditVersion:       in.EditVersion,
+		})
+		if errors.Is(e, pgx.ErrNoRows) {
+			identity.Fail(c, 409, "stale_revision", "知识已被修改，请刷新")
+			return
+		}
+		if e != nil {
+			result(c, nil, e)
+			return
+		}
+		jobID, e := rag.QueueIndexID(ctx, q, courseID, identity.Current(c).ID)
+		if e != nil {
+			result(c, nil, e)
+			return
+		}
+		if e = tx.Commit(ctx); e != nil {
+			result(c, nil, e)
+			return
+		}
+		if jobID != "" && h.rag != nil {
+			h.rag.Enqueue(jobID)
+		}
+		result(c, v, nil)
+		return
+	}
+	v, e := q.CreateKnowledgeEntry(ctx, store.CreateKnowledgeEntryParams{
+		ID:                uuid.NewString(),
+		CourseID:          courseID,
+		CreatedBy:         identity.Current(c).ID,
+		Title:             in.Title,
+		Body:              in.Body,
+		Category:          in.Category,
+		ContentKind:       in.ContentKind,
+		Conditions:        in.Conditions,
+		KnowledgePointIds: nonNilStrings(in.KnowledgePointIDs),
+		RelatedIds:        nonNilStrings(in.RelatedIDs),
+		Evidence:          refs,
+		StudentVisible:    in.StudentVisible,
+		UseForLearning:    in.UseForLearning,
+		UseForGrading:     in.UseForGrading,
+		Version:           version,
+		SupersedesID:      text(in.SupersedesID),
+		Origin:            in.Origin,
+	})
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	result(c, v, tx.Commit(ctx))
 }
 func nonNilStrings(v []string) []string {
 	if v == nil {
@@ -480,7 +796,15 @@ func (h *Handler) knowledgeState(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
-	k, e := h.q.GetKnowledgeEntry(c.Request.Context(), store.GetKnowledgeEntryParams{ID: c.Param("knowledgeID"), CourseID: c.Param("courseID")})
+	ctx := c.Request.Context()
+	tx, e := h.db.Begin(ctx)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	defer tx.Rollback(ctx)
+	q := h.q.WithTx(tx)
+	k, e := q.LockKnowledgeEntry(ctx, store.LockKnowledgeEntryParams{ID: c.Param("knowledgeID"), CourseID: c.Param("courseID")})
 	if e != nil {
 		result(c, nil, e)
 		return
@@ -491,8 +815,11 @@ func (h *Handler) knowledgeState(c *gin.Context) {
 	}
 	if in.State == "confirmed" && k.State == "draft" {
 		var refs []rag.Evidence
-		_ = json.Unmarshal(k.Evidence, &refs)
-		if e = validateKnowledgeOrigin(h.rag, c.Request.Context(), k.CourseID, k.Origin, k.ContentKind, k.UseForGrading, refs, k.StudentVisible); e != nil {
+		if err := json.Unmarshal(k.Evidence, &refs); err != nil {
+			result(c, nil, err)
+			return
+		}
+		if e = validateKnowledgeOriginWithQueries(h.rag, ctx, q, k.CourseID, k.Origin, k.ContentKind, k.UseForGrading, refs, k.StudentVisible); e != nil {
 			ragError(c, e)
 			return
 		}
@@ -500,27 +827,28 @@ func (h *Handler) knowledgeState(c *gin.Context) {
 		invalid(c, "只允许确认草稿或归档条目")
 		return
 	}
-	ctx := c.Request.Context()
-	tx, e := h.db.Begin(ctx)
-	if e != nil {
-		result(c, nil, e)
-		return
-	}
-	defer tx.Rollback(ctx)
-	q := h.q.WithTx(tx)
 	v, e := q.TransitionKnowledgeEntry(ctx, store.TransitionKnowledgeEntryParams{ID: k.ID, CourseID: k.CourseID, State: in.State, State_2: k.State, EditVersion: in.EditVersion})
 	if errors.Is(e, pgx.ErrNoRows) {
 		identity.Fail(c, 409, "stale_revision", "知识已被修改，请刷新并重新审核")
 		return
 	}
-	if e == nil {
-		e = rag.QueueIndex(ctx, q, k.CourseID, identity.Current(c).ID)
-	}
 	if e != nil {
 		result(c, nil, e)
 		return
 	}
-	result(c, v, tx.Commit(ctx))
+	jobID, e := rag.QueueIndexID(ctx, q, k.CourseID, identity.Current(c).ID)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	if e = tx.Commit(ctx); e != nil {
+		result(c, nil, e)
+		return
+	}
+	if jobID != "" && h.rag != nil {
+		h.rag.Enqueue(jobID)
+	}
+	result(c, v, nil)
 }
 func (h *Handler) createRAGJob(c *gin.Context) {
 	var in struct {
@@ -545,8 +873,8 @@ func (h *Handler) createRAGJob(c *gin.Context) {
 			invalid(c, "原件已归档")
 			return
 		}
-		if in.Kind == "extract" && (!src.AllowDerived || len(in.FragmentIDs) == 0) {
-			invalid(c, "须先允许提炼并选择已核对片段")
+		if in.Kind == "extract" && (!src.AllowDerived || src.ParseState != "ready" || len(in.FragmentIDs) == 0 || len(in.FragmentIDs) > 200) {
+			invalid(c, "须先完成解析、允许提炼并选择1至200个已核对片段")
 			return
 		}
 	}
@@ -576,6 +904,15 @@ func (h *Handler) createRAGJob(c *gin.Context) {
 			result(c, nil, e)
 			return
 		}
+		managed, e := h.q.GradingManagedByRegrade(ctx, q.ID)
+		if e != nil {
+			result(c, nil, e)
+			return
+		}
+		if managed {
+			identity.Fail(c, 409, "state_conflict", "本题已由整组重评管理，请在重评批次中生成AI评分草稿")
+			return
+		}
 		if !rubricMatches(q, r) {
 			invalid(c, "请选择本次任务固定的确认标准")
 			return
@@ -597,6 +934,10 @@ func (h *Handler) createRAGJob(c *gin.Context) {
 		}
 	}
 	j, e := h.rag.CreateJob(ctx, c.Param("courseID"), identity.Current(c).ID, in.Kind, in.JobInput)
+	if e != nil && isUserValidationError(e) {
+		identity.Fail(c, 409, "state_conflict", e.Error())
+		return
+	}
 	result(c, j, e)
 }
 func (h *Handler) jobs(c *gin.Context) {
@@ -614,17 +955,31 @@ func (h *Handler) job(c *gin.Context) {
 	result(c, v, e)
 }
 func (h *Handler) cancelJob(c *gin.Context) {
-	v, e := h.q.CancelProcessingJob(c.Request.Context(), store.CancelProcessingJobParams{ID: c.Param("jobID"), CourseID: c.Param("courseID")})
+	ctx := c.Request.Context()
+	jobID, courseID := c.Param("jobID"), c.Param("courseID")
+	v, e := h.q.CancelProcessingJob(ctx, store.CancelProcessingJobParams{ID: jobID, CourseID: courseID})
+	if errors.Is(e, pgx.ErrNoRows) {
+		if _, getErr := h.q.GetProcessingJob(ctx, store.GetProcessingJobParams{ID: jobID, CourseID: courseID}); errors.Is(getErr, pgx.ErrNoRows) {
+			identity.Fail(c, 404, "not_found", "任务不存在")
+			return
+		} else if getErr != nil {
+			result(c, nil, getErr)
+			return
+		}
+		identity.Fail(c, 409, "state_conflict", "任务已结束或无法取消")
+		return
+	}
 	result(c, v, e)
 }
 func (h *Handler) retryJob(c *gin.Context) {
-	old, e := h.q.GetProcessingJob(c.Request.Context(), store.GetProcessingJobParams{ID: c.Param("jobID"), CourseID: c.Param("courseID")})
+	ctx := c.Request.Context()
+	old, e := h.q.GetProcessingJob(ctx, store.GetProcessingJobParams{ID: c.Param("jobID"), CourseID: c.Param("courseID")})
 	if e != nil {
 		result(c, nil, e)
 		return
 	}
-	if old.State != "failed" {
-		invalid(c, "仅失败任务可重试")
+	if old.State != "failed" && old.State != "canceled" {
+		invalid(c, "仅失败或已取消的任务可重试")
 		return
 	}
 	if old.Kind == "diagnosis" || old.Kind == "recommendation" {
@@ -632,9 +987,86 @@ func (h *Handler) retryJob(c *gin.Context) {
 		return
 	}
 	var in rag.JobInput
-	_ = json.Unmarshal(old.Input, &in)
-	v, e := h.rag.CreateJob(c.Request.Context(), old.CourseID, identity.Current(c).ID, old.Kind, in)
-	result(c, v, e)
+	if err := json.Unmarshal(old.Input, &in); err != nil {
+		invalid(c, "原任务参数损坏，无法重试")
+		return
+	}
+	switch old.Kind {
+	case "parse", "extract", "source_suggest", "paper_split":
+		src, err := h.q.GetMaterialSource(ctx, store.GetMaterialSourceParams{ID: in.SourceID, CourseID: old.CourseID})
+		if err != nil {
+			result(c, nil, err)
+			return
+		}
+		if src.State != "active" {
+			invalid(c, "原件已归档，无法重试")
+			return
+		}
+		if old.Kind == "extract" && (!src.AllowDerived || src.ParseState != "ready" || len(in.FragmentIDs) == 0) {
+			invalid(c, "来源未就绪或未允许知识提炼")
+			return
+		}
+		if (old.Kind == "source_suggest" || old.Kind == "paper_split") && src.ParseState != "ready" {
+			invalid(c, "来源尚未解析完成")
+			return
+		}
+		if (old.Kind == "source_suggest" || old.Kind == "paper_split") && in.ParseRevision != 0 && src.ParseRevision != in.ParseRevision {
+			identity.Fail(c, 409, "stale_revision", "来源版本已改变，请重新发起任务")
+			return
+		}
+	case "vision":
+		a, err := h.q.GetMaterialAsset(ctx, store.GetMaterialAssetParams{ID: in.AssetID, CourseID: old.CourseID})
+		if err != nil {
+			result(c, nil, err)
+			return
+		}
+		src, err := h.q.GetMaterialSource(ctx, store.GetMaterialSourceParams{ID: a.SourceID, CourseID: old.CourseID})
+		if err != nil {
+			result(c, nil, err)
+			return
+		}
+		if src.State != "active" {
+			invalid(c, "原件已归档，无法识别图像")
+			return
+		}
+	case "knowledge_compare":
+		k, err := h.q.GetKnowledgeEntry(ctx, store.GetKnowledgeEntryParams{ID: in.KnowledgeID, CourseID: old.CourseID})
+		if err != nil {
+			result(c, nil, err)
+			return
+		}
+		if k.State != "draft" || k.Origin == "teacher_example" {
+			invalid(c, "知识条目状态已改变或不支持比较")
+			return
+		}
+		if in.EditVersion != 0 && k.EditVersion != in.EditVersion {
+			identity.Fail(c, 409, "stale_revision", "知识条目已修订，请重新发起比较")
+			return
+		}
+	}
+	if old.Kind != "parse" {
+		profileKind := "chat"
+		if old.Kind == "index" {
+			profileKind = "embedding"
+		} else if old.Kind == "vision" {
+			profileKind = "vision"
+		}
+		if _, err := h.rag.Models.Profile(in.ProfileID, profileKind); err != nil {
+			ragError(c, err)
+			return
+		}
+	}
+	v, e := h.rag.CreateJob(ctx, old.CourseID, identity.Current(c).ID, old.Kind, in)
+	if e != nil {
+		if isUserValidationError(e) {
+			identity.Fail(c, 409, "state_conflict", e.Error())
+			return
+		}
+		result(c, nil, e)
+		return
+	}
+	h.rag.Enqueue(v.ID)
+	result(c, v, nil)
 }
 func (h *Handler) retrievalStatus(c *gin.Context) {
 	ctx := c.Request.Context()
@@ -644,12 +1076,20 @@ func (h *Handler) retrievalStatus(c *gin.Context) {
 	}
 	data := gin.H{"configured": h.rag != nil, "indexed": course.EmbeddingSpaceID.Valid}
 	resourceID, sourceID := c.Query("resource_id"), c.Query("source_id")
+	if resourceID != "" && sourceID != "" {
+		invalid(c, "resource_id 与 source_id 不能同时指定")
+		return
+	}
 	if resourceID != "" {
 		r, err := h.q.GetBusinessResource(ctx, resourceID)
 		if !resultIfError(c, err) || !scope(c, r.CourseID) {
 			return
 		}
 		if r.Status != "published" {
+			if !teacher(c) {
+				identity.Fail(c, 403, "forbidden", "资料尚未发布")
+				return
+			}
 			invalid(c, "仅已发布学习资料可检查检索状态")
 			return
 		}
@@ -680,7 +1120,7 @@ func (h *Handler) retrievalStatus(c *gin.Context) {
 			data["latest_index_job"] = gin.H{"state": jobs[0].State, "error": jobs[0].Error, "created_at": jobs[0].CreatedAt}
 		}
 	}
-	result(c, data, e)
+	result(c, data, nil)
 }
 func (h *Handler) retrieval(c *gin.Context) {
 	var in struct {
@@ -695,11 +1135,24 @@ func (h *Handler) retrieval(c *gin.Context) {
 		invalid(c, "请输入不超过4000字节的检索内容")
 		return
 	}
-	if in.Purpose == "grading" && !teacher(c) {
-		identity.Fail(c, 403, "forbidden", "学生不能检索评分内部依据")
+	purpose := strings.TrimSpace(in.Purpose)
+	if purpose == "" {
+		purpose = "learning"
+	}
+	switch purpose {
+	case "learning", "qa", "study", "search":
+		// All learning-only purposes map cleanly to learning retrieval scope.
+		purpose = "learning"
+	case "grading", "comparison", "rubric", "question", "intelligence":
+		if !teacher(c) {
+			identity.Fail(c, 403, "forbidden", "当前角色无权使用该检索用途")
+			return
+		}
+	default:
+		invalid(c, "检索用途无效")
 		return
 	}
-	hits, mode, e := h.scopedSearch(c, in.Query, in.Purpose, in.ResourceID)
+	hits, mode, e := h.scopedSearch(c, in.Query, purpose, in.ResourceID)
 	if e != nil {
 		ragError(c, e)
 		return
@@ -708,14 +1161,24 @@ func (h *Handler) retrieval(c *gin.Context) {
 }
 
 // Used when a teacher explicitly adopts a generated standard or scoring draft.
-func (h *Handler) draftJob(c *gin.Context, id, kind string) (store.ProcessingJob, rag.JobInput, error) {
-	j, e := h.q.GetProcessingJob(c.Request.Context(), store.GetProcessingJobParams{ID: id, CourseID: c.Param("courseID")})
+func (h *Handler) draftJobWithQueries(ctx context.Context, q *store.Queries, courseID, id, kind string) (store.ProcessingJob, rag.JobInput, error) {
+	j, e := q.GetProcessingJob(ctx, store.GetProcessingJobParams{ID: id, CourseID: courseID})
 	var in rag.JobInput
-	if e == nil && (j.Kind != kind || j.State != "succeeded") {
-		e = errors.New("AI任务尚未成功完成")
+	if errors.Is(e, pgx.ErrNoRows) {
+		return j, in, errors.New("AI任务不存在或不属于当前课程")
 	}
-	if e == nil {
-		e = json.Unmarshal(j.Input, &in)
+	if e != nil {
+		return j, in, e
 	}
-	return j, in, e
+	if j.Kind != kind || j.State != "succeeded" {
+		return j, in, errors.New("AI任务尚未成功完成")
+	}
+	if err := json.Unmarshal(j.Input, &in); err != nil {
+		return j, in, err
+	}
+	return j, in, nil
+}
+
+func (h *Handler) draftJob(c *gin.Context, id, kind string) (store.ProcessingJob, rag.JobInput, error) {
+	return h.draftJobWithQueries(c.Request.Context(), h.q, c.Param("courseID"), id, kind)
 }

@@ -1,6 +1,6 @@
 import { Button, Upload } from "antd";
 import type { UploadFile, UploadProps } from "antd";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 // File selection stays local until the enclosing business form is submitted.
 export function FileUpload({
@@ -8,6 +8,7 @@ export function FileUpload({
   multiple,
   accept,
   disabled,
+  resetKey,
   "aria-label": label,
 }: {
   onChange: (files: File[]) => void;
@@ -15,15 +16,20 @@ export function FileUpload({
   accept?: string;
   disabled?: boolean;
   required?: boolean;
+  resetKey?: number | string;
   "aria-label"?: string;
 }) {
   const [files, setFiles] = useState<UploadFile[]>([]);
+  useEffect(() => {
+    if (resetKey !== undefined) setFiles([]);
+  }, [resetKey]);
   const change: UploadProps["onChange"] = ({ fileList }) => {
     const next = multiple ? fileList : fileList.slice(-1);
     setFiles(next);
-    onChange(
-      next.map((file) => file.originFileObj || (file as unknown as File)),
-    );
+    const extracted = next
+      .map((file) => file.originFileObj)
+      .filter((item): item is NonNullable<UploadFile["originFileObj"]> => Boolean(item));
+    onChange(extracted);
   };
   return (
     <Upload

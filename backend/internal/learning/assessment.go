@@ -2,21 +2,30 @@ package learning
 
 import (
 	"errors"
+	"slices"
+	"strings"
+	"time"
+
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	"time"
 )
 
 func (h *Handler) assignments(c *gin.Context) {
 	v, e := h.q.ListBusinessAssignments(c.Request.Context(), store.ListBusinessAssignmentsParams{CourseID: c.Param("courseID"), Teacher: teacher(c)})
+	if e == nil && v == nil {
+		v = []store.Assignment{}
+	}
 	result(c, v, e)
 }
 func (h *Handler) assignmentRecord(c *gin.Context, id string) (store.Assignment, bool) {
-	a, e := h.q.GetBusinessAssignment(c.Request.Context(), id)
+	return h.assignmentRecordTx(c, h.q, id)
+}
+func (h *Handler) assignmentRecordTx(c *gin.Context, q *store.Queries, id string) (store.Assignment, bool) {
+	a, e := q.GetBusinessAssignment(c.Request.Context(), id)
 	if e != nil {
 		result(c, nil, e)
 		return a, false
@@ -36,6 +45,9 @@ func (h *Handler) assignment(c *gin.Context) {
 		return
 	}
 	qs, e := h.q.ListBusinessQuestions(c.Request.Context(), a.ID)
+	if e == nil && qs == nil {
+		qs = []store.Question{}
+	}
 	if !teacher(c) {
 		for i := range qs {
 			qs[i].Rubric = ""
@@ -53,6 +65,7 @@ func (h *Handler) createAssignment(c *gin.Context) {
 		Type        string     `json:"type"`
 		DueAt       *time.Time `json:"due_at"`
 		Questions   []struct {
+			ID                    string   `json:"id"`
 			Prompt                string   `json:"prompt"`
 			MaxScore              int32    `json:"max_score"`
 			Rubric                string   `json:"rubric"`
@@ -67,44 +80,65 @@ func (h *Handler) createAssignment(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
+	in.Title = strings.TrimSpace(in.Title)
+	in.Description = strings.TrimSpace(in.Description)
+	in.Type = strings.TrimSpace(in.Type)
+	if in.Type == "" {
+		in.Type = "subjective"
+	}
+	if in.Type != "subjective" && in.Type != "code" && in.Type != "quiz" {
+		invalid(c, "作业类型须为subjective、code或quiz")
+		return
+	}
 	if !validText(in.Title, 500) || len(in.Questions) < 1 || len(in.Questions) > 50 {
 		invalid(c, "请填写作业名称及1到50道题")
 		return
 	}
-	if in.Type == "" {
-		in.Type = "subjective"
+	if len(in.Description) > 30000 || strings.ContainsRune(in.Description, '\x00') {
+		invalid(c, "任务说明过长或包含非法字符")
+		return
 	}
+	seenQuestionIDs := map[string]bool{}
 	for i := range in.Questions {
 		item := &in.Questions[i]
-		if item.BankQuestionVersionID == "" {
-			if item.BoundRubricID != "" {
-				invalid(c, "标准绑定缺少题目版本")
+		item.ID = strings.TrimSpace(item.ID)
+		item.BankQuestionVersionID = strings.TrimSpace(item.BankQuestionVersionID)
+		item.BoundRubricID = strings.TrimSpace(item.BoundRubricID)
+		if item.ID != "" {
+			if len(item.ID) > 128 || strings.ContainsRune(item.ID, '\x00') || seenQuestionIDs[item.ID] {
+				invalid(c, "题目编号无效或重复")
 				return
 			}
-			continue
+			seenQuestionIDs[item.ID] = true
 		}
-		v, _, e := h.bankSelection(c.Request.Context(), h.q, c.Param("courseID"), item.BankQuestionVersionID, item.BoundRubricID)
-		if e != nil {
-			ragError(c, e)
+		if item.BankQuestionVersionID == "" && item.BoundRubricID != "" {
+			invalid(c, "标准绑定缺少题目版本")
 			return
-		}
-		if v.Type != in.Type {
-			invalid(c, "题库题型与本次作业类型不一致")
-			return
-		}
-		item.Prompt = v.Prompt
-		item.MaxScore = v.MaxScore
-		item.Options = v.Options
-		item.CorrectAnswer = v.CorrectAnswer
-		item.KnowledgePointID = v.KnowledgePointID.String
-		item.ResourceID = ""
-		item.Rubric = "按题库确认的固定标准逐点给分，具体规则见绑定版本。"
-		if v.Type == "quiz" {
-			item.Rubric = "按教师确认的固定选项与答案规则判分"
 		}
 	}
-	total := int32(0)
-	points, err := h.q.ListBusinessPoints(c.Request.Context(), c.Param("courseID"))
+	ctx := c.Request.Context()
+	courseID := c.Param("courseID")
+	updating := c.Param("id") != ""
+	tx, e := h.db.Begin(ctx)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	defer tx.Rollback(ctx)
+	q := h.q.WithTx(tx)
+	var old store.Assignment
+	if updating {
+		var ok bool
+		old, ok = h.assignmentRecordTx(c, q, c.Param("id"))
+		if !ok {
+			return
+		}
+		if _, e = q.LockBusinessAssignment(ctx, old.ID); e != nil {
+			result(c, nil, e)
+			return
+		}
+	}
+	points, err := q.ListBusinessPoints(ctx, courseID)
 	if err != nil {
 		result(c, nil, err)
 		return
@@ -115,13 +149,47 @@ func (h *Handler) createAssignment(c *gin.Context) {
 			pointIDs[p.ID] = true
 		}
 	}
-	for _, q := range in.Questions {
-		if q.KnowledgePointID != "" && !pointIDs[q.KnowledgePointID] {
+	total := int32(0)
+	for i := range in.Questions {
+		item := &in.Questions[i]
+		if item.BankQuestionVersionID != "" {
+			v, _, e := h.bankSelection(ctx, q, courseID, item.BankQuestionVersionID, item.BoundRubricID)
+			if e != nil {
+				ragError(c, e)
+				return
+			}
+			if v.Type != in.Type {
+				invalid(c, "题库题型与本次作业类型不一致")
+				return
+			}
+			item.Prompt = v.Prompt
+			item.MaxScore = v.MaxScore
+			item.Options = v.Options
+			item.CorrectAnswer = v.CorrectAnswer
+			item.KnowledgePointID = v.KnowledgePointID.String
+			item.ResourceID = ""
+			item.Rubric = "按题库确认的固定标准逐点给分，具体规则见绑定版本。"
+			if v.Type == "quiz" {
+				item.Rubric = "按教师确认的固定选项与答案规则判分"
+			}
+		} else {
+			item.Prompt = strings.TrimSpace(item.Prompt)
+			item.Rubric = strings.TrimSpace(item.Rubric)
+			item.KnowledgePointID = strings.TrimSpace(item.KnowledgePointID)
+			item.ResourceID = strings.TrimSpace(item.ResourceID)
+			if in.Type == "quiz" {
+				item.CorrectAnswer = strings.TrimSpace(item.CorrectAnswer)
+				for j := range item.Options {
+					item.Options[j] = strings.TrimSpace(item.Options[j])
+				}
+			}
+		}
+		if item.KnowledgePointID != "" && !pointIDs[item.KnowledgePointID] {
 			identity.Fail(c, 403, "forbidden", "题目知识点不属于当前课程")
 			return
 		}
-		if q.ResourceID != "" {
-			r, e := h.q.GetBusinessResource(c.Request.Context(), q.ResourceID)
+		if item.ResourceID != "" {
+			r, e := q.GetBusinessResource(ctx, item.ResourceID)
 			if e != nil {
 				result(c, nil, e)
 				return
@@ -134,59 +202,40 @@ func (h *Handler) createAssignment(c *gin.Context) {
 				return
 			}
 		}
-		if !validText(q.Prompt, 30000) || q.MaxScore < 1 || q.MaxScore > 10000 || !validText(q.Rubric, 30000) {
+		if !validText(item.Prompt, 30000) || item.MaxScore < 1 || item.MaxScore > 10000 || !validText(item.Rubric, 30000) {
 			invalid(c, "每题须填写题目、正数满分和教师评分标准")
 			return
 		}
-		total += q.MaxScore
 		if in.Type == "quiz" {
 			found := false
 			seen := map[string]bool{}
-			for _, option := range q.Options {
+			for _, option := range item.Options {
 				if !validText(option, 1000) || seen[option] {
 					invalid(c, "测验选项不能为空、重复或超过1000字节")
 					return
 				}
 				seen[option] = true
-				if option == q.CorrectAnswer && validText(option, 1000) {
+				if option == item.CorrectAnswer {
 					found = true
 				}
 			}
-			if len(q.Options) < 2 || len(q.Options) > 8 || !found {
+			if len(item.Options) < 2 || len(item.Options) > 8 || !found {
 				invalid(c, "测验须有2到8个选项且正确答案属于选项")
 				return
 			}
+		} else {
+			item.Options = []string{}
+			item.CorrectAnswer = ""
 		}
+		total += item.MaxScore
 	}
-	if in.Type == "" {
-		in.Type = "subjective"
-	}
-	if in.Type != "subjective" && in.Type != "code" && in.Type != "quiz" {
-		invalid(c, "此入口支持文本或代码主观作业；客观测验通过测验入口创建")
-		return
-	}
-	ctx := c.Request.Context()
-	tx, e := h.db.Begin(ctx)
-	if e != nil {
-		result(c, nil, e)
-		return
-	}
-	defer tx.Rollback(ctx)
-	q := h.q.WithTx(tx)
 	due := pgtype.Timestamptz{}
 	if in.DueAt != nil {
 		due = pgtype.Timestamptz{Time: *in.DueAt, Valid: true}
 	}
 	var a store.Assignment
-	if c.Param("id") != "" {
-		old, ok := h.assignmentRecord(c, c.Param("id"))
-		if !ok {
-			return
-		}
-		if _, e = q.LockBusinessAssignment(ctx, old.ID); e != nil {
-			result(c, nil, e)
-			return
-		}
+	existingIDs := map[string]bool{}
+	if updating {
 		a, e = q.UpdateAssignmentDraft(ctx, store.UpdateAssignmentDraftParams{ID: old.ID, Title: in.Title, Description: in.Description, Type: in.Type, MaxScore: total, DueAt: due})
 		if e != nil {
 			if errors.Is(e, pgx.ErrNoRows) {
@@ -196,39 +245,83 @@ func (h *Handler) createAssignment(c *gin.Context) {
 			}
 			return
 		}
-		if e = q.DeleteDraftQuestions(ctx, a.ID); e != nil {
+		existingQuestions, err := q.ListBusinessQuestions(ctx, a.ID)
+		if err != nil {
+			result(c, nil, err)
+			return
+		}
+		for _, eq := range existingQuestions {
+			existingIDs[eq.ID] = true
+		}
+	} else {
+		a, e = q.CreateBusinessAssignment(ctx, store.CreateBusinessAssignmentParams{ID: uuid.NewString(), CourseID: courseID, Title: in.Title, Description: in.Description, Type: in.Type, MaxScore: total, DueAt: due, CreatedBy: identity.Current(c).ID})
+		if e != nil {
 			result(c, nil, e)
 			return
 		}
-	} else {
-		a, e = q.CreateBusinessAssignment(ctx, store.CreateBusinessAssignmentParams{ID: uuid.NewString(), CourseID: c.Param("courseID"), Title: in.Title, Description: in.Description, Type: in.Type, MaxScore: total, DueAt: due, CreatedBy: identity.Current(c).ID})
 	}
-	if e != nil {
-		result(c, nil, e)
-		return
-	}
+	keepIDs := make([]string, 0, len(in.Questions))
 	for i, item := range in.Questions {
 		options := item.Options
 		if options == nil {
 			options = []string{}
 		}
-		if item.BankQuestionVersionID != "" {
-			if _, _, e = h.bankSelection(ctx, q, a.CourseID, item.BankQuestionVersionID, item.BoundRubricID); e != nil {
-				ragError(c, e)
+		var qID string
+		if updating && item.ID != "" && existingIDs[item.ID] {
+			updated, err := q.UpdateDraftQuestion(ctx, store.UpdateDraftQuestionParams{
+				ID:               item.ID,
+				AssignmentID:     a.ID,
+				Prompt:           item.Prompt,
+				Type:             in.Type,
+				MaxScore:         item.MaxScore,
+				Rubric:           item.Rubric,
+				Position:         int32(i),
+				Options:          options,
+				CorrectAnswer:    item.CorrectAnswer,
+				KnowledgePointID: text(item.KnowledgePointID),
+				ResourceID:       text(item.ResourceID),
+			})
+			if err != nil {
+				result(c, nil, err)
 				return
 			}
-		}
-		created, err := q.CreateBusinessQuestion(ctx, store.CreateBusinessQuestionParams{ID: uuid.NewString(), AssignmentID: a.ID, Prompt: item.Prompt, Type: in.Type, MaxScore: item.MaxScore, Rubric: item.Rubric, Position: int32(i), Options: options, CorrectAnswer: item.CorrectAnswer, KnowledgePointID: text(item.KnowledgePointID), ResourceID: text(item.ResourceID)})
-		e = err
-		if e != nil {
-			result(c, nil, e)
-			return
-		}
-		if item.BankQuestionVersionID != "" {
-			if e = q.BindBankQuestion(ctx, store.BindBankQuestionParams{ID: created.ID, BankQuestionVersionID: text(item.BankQuestionVersionID), BoundRubricID: text(item.BoundRubricID)}); e != nil {
+			qID = updated.ID
+			if e = q.BindBankQuestion(ctx, store.BindBankQuestionParams{ID: qID, BankQuestionVersionID: text(item.BankQuestionVersionID), BoundRubricID: text(item.BoundRubricID)}); e != nil {
 				result(c, nil, e)
 				return
 			}
+		} else {
+			created, err := q.CreateBusinessQuestion(ctx, store.CreateBusinessQuestionParams{
+				ID:               uuid.NewString(),
+				AssignmentID:     a.ID,
+				Prompt:           item.Prompt,
+				Type:             in.Type,
+				MaxScore:         item.MaxScore,
+				Rubric:           item.Rubric,
+				Position:         int32(i),
+				Options:          options,
+				CorrectAnswer:    item.CorrectAnswer,
+				KnowledgePointID: text(item.KnowledgePointID),
+				ResourceID:       text(item.ResourceID),
+			})
+			if err != nil {
+				result(c, nil, err)
+				return
+			}
+			qID = created.ID
+			if item.BankQuestionVersionID != "" {
+				if e = q.BindBankQuestion(ctx, store.BindBankQuestionParams{ID: qID, BankQuestionVersionID: text(item.BankQuestionVersionID), BoundRubricID: text(item.BoundRubricID)}); e != nil {
+					result(c, nil, e)
+					return
+				}
+			}
+		}
+		keepIDs = append(keepIDs, qID)
+	}
+	if updating {
+		if e = q.DeleteDraftQuestionsExcept(ctx, store.DeleteDraftQuestionsExceptParams{AssignmentID: a.ID, KeepIds: keepIDs}); e != nil {
+			result(c, nil, e)
+			return
 		}
 	}
 	e = tx.Commit(ctx)
@@ -241,15 +334,15 @@ func (h *Handler) assignmentState(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
-	a, ok := h.assignmentRecord(c, c.Param("id"))
-	if !ok {
-		return
-	}
 	previous := "draft"
 	if in.State == "closed" {
 		previous = "published"
 	} else if in.State != "published" {
 		invalid(c, "只允许发布或关闭作业")
+		return
+	}
+	a, ok := h.assignmentRecord(c, c.Param("id"))
+	if !ok {
 		return
 	}
 	if a.Status != previous {
@@ -268,6 +361,15 @@ func (h *Handler) assignmentState(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
+	a, e = q.GetBusinessAssignment(ctx, a.ID)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	if a.Status != previous {
+		identity.Fail(c, 409, "state_conflict", "作业状态已改变")
+		return
+	}
 	if in.State == "published" {
 		qs, e := q.ListBusinessQuestions(ctx, a.ID)
 		if e != nil {
@@ -284,6 +386,10 @@ func (h *Handler) assignmentState(c *gin.Context) {
 		}
 	}
 	v, e := q.UpdateBusinessAssignmentState(ctx, store.UpdateBusinessAssignmentStateParams{ID: a.ID, Status: in.State, Status_2: previous})
+	if errors.Is(e, pgx.ErrNoRows) {
+		identity.Fail(c, 409, "state_conflict", "作业状态已改变")
+		return
+	}
 	if e != nil {
 		result(c, nil, e)
 		return
@@ -296,6 +402,9 @@ func (h *Handler) submissions(c *gin.Context) {
 		return
 	}
 	v, e := h.q.ListBusinessSubmissions(c.Request.Context(), store.ListBusinessSubmissionsParams{AssignmentID: a.ID, Teacher: teacher(c), ActorID: identity.Current(c).ID})
+	if e == nil && v == nil {
+		v = []store.ListBusinessSubmissionsRow{}
+	}
 	result(c, v, e)
 }
 func (h *Handler) submit(c *gin.Context) {
@@ -307,7 +416,7 @@ func (h *Handler) submit(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
-	if blank(in.Answer) || len(in.Answer) > 200000 || !validText(in.RequestID, 128) {
+	if blank(in.Answer) || len(in.Answer) > 200000 || strings.ContainsRune(in.Answer, '\x00') || !validText(in.RequestID, 128) || !validText(in.QuestionID, 128) {
 		invalid(c, "请填写答案和有效请求号")
 		return
 	}
@@ -316,6 +425,7 @@ func (h *Handler) submit(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
+	actorID := identity.Current(c).ID
 	tx, e := h.db.Begin(ctx)
 	if e != nil {
 		result(c, nil, e)
@@ -323,11 +433,16 @@ func (h *Handler) submit(c *gin.Context) {
 	}
 	defer tx.Rollback(ctx)
 	q := h.q.WithTx(tx)
-	if _, e = q.LockBusinessAssignment(ctx, a.ID); e != nil {
+	if _, e = q.LockBusinessAssignmentShare(ctx, a.ID); e != nil {
 		result(c, nil, e)
 		return
 	}
-	old, e := q.GetSubmissionByRequest(ctx, store.GetSubmissionByRequestParams{StudentID: identity.Current(c).ID, RequestID: in.RequestID})
+	// Serialize concurrent submissions from the same student without blocking other students.
+	if _, e = tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtext('submit'), hashtext($1))", actorID); e != nil {
+		result(c, nil, e)
+		return
+	}
+	old, e := q.GetSubmissionByRequest(ctx, store.GetSubmissionByRequestParams{StudentID: actorID, RequestID: in.RequestID})
 	if e == nil {
 		if old.AssignmentID != a.ID || old.QuestionID != in.QuestionID || old.AnswerText != in.Answer {
 			identity.Fail(c, 409, "request_conflict", "相同请求号不能改变答案")
@@ -358,13 +473,31 @@ func (h *Handler) submit(c *gin.Context) {
 		identity.Fail(c, 403, "forbidden", "题目不属于当前作业")
 		return
 	}
-	attempt, e := q.NextSubmissionAttempt(ctx, store.NextSubmissionAttemptParams{StudentID: identity.Current(c).ID, QuestionID: question.ID})
+	if question.Type == "quiz" && len(question.Options) > 0 && !slices.Contains(question.Options, in.Answer) {
+		invalid(c, "测验答案必须为本题选项之一")
+		return
+	}
+	attempt, e := q.NextSubmissionAttempt(ctx, store.NextSubmissionAttemptParams{StudentID: actorID, QuestionID: question.ID})
 	if e != nil {
 		result(c, nil, e)
 		return
 	}
-	v, e := q.CreateBusinessSubmission(ctx, store.CreateBusinessSubmissionParams{ID: uuid.NewString(), AssignmentID: a.ID, AssignmentVersion: a.Version, QuestionID: question.ID, CourseID: a.CourseID, StudentID: identity.Current(c).ID, Attempt: attempt, AnswerText: in.Answer, AnswerSha256: hashAnswer(in.Answer), RequestID: in.RequestID})
+	v, e := q.CreateBusinessSubmission(ctx, store.CreateBusinessSubmissionParams{ID: uuid.NewString(), AssignmentID: a.ID, AssignmentVersion: a.Version, QuestionID: question.ID, CourseID: a.CourseID, StudentID: actorID, Attempt: attempt, AnswerText: in.Answer, AnswerSha256: hashAnswer(in.Answer), RequestID: in.RequestID})
 	if e != nil {
+		if isPgCode(e, "23505") {
+			_ = tx.Rollback(ctx)
+			existing, err := h.q.GetSubmissionByRequest(ctx, store.GetSubmissionByRequestParams{StudentID: actorID, RequestID: in.RequestID})
+			if err == nil {
+				if existing.AssignmentID != a.ID || existing.QuestionID != in.QuestionID || existing.AnswerText != in.Answer {
+					identity.Fail(c, 409, "request_conflict", "相同请求号不能改变答案")
+					return
+				}
+				result(c, existing, nil)
+				return
+			}
+			identity.Fail(c, 409, "request_conflict", "提交冲突，请重试")
+			return
+		}
 		result(c, nil, e)
 		return
 	}
@@ -407,11 +540,20 @@ func (h *Handler) submissionRecord(c *gin.Context, id string) (store.Submission,
 	return s, true
 }
 func (h *Handler) submission(c *gin.Context) {
-	s, ok := h.submissionRecord(c, c.Param("id"))
-	if !ok {
+	ctx := c.Request.Context()
+	s, e := h.q.GetBusinessSubmissionWithStudent(ctx, c.Param("id"))
+	if e != nil {
+		result(c, nil, e)
 		return
 	}
-	question, e := h.q.GetBusinessQuestion(c.Request.Context(), s.QuestionID)
+	if !scope(c, s.CourseID) {
+		return
+	}
+	if !teacher(c) && s.StudentID != identity.Current(c).ID {
+		identity.Fail(c, 403, "forbidden", "只能查看本人提交")
+		return
+	}
+	question, e := h.q.GetBusinessQuestion(ctx, s.QuestionID)
 	if e != nil {
 		result(c, nil, e)
 		return
@@ -422,15 +564,37 @@ func (h *Handler) submission(c *gin.Context) {
 		question.BoundRubricID = pgtype.Text{}
 		question.BankQuestionVersionID = pgtype.Text{}
 	}
-	revisions, e := h.q.ListBusinessRevisions(c.Request.Context(), store.ListBusinessRevisionsParams{SubmissionID: s.ID, Teacher: teacher(c)})
+	revisions, e := h.q.ListBusinessRevisions(ctx, store.ListBusinessRevisionsParams{SubmissionID: s.ID, Teacher: teacher(c)})
+	if e == nil && revisions == nil {
+		revisions = []store.GradingRevision{}
+	}
 	var origin any
 	if e == nil {
-		v, err := h.q.GetSubmissionImportOrigin(c.Request.Context(), s.ID)
+		v, err := h.q.GetSubmissionImportOrigin(ctx, s.ID)
 		if err == nil {
-			origin = v
+			if teacher(c) {
+				origin = v
+			} else {
+				origin = gin.H{"id": v.ID, "created_at": v.CreatedAt, "imported": true}
+			}
 		} else if !errors.Is(err, pgx.ErrNoRows) {
 			e = err
 		}
 	}
-	result(c, gin.H{"submission": s, "question": question, "revisions": revisions, "import_origin": origin}, e)
+	var activeRegradeBatch *string
+	if e == nil && teacher(c) {
+		batchID, err := h.q.GetActiveRegradeBatchForQuestion(ctx, s.QuestionID)
+		if err == nil {
+			activeRegradeBatch = &batchID
+		} else if !errors.Is(err, pgx.ErrNoRows) {
+			e = err
+		}
+	}
+	result(c, gin.H{
+		"submission":           s,
+		"question":             question,
+		"revisions":            revisions,
+		"import_origin":        origin,
+		"active_regrade_batch": activeRegradeBatch,
+	}, e)
 }

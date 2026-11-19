@@ -89,6 +89,12 @@ func ValidatePaper(out PaperOutput, fs []store.MaterialFragment, assets []store.
 func (s *Service) WorkflowDraft(ctx context.Context, j store.ProcessingJob, in JobInput) (any, error) {
 	payload := map[string]any{}
 	instruction := ""
+	var (
+		compareCandidate store.KnowledgeEntry
+		compareExisting  []store.KnowledgeEntry
+		srcFragments     []store.MaterialFragment
+		srcAssets        []store.MaterialAsset
+	)
 	if j.Kind == "knowledge_compare" {
 		k, e := s.Q.GetKnowledgeEntry(ctx, store.GetKnowledgeEntryParams{ID: in.KnowledgeID, CourseID: j.CourseID})
 		if e != nil {
@@ -122,6 +128,8 @@ func (s *Service) WorkflowDraft(ctx context.Context, j store.ProcessingJob, in J
 			}
 			candidates = append(candidates, v)
 		}
+		compareCandidate = k
+		compareExisting = candidates
 		payload = map[string]any{"candidate": k, "existing": candidates}
 		instruction = `比较candidate与existing，逐项给出原文证据、条件及结论差异，不因相似或措辞相反就认定冲突。返回 {"comparisons":[{"knowledge_id":"existing中的id","relation":"duplicate|supplement|conditional|conflict|uncertain","candidate_quote":"candidate.body的连续原文","existing_quote":"existing.body的连续原文","reason":"条件和差异说明","suggestion":"不采纳/合并新版本/条件并存/替换/待定"}],"review_status":"pending_teacher_review"}。全部决定交教师。`
 	} else {
@@ -148,22 +156,25 @@ func (s *Service) WorkflowDraft(ctx context.Context, j store.ProcessingJob, in J
 		if e != nil {
 			return nil, e
 		}
+		srcFragments = fs
+		srcAssets = assets
 		payload = map[string]any{"source": src.Title, "fragments": fs, "assets": assets, "course_points": points, "topics": topics}
 		if j.Kind == "source_suggest" {
 			// Suggestions use representative bounded excerpts; extraction uses explicit full selections.
-			if len(fs) > 60 {
-				fs = fs[:60]
+			excerpts := append([]store.MaterialFragment(nil), fs...)
+			if len(excerpts) > 60 {
+				excerpts = excerpts[:60]
 			}
-			for i := range fs {
-				v := []rune(fs[i].Body)
+			for i := range excerpts {
+				v := []rune(excerpts[i].Body)
 				if len(v) > 350 {
-					fs[i].Body = string(v[:350])
+					excerpts[i].Body = string(v[:350])
 				}
 			}
-			payload["fragments"] = fs
+			payload["fragments"] = excerpts
 			payload["excerpt_only"] = true
 			query := src.Title
-			for _, f := range fs {
+			for _, f := range excerpts {
 				query += " " + f.Body
 			}
 			hits, mode, e := s.Search(ctx, j.CourseID, j.CreatedBy, shortQuery(query), "comparison", true)
@@ -214,19 +225,21 @@ func (s *Service) WorkflowDraft(ctx context.Context, j store.ProcessingJob, in J
 	}
 	if j.Kind == "paper_split" {
 		var p PaperOutput
-		_ = json.Unmarshal([]byte(response), &p)
+		if json.Unmarshal([]byte(response), &p) != nil {
+			return failed, errors.New("拆题结果结构无效")
+		}
 		for _, q := range p.Questions {
 			if q.AnswerOrigin == "teacher" {
 				return failed, errors.New("模型不能冒充教师补录解答")
 			}
 		}
-		if e = ValidatePaper(p, payload["fragments"].([]store.MaterialFragment), payload["assets"].([]store.MaterialAsset)); e != nil {
+		if e = ValidatePaper(p, srcFragments, srcAssets); e != nil {
 			return failed, e
 		}
 	}
 	if j.Kind == "knowledge_compare" {
-		k := payload["candidate"].(store.KnowledgeEntry)
-		known := payload["existing"].([]store.KnowledgeEntry)
+		k := compareCandidate
+		known := compareExisting
 		var pairs []struct {
 			ID       string `json:"knowledge_id"`
 			Relation string `json:"relation"`
@@ -250,7 +263,37 @@ func (s *Service) WorkflowDraft(ctx context.Context, j store.ProcessingJob, in J
 			seen[p.ID] = true
 		}
 	}
-	out["input_snapshot"], _ = json.Marshal(payload)
+	// Compact input_snapshot so processing_jobs.output does not store 110KB fragment/body blobs,
+	// while keeping the exact id/edit_version/state fields required by knowledge_compare decisions.
+	var compactSnapshot map[string]any
+	if j.Kind == "knowledge_compare" {
+		existingMeta := make([]map[string]any, 0, len(compareExisting))
+		for _, v := range compareExisting {
+			existingMeta = append(existingMeta, map[string]any{
+				"id":           v.ID,
+				"edit_version": v.EditVersion,
+				"state":        v.State,
+			})
+		}
+		compactSnapshot = map[string]any{
+			"candidate": map[string]any{
+				"id":           compareCandidate.ID,
+				"edit_version": compareCandidate.EditVersion,
+				"state":        compareCandidate.State,
+			},
+			"existing":   existingMeta,
+			"input_hash": Hash(string(raw)),
+		}
+	} else {
+		compactSnapshot = map[string]any{
+			"source_id":      in.SourceID,
+			"parse_revision": in.ParseRevision,
+			"fragment_count": len(srcFragments),
+			"asset_count":    len(srcAssets),
+			"input_hash":     Hash(string(raw)),
+		}
+	}
+	out["input_snapshot"], _ = json.Marshal(compactSnapshot)
 	return out, nil
 }
 
@@ -268,12 +311,18 @@ func validateSuggestions(out map[string]json.RawMessage, payload map[string]any)
 	for field, value := range map[string]any{"topic_ids": payload["topics"], "knowledge_point_ids": payload["course_points"], "similar_knowledge_ids": payload["known_knowledge"], "fragment_ids": payload["fragments"]} {
 		b, _ := json.Marshal(value)
 		var rows []struct {
-			ID string `json:"id"`
+			ID   string `json:"id"`
+			Kind string `json:"kind"`
 		}
 		_ = json.Unmarshal(b, &rows)
 		groups[field] = map[string]bool{}
 		for _, row := range rows {
-			groups[field][row.ID] = true
+			if field == "knowledge_point_ids" && row.Kind != "" && row.Kind != "point" {
+				continue
+			}
+			if row.ID != "" {
+				groups[field][row.ID] = true
+			}
 		}
 	}
 	for _, field := range []string{"topic_ids", "knowledge_point_ids", "similar_knowledge_ids", "new_topic_names", "tags"} {

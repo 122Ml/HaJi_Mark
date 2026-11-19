@@ -9,10 +9,22 @@ export async function requestJSON<T>(path: string, options: RequestInit = {}, cs
   const headers = new Headers(options.headers);
   if (options.body && !(options.body instanceof FormData)) headers.set('Content-Type', 'application/json');
   if (csrfToken) headers.set('X-CSRF-Token', csrfToken);
-  const response = await fetch(`/api/v1${path}`, { ...options, headers, credentials: 'same-origin' });
+  let response: Response;
+  try {
+    response = await fetch(`/api/v1${path}`, { ...options, headers, credentials: 'same-origin' });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') throw err;
+    throw new APIError(0, 'network_error', '网络连接失败，请检查网络或服务状态后重试。');
+  }
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
-    throw new APIError(response.status, payload?.error?.code || 'service_unavailable', payload?.error?.message || '服务暂不可用，请检查启动状态后重试。');
+    const fallback =
+      response.status === 413
+        ? '上传或提交内容超过大小上限，请精简后重试。'
+        : response.status === 429
+          ? '请求过于频繁，请稍后重试。'
+          : '服务暂不可用，请检查启动状态后重试。';
+    throw new APIError(response.status, payload?.error?.code || 'service_unavailable', payload?.error?.message || fallback);
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;

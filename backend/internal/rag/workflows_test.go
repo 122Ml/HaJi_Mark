@@ -14,11 +14,25 @@ func TestPublicImportRejectsUnsafeDestinations(t *testing.T) {
 			t.Errorf("allowed unsafe URL %s", raw)
 		}
 	}
-	for _, address := range []string{"127.0.0.1:80", "10.0.0.2:80", "169.254.169.254:80", "192.168.1.2:443", "100.100.100.200:80", "[::1]:80", "[::ffff:127.0.0.1]:80"} {
+	for _, address := range []string{
+		"127.0.0.1:80", "10.0.0.2:80", "169.254.169.254:80", "192.168.1.2:443",
+		"100.100.100.200:80", "100.64.0.1:80", "198.18.0.1:80", "240.0.0.1:80",
+		"[::1]:80", "[::ffff:127.0.0.1]:80", "[64:ff9b::169.254.169.254]:80",
+		"[64:ff9b:1::1]:80", "[fec0::1]:80", "[2002:7f00:1::1]:80",
+		"[2001::1]:80", "[2001:db8::1]:80", "[100::1]:80", "[fc00::1]:80",
+	} {
 		if c, e := publicDial(context.Background(), "tcp", address); e == nil {
 			c.Close()
 			t.Errorf("allowed private address %s", address)
 		}
+	}
+	for _, badPath := range []string{"", "../secret", "/etc/passwd", `a\..\..\b`, "ok\x00bad"} {
+		if _, e := SafeMaterialPath(badPath); e == nil {
+			t.Errorf("allowed unsafe material path %q", badPath)
+		}
+	}
+	if _, e := SafeMaterialPath("sub/file.pdf"); e != nil {
+		t.Errorf("rejected valid material path: %v", e)
 	}
 }
 
@@ -73,13 +87,19 @@ func TestPaperCoverageAndAnswerOrigin(t *testing.T) {
 }
 
 func TestSuggestionReferencesStayInInput(t *testing.T) {
-	payload := map[string]any{"fragments": []map[string]string{{"id": "f"}}, "topics": []map[string]string{{"id": "t"}}, "course_points": []map[string]string{{"id": "p"}}, "known_knowledge": []map[string]string{{"id": "k"}}}
+	payload := map[string]any{
+		"fragments":       []map[string]string{{"id": "f"}},
+		"topics":          []map[string]string{{"id": "t"}},
+		"course_points":   []map[string]string{{"id": "p", "kind": "point"}, {"id": "ch", "kind": "chapter"}},
+		"known_knowledge": []map[string]string{{"id": "k"}},
+	}
 	raw := `{"outline":[{"title":"章节","fragment_ids":["f"]}],"topic_ids":["t"],"knowledge_point_ids":["p"],"similar_knowledge_ids":["k"],"new_topic_names":[],"tags":[],"reason":"原文依据"}`
 	for _, tc := range []struct {
 		name, body string
 		valid      bool
 	}{
 		{"valid", raw, true},
+		{"chapter rejected", strings.Replace(raw, `["p"]`, `["ch"]`, 1), false},
 		{"foreign topic", strings.Replace(raw, `["t"]`, `["foreign"]`, 1), false},
 		{"foreign fragment", strings.Replace(raw, `["f"]`, `["foreign"]`, 1), false},
 		{"missing field", strings.Replace(raw, `"tags":[],`, "", 1), false},

@@ -69,17 +69,35 @@ func (h *Handler) saveTopic(c *gin.Context) {
 		return
 	}
 	in.Title = strings.TrimSpace(in.Title)
-	if !validText(in.Title, 300) || len(in.Description) > 5000 {
+	if !validText(in.Title, 300) || len(in.Description) > 5000 || strings.ContainsRune(in.Description, '\x00') {
 		invalid(c, "请填写专题名称，说明不超过5000字节")
 		return
 	}
+	ctx := c.Request.Context()
+	courseID := c.Param("courseID")
 	if c.Param("topicID") == "" {
-		v, e := h.q.CreateTopic(c.Request.Context(), store.CreateTopicParams{ID: uuid.NewString(), CourseID: c.Param("courseID"), Title: in.Title, Description: in.Description})
+		v, e := h.q.CreateTopic(ctx, store.CreateTopicParams{ID: uuid.NewString(), CourseID: courseID, Title: in.Title, Description: in.Description})
+		if isPgCode(e, "23505") {
+			identity.Fail(c, 409, "duplicate_topic", "课程内已存在同名专题")
+			return
+		}
 		result(c, v, e)
 		return
 	}
-	v, e := h.q.UpdateTopic(c.Request.Context(), store.UpdateTopicParams{ID: c.Param("topicID"), CourseID: c.Param("courseID"), Title: in.Title, Description: in.Description, Active: in.Active, EditVersion: in.EditVersion})
+	topicID := c.Param("topicID")
+	v, e := h.q.UpdateTopic(ctx, store.UpdateTopicParams{ID: topicID, CourseID: courseID, Title: in.Title, Description: in.Description, Active: in.Active, EditVersion: in.EditVersion})
+	if isPgCode(e, "23505") {
+		identity.Fail(c, 409, "duplicate_topic", "课程内已存在同名专题")
+		return
+	}
 	if errors.Is(e, pgx.ErrNoRows) {
+		if _, getErr := h.q.GetTopicByID(ctx, store.GetTopicByIDParams{ID: topicID, CourseID: courseID}); errors.Is(getErr, pgx.ErrNoRows) {
+			identity.Fail(c, 404, "not_found", "专题不存在")
+			return
+		} else if getErr != nil {
+			result(c, nil, getErr)
+			return
+		}
 		identity.Fail(c, 409, "stale_revision", "专题已改变，请刷新")
 		return
 	}
@@ -108,6 +126,9 @@ func replaceLinks(ctx context.Context, q *store.Queries, course, kind, id string
 	if len(ids) > 30 || len(tags) > 30 {
 		return errors.New("专题与标签最多30项")
 	}
+	if len(points) > 100 {
+		return errors.New("关联知识点最多100项")
+	}
 	p := store.ClearTopicLinksParams{}
 	switch kind {
 	case "source":
@@ -134,18 +155,38 @@ func replaceLinks(ctx context.Context, q *store.Queries, course, kind, id string
 			return errors.New("专题不存在、已停用或不属于本课程")
 		}
 	}
-	for _, tag := range tags {
+	cleanTags := make([]string, 0, len(tags))
+	seenTags := map[string]bool{}
+	for _, raw := range tags {
+		tag := strings.TrimSpace(raw)
 		if !validText(tag, 100) {
 			return errors.New("标签为空或过长")
 		}
-	}
-	for _, id := range points {
-		p, e := q.GetKnowledgePoint(ctx, id)
-		if e != nil || p.CourseID != course || p.Kind != "point" {
-			return errors.New("知识点不属于本课程")
+		if !seenTags[tag] {
+			seenTags[tag] = true
+			cleanTags = append(cleanTags, tag)
 		}
 	}
-	return q.PutContentTags(ctx, store.PutContentTagsParams{CourseID: course, ObjectKind: kind, ObjectID: id, Tags: nonNilStrings(tags), KnowledgePointIds: nonNilStrings(points)})
+	cleanPoints := make([]string, 0, len(points))
+	seenPoints := map[string]bool{}
+	for _, pid := range points {
+		if seenPoints[pid] {
+			continue
+		}
+		seenPoints[pid] = true
+		kp, e := q.GetKnowledgePoint(ctx, pid)
+		if e != nil {
+			if errors.Is(e, pgx.ErrNoRows) {
+				return errors.New("知识点不属于本课程")
+			}
+			return e
+		}
+		if kp.CourseID != course || kp.Kind != "point" {
+			return errors.New("知识点不属于本课程")
+		}
+		cleanPoints = append(cleanPoints, pid)
+	}
+	return q.PutContentTags(ctx, store.PutContentTagsParams{CourseID: course, ObjectKind: kind, ObjectID: id, Tags: cleanTags, KnowledgePointIds: cleanPoints})
 }
 func (h *Handler) contentLinks(c *gin.Context) {
 	var in struct {
@@ -156,6 +197,10 @@ func (h *Handler) contentLinks(c *gin.Context) {
 		PointIDs []string `json:"knowledge_point_ids"`
 	}
 	if !bind(c, &in) {
+		return
+	}
+	if in.Kind != "source" && in.Kind != "knowledge" && in.Kind != "question" {
+		invalid(c, "内容类型无效")
 		return
 	}
 	ctx := c.Request.Context()

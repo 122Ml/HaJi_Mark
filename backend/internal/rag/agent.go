@@ -88,7 +88,14 @@ func (m *Models) agentChat(ctx context.Context, course, actor, profile string, m
 		return AgentMessage{}, errors.New("Agent输出过长")
 	}
 	seen := map[string]bool{}
-	for _, t := range msg.ToolCalls {
+	for i := range msg.ToolCalls {
+		t := &msg.ToolCalls[i]
+		if strings.TrimSpace(t.Function.Arguments) == "" {
+			t.Function.Arguments = "{}"
+		}
+		if t.Type == "" {
+			t.Type = "function"
+		}
 		var args map[string]any
 		if t.ID == "" || len(t.ID) > 200 || seen[t.ID] || t.Type != "function" || t.Function.Name == "" || len(t.Function.Name) > 200 || len(t.Function.Arguments) > 120000 || json.Unmarshal([]byte(t.Function.Arguments), &args) != nil || args == nil {
 			return AgentMessage{}, errors.New("模型工具调用格式无效")

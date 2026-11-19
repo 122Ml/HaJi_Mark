@@ -170,10 +170,11 @@ func TestRAGIsolationAndBudget(t *testing.T) {
 						return
 					}
 					w.Header().Set("Content-Type", "text/event-stream")
-					fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"已核对\"},\"finish_reason\":\"stop\"}]}\n\n")
 					if mode == "truncated" {
+						fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"已核对\"},\"finish_reason\":null}]}\n\n")
 						return
 					}
+					fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"已核对\"},\"finish_reason\":\"stop\"}]}\n\n")
 					prompt := 7
 					if mode == "invalid_usage" {
 						prompt = -1

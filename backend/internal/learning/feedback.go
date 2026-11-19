@@ -2,15 +2,30 @@ package learning
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"io"
+	"net"
+	"strings"
+
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
 	"github.com/122Ml/HaJi_Mark/backend/internal/rag"
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
+
+func isDBInfraError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var pgErr *pgconn.PgError
+	var netErr net.Error
+	return errors.As(err, &pgErr) || errors.As(err, &netErr) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, pgx.ErrTxClosed) || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF)
+}
 
 func (h *Handler) grade(c *gin.Context) {
 	var in struct {
@@ -24,11 +39,13 @@ func (h *Handler) grade(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
+	in.Feedback = strings.TrimSpace(in.Feedback)
 	s, ok := h.submissionRecord(c, c.Param("id"))
 	if !ok {
 		return
 	}
-	question, e := h.q.GetBusinessQuestion(c.Request.Context(), s.QuestionID)
+	ctx := c.Request.Context()
+	question, e := h.q.GetBusinessQuestion(ctx, s.QuestionID)
 	if e != nil {
 		result(c, nil, e)
 		return
@@ -41,36 +58,6 @@ func (h *Handler) grade(c *gin.Context) {
 		invalid(c, "客观测验使用固定答案规则判分")
 		return
 	}
-	raw := []byte("[]")
-	if in.RubricID != "" {
-		var total int32
-		var valid bool
-		raw, total, valid = h.scorePoints(c, in.RubricID, in.Points, s)
-		if !valid {
-			return
-		}
-		if in.Score != total {
-			invalid(c, "总分必须等于逐点分数之和")
-			return
-		}
-	} else {
-		versions, err := h.q.ListRubricVersions(c.Request.Context(), text(question.ID))
-		if err != nil {
-			result(c, nil, err)
-			return
-		}
-		for _, v := range versions {
-			if v.State == "confirmed" {
-				invalid(c, "本题已有逐点标准，请选择标准版本并逐点给分")
-				return
-			}
-		}
-		if len(in.Points) > 0 {
-			invalid(c, "逐点给分必须指定标准版本")
-			return
-		}
-	}
-	ctx := c.Request.Context()
 	if in.AIJobID != "" {
 		_, snapshot, err := h.draftJob(c, in.AIJobID, "grade")
 		if err != nil {
@@ -89,11 +76,16 @@ func (h *Handler) grade(c *gin.Context) {
 	}
 	defer tx.Rollback(ctx)
 	q := h.q.WithTx(tx)
-	if _, e = q.GetAssignmentForUpdate(ctx, s.AssignmentID); e != nil {
+	if _, e = q.LockBusinessAssignmentShare(ctx, s.AssignmentID); e != nil {
 		result(c, nil, e)
 		return
 	}
-	if active, err := q.GradingManagedByRegrade(ctx, s.QuestionID); err != nil || active {
+	active, err := q.GradingManagedByRegrade(ctx, s.QuestionID)
+	if err != nil {
+		result(c, nil, err)
+		return
+	}
+	if active {
 		identity.Fail(c, 409, "regrade_active", "本题已进入整组重评，请通过重评批次修订结果")
 		return
 	}
@@ -101,14 +93,48 @@ func (h *Handler) grade(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
-	old, e := q.GetRevisionByRequest(ctx, store.GetRevisionByRequestParams{ReviewerID: identity.Current(c).ID, RequestID: in.RequestID})
+	raw := []byte("[]")
+	if in.RubricID != "" {
+		var total int32
+		var valid bool
+		raw, total, valid = h.scorePointsTx(c, q, in.RubricID, in.Points, s)
+		if !valid {
+			return
+		}
+		if in.Score != total {
+			invalid(c, "总分必须等于逐点分数之和")
+			return
+		}
+	} else {
+		versions, err := q.ListRubricVersions(ctx, text(question.ID))
+		if err != nil {
+			result(c, nil, err)
+			return
+		}
+		for _, v := range versions {
+			if v.State == "confirmed" {
+				invalid(c, "本题已有逐点标准，请选择标准版本并逐点给分")
+				return
+			}
+		}
+		if len(in.Points) > 0 {
+			invalid(c, "逐点给分必须指定标准版本")
+			return
+		}
+	}
+	actorID := identity.Current(c).ID
+	old, e := q.GetRevisionByRequest(ctx, store.GetRevisionByRequestParams{ReviewerID: actorID, RequestID: in.RequestID})
 	if e == nil {
 		var oldPoints []pointFeedback
 		if e = json.Unmarshal(old.PointScores, &oldPoints); e != nil {
 			result(c, nil, e)
 			return
 		}
-		canonical, _ := json.Marshal(oldPoints)
+		canonical, err := json.Marshal(oldPoints)
+		if err != nil {
+			result(c, nil, err)
+			return
+		}
 		if old.SubmissionID != s.ID || old.Score != in.Score || old.Feedback != in.Feedback || old.RubricID.String != in.RubricID || old.AiJobID.String != in.AIJobID || !bytes.Equal(canonical, raw) {
 			identity.Fail(c, 409, "request_conflict", "相同请求号不能改变评分")
 			return
@@ -125,8 +151,25 @@ func (h *Handler) grade(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
-	v, e := q.CreatePointRevision(ctx, store.CreatePointRevisionParams{ID: uuid.NewString(), SubmissionID: s.ID, Revision: revision, Score: in.Score, Feedback: in.Feedback, ReviewerID: identity.Current(c).ID, RequestID: in.RequestID, RubricID: text(in.RubricID), PointScores: raw})
+	v, e := q.CreatePointRevision(ctx, store.CreatePointRevisionParams{ID: uuid.NewString(), SubmissionID: s.ID, Revision: revision, Score: in.Score, Feedback: in.Feedback, ReviewerID: actorID, RequestID: in.RequestID, RubricID: text(in.RubricID), PointScores: raw})
 	if e != nil {
+		if isPgCode(e, "23505") {
+			_ = tx.Rollback(ctx)
+			existing, err := h.q.GetRevisionByRequest(ctx, store.GetRevisionByRequestParams{ReviewerID: actorID, RequestID: in.RequestID})
+			if err == nil {
+				var oldPoints []pointFeedback
+				if json.Unmarshal(existing.PointScores, &oldPoints) == nil {
+					if canonical, merr := json.Marshal(oldPoints); merr == nil && existing.SubmissionID == s.ID && existing.Score == in.Score && existing.Feedback == in.Feedback && existing.RubricID.String == in.RubricID && existing.AiJobID.String == in.AIJobID && bytes.Equal(canonical, raw) {
+						result(c, existing, nil)
+						return
+					}
+				}
+				identity.Fail(c, 409, "request_conflict", "相同请求号不能改变评分")
+				return
+			}
+			identity.Fail(c, 409, "request_conflict", "评分提交冲突，请重试")
+			return
+		}
 		result(c, nil, e)
 		return
 	}
@@ -147,7 +190,15 @@ func (h *Handler) gradeState(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
-	r, e := h.q.GetBusinessRevision(c.Request.Context(), c.Param("id"))
+	previous := "draft"
+	if in.State == "released" {
+		previous = "confirmed"
+	} else if in.State != "confirmed" {
+		invalid(c, "只允许确认或发布评分")
+		return
+	}
+	ctx := c.Request.Context()
+	r, e := h.q.GetBusinessRevision(ctx, c.Param("id"))
 	if e != nil {
 		result(c, nil, e)
 		return
@@ -156,18 +207,10 @@ func (h *Handler) gradeState(c *gin.Context) {
 	if !ok {
 		return
 	}
-	previous := "draft"
-	if in.State == "released" {
-		previous = "confirmed"
-	} else if in.State != "confirmed" {
-		invalid(c, "只允许确认或发布评分")
-		return
-	}
 	if r.State != previous {
 		identity.Fail(c, 409, "state_conflict", "评分状态已改变")
 		return
 	}
-	ctx := c.Request.Context()
 	tx, e := h.db.Begin(ctx)
 	if e != nil {
 		result(c, nil, e)
@@ -175,11 +218,16 @@ func (h *Handler) gradeState(c *gin.Context) {
 	}
 	defer tx.Rollback(ctx)
 	q := h.q.WithTx(tx)
-	if _, e = q.GetAssignmentForUpdate(ctx, s.AssignmentID); e != nil {
+	if _, e = q.LockBusinessAssignmentShare(ctx, s.AssignmentID); e != nil {
 		result(c, nil, e)
 		return
 	}
-	if active, err := q.GradingManagedByRegrade(ctx, s.QuestionID); err != nil || active {
+	active, err := q.GradingManagedByRegrade(ctx, s.QuestionID)
+	if err != nil {
+		result(c, nil, err)
+		return
+	}
+	if active {
 		identity.Fail(c, 409, "regrade_active", "本题已进入整组重评，请通过重评批次修订结果")
 		return
 	}
@@ -193,10 +241,18 @@ func (h *Handler) gradeState(c *gin.Context) {
 		return
 	}
 	if r.Revision != latest-1 {
-		identity.Fail(c, 409, "stale_revision", "仅允许发布最新评分修订")
+		msg := "仅允许发布最新评分修订"
+		if in.State == "confirmed" {
+			msg = "仅允许确认最新评分修订"
+		}
+		identity.Fail(c, 409, "stale_revision", msg)
 		return
 	}
 	v, e := q.TransitionBusinessRevision(ctx, store.TransitionBusinessRevisionParams{ID: r.ID, State: in.State, State_2: previous})
+	if errors.Is(e, pgx.ErrNoRows) {
+		identity.Fail(c, 409, "state_conflict", "评分状态已改变")
+		return
+	}
 	if e != nil {
 		result(c, nil, e)
 		return
@@ -212,6 +268,9 @@ func (h *Handler) gradeState(c *gin.Context) {
 }
 func (h *Handler) interventions(c *gin.Context) {
 	v, e := h.q.ListBusinessInterventions(c.Request.Context(), store.ListBusinessInterventionsParams{CourseID: c.Param("courseID"), Teacher: teacher(c), ActorID: identity.Current(c).ID})
+	if e == nil && v == nil {
+		v = []store.ListBusinessInterventionsRow{}
+	}
 	result(c, v, e)
 }
 func (h *Handler) createIntervention(c *gin.Context) {
@@ -228,11 +287,14 @@ func (h *Handler) createIntervention(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
+	in.Title = strings.TrimSpace(in.Title)
+	in.Description = strings.TrimSpace(in.Description)
 	if !validText(in.Title, 500) || !validText(in.Description, 30000) {
 		invalid(c, "请填写任务名称与执行要求")
 		return
 	}
-	enrolled, e := h.q.IsEnrolled(c.Request.Context(), store.IsEnrolledParams{CourseID: c.Param("courseID"), StudentID: in.StudentID})
+	ctx := c.Request.Context()
+	enrolled, e := h.q.IsEnrolled(ctx, store.IsEnrolledParams{CourseID: c.Param("courseID"), StudentID: in.StudentID})
 	if e != nil {
 		result(c, nil, e)
 		return
@@ -242,7 +304,7 @@ func (h *Handler) createIntervention(c *gin.Context) {
 		return
 	}
 	if in.ResourceID != "" {
-		r, e := h.q.GetBusinessResource(c.Request.Context(), in.ResourceID)
+		r, e := h.q.GetBusinessResource(ctx, in.ResourceID)
 		if e != nil {
 			result(c, nil, e)
 			return
@@ -265,7 +327,6 @@ func (h *Handler) createIntervention(c *gin.Context) {
 			return
 		}
 	}
-	ctx := c.Request.Context()
 	tx, e := h.db.Begin(ctx)
 	if !resultIfError(c, e) {
 		return
@@ -285,7 +346,7 @@ func (h *Handler) createIntervention(c *gin.Context) {
 			return
 		}
 		if in.DiagnosisReportID != "" {
-			if _, err = q.GetAssignmentForUpdate(ctx, submission.AssignmentID); !resultIfError(c, err) {
+			if _, err = q.LockBusinessAssignmentShare(ctx, submission.AssignmentID); !resultIfError(c, err) {
 				return
 			}
 			r, err := q.IntelligenceReport(ctx, store.IntelligenceReportParams{ID: in.DiagnosisReportID, CourseID: c.Param("courseID")})
@@ -302,10 +363,16 @@ func (h *Handler) createIntervention(c *gin.Context) {
 				invalid(c, "诊断快照无效")
 				return
 			}
-			local := *h
-			local.q = q
-			current, err := local.diagnosisSnapshot(ctx, r.CourseID, r.OwnerID, r.QuestionID.String, snapshot.RubricID)
-			if err != nil || !sameDiagnosisEvidence(snapshot, current) {
+			current, err := h.diagnosisSnapshot(ctx, q, r.CourseID, r.QuestionID.String, snapshot.RubricID)
+			if err != nil {
+				if isDBInfraError(err) {
+					result(c, nil, err)
+					return
+				}
+				identity.Fail(c, 409, "stale_evidence", "正式结果已变化，请重新分析后安排任务")
+				return
+			}
+			if !sameDiagnosisEvidence(snapshot, current) {
 				identity.Fail(c, 409, "stale_evidence", "正式结果已变化，请重新分析后安排任务")
 				return
 			}
@@ -346,7 +413,21 @@ func (h *Handler) interventionState(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
-	item, e := h.q.GetBusinessIntervention(c.Request.Context(), c.Param("id"))
+	in.State = strings.TrimSpace(in.State)
+	in.Content = strings.TrimSpace(in.Content)
+	if in.State != "assigned" && in.State != "submitted" && in.State != "reviewed" {
+		invalid(c, "任务目标状态无效")
+		return
+	}
+	ctx := c.Request.Context()
+	tx, e := h.db.Begin(ctx)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	defer tx.Rollback(ctx)
+	q := h.q.WithTx(tx)
+	item, e := q.LockBusinessIntervention(ctx, c.Param("id"))
 	if e != nil {
 		result(c, nil, e)
 		return
@@ -354,20 +435,31 @@ func (h *Handler) interventionState(c *gin.Context) {
 	if !scope(c, item.CourseID) {
 		return
 	}
-	previous := ""
+	var previous string
 	if teacher(c) {
-		if in.State == "assigned" {
+		switch in.State {
+		case "assigned":
 			previous = "draft"
-		}
-		if in.State == "reviewed" && validText(in.Content, 30000) {
+		case "reviewed":
+			if !validText(in.Content, 30000) {
+				invalid(c, "请填写不超过30000字节的复查意见")
+				return
+			}
 			previous = "submitted"
+		default:
+			identity.Fail(c, 403, "forbidden", "该任务动作仅限学生执行")
+			return
 		}
-	} else if item.StudentID == identity.Current(c).ID && in.State == "submitted" && validText(in.Content, 200000) {
+	} else {
+		if item.StudentID != identity.Current(c).ID || in.State != "submitted" {
+			identity.Fail(c, 403, "forbidden", "无权执行该任务动作")
+			return
+		}
+		if !validText(in.Content, 200000) {
+			invalid(c, "请填写不超过200000字节的任务完成说明")
+			return
+		}
 		previous = "assigned"
-	}
-	if previous == "" {
-		identity.Fail(c, 403, "forbidden", "无权执行该任务动作，或未填写内容")
-		return
 	}
 	if item.Status != previous {
 		identity.Fail(c, 409, "state_conflict", "任务状态已改变")
@@ -375,7 +467,7 @@ func (h *Handler) interventionState(c *gin.Context) {
 	}
 	if !teacher(c) && in.State == "submitted" {
 		if item.ResourceID.Valid {
-			ok, e := h.q.HasInterventionLearning(c.Request.Context(), store.HasInterventionLearningParams{ActorID: item.StudentID, ResourceID: item.ResourceID, OccurredAt: item.AssignedAt})
+			ok, e := q.HasInterventionLearning(ctx, store.HasInterventionLearningParams{ActorID: item.StudentID, ResourceID: item.ResourceID, OccurredAt: item.AssignedAt})
 			if e != nil {
 				result(c, nil, e)
 				return
@@ -386,7 +478,7 @@ func (h *Handler) interventionState(c *gin.Context) {
 			}
 		}
 		if item.AssignmentID.Valid {
-			ok, e := h.q.HasInterventionSubmission(c.Request.Context(), store.HasInterventionSubmissionParams{StudentID: item.StudentID, AssignmentID: item.AssignmentID.String, SubmittedAt: item.AssignedAt})
+			ok, e := q.HasInterventionSubmission(ctx, store.HasInterventionSubmissionParams{StudentID: item.StudentID, AssignmentID: item.AssignmentID.String, SubmittedAt: item.AssignedAt})
 			if e != nil {
 				result(c, nil, e)
 				return
@@ -397,39 +489,76 @@ func (h *Handler) interventionState(c *gin.Context) {
 			}
 		}
 	}
-	v, e := h.q.TransitionBusinessIntervention(c.Request.Context(), store.TransitionBusinessInterventionParams{ID: item.ID, Status: in.State, Status_2: previous, AnswerText: in.Content})
+	v, e := q.TransitionBusinessIntervention(ctx, store.TransitionBusinessInterventionParams{ID: item.ID, Status: in.State, Status_2: previous, AnswerText: in.Content})
+	if errors.Is(e, pgx.ErrNoRows) {
+		identity.Fail(c, 409, "state_conflict", "任务状态已改变")
+		return
+	}
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	e = tx.Commit(ctx)
 	result(c, v, e)
 }
 func (h *Handler) interactions(c *gin.Context) {
 	v, e := h.q.ListBusinessInteractions(c.Request.Context(), c.Param("courseID"))
+	if e == nil && v == nil {
+		v = []store.ListBusinessInteractionsRow{}
+	}
 	result(c, v, e)
 }
 func (h *Handler) createInteraction(c *gin.Context) {
 	var in struct {
-		Kind     string `json:"kind"`
-		Title    string `json:"title"`
-		Content  string `json:"content"`
-		ParentID string `json:"parent_id"`
+		Kind         string          `json:"kind"`
+		Title        string          `json:"title"`
+		Content      string          `json:"content"`
+		ParentID     string          `json:"parent_id"`
+		EvidenceRefs json.RawMessage `json:"evidence_refs"`
 	}
 	if !bind(c, &in) {
 		return
 	}
-	if !validText(in.Content, 30000) || len(in.Title) > 500 {
-		invalid(c, "内容不能为空，且不超过30000字节")
+	in.Kind = strings.TrimSpace(in.Kind)
+	in.Title = strings.TrimSpace(in.Title)
+	in.Content = strings.TrimSpace(in.Content)
+	in.ParentID = strings.TrimSpace(in.ParentID)
+	switch in.Kind {
+	case "question", "reply", "announcement", "discussion":
+	default:
+		invalid(c, "互动类型无效")
 		return
 	}
-	allowed := in.Kind == "question" || in.Kind == "reply" || (teacher(c) && (in.Kind == "announcement" || in.Kind == "discussion"))
-	if !allowed {
+	if !validText(in.Content, 30000) || len(in.Title) > 500 || strings.ContainsRune(in.Title, '\x00') {
+		invalid(c, "内容不能为空且不超过30000字节，标题不超过500字节")
+		return
+	}
+	if trimmed := bytes.TrimSpace(in.EvidenceRefs); len(trimmed) > 0 && string(trimmed) != "null" {
+		var refs []json.RawMessage
+		if json.Unmarshal(trimmed, &refs) != nil {
+			invalid(c, "evidence_refs 必须是有效的 JSON 数组")
+			return
+		}
+	}
+	if !teacher(c) && (in.Kind == "announcement" || in.Kind == "discussion") {
 		identity.Fail(c, 403, "forbidden", "无权发布该类型内容")
 		return
 	}
 	if in.Kind == "reply" {
+		if in.ParentID == "" {
+			invalid(c, "回复必须指定原帖")
+			return
+		}
 		p, e := h.q.GetBusinessInteraction(c.Request.Context(), in.ParentID)
 		if e != nil {
 			result(c, nil, e)
 			return
 		}
 		if !scope(c, p.CourseID) {
+			return
+		}
+		if (p.ParentID.Valid && p.ParentID.String != "") || p.Kind == "reply" {
+			invalid(c, "暂不支持对回复继续嵌套回复")
 			return
 		}
 	} else if in.ParentID != "" {

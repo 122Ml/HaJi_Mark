@@ -1,6 +1,9 @@
 -- name: CreateAssistTurn :one
-INSERT INTO assist_turns(id,course_id,owner_id,request_id,question,profile_id) VALUES($1,$2,$3,$4,$5,$6)
+INSERT INTO assist_turns(id,course_id,owner_id,request_id,question,profile_id,resource_id) VALUES($1,$2,$3,$4,$5,$6,$7)
 ON CONFLICT(course_id,owner_id,request_id) DO NOTHING RETURNING *;
+
+-- name: ExpireStaleAssistTurns :exec
+UPDATE assist_turns SET state='failed',response='{}' WHERE state='running' AND created_at < now() - interval '5 minutes';
 
 -- name: GetAssistTurnByRequest :one
 SELECT * FROM assist_turns WHERE course_id=$1 AND owner_id=$2 AND request_id=$3;
@@ -43,17 +46,17 @@ GROUP BY b.id ORDER BY b.created_at DESC,b.id DESC;
 
 -- name: ListAgentConversationPage :many
 SELECT * FROM agent_conversations WHERE course_id=$1 AND owner_id=$2
- AND (sqlc.arg(search)::text='' OR title ILIKE '%' || sqlc.arg(search) || '%')
+ AND (sqlc.arg(search)::text='' OR title ILIKE '%' || sqlc.arg(search) || '%' ESCAPE '\')
 ORDER BY updated_at DESC,id LIMIT sqlc.arg(page_size) OFFSET sqlc.arg(page_offset);
 
 -- name: ListAgentTimeline :many
 SELECT id,kind,created_at FROM (
- SELECT m.id,'message'::text AS kind,m.created_at FROM agent_messages m WHERE m.conversation_id=sqlc.arg(conversation_id)
+ SELECT m.id,'message'::text AS kind,m.created_at,0 AS kind_order FROM agent_messages m WHERE m.conversation_id=sqlc.arg(conversation_id)
  UNION ALL
- SELECT r.id,'run'::text AS kind,r.created_at FROM agent_runs r WHERE r.conversation_id=sqlc.arg(conversation_id)
+ SELECT r.id,'run'::text AS kind,r.created_at,1 AS kind_order FROM agent_runs r WHERE r.conversation_id=sqlc.arg(conversation_id)
 ) timeline
 WHERE (created_at,id)<(sqlc.arg(before_time)::timestamptz,sqlc.arg(before_id)::text)
-ORDER BY created_at DESC,id DESC LIMIT 51;
+ORDER BY created_at DESC,kind_order DESC,id DESC LIMIT 51;
 
 -- name: ListAgentPageMessages :many
 SELECT * FROM agent_messages WHERE conversation_id=$1 AND id=ANY(sqlc.arg(ids)::text[]) ORDER BY created_at,id;

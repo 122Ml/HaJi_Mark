@@ -56,17 +56,18 @@ func (q *Queries) AddSubmissionImportItem(ctx context.Context, arg AddSubmission
 }
 
 const createAssistTurn = `-- name: CreateAssistTurn :one
-INSERT INTO assist_turns(id,course_id,owner_id,request_id,question,profile_id) VALUES($1,$2,$3,$4,$5,$6)
-ON CONFLICT(course_id,owner_id,request_id) DO NOTHING RETURNING id, course_id, owner_id, request_id, question, profile_id, state, response, created_at
+INSERT INTO assist_turns(id,course_id,owner_id,request_id,question,profile_id,resource_id) VALUES($1,$2,$3,$4,$5,$6,$7)
+ON CONFLICT(course_id,owner_id,request_id) DO NOTHING RETURNING id, course_id, owner_id, request_id, question, profile_id, state, response, created_at, resource_id
 `
 
 type CreateAssistTurnParams struct {
-	ID        string `json:"id"`
-	CourseID  string `json:"course_id"`
-	OwnerID   string `json:"owner_id"`
-	RequestID string `json:"request_id"`
-	Question  string `json:"question"`
-	ProfileID string `json:"profile_id"`
+	ID         string      `json:"id"`
+	CourseID   string      `json:"course_id"`
+	OwnerID    string      `json:"owner_id"`
+	RequestID  string      `json:"request_id"`
+	Question   string      `json:"question"`
+	ProfileID  string      `json:"profile_id"`
+	ResourceID pgtype.Text `json:"resource_id"`
 }
 
 func (q *Queries) CreateAssistTurn(ctx context.Context, arg CreateAssistTurnParams) (AssistTurn, error) {
@@ -77,6 +78,7 @@ func (q *Queries) CreateAssistTurn(ctx context.Context, arg CreateAssistTurnPara
 		arg.RequestID,
 		arg.Question,
 		arg.ProfileID,
+		arg.ResourceID,
 	)
 	var i AssistTurn
 	err := row.Scan(
@@ -89,6 +91,7 @@ func (q *Queries) CreateAssistTurn(ctx context.Context, arg CreateAssistTurnPara
 		&i.State,
 		&i.Response,
 		&i.CreatedAt,
+		&i.ResourceID,
 	)
 	return i, err
 }
@@ -132,6 +135,15 @@ func (q *Queries) CreateSubmissionImport(ctx context.Context, arg CreateSubmissi
 	return i, err
 }
 
+const expireStaleAssistTurns = `-- name: ExpireStaleAssistTurns :exec
+UPDATE assist_turns SET state='failed',response='{}' WHERE state='running' AND created_at < now() - interval '5 minutes'
+`
+
+func (q *Queries) ExpireStaleAssistTurns(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, expireStaleAssistTurns)
+	return err
+}
+
 const finishAssistTurn = `-- name: FinishAssistTurn :exec
 UPDATE assist_turns SET response=$2,state=$3 WHERE id=$1 AND state='running'
 `
@@ -148,7 +160,7 @@ func (q *Queries) FinishAssistTurn(ctx context.Context, arg FinishAssistTurnPara
 }
 
 const getAssistTurn = `-- name: GetAssistTurn :one
-SELECT id, course_id, owner_id, request_id, question, profile_id, state, response, created_at FROM assist_turns WHERE id=$1 AND course_id=$2 AND owner_id=$3
+SELECT id, course_id, owner_id, request_id, question, profile_id, state, response, created_at, resource_id FROM assist_turns WHERE id=$1 AND course_id=$2 AND owner_id=$3
 `
 
 type GetAssistTurnParams struct {
@@ -170,12 +182,13 @@ func (q *Queries) GetAssistTurn(ctx context.Context, arg GetAssistTurnParams) (A
 		&i.State,
 		&i.Response,
 		&i.CreatedAt,
+		&i.ResourceID,
 	)
 	return i, err
 }
 
 const getAssistTurnByRequest = `-- name: GetAssistTurnByRequest :one
-SELECT id, course_id, owner_id, request_id, question, profile_id, state, response, created_at FROM assist_turns WHERE course_id=$1 AND owner_id=$2 AND request_id=$3
+SELECT id, course_id, owner_id, request_id, question, profile_id, state, response, created_at, resource_id FROM assist_turns WHERE course_id=$1 AND owner_id=$2 AND request_id=$3
 `
 
 type GetAssistTurnByRequestParams struct {
@@ -197,6 +210,7 @@ func (q *Queries) GetAssistTurnByRequest(ctx context.Context, arg GetAssistTurnB
 		&i.State,
 		&i.Response,
 		&i.CreatedAt,
+		&i.ResourceID,
 	)
 	return i, err
 }
@@ -251,7 +265,7 @@ func (q *Queries) GetSubmissionImportOrigin(ctx context.Context, submissionID st
 
 const listAgentConversationPage = `-- name: ListAgentConversationPage :many
 SELECT id, course_id, owner_id, title, mode, profile_id, learner_context, created_at, updated_at FROM agent_conversations WHERE course_id=$1 AND owner_id=$2
- AND ($3::text='' OR title ILIKE '%' || $3 || '%')
+ AND ($3::text='' OR title ILIKE '%' || $3 || '%' ESCAPE '\')
 ORDER BY updated_at DESC,id LIMIT $5 OFFSET $4
 `
 
@@ -513,12 +527,12 @@ func (q *Queries) ListAgentPageSteps(ctx context.Context, ids []string) ([]Agent
 
 const listAgentTimeline = `-- name: ListAgentTimeline :many
 SELECT id,kind,created_at FROM (
- SELECT m.id,'message'::text AS kind,m.created_at FROM agent_messages m WHERE m.conversation_id=$1
+ SELECT m.id,'message'::text AS kind,m.created_at,0 AS kind_order FROM agent_messages m WHERE m.conversation_id=$1
  UNION ALL
- SELECT r.id,'run'::text AS kind,r.created_at FROM agent_runs r WHERE r.conversation_id=$1
+ SELECT r.id,'run'::text AS kind,r.created_at,1 AS kind_order FROM agent_runs r WHERE r.conversation_id=$1
 ) timeline
 WHERE (created_at,id)<($2::timestamptz,$3::text)
-ORDER BY created_at DESC,id DESC LIMIT 51
+ORDER BY created_at DESC,kind_order DESC,id DESC LIMIT 51
 `
 
 type ListAgentTimelineParams struct {

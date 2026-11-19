@@ -2,12 +2,14 @@ package learning
 
 import (
 	"encoding/json"
+	"errors"
 
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
 	"github.com/122Ml/HaJi_Mark/backend/internal/rag"
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 func (h *Handler) adoptPaper(c *gin.Context) {
@@ -40,12 +42,15 @@ func (h *Handler) adoptPaper(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
-	if old, e := q.DecisionByJob(ctx, store.DecisionByJobParams{CourseID: j.CourseID, Kind: "paper_adopt", JobID: j.ID}); e == nil {
+	if old, err := q.DecisionByJob(ctx, store.DecisionByJobParams{CourseID: j.CourseID, Kind: "paper_adopt", JobID: j.ID}); err == nil {
 		result(c, json.RawMessage(old.Output), nil)
+		return
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		result(c, nil, err)
 		return
 	}
 	if src.ParseRevision != input.ParseRevision || src.State != "active" {
-		ragError(c, errStalePaper)
+		identity.Fail(c, 409, "stale_revision", "拆题来源版本已改变，请重新核对")
 		return
 	}
 	fs, e := q.ListMaterialFragments(ctx, store.ListMaterialFragmentsParams{SourceID: src.ID, Revision: src.ParseRevision})
@@ -62,8 +67,25 @@ func (h *Handler) adoptPaper(c *gin.Context) {
 		ragError(c, e)
 		return
 	}
+	revisions, e := q.AssetRevisions(ctx, src.ID)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	assetByID := make(map[string]store.MaterialAsset, len(assets))
+	for _, a := range assets {
+		assetByID[a.ID] = a
+	}
+	confirmedAssets := map[string]bool{}
+	for _, r := range revisions {
+		if r.State == "confirmed" {
+			confirmedAssets[r.AssetID] = true
+		}
+	}
 	versions := []store.BankQuestionVersion{}
 	for _, v := range in.Questions {
+		options := []string{}
+		correctAnswer := ""
 		if v.Type == "quiz" {
 			seen := map[string]bool{}
 			found := false
@@ -79,33 +101,31 @@ func (h *Handler) adoptPaper(c *gin.Context) {
 				invalid(c, "请先补全单选题选项及正确答案，并将补录来源标为教师")
 				return
 			}
+			options = v.Options
+			correctAnswer = v.CorrectAnswer
 		}
 		b, e := q.CreateQuestionBank(ctx, store.CreateQuestionBankParams{ID: uuid.NewString(), CourseID: j.CourseID, CreatedBy: identity.Current(c).ID})
 		if e != nil {
 			result(c, nil, e)
 			return
 		}
-		version, e := q.CreateBankQuestionVersion(ctx, store.CreateBankQuestionVersionParams{ID: uuid.NewString(), BankID: b.ID, Title: v.Title, Prompt: v.Prompt, Type: v.Type, MaxScore: v.MaxScore, ReferenceAnswer: v.ReferenceAnswer, Options: nonNilStrings(v.Options), CorrectAnswer: v.CorrectAnswer, EvidenceRefs: []byte("[]"), CreatedBy: identity.Current(c).ID})
+		version, e := q.CreateBankQuestionVersion(ctx, store.CreateBankQuestionVersionParams{ID: uuid.NewString(), BankID: b.ID, Title: v.Title, Prompt: v.Prompt, Type: v.Type, MaxScore: v.MaxScore, ReferenceAnswer: v.ReferenceAnswer, Options: options, CorrectAnswer: correctAnswer, EvidenceRefs: []byte("[]"), CreatedBy: identity.Current(c).ID})
 		if e != nil {
 			result(c, nil, e)
 			return
 		}
-		revisions, e := q.AssetRevisions(ctx, src.ID)
-		if e != nil {
-			result(c, nil, e)
-			return
-		}
+		seenAssets := map[string]bool{}
 		for _, aid := range v.AssetIDs {
-			a, e := q.GetMaterialAsset(ctx, store.GetMaterialAssetParams{ID: aid, CourseID: j.CourseID})
-			if e != nil {
-				result(c, nil, e)
+			if seenAssets[aid] {
+				continue
+			}
+			seenAssets[aid] = true
+			a, ok := assetByID[aid]
+			if !ok {
+				invalid(c, "题图资产不属于当前原卷")
 				return
 			}
-			confirmed := false
-			for _, r := range revisions {
-				confirmed = confirmed || (r.AssetID == aid && r.State == "confirmed")
-			}
-			if a.Kind == "page" || !confirmed {
+			if a.Kind == "page" || !confirmedAssets[aid] {
 				invalid(c, "整页预览不可作为题图；请裁剪题目区域并核对图像")
 				return
 			}

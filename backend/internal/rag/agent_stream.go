@@ -5,16 +5,28 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 )
+
+type countingReader struct {
+	r io.Reader
+	n int64
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.r.Read(p)
+	c.n += int64(n)
+	return n, err
+}
 
 // Only content snapshots leave the decoder. Tool arguments stay private until
 // the complete response passes the same validation as a non-streaming call.
 func decodeAgentResponse(resp *http.Response, emit func(string) error) (AgentMessage, string, usage, error) {
 	var msg AgentMessage
 	var u usage
-	if !strings.HasPrefix(strings.ToLower(resp.Header.Get("Content-Type")), "text/event-stream") {
+	if parseMediaType(resp.Header.Get("Content-Type")) != "text/event-stream" {
 		var out struct {
 			Choices []struct {
 				Message AgentMessage `json:"message"`
@@ -27,6 +39,14 @@ func decodeAgentResponse(resp *http.Response, emit func(string) error) (AgentMes
 			return msg, "", u, errors.New("模型未返回有效流或JSON回复")
 		}
 		msg = out.Choices[0].Message
+		for i := range msg.ToolCalls {
+			if strings.TrimSpace(msg.ToolCalls[i].Function.Arguments) == "" {
+				msg.ToolCalls[i].Function.Arguments = "{}"
+			}
+			if msg.ToolCalls[i].Type == "" {
+				msg.ToolCalls[i].Type = "function"
+			}
+		}
 		if emit != nil && msg.Content != "" {
 			if e = emit(msg.Content); e != nil {
 				return msg, "", out.Usage, e
@@ -34,24 +54,21 @@ func decodeAgentResponse(resp *http.Response, emit func(string) error) (AgentMes
 		}
 		return msg, out.Choices[0].Finish, out.Usage, nil
 	}
-	scanner := bufio.NewScanner(io.LimitReader(resp.Body, (8<<20)+1))
+	cr := &countingReader{r: io.LimitReader(resp.Body, (8<<20)+1)}
+	scanner := bufio.NewScanner(cr)
 	scanner.Buffer(make([]byte, 8192), 1<<20)
 	calls := map[int]ToolCall{}
 	finish := ""
-	done := false
-	total := 0
 	for scanner.Scan() {
-		line := scanner.Text()
-		total += len(line) + 1
-		if total > 8<<20 {
+		if cr.n > 8<<20 {
 			return msg, finish, u, errors.New("模型流超过大小限制")
 		}
+		line := scanner.Text()
 		if !strings.HasPrefix(line, "data:") {
 			continue
 		}
 		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
 		if data == "[DONE]" {
-			done = true
 			break
 		}
 		if data == "" {
@@ -78,15 +95,27 @@ func decodeAgentResponse(resp *http.Response, emit func(string) error) (AgentMes
 			Usage *usage          `json:"usage"`
 			Error json.RawMessage `json:"error"`
 		}
-		if json.Unmarshal([]byte(data), &event) != nil || len(event.Error) > 0 && string(event.Error) != "null" {
+		if json.Unmarshal([]byte(data), &event) != nil {
+			return msg, finish, u, errors.New("模型流事件无效")
+		}
+		if len(event.Error) > 0 && string(event.Error) != "null" {
+			log.Printf("agent stream provider error: %.512s", string(event.Error))
 			return msg, finish, u, errors.New("模型流事件无效")
 		}
 		if event.Usage != nil {
 			u = *event.Usage
 		}
 		for _, c := range event.Choices {
-			if c.Index != 0 || finish != "" {
+			if c.Index != 0 {
 				return msg, finish, u, errors.New("模型流顺序或候选数量无效")
+			}
+			hasDelta := c.Delta.Content != "" || c.Delta.Reasoning != "" || len(c.Delta.ToolCalls) > 0
+			if finish != "" {
+				// Allow trailing empty-delta chunk (often accompanying usage) after finish_reason.
+				if hasDelta || (c.Finish != "" && c.Finish != finish) {
+					return msg, finish, u, errors.New("模型流顺序或候选数量无效")
+				}
+				continue
 			}
 			msg.Content += c.Delta.Content
 			msg.ReasoningContent += c.Delta.Reasoning
@@ -103,11 +132,17 @@ func decodeAgentResponse(resp *http.Response, emit func(string) error) (AgentMes
 					return msg, finish, u, errors.New("流式工具数量超限")
 				}
 				t := calls[d.Index]
-				t.ID += d.ID
+				if d.ID != "" && d.ID != t.ID {
+					t.ID = d.ID
+				}
 				if d.Type != "" {
 					t.Type = d.Type
+				} else if t.Type == "" {
+					t.Type = "function"
 				}
-				t.Function.Name += d.Function.Name
+				if d.Function.Name != "" && d.Function.Name != t.Function.Name {
+					t.Function.Name = d.Function.Name
+				}
 				t.Function.Arguments += d.Function.Arguments
 				if len(t.Function.Arguments) > 120000 || len(t.ID) > 200 || len(t.Function.Name) > 200 {
 					return msg, finish, u, errors.New("流式工具参数过长")
@@ -119,13 +154,26 @@ func decodeAgentResponse(resp *http.Response, emit func(string) error) (AgentMes
 			}
 		}
 	}
-	if scanner.Err() != nil || !done || (finish != "stop" && finish != "tool_calls") {
+	if err := scanner.Err(); err != nil {
+		log.Printf("agent stream read error: %v", err)
+		return msg, finish, u, errors.New("模型流中断或截断，未执行工具；请核对后显式重试")
+	}
+	if cr.n > 8<<20 {
+		return msg, finish, u, errors.New("模型流超过大小限制")
+	}
+	if finish != "stop" && finish != "tool_calls" {
 		return msg, finish, u, errors.New("模型流中断或截断，未执行工具；请核对后显式重试")
 	}
 	for i := 0; i < len(calls); i++ {
 		t, ok := calls[i]
 		if !ok {
 			return msg, finish, u, errors.New("流式工具索引不连续")
+		}
+		if strings.TrimSpace(t.Function.Arguments) == "" {
+			t.Function.Arguments = "{}"
+		}
+		if t.Type == "" {
+			t.Type = "function"
 		}
 		msg.ToolCalls = append(msg.ToolCalls, t)
 	}

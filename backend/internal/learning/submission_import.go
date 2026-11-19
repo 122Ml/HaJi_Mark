@@ -53,7 +53,11 @@ func readAnswerCSV(content string) ([]importRow, error) {
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("CSV格式错误：%s", err)
+			var parseErr *csv.ParseError
+			if errors.As(err, &parseErr) {
+				return nil, fmt.Errorf("第%d行第%d列CSV格式有误，请检查引号或列数是否符合username,answer_text两列格式", parseErr.Line, parseErr.Column)
+			}
+			return nil, errors.New("CSV格式错误，请核对文件内容")
 		}
 		line, _ := reader.FieldPos(0)
 		// encoding/csv normalizes quoted CRLF to LF. Decode the validated raw
@@ -103,6 +107,9 @@ func (h *Handler) submissionImports(c *gin.Context) {
 		return
 	}
 	v, e := h.q.ListSubmissionImports(c.Request.Context(), a.ID)
+	if e == nil && v == nil {
+		v = []store.ListSubmissionImportsRow{}
+	}
 	result(c, v, e)
 }
 
@@ -113,8 +120,13 @@ func (h *Handler) importSubmissions(c *gin.Context) {
 	}
 	var in importInput
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 4<<20)
-	if c.ShouldBindJSON(&in) != nil {
-		invalid(c, "导入请求格式无效或超过4MiB")
+	if err := c.ShouldBindJSON(&in); err != nil {
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			identity.Fail(c, http.StatusRequestEntityTooLarge, "payload_too_large", "导入请求体过大（上限4MiB）")
+			return
+		}
+		identity.Fail(c, 400, "invalid_input", "导入请求格式不正确")
 		return
 	}
 	rows, err := readAnswerCSV(in.CSV)
@@ -126,32 +138,39 @@ func (h *Handler) importSubmissions(c *gin.Context) {
 	if !ok {
 		return
 	}
-	ctx := c.Request.Context()
-	tx, e := h.db.Begin(ctx)
-	if e != nil {
-		result(c, nil, e)
-		return
-	}
-	defer tx.Rollback(ctx)
-	q := h.q.WithTx(tx)
-	if _, e = q.LockBusinessAssignment(ctx, a.ID); e != nil {
-		result(c, nil, e)
-		return
-	}
-	a, e = q.GetBusinessAssignment(ctx, a.ID)
-	if e != nil {
-		result(c, nil, e)
-		return
-	}
-	inputJSON, _ := json.Marshal(struct {
+	inputJSON, err := json.Marshal(struct {
 		QuestionID string
 		CSV        string
 	}{in.QuestionID, in.CSV})
+	if err != nil {
+		result(c, nil, err)
+		return
+	}
 	inputHash := hashAnswer(string(inputJSON))
+	ctx := c.Request.Context()
 	commit := c.Param("operation") == "confirm"
+	q := h.q
+	var tx pgx.Tx
 	if commit {
 		if !validText(in.RequestID, 128) {
 			invalid(c, "缺少有效请求号")
+			return
+		}
+		var e error
+		tx, e = h.db.Begin(ctx)
+		if e != nil {
+			result(c, nil, e)
+			return
+		}
+		defer tx.Rollback(ctx)
+		q = h.q.WithTx(tx)
+		if _, e = q.LockBusinessAssignment(ctx, a.ID); e != nil {
+			result(c, nil, e)
+			return
+		}
+		a, e = q.GetBusinessAssignment(ctx, a.ID)
+		if e != nil {
+			result(c, nil, e)
 			return
 		}
 		old, err := q.GetSubmissionImportByRequest(ctx, store.GetSubmissionImportByRequestParams{ImportedBy: identity.Current(c).ID, RequestID: in.RequestID})
@@ -193,30 +212,62 @@ func (h *Handler) importSubmissions(c *gin.Context) {
 	}
 	byName := map[string]store.ListBusinessMembersRow{}
 	for _, m := range members {
-		byName[m.Username.String] = m
+		if m.Username.Valid {
+			byName[m.Username.String] = m
+		}
 	}
-	valid := true
+	studentIDs := make([]string, 0, len(rows))
+	seenStudent := map[string]bool{}
 	for i := range rows {
 		m, exists := byName[rows[i].Username]
 		if !exists {
-			rows[i].Error = "当前课程没有该学生，请先核对用户名或选课名单"
-		} else {
-			rows[i].StudentID, rows[i].StudentName = m.ID, m.DisplayName
-			rows[i].NextAttempt, e = q.NextSubmissionAttempt(ctx, store.NextSubmissionAttemptParams{StudentID: m.ID, QuestionID: question.ID})
-			if e != nil {
-				result(c, nil, e)
-				return
+			if rows[i].Error == "" {
+				rows[i].Error = "当前课程没有该学生，请先核对用户名或选课名单"
+			}
+			continue
+		}
+		rows[i].StudentID, rows[i].StudentName = m.ID, m.DisplayName
+		if !seenStudent[m.ID] {
+			seenStudent[m.ID] = true
+			studentIDs = append(studentIDs, m.ID)
+		}
+	}
+	nextAttempts := map[string]int32{}
+	if len(studentIDs) > 0 {
+		attemptRows, err := q.NextSubmissionAttemptsForQuestion(ctx, store.NextSubmissionAttemptsForQuestionParams{
+			QuestionID: question.ID,
+			StudentIds: studentIDs,
+		})
+		if err != nil {
+			result(c, nil, err)
+			return
+		}
+		for _, ar := range attemptRows {
+			nextAttempts[ar.StudentID] = ar.NextAttempt
+		}
+	}
+	valid := true
+	for i := range rows {
+		if rows[i].StudentID != "" {
+			if next, ok := nextAttempts[rows[i].StudentID]; ok {
+				rows[i].NextAttempt = next
+			} else {
+				rows[i].NextAttempt = 1
 			}
 		}
 		if rows[i].Error != "" {
 			valid = false
 		}
 	}
-	snapshot, _ := json.Marshal(struct {
+	snapshot, err := json.Marshal(struct {
 		Version  int32
 		Question string
 		Rows     []importRow
 	}{a.Version, question.ID, rows})
+	if err != nil {
+		result(c, nil, err)
+		return
+	}
 	previewHash := hashAnswer(string(snapshot))
 	if !commit {
 		result(c, gin.H{"rows": rows, "valid": valid, "preview_hash": previewHash, "assignment_version": a.Version}, nil)
@@ -232,6 +283,10 @@ func (h *Handler) importSubmissions(c *gin.Context) {
 	}
 	batch, e := q.CreateSubmissionImport(ctx, store.CreateSubmissionImportParams{ID: uuid.NewString(), CourseID: a.CourseID, AssignmentID: a.ID, QuestionID: question.ID, ImportedBy: identity.Current(c).ID, RequestID: in.RequestID, InputHash: inputHash})
 	if e != nil {
+		if isPgCode(e, "23505") {
+			identity.Fail(c, 409, "request_conflict", "相同请求号不能改变导入内容")
+			return
+		}
 		result(c, nil, e)
 		return
 	}

@@ -3,7 +3,9 @@ package agent
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/csv"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,18 +27,12 @@ func (s *Service) execute(ctx context.Context, run store.AgentRun, conv store.Ag
 	f := &rt.Frames[len(rt.Frames)-1]
 	call := f.Calls[f.Next]
 	id := stepKey(run, *rt, call)
-	args, e := decodeObject([]byte(call.Function.Arguments))
-	if e != nil {
-		return e
-	}
-	var tool Tool
-	for _, t := range Catalog() {
-		if t.Name == call.Function.Name {
-			tool = t
-			break
-		}
-	}
-	if tool.Name != "" {
+	args, argErr := decodeObject([]byte(call.Function.Arguments))
+	tool, _ := lookupTool(call.Function.Name)
+	storedArgs := args
+	if argErr != nil {
+		storedArgs = map[string]any{"raw_arguments": call.Function.Arguments}
+	} else if tool.Name != "" {
 		omitOptionalNulls(tool.Schema, args)
 		if tool.Method == "JOB" && tool.Path != "parse" && tool.Path != "index" && tool.Path != "vision" || tool.Name == "course_answer" || tool.Name == "regrade_ai" {
 			if getString(args, "profile_id") == "" {
@@ -44,7 +40,7 @@ func (s *Service) execute(ctx context.Context, run store.AgentRun, conv store.Ag
 			}
 		}
 	}
-	step, e := s.Q.CreateAgentStep(ctx, store.CreateAgentStepParams{ID: id, RunID: run.ID, Agent: f.Domain, Tool: call.Function.Name, Arguments: raw(args)})
+	step, e := s.Q.CreateAgentStep(ctx, store.CreateAgentStepParams{ID: id, RunID: run.ID, Agent: f.Domain, Tool: call.Function.Name, Arguments: raw(storedArgs)})
 	if e != nil {
 		return e
 	}
@@ -72,6 +68,9 @@ func (s *Service) execute(ctx context.Context, run store.AgentRun, conv store.Ag
 		}
 		_ = s.stepResult(ctx, run, id, "unknown", map[string]any{"error": "进程在操作回执保存前中断，请核对实际对象"})
 		return errUnknown
+	}
+	if argErr != nil {
+		return complete("failed", map[string]any{"error": "工具参数不是有效JSON对象：" + argErr.Error()})
 	}
 	if tool.Name == "" || !allowed(tool, f.Domain, role, rt.Tainted) {
 		return complete("denied", map[string]any{"error": "该工具不在当前身份、专家或数据隔离范围内"})
@@ -137,7 +136,11 @@ func (s *Service) execute(ctx context.Context, run store.AgentRun, conv store.Ag
 			return complete("failed", map[string]any{"error": "任务不存在"})
 		}
 		if job.State == "queued" || job.State == "running" {
-			if time.Since(run.CreatedAt.Time) > 30*time.Minute {
+			waitSince := job.CreatedAt.Time
+			if waitSince.IsZero() {
+				waitSince = run.CreatedAt.Time
+			}
+			if time.Since(waitSince) > 30*time.Minute {
 				return complete("failed", map[string]any{"error": "已等待30分钟，请稍后用任务ID查询；后台任务未被取消"})
 			}
 			if e = s.checkpoint(ctx, run, rt, "waiting_job", ""); e != nil {
@@ -240,7 +243,11 @@ func (s *Service) invoke(ctx context.Context, run store.AgentRun, conv store.Age
 			if err != nil || a.Kind != "upload" || strings.ToLower(filepath.Ext(a.Filename)) != ".csv" || a.SizeBytes > 512<<10 {
 				return map[string]any{"error": "请选择本对话内不超过512KiB的CSV上传附件"}, nil
 			}
-			file, err := os.Open(filepath.Join(attachmentDir(), a.StoragePath))
+			fullPath, err := safeAttachmentPath(a.StoragePath)
+			if err != nil {
+				return map[string]any{"error": "附件路径无效"}, nil
+			}
+			file, err := os.Open(fullPath)
 			if err != nil {
 				return nil, err
 			}
@@ -328,6 +335,9 @@ func (s *Service) request(ctx context.Context, run store.AgentRun, conv store.Ag
 			}
 			snapshot["business_hash"] = hash
 			snapshot["before"] = preview
+			if len(raw(snapshot)) > 90000 {
+				snapshot["before"] = map[string]any{"truncated": true, "message": "审批前对象预览超过90KB，已省略预览（已保留审批参数与校验摘要）"}
+			}
 		}
 		req, e = s.Q.CreateAgentRequest(ctx, store.CreateAgentRequestParams{ID: uuid.NewString(), RunID: run.ID, StepID: step.ID, Kind: kind, Prompt: prompt, Fields: raw(fields), Snapshot: raw(snapshot)})
 		if e != nil {
@@ -479,28 +489,45 @@ func validFields(args map[string]any) error {
 	}
 	return nil
 }
-func jobDomain(kind string) string {
+func jobDomain(kind string) (string, bool) {
 	switch kind {
+	case "parse", "index", "extract", "source_suggest", "knowledge_compare", "paper_split", "vision":
+		return "materials", true
 	case "question_generate", "question_analyze", "bank_rubric", "rubric":
-		return "questions"
+		return "questions", true
 	case "grade":
-		return "assessment"
+		return "assessment", true
 	case "diagnosis", "recommendation":
-		return "learning"
+		return "learning", true
 	default:
-		return "materials"
+		return "", false
 	}
 }
 func (s *Service) checkJobs(ctx context.Context, conv store.AgentConversation, rt *runtime, domain string, args map[string]any, name string) error {
 	if name == "jobs_list" {
-		kind := getString(args, "kind")
-		if rt.Tainted && kind == "paper_split" {
-			return errors.New("含作答上下文的会话不能读取整卷出题任务")
-		}
-		if kind == "" || jobDomain(kind) != domain {
+		rawKind := strings.TrimSpace(getString(args, "kind"))
+		if rawKind == "" {
 			return errors.New("请指定本专家领域的任务kind，禁止跨领域读取任务")
 		}
-		if kind == "grade" || kind == "diagnosis" || kind == "recommendation" {
+		parts := strings.Split(rawKind, ",")
+		taint := false
+		normalized := make([]string, 0, len(parts))
+		for _, part := range parts {
+			k := strings.TrimSpace(part)
+			d, ok := jobDomain(k)
+			if !ok || d != domain {
+				return errors.New("请指定本专家领域的任务kind，禁止跨领域读取任务")
+			}
+			if rt.Tainted && k == "paper_split" {
+				return errors.New("含作答上下文的会话不能读取整卷出题任务")
+			}
+			if k == "grade" || k == "diagnosis" || k == "recommendation" {
+				taint = true
+			}
+			normalized = append(normalized, k)
+		}
+		args["kind"] = strings.Join(normalized, ",")
+		if taint {
 			rt.Tainted = true
 			return s.Q.MarkAgentLearnerContext(ctx, conv.ID)
 		}
@@ -510,7 +537,8 @@ func (s *Service) checkJobs(ctx context.Context, conv store.AgentConversation, r
 	if e != nil {
 		return errors.New("任务不存在或无权访问")
 	}
-	if jobDomain(j.Kind) != domain {
+	d, ok := jobDomain(j.Kind)
+	if !ok || d != domain {
 		return errors.New("该任务不属于当前专家领域")
 	}
 	if rt.Tainted && j.Kind == "paper_split" {
@@ -523,6 +551,41 @@ func (s *Service) checkJobs(ctx context.Context, conv store.AgentConversation, r
 	return nil
 }
 
+func cleanValue(v any, depth int) any {
+	if depth > 12 {
+		return "[层级截断]"
+	}
+	switch x := v.(type) {
+	case map[string]any:
+		out := map[string]any{}
+		for k, v := range x {
+			if slices.Contains([]string{"storage_path", "session_hash", "password_hash", "token_hash", "runtime", "reasoning_content"}, k) {
+				continue
+			}
+			out[k] = cleanValue(v, depth+1)
+		}
+		return out
+	case []any:
+		limit := len(x)
+		if limit > 60 {
+			limit = 60
+		}
+		out := make([]any, 0, limit+1)
+		for _, v := range x[:limit] {
+			out = append(out, cleanValue(v, depth+1))
+		}
+		if len(x) > limit {
+			out = append(out, map[string]any{"truncated": true, "total": len(x)})
+		}
+		return out
+	case string:
+		if len([]rune(x)) > 10000 {
+			return string([]rune(x)[:10000]) + "[内容截断，请缩小范围]"
+		}
+	}
+	return v
+}
+
 // Remove server-only fields and bound each result. Truncation is explicit and
 // never used as a successful full-source export or as a replacement for a file.
 func safeData(data []byte) any {
@@ -530,55 +593,67 @@ func safeData(data []byte) any {
 	if json.Unmarshal(data, &value) != nil {
 		return map[string]any{"error": "业务响应不是JSON"}
 	}
-	var clean func(any, int) any
-	clean = func(v any, depth int) any {
-		if depth > 12 {
-			return "[层级截断]"
-		}
-		switch x := v.(type) {
-		case map[string]any:
-			out := map[string]any{}
-			for k, v := range x {
-				if slices.Contains([]string{"storage_path", "session_hash", "password_hash", "token_hash", "runtime", "reasoning_content"}, k) {
-					continue
-				}
-				out[k] = clean(v, depth+1)
-			}
-			return out
-		case []any:
-			limit := len(x)
-			if limit > 60 {
-				limit = 60
-			}
-			out := make([]any, 0, limit+1)
-			for _, v := range x[:limit] {
-				out = append(out, clean(v, depth+1))
-			}
-			if len(x) > limit {
-				out = append(out, map[string]any{"truncated": true, "total": len(x)})
-			}
-			return out
-		case string:
-			if len([]rune(x)) > 10000 {
-				return string([]rune(x)[:10000]) + "[内容截断，请缩小范围]"
-			}
-		}
-		return v
-	}
-	value = clean(value, 0)
+	value = cleanValue(value, 0)
 	if len(raw(value)) > 90000 {
 		return map[string]any{"truncated": true, "message": "响应超过90KB，请缩小对象或查询范围"}
 	}
 	return value
 }
 
+// safeSnapshot protects required approval/editor metadata (tool, mode,
+// arguments, editor, business_hash) from being wiped if preview data is large.
+func safeSnapshot(data []byte) any {
+	var m map[string]any
+	if json.Unmarshal(data, &m) != nil || m == nil {
+		return safeData(data)
+	}
+	cleaned, ok := cleanValue(m, 0).(map[string]any)
+	if !ok {
+		return safeData(data)
+	}
+	if len(raw(cleaned)) <= 90000 {
+		return cleaned
+	}
+	if _, hasBefore := cleaned["before"]; hasBefore {
+		cleaned["before"] = map[string]any{"truncated": true, "message": "审批前对象预览超过90KB，已省略部分预览"}
+	}
+	if len(raw(cleaned)) <= 90000 {
+		return cleaned
+	}
+	out := map[string]any{"truncated": true, "message": "部分快照字段过大已折叠"}
+	for _, keep := range []string{"tool", "mode", "arguments", "editor", "business_hash"} {
+		if v, exists := cleaned[keep]; exists {
+			out[keep] = v
+		}
+	}
+	return out
+}
+
 func attachmentDir() string { return filepath.Join(rag.MaterialsDir(), "agent") }
+
+func safeAttachmentPath(storagePath string) (string, error) {
+	if storagePath == "" || filepath.IsAbs(storagePath) || strings.HasPrefix(storagePath, "/") || strings.HasPrefix(storagePath, "\\") || strings.ContainsRune(storagePath, '\x00') {
+		return "", errors.New("附件路径无效")
+	}
+	base := filepath.Clean(attachmentDir())
+	full := filepath.Clean(filepath.Join(base, storagePath))
+	rel, err := filepath.Rel(base, full)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) || filepath.IsAbs(rel) {
+		return "", errors.New("附件路径越界")
+	}
+	return full, nil
+}
+
 func (s *Service) importAttachment(ctx context.Context, run store.AgentRun, conv store.AgentConversation, args map[string]any) (any, error) {
 	a, e := s.Q.GetAgentAttachment(ctx, store.GetAgentAttachmentParams{ID: getString(args, "attachment_id"), ConversationID: conv.ID})
 	if e != nil || a.Kind != "upload" {
 		return map[string]any{"error": "附件不存在或不属于本会话"}, nil
 	}
-	file, e := os.Open(filepath.Join(attachmentDir(), a.StoragePath))
+	fullPath, e := safeAttachmentPath(a.StoragePath)
+	if e != nil {
+		return map[string]any{"error": "附件路径无效"}, nil
+	}
+	file, e := os.Open(fullPath)
 	if e != nil {
 		return nil, errors.New("无法打开已上传附件")
 	}
@@ -595,8 +670,13 @@ func (s *Service) importAttachment(ctx context.Context, run store.AgentRun, conv
 	if e != nil {
 		return nil, e
 	}
-	if _, e = io.Copy(part, file); e != nil {
+	hasher := sha256.New()
+	n, e := io.Copy(io.MultiWriter(part, hasher), io.LimitReader(file, (30<<20)+1))
+	if e != nil {
 		return nil, e
+	}
+	if n > 30<<20 || hex.EncodeToString(hasher.Sum(nil)) != a.Sha256 {
+		return map[string]any{"error": "附件内容与上传记录不一致，未导入"}, nil
 	}
 	for _, key := range []string{"source_note", "allow_derived", "title"} {
 		if v, ok := args[key]; ok {

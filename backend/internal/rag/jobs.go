@@ -7,16 +7,20 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 const (
@@ -93,9 +97,7 @@ func (s *Service) CreateJob(ctx context.Context, course, actor, kind string, in 
 		return j, e
 	}
 	// PostgreSQL is the durable outbox. The recovery scan enqueues after Redis outages.
-	client := asynq.NewClient(asynq.RedisClientOpt{Addr: os.Getenv("REDIS_ADDR")})
-	defer client.Close()
-	_ = enqueue(client, j.ID)
+	s.Enqueue(j.ID)
 	return j, nil
 }
 func enqueue(c *asynq.Client, id string) error {
@@ -105,12 +107,22 @@ func enqueue(c *asynq.Client, id string) error {
 	return e
 }
 
+// QueueIndexID joins the caller's transaction and returns the newly queued index
+// job ID (empty string when a pending index job already exists).
+func QueueIndexID(ctx context.Context, q *store.Queries, course, actor string) (string, error) {
+	j, err := q.CreateProcessingJob(ctx, store.CreateProcessingJobParams{ID: uuid.NewString(), CourseID: course, CreatedBy: actor, Kind: "index", Input: []byte("{}")})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return j.ID, nil
+}
+
 // QueueIndex joins the caller's transaction; recovery delivers the durable job.
 func QueueIndex(ctx context.Context, q *store.Queries, course, actor string) error {
-	_, err := q.CreateProcessingJob(ctx, store.CreateProcessingJobParams{ID: uuid.NewString(), CourseID: course, CreatedBy: actor, Kind: "index", Input: []byte("{}")})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil
-	}
+	_, err := QueueIndexID(ctx, q, course, actor)
 	return err
 }
 
@@ -137,23 +149,31 @@ func (s *Service) recoverInterrupted(ctx context.Context) error {
 	if err = q.ExpireInterruptedGenerationJobs(ctx); err != nil {
 		return err
 	}
+	if err = q.ReconcileStuckSourceParse(ctx); err != nil {
+		return err
+	}
+	if err = q.ExpireStaleAssistTurns(ctx); err != nil {
+		return err
+	}
 	return tx.Commit(ctx)
 }
 func (s *Service) Recover(ctx context.Context) {
-	client := asynq.NewClient(asynq.RedisClientOpt{Addr: os.Getenv("REDIS_ADDR")})
+	client := asynq.NewClient(asynq.RedisClientOpt{Addr: redisAddr()})
 	defer client.Close()
 	scan := func() {
 		if err := s.recoverInterrupted(ctx); err != nil {
-			log.Print("RAG interrupted-call recovery unavailable")
+			log.Printf("RAG interrupted recovery failed: %v", err)
 			return
 		}
 		jobs, e := s.Q.PendingProcessingJobs(ctx)
 		if e != nil {
-			log.Print("RAG recovery database unavailable")
+			log.Printf("RAG recovery query failed: %v", e)
 			return
 		}
 		for _, j := range jobs {
-			_ = enqueue(client, j.ID)
+			if err := enqueue(client, j.ID); err != nil && !errors.Is(err, asynq.ErrDuplicateTask) {
+				log.Printf("RAG recovery enqueue %s failed: %v", j.ID, err)
+			}
 		}
 	}
 	scan()
@@ -168,6 +188,59 @@ func (s *Service) Recover(ctx context.Context) {
 		}
 	}
 }
+
+func containsHan(s string) bool {
+	for _, r := range s {
+		if unicode.Is(unicode.Han, r) {
+			return true
+		}
+	}
+	return false
+}
+
+func sanitizeJobError(e error) string {
+	if e == nil {
+		return ""
+	}
+	if errors.Is(e, context.Canceled) {
+		return "任务已取消"
+	}
+	if errors.Is(e, context.DeadlineExceeded) {
+		return "任务执行超时，请缩小范围后重试"
+	}
+	if errors.Is(e, pgx.ErrNoRows) {
+		return "关联对象不存在或状态已变化"
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(e, &pgErr) {
+		return "数据库操作失败，请稍后重试"
+	}
+	var synErr *json.SyntaxError
+	var typeErr *json.UnmarshalTypeError
+	if errors.As(e, &synErr) || errors.As(e, &typeErr) {
+		return "数据格式解析失败，请核对后重试"
+	}
+	var pathErr *os.PathError
+	var netErr net.Error
+	if errors.As(e, &pathErr) || errors.As(e, &netErr) {
+		return "文件或网络访问失败，请稍后重试"
+	}
+	msg := strings.TrimSpace(e.Error())
+	lower := strings.ToLower(msg)
+	for _, marker := range []string{"sqlstate", "error:", "pq:", "pgx:", "json:", "dial tcp", "invalid character", "unexpected end of json", "runtime error", "panic:"} {
+		if strings.Contains(lower, marker) {
+			return "后台处理发生内部异常，请稍后重试"
+		}
+	}
+	if !containsHan(msg) {
+		return "后台处理失败，请检查输入或稍后重试"
+	}
+	if len(msg) > 500 {
+		msg = string([]rune(msg)[:200])
+	}
+	return msg
+}
+
 func (s *Service) Process(ctx context.Context, t *asynq.Task) error {
 	j, e := s.Q.ClaimProcessingJob(ctx, string(t.Payload()))
 	if e != nil {
@@ -200,14 +273,18 @@ func (s *Service) Process(ctx context.Context, t *asynq.Task) error {
 	}()
 	var in JobInput
 	var output any
+	finishedInTx := false
 	if e = json.Unmarshal(j.Input, &in); e == nil {
 		switch j.Kind {
 		case "parse":
 			output, e = s.Parse(jobCtx, j, in)
+			finishedInTx = e == nil
 		case "index":
 			output, e = s.Index(jobCtx, j, in)
+			finishedInTx = e == nil
 		case "extract":
 			output, e = s.Extract(jobCtx, j, in)
+			finishedInTx = e == nil
 		case "rubric", "grade":
 			output, e = s.Draft(jobCtx, j, in)
 		case "question_generate", "question_analyze", "bank_rubric":
@@ -216,16 +293,25 @@ func (s *Service) Process(ctx context.Context, t *asynq.Task) error {
 			output, e = s.WorkflowDraft(jobCtx, j, in)
 		case "vision":
 			output, e = s.Vision(jobCtx, j, in)
+			finishedInTx = e == nil
 		case "diagnosis", "recommendation":
 			output, e = s.Intelligence(jobCtx, j, in)
+			finishedInTx = e == nil
 		default:
 			e = errors.New("任务类型无效")
 		}
 	}
+	if finishedInTx {
+		return nil
+	}
 	state, msg := "succeeded", ""
 	if e != nil {
-		state, msg = "failed", e.Error()
-		log.Printf("RAG job %s %s failed: %s", j.ID, j.Kind, msg)
+		if errors.Is(e, context.Canceled) {
+			log.Printf("RAG job %s %s canceled", j.ID, j.Kind)
+		} else {
+			log.Printf("RAG job %s %s failed: %v", j.ID, j.Kind, e)
+		}
+		state, msg = "failed", sanitizeJobError(e)
 	}
 	raw, _ := json.Marshal(output)
 	if output == nil {
@@ -271,13 +357,25 @@ func (s *Service) Parse(ctx context.Context, j store.ProcessingJob, in JobInput)
 		if src.ParseRevision > 0 {
 			state = "ready"
 		}
-		_ = s.Q.RestoreSourceParse(restoreCtx, store.RestoreSourceParseParams{ID: src.ID, CourseID: j.CourseID, ParseState: state, ParseError: parseError, ParseRevision: src.ParseRevision})
+		if err := s.Q.RestoreSourceParse(restoreCtx, store.RestoreSourceParseParams{ID: src.ID, CourseID: j.CourseID, ParseState: state, ParseError: parseError, ParseRevision: src.ParseRevision}); err != nil {
+			log.Printf("RAG restore source parse %s failed: %v", src.ID, err)
+		}
 	}()
+	var srcPath string
+	if src.StoragePath == "" {
+		srcPath = filepath.Clean(materialsDir())
+	} else {
+		srcPath, e = SafeMaterialPath(src.StoragePath)
+		if e != nil {
+			parseError = "原件文件路径无效"
+			return nil, errors.New(parseError)
+		}
+	}
 	script := os.Getenv("PARSER_SCRIPT")
 	if script == "" {
 		script = "tools/parser/parse.py"
 	}
-	command := exec.CommandContext(ctx, "python", script, filepath.Join(materialsDir(), src.StoragePath), strings.ToLower(filepath.Ext(src.Filename)))
+	command := exec.CommandContext(ctx, "python", script, srcPath, strings.ToLower(filepath.Ext(src.Filename)))
 	var out, stderr bytes.Buffer
 	command.Stdout = &out
 	command.Stderr = &stderr
@@ -301,6 +399,12 @@ func (s *Service) Parse(ctx context.Context, j store.ProcessingJob, in JobInput)
 		Error string `json:"error"`
 	}
 	if json.Unmarshal(out.Bytes(), &parsed) != nil || runErr != nil || len(parsed.Fragments) == 0 {
+		if errText := strings.TrimSpace(stderr.String()); errText != "" {
+			if len(errText) > 2048 {
+				errText = errText[:2048]
+			}
+			log.Printf("RAG parse %s stderr: %s", src.ID, errText)
+		}
 		msg := parsed.Error
 		if msg == "" {
 			msg = "解析进程失败或已取消，请检查文件后重试"
@@ -328,6 +432,12 @@ func (s *Service) Parse(ctx context.Context, j store.ProcessingJob, in JobInput)
 	fragmentIDs := make([]string, len(parsed.Fragments))
 	assetIDs := map[string]string{}
 	for _, a := range parsed.Assets {
+		if a.Key == "" {
+			return nil, errors.New("解析图像资产缺少标识")
+		}
+		if _, dup := assetIDs[a.Key]; dup {
+			return nil, errors.New("解析图像资产标识重复")
+		}
 		assetIDs[a.Key] = uuid.NewString()
 	}
 	for i, f := range parsed.Fragments {
@@ -335,7 +445,9 @@ func (s *Service) Parse(ctx context.Context, j store.ProcessingJob, in JobInput)
 		var loc map[string]any
 		_ = json.Unmarshal(f.Locator, &loc)
 		if key, ok := loc["asset_key"].(string); ok {
-			loc["asset_id"] = assetIDs[key]
+			if aid, exists := assetIDs[key]; exists {
+				loc["asset_id"] = aid
+			}
 			delete(loc, "asset_key")
 			f.Locator, _ = json.Marshal(loc)
 		}
@@ -344,7 +456,10 @@ func (s *Service) Parse(ctx context.Context, j store.ProcessingJob, in JobInput)
 		}
 	}
 	for _, a := range parsed.Assets {
-		if a.Position < 0 || a.Position >= len(fragmentIDs) || filepath.IsAbs(a.StoragePath) || strings.Contains(a.StoragePath, "..") {
+		if a.Position < 0 || a.Position >= len(fragmentIDs) {
+			return nil, errors.New("解析图像资产位置无效")
+		}
+		if _, err := SafeMaterialPath(a.StoragePath); err != nil {
 			return nil, errors.New("解析图像资产位置无效")
 		}
 		if _, e = q.InsertMaterialAsset(ctx, store.InsertMaterialAssetParams{ID: assetIDs[a.Key], SourceID: src.ID, FragmentID: fragmentIDs[a.Position], StoragePath: a.StoragePath, MediaType: a.MediaType, Kind: a.Kind, Locator: a.Locator, NativeData: a.NativeData}); e != nil {
@@ -359,19 +474,27 @@ func (s *Service) Parse(ctx context.Context, j store.ProcessingJob, in JobInput)
 	if e = q.FinishProcessingJob(ctx, store.FinishProcessingJobParams{ID: j.ID, State: "succeeded", Output: raw}); e != nil {
 		return nil, e
 	}
-	if e = QueueIndex(ctx, q, j.CourseID, j.CreatedBy); e != nil {
+	indexJobID, e := QueueIndexID(ctx, q, j.CourseID, j.CreatedBy)
+	if e != nil {
 		return nil, e
 	}
-	if _, err := s.Models.Profile("", "chat"); err == nil {
-		input, _ := json.Marshal(JobInput{SourceID: src.ID, ParseRevision: revision})
-		if _, e = q.CreateProcessingJob(ctx, store.CreateProcessingJobParams{ID: uuid.NewString(), CourseID: j.CourseID, CreatedBy: j.CreatedBy, Kind: "source_suggest", Input: input}); e != nil {
-			return nil, e
+	suggestJobID := ""
+	if s.Models != nil {
+		if _, err := s.Models.Profile("", "chat"); err == nil {
+			input, _ := json.Marshal(JobInput{SourceID: src.ID, ParseRevision: revision})
+			sj, err := q.CreateProcessingJob(ctx, store.CreateProcessingJobParams{ID: uuid.NewString(), CourseID: j.CourseID, CreatedBy: j.CreatedBy, Kind: "source_suggest", Input: input})
+			if err != nil {
+				return nil, err
+			}
+			suggestJobID = sj.ID
 		}
 	}
 	if e = tx.Commit(ctx); e != nil {
 		return nil, e
 	}
 	committed = true
+	s.Enqueue(indexJobID)
+	s.Enqueue(suggestJobID)
 	return output, nil
 }
 func materialsDir() string {
@@ -382,21 +505,41 @@ func materialsDir() string {
 	return v
 }
 func MaterialsDir() string { return materialsDir() }
+
+// SafeMaterialPath resolves storagePath strictly inside MaterialsDir().
+func SafeMaterialPath(storagePath string) (string, error) {
+	if storagePath == "" || filepath.IsAbs(storagePath) || strings.HasPrefix(storagePath, "/") || strings.Contains(storagePath, "\\") || strings.ContainsRune(storagePath, '\x00') {
+		return "", errors.New("文件路径无效")
+	}
+	base := filepath.Clean(materialsDir())
+	full := filepath.Clean(filepath.Join(base, storagePath))
+	rel, err := filepath.Rel(base, full)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) || filepath.IsAbs(rel) {
+		return "", errors.New("文件路径越界")
+	}
+	return full, nil
+}
+
 func (s *Service) ValidateEvidence(ctx context.Context, course string, refs []Evidence, student bool) error {
+	return s.ValidateEvidenceWithQueries(ctx, s.Q, course, refs, student)
+}
+
+func (s *Service) ValidateEvidenceWithQueries(ctx context.Context, q *store.Queries, course string, refs []Evidence, student ...bool) error {
 	if len(refs) == 0 {
 		return errors.New("至少需要一条可核对的原文依据")
 	}
+	studentVisible := len(student) > 0 && student[0]
 	for _, ev := range refs {
-		f, e := s.Q.GetMaterialFragment(ctx, store.GetMaterialFragmentParams{ID: ev.FragmentID, CourseID: course})
+		f, e := q.GetMaterialFragment(ctx, store.GetMaterialFragmentParams{ID: ev.FragmentID, CourseID: course})
 		if e != nil || f.SourceID != ev.SourceID || f.Quality != "ready" || strings.TrimSpace(ev.Quote) == "" || !strings.Contains(f.Body, ev.Quote) {
 			return errors.New("依据必须逐字来自本课程的原文片段")
 		}
-		src, e := s.Q.GetMaterialSource(ctx, store.GetMaterialSourceParams{ID: f.SourceID, CourseID: course})
+		src, e := q.GetMaterialSource(ctx, store.GetMaterialSourceParams{ID: f.SourceID, CourseID: course})
 		if e != nil || src.State != "active" || !src.AllowDerived {
 			return errors.New("来源已归档或尚未允许知识提炼")
 		}
-		if student {
-			ok, e := s.Q.ResourceContainsFragment(ctx, store.ResourceContainsFragmentParams{CourseID: course, FragmentID: f.ID})
+		if studentVisible {
+			ok, e := q.ResourceContainsFragment(ctx, store.ResourceContainsFragmentParams{CourseID: course, FragmentID: f.ID})
 			if e != nil || !ok {
 				return errors.New("学生可见知识的依据须已发布给学生")
 			}
@@ -506,10 +649,10 @@ func (s *Service) Extract(ctx context.Context, j store.ProcessingJob, in JobInpu
 				return failedDraft, errors.New("AI引用了未提供的片段")
 			}
 		}
-		if e = s.ValidateEvidence(ctx, j.CourseID, v.Evidence, false); e != nil {
+		if e = s.ValidateEvidenceWithQueries(ctx, q, j.CourseID, v.Evidence, false); e != nil {
 			return failedDraft, e
 		}
-		if e = s.ValidateLinks(ctx, j.CourseID, v.KnowledgePointIDs, v.RelatedIDs); e != nil {
+		if e = s.ValidateLinksWithQueries(ctx, q, j.CourseID, v.KnowledgePointIDs, v.RelatedIDs); e != nil {
 			return failedDraft, e
 		}
 		ev, _ := json.Marshal(v.Evidence)
@@ -530,14 +673,7 @@ func (s *Service) Extract(ctx context.Context, j store.ProcessingJob, in JobInpu
 	}
 	return output, nil
 }
-func contains(v []string, x string) bool {
-	for _, s := range v {
-		if s == x {
-			return true
-		}
-	}
-	return false
-}
+func contains(v []string, x string) bool { return slices.Contains(v, x) }
 func nonNil(v []string) []string {
 	if v == nil {
 		return []string{}
@@ -545,14 +681,24 @@ func nonNil(v []string) []string {
 	return v
 }
 func (s *Service) ValidateLinks(ctx context.Context, course string, pointIDs, relatedIDs []string) error {
+	return s.ValidateLinksWithQueries(ctx, s.Q, course, pointIDs, relatedIDs)
+}
+func (s *Service) ValidateLinksWithQueries(ctx context.Context, q *store.Queries, course string, pointIDs, relatedIDs []string, self ...string) error {
+	selfID := ""
+	if len(self) > 0 {
+		selfID = self[0]
+	}
 	for _, id := range pointIDs {
-		p, e := s.Q.GetKnowledgePoint(ctx, id)
-		if e != nil || p.CourseID != course {
+		p, e := q.GetKnowledgePoint(ctx, id)
+		if e != nil || p.CourseID != course || p.Kind != "point" {
 			return errors.New("知识点不属于当前课程")
 		}
 	}
 	for _, id := range relatedIDs {
-		if _, e := s.Q.GetKnowledgeEntry(ctx, store.GetKnowledgeEntryParams{ID: id, CourseID: course}); e != nil {
+		if selfID != "" && id == selfID {
+			return errors.New("关联知识不能指向自身")
+		}
+		if _, e := q.GetKnowledgeEntry(ctx, store.GetKnowledgeEntryParams{ID: id, CourseID: course}); e != nil {
 			return errors.New("关联知识不属于当前课程")
 		}
 	}
@@ -601,19 +747,19 @@ func (s *Service) Draft(ctx context.Context, j store.ProcessingJob, in JobInput)
 			Rule     string `json:"rule"`
 		}
 		if json.Unmarshal(out["criteria"], &criteria) != nil || len(criteria) == 0 || len(criteria) > 30 {
-			return nil, errors.New("AI标准维度无效")
+			return failedDraft, errors.New("AI标准维度无效")
 		}
 		sum := int32(0)
 		seen := map[string]bool{}
 		for _, c := range criteria {
 			if c.ID == "" || seen[c.ID] || c.Title == "" || c.Rule == "" || c.MaxScore < 1 {
-				return nil, errors.New("AI标准字段无效")
+				return failedDraft, errors.New("AI标准字段无效")
 			}
 			seen[c.ID] = true
 			sum += c.MaxScore
 		}
 		if sum != in.MaxScore {
-			return nil, errors.New("AI标准满分加和不一致")
+			return failedDraft, errors.New("AI标准满分加和不一致")
 		}
 	} else {
 		var points []struct {

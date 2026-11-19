@@ -6,18 +6,75 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/net/html"
 	"io"
+	"log"
+	"mime"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"golang.org/x/net/html"
 )
 
-// Resolve and pin each connection, including redirect targets, to a public IP.
+var blockedPrefixes = []netip.Prefix{
+	// IPv4 RFC 6890 non-global / special-purpose ranges
+	netip.MustParsePrefix("0.0.0.0/8"),
+	netip.MustParsePrefix("10.0.0.0/8"),
+	netip.MustParsePrefix("100.64.0.0/10"),
+	netip.MustParsePrefix("127.0.0.0/8"),
+	netip.MustParsePrefix("169.254.0.0/16"),
+	netip.MustParsePrefix("172.16.0.0/12"),
+	netip.MustParsePrefix("192.0.0.0/24"),
+	netip.MustParsePrefix("192.0.2.0/24"),
+	netip.MustParsePrefix("192.88.99.0/24"),
+	netip.MustParsePrefix("192.168.0.0/16"),
+	netip.MustParsePrefix("198.18.0.0/15"),
+	netip.MustParsePrefix("198.51.100.0/24"),
+	netip.MustParsePrefix("203.0.113.0/24"),
+	netip.MustParsePrefix("224.0.0.0/4"),
+	netip.MustParsePrefix("240.0.0.0/4"),
+	// IPv6 RFC 6890 non-global / special-purpose / transition ranges
+	netip.MustParsePrefix("::/96"),
+	netip.MustParsePrefix("::ffff:0:0/96"),
+	netip.MustParsePrefix("::ffff:0:0:0/96"),
+	netip.MustParsePrefix("64:ff9b::/96"),
+	netip.MustParsePrefix("64:ff9b:1::/48"),
+	netip.MustParsePrefix("100::/64"),
+	netip.MustParsePrefix("2001::/32"),
+	netip.MustParsePrefix("2001:2::/48"),
+	netip.MustParsePrefix("2001:10::/28"),
+	netip.MustParsePrefix("2001:20::/28"),
+	netip.MustParsePrefix("2001:db8::/32"),
+	netip.MustParsePrefix("2002::/16"),
+	netip.MustParsePrefix("fc00::/7"),
+	netip.MustParsePrefix("fe80::/10"),
+	netip.MustParsePrefix("fec0::/10"),
+	netip.MustParsePrefix("ff00::/8"),
+}
+
+func isPublicIP(ip net.IP) (netip.Addr, bool) {
+	addr, ok := netip.AddrFromSlice(ip)
+	if !ok {
+		return netip.Addr{}, false
+	}
+	addr = addr.Unmap()
+	if !addr.IsValid() || addr.IsLoopback() || addr.IsPrivate() || addr.IsLinkLocalUnicast() || addr.IsLinkLocalMulticast() || addr.IsMulticast() || addr.IsUnspecified() || addr.IsInterfaceLocalMulticast() {
+		return netip.Addr{}, false
+	}
+	for _, p := range blockedPrefixes {
+		if p.Contains(addr) {
+			return netip.Addr{}, false
+		}
+	}
+	return addr, true
+}
+
+// Resolve and pin each connection, including redirect targets, to validated public IPs.
 func publicDial(ctx context.Context, network, address string) (net.Conn, error) {
 	host, port, e := net.SplitHostPort(address)
 	if e != nil {
@@ -30,14 +87,27 @@ func publicDial(ctx context.Context, network, address string) (net.Conn, error) 
 	if len(ips) == 0 {
 		return nil, errors.New("网址没有可用地址")
 	}
+	validated := make([]netip.Addr, 0, len(ips))
 	for _, a := range ips {
-		ip := a.IP
-		if !ip.IsGlobalUnicast() || ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsUnspecified() || ip.Equal(net.ParseIP("100.100.100.200")) || net.ParseIP("100.64.0.0").Equal(ip.Mask(net.CIDRMask(10, 32))) {
+		addr, ok := isPublicIP(a.IP)
+		if !ok {
 			return nil, errors.New("仅允许公开互联网地址")
 		}
+		validated = append(validated, addr)
+	}
+	if len(validated) == 0 {
+		return nil, errors.New("仅允许公开互联网地址")
 	}
 	d := net.Dialer{Timeout: 10 * time.Second}
-	return d.DialContext(ctx, network, net.JoinHostPort(ips[0].IP.String(), port))
+	var lastErr error
+	for _, addr := range validated {
+		conn, err := d.DialContext(ctx, network, net.JoinHostPort(addr.String(), port))
+		if err == nil {
+			return conn, nil
+		}
+		lastErr = err
+	}
+	return nil, lastErr
 }
 func validPublicURL(raw string) (*url.URL, error) {
 	u, e := url.Parse(raw)
@@ -53,6 +123,14 @@ func validPublicURL(raw string) (*url.URL, error) {
 type WebSnapshot struct {
 	Data                     []byte
 	URL, Filename, MediaType string
+}
+
+func parseMediaType(header string) string {
+	mediaType, _, err := mime.ParseMediaType(header)
+	if err != nil {
+		return ""
+	}
+	return strings.ToLower(strings.TrimSpace(mediaType))
 }
 
 func FetchPublic(ctx context.Context, raw string) (WebSnapshot, error) {
@@ -77,11 +155,14 @@ func fetchPublicBytes(ctx context.Context, raw string, limit int64) (WebSnapshot
 	if _, e := validPublicURL(raw); e != nil {
 		return out, e
 	}
-	tr := &http.Transport{DialContext: publicDial, ResponseHeaderTimeout: 15 * time.Second, MaxResponseHeaderBytes: 1 << 20, DisableKeepAlives: true}
+	tr := &http.Transport{DialContext: publicDial, TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 15 * time.Second, MaxResponseHeaderBytes: 1 << 20, DisableKeepAlives: true}
 	defer tr.CloseIdleConnections()
 	client := &http.Client{Transport: tr, Timeout: 35 * time.Second, CheckRedirect: func(r *http.Request, via []*http.Request) error {
 		if len(via) >= 4 {
 			return errors.New("网页重定向过多")
+		}
+		if len(via) > 0 && via[len(via)-1].URL.Scheme == "https" && r.URL.Scheme != "https" {
+			return errors.New("禁止从HTTPS降级重定向至HTTP")
 		}
 		_, e := validPublicURL(r.URL.String())
 		return e
@@ -93,6 +174,7 @@ func fetchPublicBytes(ctx context.Context, raw string, limit int64) (WebSnapshot
 	req.Header.Set("User-Agent", "HaJiMark/1.0 (teacher-selected single-page import)")
 	resp, e := client.Do(req)
 	if e != nil {
+		log.Printf("fetchPublicBytes %s failed: %v", raw, e)
 		return out, errors.New("网页读取失败：请检查公开地址，或改用上传文件")
 	}
 	defer resp.Body.Close()
@@ -101,9 +183,9 @@ func fetchPublicBytes(ctx context.Context, raw string, limit int64) (WebSnapshot
 	}
 	data, e := io.ReadAll(io.LimitReader(resp.Body, limit+1))
 	if e != nil || len(data) == 0 || int64(len(data)) > limit {
-		return out, errors.New("网页或文档为空、读取失败或超过30MiB")
+		return out, fmt.Errorf("网页或文档为空、读取失败或超过%dMiB", limit>>20)
 	}
-	out = WebSnapshot{Data: data, URL: resp.Request.URL.String(), Filename: filepath.Base(resp.Request.URL.Path), MediaType: strings.Split(resp.Header.Get("Content-Type"), ";")[0]}
+	out = WebSnapshot{Data: data, URL: resp.Request.URL.String(), Filename: filepath.Base(resp.Request.URL.Path), MediaType: parseMediaType(resp.Header.Get("Content-Type"))}
 	return out, nil
 }
 
@@ -112,18 +194,34 @@ func CachePublicImages(ctx context.Context, snapshot WebSnapshot, directory, ste
 	if snapshot.MediaType != "text/html" && snapshot.MediaType != "application/xhtml+xml" {
 		return nil
 	}
+	base, err := url.Parse(snapshot.URL)
+	if err != nil || base == nil {
+		return errors.New("网页基础地址无效")
+	}
 	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
 	root, e := html.Parse(bytes.NewReader(snapshot.Data))
 	if e != nil {
 		return e
 	}
-	base, _ := url.Parse(snapshot.URL)
 	manifest := map[string]map[string]string{}
 	count := 0
 	total := 0
 	var walk func(*html.Node)
 	walk = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "base" {
+			for _, a := range n.Attr {
+				if a.Key == "href" && strings.TrimSpace(a.Val) != "" {
+					if u, err := url.Parse(strings.TrimSpace(a.Val)); err == nil {
+						resolved := base.ResolveReference(u)
+						if _, err := validPublicURL(resolved.String()); err == nil {
+							base = resolved
+						}
+					}
+					break
+				}
+			}
+		}
 		if n.Type == html.ElementNode && n.Data == "img" {
 			var src string
 			for _, a := range n.Attr {
@@ -131,24 +229,27 @@ func CachePublicImages(ctx context.Context, snapshot WebSnapshot, directory, ste
 					src = a.Val
 				}
 			}
-			if src != "" && manifest[src] == nil {
+			trimmed := strings.TrimSpace(src)
+			if trimmed != "" && !strings.HasPrefix(strings.ToLower(trimmed), "data:") && manifest[src] == nil {
 				entry := map[string]string{}
 				manifest[src] = entry
-				u, err := url.Parse(src)
+				u, err := url.Parse(trimmed)
 				if err != nil {
 					entry["error"] = "无效图像地址"
 				} else if count >= 12 || total >= 20<<20 {
 					entry["error"] = "图片超过单页12张／20MiB上限，请单独上传"
 				} else {
 					count++
-					raw := base.ResolveReference(u).String()
-					entry["url"] = raw
-					img, err := fetchPublicBytes(ctx, raw, 5<<20)
+					resolved := base.ResolveReference(u).String()
+					entry["url"] = resolved
+					img, err := fetchPublicBytes(ctx, resolved, 5<<20)
 					if err != nil {
 						entry["error"] = err.Error()
+					} else if total+len(img.Data) > 20<<20 {
+						entry["error"] = "图片超过单页12张／20MiB上限，请单独上传"
 					} else {
 						ext := ""
-						switch http.DetectContentType(img.Data) {
+						switch parseMediaType(http.DetectContentType(img.Data)) {
 						case "image/png":
 							ext = ".png"
 						case "image/jpeg":

@@ -86,11 +86,50 @@ func TestPoliciesAndSchemas(t *testing.T) {
 	if _, e := toolPath("/resources/{id}", map[string]any{"id": "../other?x=y"}); e == nil {
 		t.Fatal("path traversal allowed")
 	}
+	if p, e := toolPath("/assignments/{id}/questions/{question_id}/draft", map[string]any{"id": "a1", "question_id": "q1"}); e != nil || p != "/assignments/a1/questions/q1/draft" {
+		t.Fatalf("question_id placeholder broken: path=%q err=%v", p, e)
+	}
+	if _, e := toolPath("/assignments/{id}/questions/{unknown}", map[string]any{"id": "a1"}); e == nil {
+		t.Fatal("unreplaced placeholder allowed")
+	}
+	for _, spec := range Catalog() {
+		for _, tmpl := range []string{spec.Path, spec.Snapshot} {
+			if !strings.Contains(tmpl, "{") {
+				continue
+			}
+			if _, e := toolPath(tmpl, map[string]any{"id": "id1", "submission_id": "sub1", "question_id": "q1"}); e != nil {
+				t.Fatalf("tool %s template %q failed placeholder check: %v", spec.Name, tmpl, e)
+			}
+		}
+	}
 	if validate(find("topic_create").Schema, map[string]any{"title": "x", "active": true, "sql": "delete"}) == nil {
 		t.Fatal("unknown field accepted")
 	}
+	if validate(find("topic_create").Schema, map[string]any{"title": "bad\x00title", "active": true}) == nil {
+		t.Fatal("NUL byte accepted")
+	}
+	if d, ok := jobDomain("parse,grade"); ok || d != "" {
+		t.Fatalf("comma-separated unknown kind allowed: %q %v", d, ok)
+	}
+	if d, ok := jobDomain("unknown_kind"); ok || d != "" {
+		t.Fatalf("unknown kind allowed: %q %v", d, ok)
+	}
 	if e := validateAnswers(raw([]map[string]any{{"key": "choice", "kind": "select", "required": true, "options": []string{"A", "B"}}}), map[string]any{"choice": "invented"}); e == nil {
 		t.Fatal("invented answer accepted")
+	}
+	if e := validateAnswers(raw([]map[string]any{{"key": "multi", "kind": "multiselect", "required": true, "options": []string{"A", "B"}}}), map[string]any{"multi": []any{"A", "A"}}); e == nil {
+		t.Fatal("duplicate multiselect accepted")
+	}
+	if e := validateAnswers(raw([]map[string]any{{"key": "opt", "kind": "select", "required": false, "options": []string{"A", "B"}}}), map[string]any{"opt": ""}); e != nil {
+		t.Fatalf("optional empty select rejected: %v", e)
+	}
+	hugeSnap := raw(map[string]any{"tool": "source_correct", "mode": "auto-review", "arguments": map[string]any{"id": "s1"}, "editor": map[string]any{"kind": "source", "id": "s1"}, "business_hash": "abc", "before": map[string]any{"blob": strings.Repeat("a", 120000)}})
+	cleanedSnap, ok := safeSnapshot(hugeSnap).(map[string]any)
+	if !ok || cleanedSnap["arguments"] == nil || cleanedSnap["editor"] == nil || cleanedSnap["business_hash"] != "abc" {
+		t.Fatalf("safeSnapshot wiped required metadata: %#v", cleanedSnap)
+	}
+	if _, e := safeAttachmentPath("../escape.txt"); e == nil {
+		t.Fatal("attachment path traversal allowed")
 	}
 	if csvCell(" \t=cmd()") != "' \t=cmd()" {
 		t.Fatal("spreadsheet formula not escaped")

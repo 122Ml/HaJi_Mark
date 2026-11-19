@@ -2,29 +2,44 @@ package learning
 
 import (
 	"errors"
+	"log"
+	"net/http"
+	"strings"
+
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
 	"github.com/122Ml/HaJi_Mark/backend/internal/rag"
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"net/http"
-	"strings"
 )
 
 type Handler struct {
-	db  *pgxpool.Pool
-	q   *store.Queries
-	rag *rag.Service
+	db   *pgxpool.Pool
+	q    *store.Queries
+	auth *identity.Handler
+	rag  *rag.Service
 }
 
 func Register(api *gin.RouterGroup, db *pgxpool.Pool, auth *identity.Handler) {
-	h := &Handler{db: db, q: store.New(db)}
-	if rag.Enabled() {
-		if models, err := rag.LoadModels(db); err == nil {
-			h.rag = rag.New(models)
+	var models *rag.Models
+	if rag.Enabled() && db != nil {
+		loaded, err := rag.LoadModels(db)
+		if err != nil {
+			log.Printf("load model profiles failed: %v", err)
+		} else {
+			models = loaded
 		}
+	}
+	RegisterWithModels(api, db, auth, models)
+}
+
+func RegisterWithModels(api *gin.RouterGroup, db *pgxpool.Pool, auth *identity.Handler, models *rag.Models) {
+	h := &Handler{db: db, q: store.New(db), auth: auth}
+	if models != nil {
+		h.rag = rag.New(models)
 	}
 	base := api.Group("/learning", auth.RequireSession())
 	base.POST("/courses", identity.RequireRole("teacher"), auth.RequireCSRF(), h.createCourse)
@@ -42,6 +57,7 @@ func Register(api *gin.RouterGroup, db *pgxpool.Pool, auth *identity.Handler) {
 	g.POST("/points", identity.RequireRole("teacher"), auth.RequireCSRF(), h.createPoint)
 	g.GET("/graph", h.graph)
 	g.POST("/edges", identity.RequireRole("teacher"), auth.RequireCSRF(), h.edge)
+	g.DELETE("/edges", identity.RequireRole("teacher"), auth.RequireCSRF(), h.deleteEdge)
 	g.GET("/path", identity.RequireRole("student"), h.path)
 	g.POST("/path", identity.RequireRole("student"), auth.RequireCSRF(), h.planPath)
 	g.GET("/members", identity.RequireRole("teacher"), h.members)
@@ -98,10 +114,19 @@ func Register(api *gin.RouterGroup, db *pgxpool.Pool, auth *identity.Handler) {
 	g.DELETE("/industry/:id", identity.RequireRole("teacher"), auth.RequireCSRF(), h.deleteIndustry)
 }
 func teacher(c *gin.Context) bool { return identity.Current(c).Role == "teacher" }
+func isPgCode(err error, code string) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == code
+}
 func result(c *gin.Context, v any, err error) bool {
 	if err != nil {
+		var pgErr *pgconn.PgError
 		if errors.Is(err, pgx.ErrNoRows) {
 			identity.Fail(c, 404, "not_found", "记录不存在或状态已改变")
+		} else if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			identity.Fail(c, 409, "conflict", "记录已存在，请勿重复提交")
+		} else if errors.As(err, &pgErr) && (pgErr.Code == "22021" || pgErr.Code == "22P02") {
+			identity.Fail(c, 422, "invalid_input", "输入内容包含非法字符或格式无效")
 		} else {
 			identity.Fail(c, 503, "service_unavailable", "数据操作失败，请重试")
 		}
@@ -112,7 +137,12 @@ func result(c *gin.Context, v any, err error) bool {
 }
 func bind(c *gin.Context, v any) bool {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 1024*1024)
-	if c.ShouldBindJSON(v) != nil {
+	if err := c.ShouldBindJSON(v); err != nil {
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			identity.Fail(c, http.StatusRequestEntityTooLarge, "payload_too_large", "请求体过大（上限1MB）")
+			return false
+		}
 		identity.Fail(c, 400, "invalid_input", "请求内容格式不正确")
 		return false
 	}
@@ -126,7 +156,15 @@ func scope(c *gin.Context, id string) bool {
 	}
 	return true
 }
-func validText(s string, max int) bool { return strings.TrimSpace(s) != "" && len(s) <= max }
+func validText(s string, max int) bool {
+	return strings.TrimSpace(s) != "" && len(s) <= max && !strings.ContainsRune(s, '\x00')
+}
+func escapeLike(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `%`, `\%`)
+	s = strings.ReplaceAll(s, `_`, `\_`)
+	return s
+}
 func (h *Handler) context(c *gin.Context) {
 	course, err := h.q.GetBusinessCourse(c.Request.Context(), c.Param("courseID"))
 	if err != nil {
@@ -143,6 +181,7 @@ func (h *Handler) createCourse(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
+	in.Title = strings.TrimSpace(in.Title)
 	if !validText(in.Title, 200) {
 		invalid(c, "请填写课程名称（不超过200字节）")
 		return
@@ -152,6 +191,10 @@ func (h *Handler) createCourse(c *gin.Context) {
 }
 func (h *Handler) publishCourse(c *gin.Context) {
 	v, e := h.q.PublishBusinessCourse(c.Request.Context(), store.PublishBusinessCourseParams{ID: c.Param("courseID"), TeacherID: identity.Current(c).ID})
+	if errors.Is(e, pgx.ErrNoRows) {
+		identity.Fail(c, 409, "state_conflict", "课程已发布或状态已变化")
+		return
+	}
 	result(c, v, e)
 }
 func (h *Handler) createPoint(c *gin.Context) {
@@ -165,6 +208,7 @@ func (h *Handler) createPoint(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
+	in.Title = strings.TrimSpace(in.Title)
 	if !validText(in.Title, 500) || in.Position < 0 {
 		invalid(c, "知识点名称或顺序无效")
 		return
@@ -176,8 +220,12 @@ func (h *Handler) createPoint(c *gin.Context) {
 		invalid(c, "目录类型无效")
 		return
 	}
-	if len(in.Description) > 10000 {
-		invalid(c, "说明过长")
+	if len(in.Description) > 10000 || strings.ContainsRune(in.Description, '\x00') {
+		invalid(c, "说明过长或包含非法字符")
+		return
+	}
+	if in.Kind == "chapter" && in.ParentID != "" {
+		invalid(c, "章必须位于课程顶层，不能嵌套在父节点下")
 		return
 	}
 	if in.ParentID != "" {
@@ -191,6 +239,10 @@ func (h *Handler) createPoint(c *gin.Context) {
 		}
 		if p.Kind == "point" {
 			invalid(c, "知识点不能包含子目录")
+			return
+		}
+		if in.Kind == "section" && p.Kind != "chapter" {
+			invalid(c, "节只能挂在章下")
 			return
 		}
 	}
@@ -208,6 +260,20 @@ func (h *Handler) enroll(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
+	in.Username = strings.TrimSpace(in.Username)
+	if !validText(in.Username, 64) {
+		invalid(c, "请输入有效的学生用户名")
+		return
+	}
 	v, e := h.q.EnrollByUsername(c.Request.Context(), store.EnrollByUsernameParams{CourseID: c.Param("courseID"), Username: text(in.Username)})
+	if errors.Is(e, pgx.ErrNoRows) {
+		u, uErr := h.q.GetLoginUser(c.Request.Context(), text(in.Username))
+		if uErr == nil && u.Role == "student" {
+			identity.Fail(c, 409, "already_enrolled", "该学生已加入本课程")
+			return
+		}
+		identity.Fail(c, 404, "not_found", "未找到该学生账号")
+		return
+	}
 	result(c, gin.H{"student_id": v}, e)
 }

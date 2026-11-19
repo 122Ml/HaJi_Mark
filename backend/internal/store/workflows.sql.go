@@ -218,7 +218,7 @@ WITH RECURSIVE sk AS (
 )
 SELECT 'knowledge'::text AS kind,k.id,k.title,k.state,k.version,NULL::text AS parent_id FROM knowledge_entries k WHERE k.id IN(SELECT id FROM sk)
 UNION ALL SELECT 'question',v.id,v.title,v.state,v.version,v.bank_id FROM bank_question_versions v WHERE v.id IN(SELECT id FROM bq)
-UNION ALL SELECT 'rubric',r.id,'评分标准',r.state,r.version,COALESCE(r.bank_question_version_id,r.question_id) FROM rubric_versions r WHERE r.id IN(SELECT id FROM rb)
+UNION ALL SELECT CASE WHEN r.bank_question_version_id IS NOT NULL THEN 'rubric' ELSE 'assignment_rubric' END,r.id,'评分标准',r.state,r.version,COALESCE(r.bank_question_version_id,(SELECT q.assignment_id FROM questions q WHERE q.id=r.question_id)) FROM rubric_versions r WHERE r.id IN(SELECT id FROM rb)
 UNION ALL SELECT 'assignment',a.id,a.title,a.status,a.version,NULL::text FROM assignments a WHERE a.id IN(SELECT assignment_id FROM aq)
 UNION ALL SELECT 'assignment_question',q.id,q.prompt,a.status,a.version,a.id FROM questions q JOIN assignments a ON a.id=q.assignment_id WHERE q.id IN(SELECT id FROM aq)
 UNION ALL SELECT 'resource',r.id,r.title,r.status,r.version,NULL::text FROM resources r WHERE r.course_id=$1 AND r.source_id=NULLIF($3::text,'')
@@ -446,6 +446,62 @@ func (q *Queries) CreateRegradeItem(ctx context.Context, arg CreateRegradeItemPa
 	return err
 }
 
+const createReleasedRegradeRevision = `-- name: CreateReleasedRegradeRevision :one
+INSERT INTO grading_revisions(id,submission_id,revision,score,feedback,method,state,reviewer_id,request_id,rubric_id,point_scores,ai_job_id,regrade_batch_id,released_at)
+VALUES($1,$2,$3,$4,$5,$6,'released',$7,$8,$9,$10,$11,$12,now()) RETURNING id, submission_id, revision, score, feedback, method, state, reviewer_id, request_id, created_at, released_at, rubric_id, point_scores, ai_job_id, regrade_batch_id
+`
+
+type CreateReleasedRegradeRevisionParams struct {
+	ID             string          `json:"id"`
+	SubmissionID   string          `json:"submission_id"`
+	Revision       int32           `json:"revision"`
+	Score          int32           `json:"score"`
+	Feedback       string          `json:"feedback"`
+	Method         string          `json:"method"`
+	ReviewerID     string          `json:"reviewer_id"`
+	RequestID      string          `json:"request_id"`
+	RubricID       pgtype.Text     `json:"rubric_id"`
+	PointScores    json.RawMessage `json:"point_scores"`
+	AiJobID        pgtype.Text     `json:"ai_job_id"`
+	RegradeBatchID pgtype.Text     `json:"regrade_batch_id"`
+}
+
+func (q *Queries) CreateReleasedRegradeRevision(ctx context.Context, arg CreateReleasedRegradeRevisionParams) (GradingRevision, error) {
+	row := q.db.QueryRow(ctx, createReleasedRegradeRevision,
+		arg.ID,
+		arg.SubmissionID,
+		arg.Revision,
+		arg.Score,
+		arg.Feedback,
+		arg.Method,
+		arg.ReviewerID,
+		arg.RequestID,
+		arg.RubricID,
+		arg.PointScores,
+		arg.AiJobID,
+		arg.RegradeBatchID,
+	)
+	var i GradingRevision
+	err := row.Scan(
+		&i.ID,
+		&i.SubmissionID,
+		&i.Revision,
+		&i.Score,
+		&i.Feedback,
+		&i.Method,
+		&i.State,
+		&i.ReviewerID,
+		&i.RequestID,
+		&i.CreatedAt,
+		&i.ReleasedAt,
+		&i.RubricID,
+		&i.PointScores,
+		&i.AiJobID,
+		&i.RegradeBatchID,
+	)
+	return i, err
+}
+
 const createTopic = `-- name: CreateTopic :one
 INSERT INTO knowledge_topics(id,course_id,title,description) VALUES($1,$2,$3,$4) RETURNING id, course_id, title, description, active, edit_version
 `
@@ -540,6 +596,17 @@ func (q *Queries) EffectiveQuestionSubmissions(ctx context.Context, questionID s
 	return items, nil
 }
 
+const getActiveRegradeBatchForQuestion = `-- name: GetActiveRegradeBatchForQuestion :one
+SELECT id FROM regrade_batches WHERE question_id=$1 AND state='active' ORDER BY created_at DESC LIMIT 1
+`
+
+func (q *Queries) GetActiveRegradeBatchForQuestion(ctx context.Context, questionID string) (string, error) {
+	row := q.db.QueryRow(ctx, getActiveRegradeBatchForQuestion, questionID)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getAssetRevision = `-- name: GetAssetRevision :one
 SELECT id, asset_id, revision, body, structured, state, model_job_id, created_by, created_at FROM asset_revisions WHERE id=$1
 `
@@ -585,6 +652,27 @@ func (q *Queries) GetAssignmentForUpdate(ctx context.Context, id string) (Assign
 	return i, err
 }
 
+const getLatestAssetRevision = `-- name: GetLatestAssetRevision :one
+SELECT id, asset_id, revision, body, structured, state, model_job_id, created_by, created_at FROM asset_revisions WHERE asset_id=$1 ORDER BY revision DESC LIMIT 1
+`
+
+func (q *Queries) GetLatestAssetRevision(ctx context.Context, assetID string) (AssetRevision, error) {
+	row := q.db.QueryRow(ctx, getLatestAssetRevision, assetID)
+	var i AssetRevision
+	err := row.Scan(
+		&i.ID,
+		&i.AssetID,
+		&i.Revision,
+		&i.Body,
+		&i.Structured,
+		&i.State,
+		&i.ModelJobID,
+		&i.CreatedBy,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getMaterialAsset = `-- name: GetMaterialAsset :one
 SELECT a.id, a.source_id, a.fragment_id, a.storage_path, a.media_type, a.kind, a.locator, a.native_data, a.created_at FROM material_assets a JOIN material_sources s ON s.id=a.source_id WHERE a.id=$1 AND s.course_id=$2
 `
@@ -607,6 +695,105 @@ func (q *Queries) GetMaterialAsset(ctx context.Context, arg GetMaterialAssetPara
 		&i.Locator,
 		&i.NativeData,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getRegradeBatch = `-- name: GetRegradeBatch :one
+SELECT id, course_id, question_id, rubric_id, correct_answer, reason, question_snapshot, state, created_by, created_at, released_at FROM regrade_batches WHERE id=$1 AND course_id=$2
+`
+
+type GetRegradeBatchParams struct {
+	ID       string `json:"id"`
+	CourseID string `json:"course_id"`
+}
+
+func (q *Queries) GetRegradeBatch(ctx context.Context, arg GetRegradeBatchParams) (RegradeBatch, error) {
+	row := q.db.QueryRow(ctx, getRegradeBatch, arg.ID, arg.CourseID)
+	var i RegradeBatch
+	err := row.Scan(
+		&i.ID,
+		&i.CourseID,
+		&i.QuestionID,
+		&i.RubricID,
+		&i.CorrectAnswer,
+		&i.Reason,
+		&i.QuestionSnapshot,
+		&i.State,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.ReleasedAt,
+	)
+	return i, err
+}
+
+const getRegradeItem = `-- name: GetRegradeItem :one
+SELECT i.batch_id, i.submission_id, i.answer_sha256, i.baseline_revision, i.score, i.feedback, i.point_scores, i.ai_job_id, i.edit_version, i.confirmed,s.student_id,s.answer_text,s.attempt,u.display_name FROM regrade_items i JOIN submissions s ON s.id=i.submission_id JOIN users u ON u.id=s.student_id WHERE i.batch_id=$1 AND i.submission_id=$2
+`
+
+type GetRegradeItemParams struct {
+	BatchID      string `json:"batch_id"`
+	SubmissionID string `json:"submission_id"`
+}
+
+type GetRegradeItemRow struct {
+	BatchID          string          `json:"batch_id"`
+	SubmissionID     string          `json:"submission_id"`
+	AnswerSha256     string          `json:"answer_sha256"`
+	BaselineRevision int32           `json:"baseline_revision"`
+	Score            pgtype.Int4     `json:"score"`
+	Feedback         string          `json:"feedback"`
+	PointScores      json.RawMessage `json:"point_scores"`
+	AiJobID          pgtype.Text     `json:"ai_job_id"`
+	EditVersion      int32           `json:"edit_version"`
+	Confirmed        bool            `json:"confirmed"`
+	StudentID        string          `json:"student_id"`
+	AnswerText       string          `json:"answer_text"`
+	Attempt          int32           `json:"attempt"`
+	DisplayName      string          `json:"display_name"`
+}
+
+func (q *Queries) GetRegradeItem(ctx context.Context, arg GetRegradeItemParams) (GetRegradeItemRow, error) {
+	row := q.db.QueryRow(ctx, getRegradeItem, arg.BatchID, arg.SubmissionID)
+	var i GetRegradeItemRow
+	err := row.Scan(
+		&i.BatchID,
+		&i.SubmissionID,
+		&i.AnswerSha256,
+		&i.BaselineRevision,
+		&i.Score,
+		&i.Feedback,
+		&i.PointScores,
+		&i.AiJobID,
+		&i.EditVersion,
+		&i.Confirmed,
+		&i.StudentID,
+		&i.AnswerText,
+		&i.Attempt,
+		&i.DisplayName,
+	)
+	return i, err
+}
+
+const getTopicByID = `-- name: GetTopicByID :one
+SELECT id, course_id, title, description, active, edit_version FROM knowledge_topics WHERE id=$1 AND course_id=$2
+`
+
+type GetTopicByIDParams struct {
+	ID       string `json:"id"`
+	CourseID string `json:"course_id"`
+}
+
+func (q *Queries) GetTopicByID(ctx context.Context, arg GetTopicByIDParams) (KnowledgeTopic, error) {
+	row := q.db.QueryRow(ctx, getTopicByID, arg.ID, arg.CourseID)
+	var i KnowledgeTopic
+	err := row.Scan(
+		&i.ID,
+		&i.CourseID,
+		&i.Title,
+		&i.Description,
+		&i.Active,
+		&i.EditVersion,
 	)
 	return i, err
 }
@@ -888,6 +1075,48 @@ func (q *Queries) ListRegradeItems(ctx context.Context, batchID string) ([]ListR
 			&i.AnswerText,
 			&i.Attempt,
 			&i.DisplayName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listResourceAssetsBatch = `-- name: ListResourceAssetsBatch :many
+SELECT DISTINCT a.id, a.source_id, a.fragment_id, a.storage_path, a.media_type, a.kind, a.locator, a.native_data, a.created_at FROM material_assets a
+JOIN material_fragments f ON f.locator->>'asset_id'=a.id
+WHERE a.source_id=$1 AND f.id=ANY($2::text[]) AND a.kind<>'page'
+ORDER BY a.created_at,a.id
+`
+
+type ListResourceAssetsBatchParams struct {
+	SourceID    string   `json:"source_id"`
+	FragmentIds []string `json:"fragment_ids"`
+}
+
+func (q *Queries) ListResourceAssetsBatch(ctx context.Context, arg ListResourceAssetsBatchParams) ([]MaterialAsset, error) {
+	rows, err := q.db.Query(ctx, listResourceAssetsBatch, arg.SourceID, arg.FragmentIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MaterialAsset{}
+	for rows.Next() {
+		var i MaterialAsset
+		if err := rows.Scan(
+			&i.ID,
+			&i.SourceID,
+			&i.FragmentID,
+			&i.StoragePath,
+			&i.MediaType,
+			&i.Kind,
+			&i.Locator,
+			&i.NativeData,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}

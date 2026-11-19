@@ -1,7 +1,9 @@
 package learning
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"strings"
 
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
@@ -9,6 +11,7 @@ import (
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 // Rules stay teacher-only. A revision contains only the point labels, scores,
@@ -26,13 +29,21 @@ type pointFeedback struct {
 	MaxScore int32  `json:"max_score"`
 }
 
+func normalizeLineEndings(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	return strings.ReplaceAll(s, "\r", "\n")
+}
+
 func (h *Handler) rubricQuestion(c *gin.Context, id string) (store.Question, bool) {
-	question, err := h.q.GetBusinessQuestion(c.Request.Context(), id)
+	return h.rubricQuestionTx(c, h.q, id)
+}
+func (h *Handler) rubricQuestionTx(c *gin.Context, q *store.Queries, id string) (store.Question, bool) {
+	question, err := q.GetBusinessQuestion(c.Request.Context(), id)
 	if err != nil {
 		result(c, nil, err)
 		return question, false
 	}
-	a, ok := h.assignmentRecord(c, question.AssignmentID)
+	a, ok := h.assignmentRecordTx(c, q, question.AssignmentID)
 	if !ok {
 		return question, false
 	}
@@ -48,6 +59,9 @@ func (h *Handler) rubrics(c *gin.Context) {
 		return
 	}
 	v, err := h.q.ListRubricVersions(c.Request.Context(), text(question.ID))
+	if err == nil && v == nil {
+		v = []store.RubricVersion{}
+	}
 	result(c, v, err)
 }
 func (h *Handler) createRubric(c *gin.Context) {
@@ -72,7 +86,11 @@ func (h *Handler) createRubric(c *gin.Context) {
 	}
 	var sum int32
 	seen := map[string]bool{}
-	for _, p := range in.Criteria {
+	for i := range in.Criteria {
+		in.Criteria[i].ID = strings.TrimSpace(in.Criteria[i].ID)
+		in.Criteria[i].Title = strings.TrimSpace(in.Criteria[i].Title)
+		in.Criteria[i].Rule = strings.TrimSpace(in.Criteria[i].Rule)
+		p := in.Criteria[i]
 		if !validText(p.ID, 100) || seen[p.ID] || !validText(p.Title, 300) || !validText(p.Rule, 5000) || p.MaxScore < 1 || p.MaxScore > question.MaxScore {
 			invalid(c, "评分点编号须唯一，名称、规则及正数分值须完整")
 			return
@@ -84,7 +102,11 @@ func (h *Handler) createRubric(c *gin.Context) {
 		invalid(c, "各评分点满分之和必须等于本题满分")
 		return
 	}
-	raw, _ := json.Marshal(in.Criteria)
+	raw, err := json.Marshal(in.Criteria)
+	if err != nil {
+		result(c, nil, err)
+		return
+	}
 	evidence := []byte("[]")
 	if in.AIJobID != "" {
 		j, snapshot, err := h.draftJob(c, in.AIJobID, "rubric")
@@ -103,7 +125,14 @@ func (h *Handler) createRubric(c *gin.Context) {
 			invalid(c, "AI依据无效")
 			return
 		}
-		evidence = out.Evidence
+		if trimmed := bytes.TrimSpace(out.Evidence); len(trimmed) > 0 && string(trimmed) != "null" {
+			var refs []json.RawMessage
+			if json.Unmarshal(trimmed, &refs) != nil {
+				invalid(c, "AI依据格式无效")
+				return
+			}
+			evidence = trimmed
+		}
 	}
 	ctx := c.Request.Context()
 	tx, err := h.db.Begin(ctx)
@@ -153,7 +182,11 @@ func (h *Handler) confirmRubric(c *gin.Context) {
 		}
 		b, e := q.LockQuestionBank(ctx, store.LockQuestionBankParams{ID: v.BankID, CourseID: c.Param("courseID")})
 		if e != nil {
-			identity.Fail(c, 403, "forbidden", "题目不属于当前课程")
+			if errors.Is(e, pgx.ErrNoRows) {
+				identity.Fail(c, 403, "forbidden", "题目不属于当前课程")
+				return
+			}
+			result(c, nil, e)
 			return
 		}
 		if b.Archived {
@@ -178,8 +211,20 @@ func (h *Handler) confirmRubric(c *gin.Context) {
 			ragError(c, e)
 			return
 		}
-	} else if _, ok := h.rubricQuestion(c, r.QuestionID.String); !ok {
-		return
+	} else {
+		question, ok := h.rubricQuestionTx(c, q, r.QuestionID.String)
+		if !ok {
+			return
+		}
+		if _, err = q.LockRubricQuestion(ctx, question.ID); err != nil {
+			result(c, nil, err)
+			return
+		}
+		r, err = q.GetRubricVersion(ctx, r.ID)
+		if err != nil {
+			result(c, nil, err)
+			return
+		}
 	}
 	if r.State != "draft" {
 		identity.Fail(c, 409, "state_conflict", "标准已确认，修改请另建版本")
@@ -187,19 +232,27 @@ func (h *Handler) confirmRubric(c *gin.Context) {
 	}
 	v, err := q.ConfirmRubricVersion(ctx, r.ID)
 	if err != nil {
-		identity.Fail(c, 409, "state_conflict", "标准状态已改变，请刷新")
+		if errors.Is(err, pgx.ErrNoRows) {
+			identity.Fail(c, 409, "state_conflict", "标准状态已改变，请刷新")
+			return
+		}
+		result(c, nil, err)
 		return
 	}
 	result(c, v, tx.Commit(ctx))
 }
 
 func (h *Handler) scorePoints(c *gin.Context, rubricID string, points []pointScore, s store.Submission) ([]byte, int32, bool) {
-	r, err := h.q.GetRubricVersion(c.Request.Context(), rubricID)
+	return h.scorePointsTx(c, h.q, rubricID, points, s)
+}
+
+func (h *Handler) scorePointsTx(c *gin.Context, q *store.Queries, rubricID string, points []pointScore, s store.Submission) ([]byte, int32, bool) {
+	r, err := q.GetRubricVersion(c.Request.Context(), rubricID)
 	if err != nil {
 		result(c, nil, err)
 		return nil, 0, false
 	}
-	question, err := h.q.GetBusinessQuestion(c.Request.Context(), s.QuestionID)
+	question, err := q.GetBusinessQuestion(c.Request.Context(), s.QuestionID)
 	if err != nil {
 		result(c, nil, err)
 		return nil, 0, false
@@ -225,17 +278,22 @@ func (h *Handler) scorePoints(c *gin.Context, rubricID string, points []pointSco
 		}
 		byID[p.CriterionID] = p
 	}
+	normalizedAnswer := normalizeLineEndings(s.AnswerText)
 	var sum int32
 	feedback := make([]pointFeedback, 0, len(criteria))
 	for _, item := range criteria {
 		p, ok := byID[item.ID]
-		if !ok || p.Score < 0 || p.Score > item.MaxScore || !validText(p.Feedback, 5000) || len(p.Quote) > 5000 || (p.Quote != "" && !strings.Contains(s.AnswerText, p.Quote)) {
+		if !ok || p.Score < 0 || p.Score > item.MaxScore || !validText(p.Feedback, 5000) || len(p.Quote) > 5000 || strings.ContainsRune(p.Quote, '\x00') || (p.Quote != "" && !strings.Contains(normalizedAnswer, normalizeLineEndings(p.Quote))) {
 			invalid(c, "逐点分数、评语或原文引用不符合标准")
 			return nil, 0, false
 		}
 		sum += p.Score
 		feedback = append(feedback, pointFeedback{pointScore: p, Title: item.Title, MaxScore: item.MaxScore})
 	}
-	raw, _ := json.Marshal(feedback)
+	raw, err := json.Marshal(feedback)
+	if err != nil {
+		result(c, nil, err)
+		return nil, 0, false
+	}
 	return raw, sum, true
 }

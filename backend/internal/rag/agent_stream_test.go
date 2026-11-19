@@ -27,10 +27,27 @@ func TestAgentStreamAssemblyAndTruncation(t *testing.T) {
 			t.Fatal("private tool delta exposed")
 		}
 	}
-	for _, broken := range []string{strings.Replace(stream, "data: [DONE]\n\n", "", 1), choice(map[string]any{"content": "截断"}, "length") + "data: [DONE]\n\n", "data: {bad}\n\ndata: [DONE]\n\n"} {
+	for _, broken := range []string{choice(map[string]any{"content": "未完成"}, nil), choice(map[string]any{"content": "截断"}, "length") + "data: [DONE]\n\n", "data: {bad}\n\ndata: [DONE]\n\n"} {
 		if _, _, _, e := decodeAgentResponse(response(broken, "text/event-stream"), nil); e == nil {
 			t.Fatal("broken stream accepted")
 		}
+	}
+	// Clean EOF after valid finish_reason (without [DONE]) is accepted.
+	noDone := strings.Replace(stream, "data: [DONE]\n\n", "", 1)
+	if msg, finish, u, e := decodeAgentResponse(response(noDone, "text/event-stream"), nil); e != nil || finish != "tool_calls" || msg.Content != "正在核对" || u.Prompt != 33 {
+		t.Fatalf("clean EOF after finish_reason failed: msg=%+v finish=%q u=%+v err=%v", msg, finish, u, e)
+	}
+	// Trailing empty-delta chunk containing usage after finish_reason is accepted.
+	trailingUsage := choice(map[string]any{"content": "完成"}, "stop") + event(map[string]any{"choices": []any{map[string]any{"index": 0, "delta": map[string]any{}, "finish_reason": "stop"}}, "usage": map[string]int{"prompt_tokens": 12, "completion_tokens": 4}}) + "data: [DONE]\n\n"
+	if msg, finish, u, e := decodeAgentResponse(response(trailingUsage, "text/event-stream"), nil); e != nil || finish != "stop" || msg.Content != "完成" || u.Prompt != 12 {
+		t.Fatalf("trailing empty-delta usage chunk failed: msg=%+v finish=%q u=%+v err=%v", msg, finish, u, e)
+	}
+	// Repeated tool_call id/name are not duplicated, and empty arguments default to "{}".
+	repeatedTool := choice(map[string]any{"tool_calls": []any{map[string]any{"index": 0, "id": "call-dup", "type": "function", "function": map[string]string{"name": "course_context", "arguments": ""}}}}, nil) +
+		choice(map[string]any{"tool_calls": []any{map[string]any{"index": 0, "id": "call-dup", "type": "function", "function": map[string]string{"name": "course_context", "arguments": ""}}}}, "tool_calls") +
+		"data: [DONE]\n\n"
+	if msg, finish, _, e := decodeAgentResponse(response(repeatedTool, "text/event-stream"), nil); e != nil || finish != "tool_calls" || len(msg.ToolCalls) != 1 || msg.ToolCalls[0].ID != "call-dup" || msg.ToolCalls[0].Function.Name != "course_context" || msg.ToolCalls[0].Function.Arguments != "{}" {
+		t.Fatalf("repeated tool_call / empty args failed: msg=%+v finish=%q err=%v", msg, finish, e)
 	}
 	jsonReply := `{"choices":[{"message":{"role":"assistant","content":"兼容回退"},"finish_reason":"stop"}],"usage":{"prompt_tokens":3}}`
 	msg, finish, u, e = decodeAgentResponse(response(jsonReply, "application/json"), nil)

@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"sort"
+	"strings"
 
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
 	"github.com/122Ml/HaJi_Mark/backend/internal/rag"
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 func (h *Handler) knowledgeDecision(c *gin.Context) {
@@ -73,7 +75,7 @@ func (h *Handler) knowledgeDecision(c *gin.Context) {
 		return
 	}
 	if in.CompareJobID != "" {
-		j, input, e := h.draftJob(c, in.CompareJobID, "knowledge_compare")
+		j, input, e := h.draftJobWithQueries(ctx, q, c.Param("courseID"), in.CompareJobID, "knowledge_compare")
 		if e != nil {
 			ragError(c, e)
 			return
@@ -87,7 +89,10 @@ func (h *Handler) knowledgeDecision(c *gin.Context) {
 				Existing []store.KnowledgeEntry `json:"existing"`
 			} `json:"input_snapshot"`
 		}
-		_ = json.Unmarshal(j.Output, &out)
+		if err := json.Unmarshal(j.Output, &out); err != nil {
+			result(c, nil, err)
+			return
+		}
 		for _, id := range in.RelatedIDs {
 			found := false
 			for _, old := range out.Snapshot.Existing {
@@ -103,7 +108,10 @@ func (h *Handler) knowledgeDecision(c *gin.Context) {
 		}
 	}
 	refs := []rag.Evidence{}
-	_ = json.Unmarshal(k.Evidence, &refs)
+	if err := json.Unmarshal(k.Evidence, &refs); err != nil {
+		result(c, nil, err)
+		return
+	}
 	student, learning, grading := k.StudentVisible, k.UseForLearning, k.UseForGrading
 	for _, id := range in.RelatedIDs {
 		old := locked[id]
@@ -115,7 +123,10 @@ func (h *Handler) knowledgeDecision(c *gin.Context) {
 		learning = learning && old.UseForLearning
 		grading = grading && old.UseForGrading
 		var ev []rag.Evidence
-		_ = json.Unmarshal(old.Evidence, &ev)
+		if err := json.Unmarshal(old.Evidence, &ev); err != nil {
+			result(c, nil, err)
+			return
+		}
 		refs = append(refs, ev...)
 	}
 	if (in.Action == "merge" || in.Action == "replace" || in.Action == "coexist") && len(in.RelatedIDs) == 0 {
@@ -124,16 +135,21 @@ func (h *Handler) knowledgeDecision(c *gin.Context) {
 	}
 	var output any = k
 	if in.Action == "merge" {
-		if !validText(in.Title, 500) || !validText(in.Body, 60000) || len(in.Conditions) > 10000 {
+		if !validText(in.Title, 500) || !validText(in.Body, 60000) || len(in.Conditions) > 10000 || strings.ContainsRune(in.Conditions, '\x00') {
 			invalid(c, "请核对合并后的标题、正文和适用条件")
 			return
 		}
-		if e = h.rag.ValidateEvidence(ctx, k.CourseID, refs, student); e != nil {
+		if e = h.rag.ValidateEvidenceWithQueries(ctx, q, k.CourseID, refs, student); e != nil {
+			ragError(c, e)
+			return
+		}
+		related := append(append([]string{}, in.RelatedIDs...), k.ID)
+		if e = h.rag.ValidateLinksWithQueries(ctx, q, k.CourseID, k.KnowledgePointIds, related, ""); e != nil {
 			ragError(c, e)
 			return
 		}
 		raw, _ := json.Marshal(refs)
-		v, e := q.CreateKnowledgeEntry(ctx, store.CreateKnowledgeEntryParams{ID: uuid.NewString(), CourseID: k.CourseID, CreatedBy: identity.Current(c).ID, Title: in.Title, Body: in.Body, Category: k.Category, ContentKind: k.ContentKind, Conditions: in.Conditions, KnowledgePointIds: k.KnowledgePointIds, Evidence: raw, RelatedIds: append(in.RelatedIDs, k.ID), StudentVisible: student, UseForLearning: learning, UseForGrading: grading, Version: 1})
+		v, e := q.CreateKnowledgeEntry(ctx, store.CreateKnowledgeEntryParams{ID: uuid.NewString(), CourseID: k.CourseID, CreatedBy: identity.Current(c).ID, Title: in.Title, Body: in.Body, Category: k.Category, ContentKind: k.ContentKind, Conditions: in.Conditions, KnowledgePointIds: nonNilStrings(k.KnowledgePointIds), Evidence: raw, RelatedIds: related, StudentVisible: student, UseForLearning: learning, UseForGrading: grading, Version: 1})
 		if e != nil {
 			result(c, nil, e)
 			return
@@ -144,23 +160,44 @@ func (h *Handler) knowledgeDecision(c *gin.Context) {
 			return
 		}
 		output = v
-		if _, e = q.RejectKnowledgeDraft(ctx, store.RejectKnowledgeDraftParams{ID: k.ID, CourseID: k.CourseID, EditVersion: k.EditVersion}); e != nil {
+		n, e := q.RejectKnowledgeDraft(ctx, store.RejectKnowledgeDraftParams{ID: k.ID, CourseID: k.CourseID, EditVersion: k.EditVersion})
+		if e != nil {
 			result(c, nil, e)
 			return
 		}
+		if n == 0 {
+			identity.Fail(c, 409, "stale_revision", "候选已改变，请重新核对")
+			return
+		}
 	} else if in.Action == "discard" {
-		if _, e = q.RejectKnowledgeDraft(ctx, store.RejectKnowledgeDraftParams{ID: k.ID, CourseID: k.CourseID, EditVersion: k.EditVersion}); e != nil {
+		n, e := q.RejectKnowledgeDraft(ctx, store.RejectKnowledgeDraftParams{ID: k.ID, CourseID: k.CourseID, EditVersion: k.EditVersion})
+		if e != nil {
 			result(c, nil, e)
+			return
+		}
+		if n == 0 {
+			identity.Fail(c, 409, "stale_revision", "候选已改变，请重新核对")
 			return
 		}
 	} else if in.Action == "replace" || in.Action == "coexist" {
 		originalRefs := []rag.Evidence{}
-		_ = json.Unmarshal(k.Evidence, &originalRefs)
-		if e = h.rag.ValidateEvidence(ctx, k.CourseID, originalRefs, k.StudentVisible); e != nil {
+		if err := json.Unmarshal(k.Evidence, &originalRefs); err != nil {
+			result(c, nil, err)
+			return
+		}
+		if e = h.rag.ValidateEvidenceWithQueries(ctx, q, k.CourseID, originalRefs, k.StudentVisible); e != nil {
+			ragError(c, e)
+			return
+		}
+		if e = h.rag.ValidateLinksWithQueries(ctx, q, k.CourseID, k.KnowledgePointIds, in.RelatedIDs, k.ID); e != nil {
 			ragError(c, e)
 			return
 		}
 		v, e := q.TransitionKnowledgeEntry(ctx, store.TransitionKnowledgeEntryParams{ID: k.ID, CourseID: k.CourseID, State: "confirmed", State_2: "draft", EditVersion: k.EditVersion})
+		if errors.Is(e, pgx.ErrNoRows) {
+			identity.Fail(c, 409, "stale_revision", "候选已改变，请重新核对")
+			return
+		}
 		if e != nil {
 			result(c, nil, e)
 			return
@@ -176,6 +213,10 @@ func (h *Handler) knowledgeDecision(c *gin.Context) {
 			for _, id := range in.RelatedIDs {
 				old := locked[id]
 				if _, e = q.TransitionKnowledgeEntry(ctx, store.TransitionKnowledgeEntryParams{ID: id, CourseID: k.CourseID, State: "archived", State_2: "confirmed", EditVersion: old.EditVersion}); e != nil {
+					if errors.Is(e, pgx.ErrNoRows) {
+						identity.Fail(c, 409, "stale_revision", "关联知识已改变，请刷新后重试")
+						return
+					}
 					result(c, nil, e)
 					return
 				}
@@ -187,13 +228,22 @@ func (h *Handler) knowledgeDecision(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
+	var jobID string
 	if in.Action != "defer" && in.Action != "discard" {
-		if e = rag.QueueIndex(ctx, q, k.CourseID, identity.Current(c).ID); e != nil {
+		jobID, e = rag.QueueIndexID(ctx, q, k.CourseID, identity.Current(c).ID)
+		if e != nil {
 			result(c, nil, e)
 			return
 		}
 	}
-	result(c, gin.H{"decision": decision, "knowledge": output}, tx.Commit(ctx))
+	if e = tx.Commit(ctx); e != nil {
+		result(c, nil, e)
+		return
+	}
+	if jobID != "" && h.rag != nil {
+		h.rag.Enqueue(jobID)
+	}
+	result(c, gin.H{"decision": decision, "knowledge": output}, nil)
 }
 
 func (h *Handler) adoptSuggestions(c *gin.Context) {
@@ -238,18 +288,31 @@ func (h *Handler) adoptSuggestions(c *gin.Context) {
 	if old, err := q.DecisionByJob(ctx, store.DecisionByJobParams{CourseID: j.CourseID, Kind: "source_suggestions", JobID: j.ID}); err == nil {
 		result(c, old, nil)
 		return
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		result(c, nil, err)
+		return
 	}
 	if src.State != "active" || src.ParseRevision != input.ParseRevision {
 		identity.Fail(c, 409, "stale_revision", "资料已修订，请重新生成建议")
 		return
 	}
-	for _, name := range in.NewTopics {
+	seenNewTopics := map[string]bool{}
+	for _, rawName := range in.NewTopics {
+		name := strings.TrimSpace(rawName)
 		if !validText(name, 300) {
 			invalid(c, "新专题名称无效")
 			return
 		}
+		if seenNewTopics[name] {
+			continue
+		}
+		seenNewTopics[name] = true
 		t, e := q.CreateTopic(ctx, store.CreateTopicParams{ID: uuid.NewString(), CourseID: src.CourseID, Title: name})
 		if e != nil {
+			if isPgCode(e, "23505") {
+				identity.Fail(c, 409, "duplicate_topic", "专题名称已存在，请直接选择已有专题："+name)
+				return
+			}
 			result(c, nil, e)
 			return
 		}
@@ -259,15 +322,33 @@ func (h *Handler) adoptSuggestions(c *gin.Context) {
 		ragError(c, e)
 		return
 	}
-	// Only explicitly selected new sections are appended; existing curriculum is untouched.
-	for i, title := range in.Outline {
-		if !validText(title, 500) {
-			invalid(c, "目录标题无效")
-			return
-		}
-		if _, e = q.AddBusinessPoint(ctx, store.AddBusinessPointParams{ID: uuid.NewString(), CourseID: src.CourseID, Title: title, Kind: "chapter", Position: int32(i)}); e != nil {
+	// Only explicitly selected new sections are appended after existing max position; existing curriculum is untouched.
+	if len(in.Outline) > 0 {
+		existingPoints, e := q.ListBusinessPoints(ctx, src.CourseID)
+		if e != nil {
 			result(c, nil, e)
 			return
+		}
+		var basePos int32
+		if len(existingPoints) > 0 {
+			maxPos := existingPoints[0].Position
+			for _, p := range existingPoints[1:] {
+				if p.Position > maxPos {
+					maxPos = p.Position
+				}
+			}
+			basePos = maxPos + 1
+		}
+		for i, rawTitle := range in.Outline {
+			title := strings.TrimSpace(rawTitle)
+			if !validText(title, 500) {
+				invalid(c, "目录标题无效")
+				return
+			}
+			if _, e = q.AddBusinessPoint(ctx, store.AddBusinessPointParams{ID: uuid.NewString(), CourseID: src.CourseID, Title: title, Kind: "chapter", Position: basePos + int32(i)}); e != nil {
+				result(c, nil, e)
+				return
+			}
 		}
 	}
 	decision, e := recordDecision(ctx, q, src.CourseID, identity.Current(c).ID, "source_suggestions", src.ID, in.Reason, map[string]any{"job_id": j.ID, "suggestions": json.RawMessage(j.Output)}, in)
@@ -277,5 +358,3 @@ func (h *Handler) adoptSuggestions(c *gin.Context) {
 	}
 	result(c, decision, tx.Commit(ctx))
 }
-
-var errStalePaper = errors.New("拆题来源版本已改变，请重新核对")

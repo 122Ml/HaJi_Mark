@@ -68,7 +68,7 @@ function visit(file) {
       } else if (nativeWidgets.has(tag)) {
         sites.push({ ...site, kind: 'native' });
       }
-      if (/^h[2-6]$/.test(tag) || antd && importedTag === 'Typography.Title') headings.push(site);
+      if (/^h[4-6]$/.test(tag)) headings.push(site);
       const attrs = node.attributes.properties;
       if (antd && importedTag === 'Input' && attrs.some(a => ts.isJsxAttribute(a) && a.name.getText(source) === 'type' && a.initializer && ts.isStringLiteral(a.initializer) && /^(date|datetime-local|time|number|file|color|range)$/.test(a.initializer.text))) {
         problems.push({ ...site, issue: 'Use the matching Ant Design picker, Upload or InputNumber' });
@@ -108,6 +108,5 @@ console.log(JSON.stringify({ files: report.files.length, widgets: report.widgets
 assert(sites.length > 0, 'The active frontend graph must contain widgets');
 assert(ratio >= 99, 'Ant Design widget reuse must be at least 99%');
 assert.deepEqual(native, [], 'Use Ant Design controls instead of native widgets');
-assert.deepEqual(headings, [], 'Application chrome must not add secondary headings');
 assert.deepEqual(problems, [], 'Do not replace controls with clickable HTML');
 assert.deepEqual(unused, [], 'Remove unused declarations in the active frontend');

@@ -1,10 +1,31 @@
 import { Field } from "../shared/Field";
-import { useState } from "react";
-import { Tabs, Input, Pagination, Card, Form, Button, Collapse, List, Alert, Typography } from "antd";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Alert,
+  Button,
+  Card,
+  Collapse,
+  Form,
+  Input,
+  List,
+  Pagination,
+  Space,
+  Tabs,
+  Typography,
+} from "antd";
 import { useSearchParams } from "react-router-dom";
+import { Plus } from "lucide-react";
+import { PageHeader } from "../shared/PageHeader";
 import { useSession } from "../shared/session";
-import { requestJSON } from "../shared/api";
-import { EmptyState, ErrorState, MetaTag, MetaTags, StatusTag } from "../shared/ui";
+import { APIError, requestJSON } from "../shared/api";
+import { useConfirm } from "../shared/confirm";
+import {
+  EmptyState,
+  ErrorState,
+  MetaTag,
+  MetaTags,
+  StatusTag,
+} from "../shared/ui";
 import {
   Feedback,
   Link,
@@ -14,9 +35,16 @@ import {
   useLiveQuery,
   type Course,
 } from "./context";
+import { labelFor, stateLabels } from "./domain-meta";
+import type { Member } from "./types";
+import { hasControlNull, utf8ByteLength } from "./validation";
+
+const USERNAME_RE = /^[A-Za-z0-9._@-]{3,64}$/;
+const COURSE_TITLE_MAX_BYTES = 200;
 
 export function CourseManagement() {
-  const { session } = useSession();
+  const { session, refresh } = useSession();
+  const confirm = useConfirm();
   const { course, courses, reload, select } = useLearning();
   const [params, setParams] = useSearchParams();
   const action = useAction();
@@ -26,86 +54,123 @@ export function CourseManagement() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const tab = params.get("tab") === "members" ? "members" : "settings";
-  const filtered = courses.filter((c) =>
-    c.title.toLowerCase().includes(search.toLowerCase()),
+
+  const filtered = useMemo(
+    () =>
+      courses.filter((c) =>
+        c.title.toLowerCase().includes(search.trim().toLowerCase()),
+      ),
+    [courses, search],
   );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / 8));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  async function handleCreateCourse() {
+    const trimmed = title.trim();
+    if (
+      !trimmed ||
+      utf8ByteLength(trimmed) > COURSE_TITLE_MAX_BYTES ||
+      hasControlNull(trimmed)
+    ) {
+      setError("请填写课程名称（不能为空且不超过 200 字节）");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const result = await requestJSON<{ data: Course }>(
+        "/learning/courses",
+        { method: "POST", body: JSON.stringify({ title: trimmed }) },
+        session?.csrf_token,
+      );
+      await reload();
+      select(result.data.id);
+      setTitle("");
+    } catch (e) {
+      if (e instanceof APIError && e.status === 401) {
+        refresh();
+      }
+      setError(e instanceof Error ? e.message : "创建失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="live-page">
-      <Card className="card-panel">
-        <Form
-          className="live-inline"
-          onFinish={async () => {
-            setBusy(true);
-            setError("");
-            try {
-              const result = await requestJSON<{ data: Course }>(
-                "/learning/courses",
-                { method: "POST", body: JSON.stringify({ title }) },
-                session?.csrf_token,
-              );
-              await reload();
-              select(result.data.id);
-              setTitle("");
-            } catch (e) {
-              setError(e instanceof Error ? e.message : "创建失败");
-            } finally {
-              setBusy(false);
-            }
-          }}
-          layout="vertical"
-        >
-          <Field
-            className="ui-field"
-            label={<>新课程名称</>}
-            required={true}
-          >
-            <Input
-              aria-label="新课程名称"
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </Field>
-          <Button
-            disabled={busy || !title.trim()}
-            htmlType="submit"
-            type="primary"
-          >
-            新建课程
-          </Button>
-        </Form>
-        {error && (
-          <Alert type="error" showIcon role="alert" message={<>
-            {error}
-          </>} />
-        )}
-        <Input.Search
-          aria-label="搜索课程"
-          placeholder="搜索课程名称"
-          value={search}
+      <PageHeader
+        title="课程与成员"
+        subtitle={course?.title}
+        meta={<MetaTag>{courses.length} 门课程</MetaTag>}
+      />
+      <Form
+        className="filter-bar"
+        onFinish={() => {
+          void handleCreateCourse();
+        }}
+      >
+        <Input
+          aria-label="新课程名称"
+          placeholder="输入新课程名称…"
+          style={{ flex: 1, minWidth: 220 }}
+          value={title}
           onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
+            setError("");
+            setTitle(e.target.value);
           }}
-          allowClear
         />
-        {filtered.slice((page - 1) * 8, page * 8).map((c) => (
-          <article className="live-row" key={c.id}>
-            <div>
-              <Typography.Text strong className="item-title">{c.title}</Typography.Text>
-              <MetaTags>
-                <StatusTag status={c.status} label={names[c.status]} />
-                <MetaTag>{c.knowledge_point_count} 个知识点</MetaTag>
-              </MetaTags>
-            </div>
-            <Button
-              onClick={() => select(c.id)}
-              type={course?.id === c.id ? "primary" : "default"}
-            >
-              {course?.id === c.id ? "当前课程" : "管理课程"}
-            </Button>
-          </article>
-        ))}
+        <Button
+          icon={<Plus size={14} aria-hidden="true" />}
+          disabled={
+            busy ||
+            !title.trim() ||
+            utf8ByteLength(title.trim()) > COURSE_TITLE_MAX_BYTES
+          }
+          htmlType="submit"
+          type="primary"
+        >
+          新建课程
+        </Button>
+      </Form>
+      {error && <Alert type="error" showIcon role="alert" message={error} />}
+      <Card className="card-panel" title="课程列表">
+        <Space direction="vertical" className="live-full-width" size="middle">
+          <Input.Search
+            aria-label="搜索课程"
+            placeholder="搜索课程名称"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            allowClear
+          />
+          {filtered.slice((page - 1) * 8, page * 8).map((c) => (
+            <article className="live-row" key={c.id}>
+              <div>
+                <Typography.Text strong className="item-title">
+                  {c.title}
+                </Typography.Text>
+                <MetaTags>
+                  {course?.id === c.id && (
+                    <StatusTag status="active" label="当前使用中" />
+                  )}
+                  <StatusTag
+                    status={c.status}
+                    label={labelFor(stateLabels, c.status, names[c.status] || c.status)}
+                  />
+                  <MetaTag>{c.knowledge_point_count} 个知识点</MetaTag>
+                </MetaTags>
+              </div>
+              <Button onClick={() => select(c.id)}>
+                {course?.id === c.id ? "当前课程" : "管理课程"}
+              </Button>
+            </article>
+          ))}
+        </Space>
         {!courses.length && (
           <EmptyState title="还没有课程">
             新建课程后，可以维护目录、资料和作业。
@@ -125,8 +190,7 @@ export function CourseManagement() {
         />
       </Card>
       {course && (
-        <Card className="card-panel" title={<>{course.title}</>}>
-
+        <Card className="card-panel" title={course.title}>
           <Tabs
             activeKey={tab}
             onChange={(value) => {
@@ -143,18 +207,28 @@ export function CourseManagement() {
             <Members />
           ) : (
             <>
-              <CourseSettings key={`${course.id}:${course.version}`} />
-              {course.status === "draft" && (
-                <Button
-                  disabled={action.busy}
-                  onClick={() => action.run("/publish")}
-                  type="primary"
-                >
-                  发布课程
-                </Button>
-              )}
-              <Feedback message={action.message} failed={action.failed} />
-              <div className="live-inline">
+              <CourseSettings key={course.id} />
+              <div className="live-inline" style={{ marginTop: 16 }}>
+                {course.status === "draft" && (
+                  <Button
+                    disabled={action.busy}
+                    onClick={async () => {
+                      if (
+                        await confirm("发布后已加入课程的学生将可见此课程，确认发布？")
+                      ) {
+                        await action.run(
+                          "/publish",
+                          {},
+                          "POST",
+                          "课程已发布，已加入学生现在可以访问",
+                        );
+                      }
+                    }}
+                    type="primary"
+                  >
+                    发布课程
+                  </Button>
+                )}
                 <Link className="ghost-btn" to="/teacher/curriculum">
                   课程目录
                 </Link>
@@ -162,6 +236,7 @@ export function CourseManagement() {
                   学习资料
                 </Link>
               </div>
+              <Feedback message={action.message} failed={action.failed} />
             </>
           )}
         </Card>
@@ -174,23 +249,66 @@ function CourseSettings() {
   const { course } = useLearning();
   const action = useAction();
   const [name, setName] = useState(course?.title || "");
+  const [validationError, setValidationError] = useState("");
+
+  useEffect(() => {
+    setName(course?.title || "");
+    setValidationError("");
+  }, [course?.id, course?.title]);
+
+  const trimmed = name.trim();
+  const nameBytes = utf8ByteLength(trimmed);
+
+  async function handleRename() {
+    if (!trimmed || nameBytes > COURSE_TITLE_MAX_BYTES || hasControlNull(trimmed)) {
+      setValidationError("课程名称不能为空，且不能超过 200 字节");
+      return;
+    }
+    setValidationError("");
+    await action.run("", { title: trimmed }, "PUT", "课程名称已更新");
+  }
+
   return (
     <Form
       className="live-form"
       onFinish={() => {
-        void action.run("", { title: name }, "PUT");
+        void handleRename();
       }}
       layout="vertical"
     >
-      <Field className="ui-field" label={<>课程名称</>} required={true}>
+      {validationError && (
+        <Alert type="error" showIcon role="alert" message={validationError} />
+      )}
+      <Field
+        className="ui-field"
+        label="课程名称"
+        required
+        extra={
+          <Typography.Text
+            type={nameBytes > COURSE_TITLE_MAX_BYTES ? "danger" : "secondary"}
+          >
+            {nameBytes} / {COURSE_TITLE_MAX_BYTES} 字节
+          </Typography.Text>
+        }
+      >
         <Input
           aria-label="课程名称"
-          required
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            setValidationError("");
+            setName(e.target.value);
+          }}
         />
       </Field>
-      <Button disabled={action.busy} htmlType="submit">
+      <Button
+        disabled={
+          action.busy ||
+          !trimmed ||
+          nameBytes > COURSE_TITLE_MAX_BYTES ||
+          trimmed === (course?.title || "")
+        }
+        htmlType="submit"
+      >
         保存课程名称
       </Button>
       <Feedback message={action.message} failed={action.failed} />
@@ -199,17 +317,97 @@ function CourseSettings() {
 }
 
 function Members() {
-  const members =
-    useLiveQuery<{ id: string; display_name: string; username: string }[]>(
-      "/members",
-    );
+  const members = useLiveQuery<Member[]>("/members");
   const action = useAction();
   const [username, setUsername] = useState("");
+  const [memberSearch, setMemberSearch] = useState("");
+  const [enrollError, setEnrollError] = useState("");
+  const [studentError, setStudentError] = useState("");
   const [student, setStudent] = useState({
     username: "",
     display_name: "",
     password: "",
   });
+
+  const filteredMembers = useMemo(() => {
+    const rows = members.data || [];
+    const keyword = memberSearch.trim().toLowerCase();
+    if (!keyword) return rows;
+    return rows.filter(
+      (m) =>
+        m.display_name.toLowerCase().includes(keyword) ||
+        (m.username || "").toLowerCase().includes(keyword),
+    );
+  }, [members.data, memberSearch]);
+
+  const pwdBytes = utf8ByteLength(student.password);
+
+  async function handleEnroll() {
+    const trimmed = username.trim();
+    if (!trimmed || utf8ByteLength(trimmed) > 64 || hasControlNull(trimmed)) {
+      setEnrollError("请输入有效的学生用户名");
+      return;
+    }
+    setEnrollError("");
+    if (
+      await action.run(
+        "/members",
+        { username: trimmed },
+        "POST",
+        "已将学生加入课程",
+      )
+    ) {
+      setUsername("");
+    }
+  }
+
+  async function handleCreateStudent() {
+    const trimmedUsername = student.username.trim();
+    const trimmedName = student.display_name.trim();
+    if (!USERNAME_RE.test(trimmedUsername)) {
+      setStudentError(
+        "用户名须为 3 到 64 位字母、数字或 . _ @ -，不能包含空白字符",
+      );
+      return;
+    }
+    if (
+      !trimmedName ||
+      utf8ByteLength(trimmedName) > 200 ||
+      hasControlNull(trimmedName)
+    ) {
+      setStudentError("请填写不超过 200 字节的学生姓名");
+      return;
+    }
+    if (
+      !student.password.trim() ||
+      pwdBytes < 12 ||
+      pwdBytes > 72 ||
+      hasControlNull(student.password)
+    ) {
+      setStudentError("初始密码须为 12 到 72 字节，且不能全为空白");
+      return;
+    }
+    setStudentError("");
+    if (
+      await action.run(
+        "/students",
+        {
+          username: trimmedUsername,
+          display_name: trimmedName,
+          password: student.password,
+        },
+        "POST",
+        "已创建学生账号并加入本课程",
+      )
+    ) {
+      setStudent({
+        username: "",
+        display_name: "",
+        password: "",
+      });
+    }
+  }
+
   return (
     <>
       <Feedback message={action.message} failed={action.failed} />
@@ -219,94 +417,136 @@ function Members() {
           onRetry={() => void members.refetch()}
         />
       )}
+      {enrollError && (
+        <Alert type="error" showIcon role="alert" message={enrollError} />
+      )}
       <Form
         className="live-inline"
-        onFinish={async () => {
-          if (await action.run("/members", { username })) setUsername("");
+        onFinish={() => {
+          void handleEnroll();
         }}
         layout="vertical"
       >
-        <Field className="ui-field" label={<>学生用户名</>} required={true}>
+        <Field className="ui-field" label="学生用户名" required>
           <Input
             aria-label="学生用户名"
-            required
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            onChange={(e) => {
+              setEnrollError("");
+              setUsername(e.target.value);
+            }}
           />
         </Field>
-        <Button disabled={action.busy} htmlType="submit">
+        <Button disabled={action.busy || !username.trim()} htmlType="submit">
           加入课程
         </Button>
       </Form>
-      <List className="member-list" dataSource={members.data || []} locale={{ emptyText: "暂无课程成员" }} renderItem={m => <List.Item key={m.id}><Link to={`/teacher/dashboard?student=${m.id}`}>{m.display_name}</Link><span>{m.username}</span></List.Item>} />
+      {!!members.data?.length && members.data.length > 8 && (
+        <Input.Search
+          aria-label="搜索课程成员"
+          placeholder="按姓名或用户名筛选成员"
+          value={memberSearch}
+          onChange={(e) => setMemberSearch(e.target.value)}
+          allowClear
+          style={{ marginTop: 12 }}
+        />
+      )}
+      <List
+        className="member-list"
+        loading={members.isPending}
+        dataSource={filteredMembers}
+        pagination={{
+          pageSize: 10,
+          hideOnSinglePage: true,
+          showSizeChanger: false,
+          responsive: true,
+        }}
+        locale={{ emptyText: "暂无课程成员" }}
+        renderItem={(m) => (
+          <List.Item key={m.id}>
+            <Link to={`/teacher/dashboard?student=${m.id}`}>
+              {m.display_name}
+            </Link>
+            <span>{m.username || ""}</span>
+          </List.Item>
+        )}
+      />
       <Collapse
         items={[
           {
             key: "content",
-            label: <>新建学生账号并加入本课程</>,
+            label: "新建学生账号并加入本课程",
             children: (
-              <>
-                <Form
-                  className="live-form"
-                  onFinish={async () => {
-                    if (await action.run("/students", student))
-                      setStudent({
-                        username: "",
-                        display_name: "",
-                        password: "",
-                      });
-                  }}
-                  layout="vertical"
+              <Form
+                className="live-form"
+                onFinish={() => {
+                  void handleCreateStudent();
+                }}
+                layout="vertical"
+              >
+                {studentError && (
+                  <Alert
+                    type="error"
+                    showIcon
+                    role="alert"
+                    message={studentError}
+                  />
+                )}
+                <Field
+                  className="ui-field"
+                  label="新学生用户名"
+                  required
+                  extra="3 到 64 位字母、数字或 . _ @ -，不含空格"
                 >
-                  <Field
-                    className="ui-field"
-                    label={<>新学生用户名</>}
-                    required={true}
-                  >
-                    <Input
-                      aria-label="新学生用户名"
-                      required
-                      value={student.username}
-                      onChange={(e) =>
-                        setStudent({ ...student, username: e.target.value })
+                  <Input
+                    aria-label="新学生用户名"
+                    value={student.username}
+                    onChange={(e) => {
+                      setStudentError("");
+                      setStudent({ ...student, username: e.target.value });
+                    }}
+                  />
+                </Field>
+                <Field className="ui-field" label="学生姓名" required>
+                  <Input
+                    aria-label="学生姓名"
+                    value={student.display_name}
+                    onChange={(e) => {
+                      setStudentError("");
+                      setStudent({ ...student, display_name: e.target.value });
+                    }}
+                  />
+                </Field>
+                <Field
+                  className="ui-field"
+                  label="初始密码"
+                  required
+                  extra={
+                    <Typography.Text
+                      type={
+                        student.password && (pwdBytes < 12 || pwdBytes > 72)
+                          ? "danger"
+                          : "secondary"
                       }
-                    />
-                  </Field>
-                  <Field
-                    className="ui-field"
-                    label={<>学生姓名</>}
-                    required={true}
-                  >
-                    <Input
-                      aria-label="学生姓名"
-                      required
-                      value={student.display_name}
-                      onChange={(e) =>
-                        setStudent({ ...student, display_name: e.target.value })
-                      }
-                    />
-                  </Field>
-                  <Field
-                    className="ui-field"
-                    label={<>初始密码</>}
-                    required={true}
-                  >
-                    <Input.Password
-                      aria-label="初始密码"
-                      required
-                      minLength={12}
-                      autoComplete="new-password"
-                      value={student.password}
-                      onChange={(e) =>
-                        setStudent({ ...student, password: e.target.value })
-                      }
-                    />
-                  </Field>
-                  <Button disabled={action.busy} htmlType="submit">
-                    创建学生账号
-                  </Button>
-                </Form>
-              </>
+                    >
+                      当前 {pwdBytes} 字节（要求 12–72 字节，不能全为空白）
+                    </Typography.Text>
+                  }
+                >
+                  <Input.Password
+                    aria-label="初始密码"
+                    autoComplete="new-password"
+                    value={student.password}
+                    onChange={(e) => {
+                      setStudentError("");
+                      setStudent({ ...student, password: e.target.value });
+                    }}
+                  />
+                </Field>
+                <Button disabled={action.busy} htmlType="submit">
+                  创建学生账号
+                </Button>
+              </Form>
             ),
           },
         ]}

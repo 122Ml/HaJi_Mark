@@ -6,6 +6,8 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
+	stdpath "path"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -53,18 +55,51 @@ func (w *boundedResponse) Write(b []byte) (int, error) {
 	return w.data.Write(b)
 }
 
+func validateGatewayPath(raw string) (string, error) {
+	if raw == "" || strings.ContainsAny(raw, "\r\n\x00\\") {
+		return "", errors.New("工具目标不允许")
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "" || u.Host != "" || u.User != nil || u.Fragment != "" {
+		return "", errors.New("工具目标不允许")
+	}
+	rawPathPart := u.EscapedPath()
+	lowerEscaped := strings.ToLower(rawPathPart)
+	if strings.Contains(lowerEscaped, "..") || strings.Contains(lowerEscaped, "//") ||
+		strings.Contains(lowerEscaped, "%2e") || strings.Contains(lowerEscaped, "%2f") ||
+		strings.Contains(lowerEscaped, "%5c") || strings.Contains(lowerEscaped, "%00") {
+		return "", errors.New("工具目标不允许")
+	}
+	cleaned := stdpath.Clean(u.Path)
+	if !strings.HasPrefix(cleaned, "/api/v1/learning/courses/") {
+		return "", errors.New("工具目标不允许")
+	}
+	for _, seg := range strings.Split(cleaned, "/") {
+		if seg == "agent" || seg == ".." || seg == "." {
+			return "", errors.New("工具目标不允许")
+		}
+	}
+	if u.RawQuery != "" {
+		return cleaned + "?" + u.RawQuery, nil
+	}
+	return cleaned, nil
+}
+
 // Invoke uses the mounted business routes, including session, course, role,
 // ownership and transaction checks. It never replays cookies or adds an admin.
 func (g Gateway) Invoke(ctx context.Context, sessionHash, method, path, contentType string, body io.Reader) (BusinessResponse, error) {
-	if !strings.HasPrefix(path, "/api/v1/learning/courses/") || strings.Contains(path, "/agent/") || strings.ContainsAny(path, "\r\n") {
-		return BusinessResponse{}, errors.New("工具目标不允许")
-	}
-	ctx = context.WithValue(ctx, sessionReferenceKey{}, sessionReference{hash: sessionHash})
-	req, err := http.NewRequestWithContext(ctx, method, path, body)
+	safePath, err := validateGatewayPath(path)
 	if err != nil {
 		return BusinessResponse{}, err
 	}
-	req.Header.Set("Content-Type", contentType)
+	ctx = context.WithValue(ctx, sessionReferenceKey{}, sessionReference{hash: sessionHash})
+	req, err := http.NewRequestWithContext(ctx, method, safePath, body)
+	if err != nil {
+		return BusinessResponse{}, err
+	}
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
 	w := &boundedResponse{header: make(http.Header)}
 	g.Handler.ServeHTTP(w, req)
 	if w.overflow {

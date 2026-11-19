@@ -1,6 +1,8 @@
 package learning
 
 import (
+	"strings"
+
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/gin-gonic/gin"
@@ -14,8 +16,9 @@ func (h *Handler) renameCourse(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
-	if !validText(in.Title, 500) {
-		invalid(c, "课程名称无效")
+	in.Title = strings.TrimSpace(in.Title)
+	if !validText(in.Title, 200) {
+		invalid(c, "请填写课程名称（不超过200字节）")
 		return
 	}
 	v, e := h.q.RenameBusinessCourse(c.Request.Context(), store.RenameBusinessCourseParams{ID: c.Param("courseID"), Title: in.Title})
@@ -39,20 +42,23 @@ func (h *Handler) importCurriculum(c *gin.Context) {
 		return
 	}
 	count := 0
-	for _, chapter := range in.Chapters {
-		if !validText(chapter.Title, 500) || len(chapter.Sections) > 100 {
+	for i := range in.Chapters {
+		in.Chapters[i].Title = strings.TrimSpace(in.Chapters[i].Title)
+		if !validText(in.Chapters[i].Title, 500) || len(in.Chapters[i].Sections) > 100 {
 			invalid(c, "章节内容无效")
 			return
 		}
 		count++
-		for _, section := range chapter.Sections {
-			if !validText(section.Title, 500) || len(section.Points) > 100 {
+		for j := range in.Chapters[i].Sections {
+			in.Chapters[i].Sections[j].Title = strings.TrimSpace(in.Chapters[i].Sections[j].Title)
+			if !validText(in.Chapters[i].Sections[j].Title, 500) || len(in.Chapters[i].Sections[j].Points) > 100 {
 				invalid(c, "小节内容无效")
 				return
 			}
 			count++
-			for _, point := range section.Points {
-				if !validText(point, 500) {
+			for k := range in.Chapters[i].Sections[j].Points {
+				in.Chapters[i].Sections[j].Points[k] = strings.TrimSpace(in.Chapters[i].Sections[j].Points[k])
+				if !validText(in.Chapters[i].Sections[j].Points[k], 500) {
 					invalid(c, "知识点名称无效")
 					return
 				}

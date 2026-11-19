@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 )
 
 type Schema map[string]any
@@ -47,7 +48,34 @@ func props(kvs ...any) map[string]any {
 	return m
 }
 
+var (
+	catalogOnce  sync.Once
+	catalogTools []Tool
+	catalogByID  map[string]Tool
+)
+
+func initCatalog() {
+	catalogOnce.Do(func() {
+		catalogTools = buildCatalog()
+		catalogByID = make(map[string]Tool, len(catalogTools))
+		for _, t := range catalogTools {
+			catalogByID[t.Name] = t
+		}
+	})
+}
+
 func Catalog() []Tool {
+	initCatalog()
+	return catalogTools
+}
+
+func lookupTool(name string) (Tool, bool) {
+	initCatalog()
+	t, ok := catalogByID[name]
+	return t, ok
+}
+
+func buildCatalog() []Tool {
 	id := str("数据库返回的对象ID，不能使用标题或猜测ID")
 	ids := array(id)
 	evidence := array(object(props("source_id", id, "fragment_id", id, "quote", str("逐字连续原文")), "source_id", "fragment_id", "quote"))
@@ -122,7 +150,7 @@ func Catalog() []Tool {
 	} {
 		add(j.name, j.label, "materials", "create", "JOB", j.kind, "", false, false, object(props("source_id", id, "fragment_ids", ids, "knowledge_id", id, "related_ids", ids, "asset_id", id, "profile_id", str("按任务选择chat/vision/embedding profile"))))
 	}
-	read("jobs_list", "查询处理任务", "materials", "/jobs", false, false, object(props("kind", str("任务种类"), "source_id", id, "submission_id", id, "question_id", id)))
+	read("jobs_list", "查询处理任务", "materials", "/jobs", false, false, object(props("kind", str("任务种类"), "source_id", id, "submission_id", id, "question_id", id), "kind"))
 	read("job_read", "查看任务结果", "materials", "/jobs/{id}", false, false, withID)
 	add("job_wait", "等待已有任务完成并返回结果", "control", "read", "WAIT", "", "", false, false, withID)
 	add("job_cancel", "取消处理任务", "materials", "approval", "POST", "/jobs/{id}/cancel", "/jobs/{id}", false, false, withID)
@@ -284,8 +312,12 @@ func validate(s Schema, v any) error {
 			}
 		}
 	case "array":
+		maxItems := 50
+		if v, ok := s["maxItems"].(int); ok && v > 0 {
+			maxItems = v
+		}
 		a, ok := v.([]any)
-		if !ok || len(a) > 50 {
+		if !ok || len(a) > maxItems {
 			return errors.New("数组无效或超过50项")
 		}
 		for _, x := range a {
@@ -294,16 +326,30 @@ func validate(s Schema, v any) error {
 			}
 		}
 	case "string":
+		maxLen := 30000
+		if v, ok := s["maxLength"].(int); ok && v > 0 {
+			maxLen = v
+		}
 		x, ok := v.(string)
-		if !ok || len(x) > 30000 {
+		if !ok || len(x) > maxLen {
 			return errors.New("须为不超过30000字节的字符串；可选字段无值请省略，不要传null")
+		}
+		if strings.ContainsRune(x, '\x00') {
+			return errors.New("字符串不能包含空字节")
 		}
 		if opts, ok := s["enum"].([]string); ok && !slices.Contains(opts, x) {
 			return errors.New("选项无效")
 		}
 	case "integer":
+		minVal, maxVal := float64(0), float64(10000)
+		if v, ok := s["minimum"].(int); ok {
+			minVal = float64(v)
+		}
+		if v, ok := s["maximum"].(int); ok {
+			maxVal = float64(v)
+		}
 		x, ok := v.(float64)
-		if !ok || x != float64(int64(x)) || x < 0 || x > 10000 {
+		if !ok || x != float64(int64(x)) || x < minVal || x > maxVal {
 			return errors.New("整数范围无效")
 		}
 	case "boolean":
@@ -318,7 +364,7 @@ var safeID = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,200}$`)
 
 func toolPath(template string, args map[string]any) (string, error) {
 	path := template
-	for _, name := range []string{"id", "submission_id"} {
+	for _, name := range []string{"id", "submission_id", "question_id"} {
 		if strings.Contains(path, "{"+name+"}") {
 			v, _ := args[name].(string)
 			if !safeID.MatchString(v) {
@@ -327,6 +373,15 @@ func toolPath(template string, args map[string]any) (string, error) {
 			path = strings.ReplaceAll(path, "{"+name+"}", v)
 		}
 	}
+	if strings.ContainsAny(path, "{}") {
+		return "", errors.New("工具路径模板包含未替换参数")
+	}
 	return path, nil
 }
-func raw(v any) json.RawMessage { b, _ := json.Marshal(v); return b }
+func raw(v any) json.RawMessage {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return json.RawMessage("{}")
+	}
+	return b
+}

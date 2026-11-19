@@ -31,7 +31,7 @@
 - **统筹而不包办**：其他三人的纵向 Bug 由各自主责排查并在各自小分支修；遇到共用路由、跨表迁移、`sqlc` 重生、模型 Profile 或容器环境故障时由你介入协调。
 - **共享改动把关**：
   - 维护 `backend/internal/learning/http.go`、`web/src/live/routes.tsx`、`web/src/live/types.ts`、`backend/config/models.json`、`go.mod`/`go.sum`、`web/package.json`、`backend/internal/store/*` 与 Compose/CI；
-  - 分配新增迁移号（**`00001—00017` 已使用，后续从 `00018` 起统一登记编号**），禁止修改已执行迁移；
+  - 分配新增迁移号（**`00001—00018` 已使用，后续从 `00019` 起统一登记编号**），禁止修改已执行迁移；
   - 执行成员 PR 审核与 `codex/integration` → `main` 集成合并。
 
 ## 4. 逐项自查挑错清单

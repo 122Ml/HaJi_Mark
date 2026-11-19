@@ -10,7 +10,7 @@
 - RequireSession→RequireRole/RequireCourse；所有认证写请求再 RequireCSRF。对象 ID 要从数据库读取课程/学生归属，不只检查请求 body。学生不能读别人提交、笔记、路径、评分草稿，教师只能访问本人课程。
 - 题目/标准发布后冻结，原始作答保存 attempt、assignment_version、原文 SHA256。评分新增修订，教师确认后单独发布；客观题使用教师答案规则判分。知识点表现只用已发布、去重结果，不把无证据当零分或能力概率。
 - 资料修订新增版本并保留旧文，题目绑定确切 resource_id；干预关联学习/练习时验证下发之后的新证据。状态转换和相关写入在数据库事务中完成。
-- 新增迁移不得修改已执行迁移；当前 00001—00016 已分配，后续从 00017 开始。先修改 db/queries，再用 sqlc 生成 store，不手改生成物。
+- 新增迁移不得修改已执行迁移；当前 00001—00018 已分配，后续从 00019 开始。先修改 db/queries，再用 sqlc 生成 store，不手改生成物。
 - 独立题库入口是learning/question_bank.go、rag/question_bank.go和live/question-bank.tsx。题目/参考解答分别确认，题库标准归属确切题目版本；questions保留为作业实例，bank_question_version_id/bound_rubric_id固定组合，评分不能改绑。旧作业仍走原question_id归属，不重写历史。
 - 逐点评分入口为 learning/rubrics.go、feedback.go 和 live/rubrics.tsx、grading.tsx；AI草稿任务在internal/rag，确认标准绑定题目，评分绑定当时标准及依据。规则私有，机械核对不代替教师语义复核。
 - 资料/知识HTTP入口为learning/materials.go，页面为live/knowledge.tsx。原件、解析修订、学习资料发布、知识确认和索引空间分开；索引不能扩大权限，部分发布不允许下载完整原件。来源归档/撤回提炼许可须阻断派生知识未来检索，历史评分快照保留。
@@ -38,4 +38,4 @@
 
 - 2026-11-19工作区协同：context-agent.tsx在八类对象内复用助理，agent/context.go经Gateway校验引用并预先标记学生上下文；location-state.ts承接URL筛选。scoped_search.go只检索授权的已发布学习文本，不展开私有原件；手工发布与索引排队同事务。00016保存干预的正式诊断／作答来源，feedback.go验证当前证据。验收入口scripts/check-frontend-integration.cjs仅连接隔离18082；构造模型验证链路，不证明AI效果。逐项状态见docs/research/frontend-integration-2026-11-19.md。
 
-- 2026-11-19已按用户要求同步GitHub和原服务器：应用v0.2.0/0e54881，release为hajimark-v0_2_0-20261119-r2，迁移00016；随后同日发布 `v0.2.1`/`2a86b5d`（release `hajimark-v0_2_1-20261119`，迁移 `00017`），见 `deploy/releases/2026-11-19-v0.2.1.json`（公网仍不配置模型密钥）。/diagrams/包含全景、交互、助理、历史设计图册和标注示例的原型，/design-atlas/旧链接保留。生产RAG业务入口启用但无模型密钥，不自动开启收费；人工业务、解析与发布资料文内检索可用。数据指纹、只读公网验收与版本收据见deploy/sync-2026-11-19.md；后续检查继续保留现有演示数据，不重跑旧种子或擅自恢复旧库。
+- 2026-11-19已按用户要求同步GitHub和原服务器：应用v0.2.0/0e54881，release为hajimark-v0_2_0-20261119-r2，迁移00016；随后同日发布 `v0.2.1`/`2a86b5d`（迁移 `00017`）及 `v0.2.2`/`874c13a`（release `hajimark-v0_2_2-20261119`，迁移 `00018`），见 `deploy/releases/2026-11-19-v0.2.2.json`（公网仍不配置模型密钥）。/diagrams/包含全景、交互、助理、历史设计图册和标注示例的原型，/design-atlas/旧链接保留。生产RAG业务入口启用但无模型密钥，不自动开启收费；人工业务、解析与发布资料文内检索可用。数据指纹、只读公网验收与版本收据见deploy/sync-2026-11-19.md；后续检查继续保留现有演示数据，不重跑旧种子或擅自恢复旧库。

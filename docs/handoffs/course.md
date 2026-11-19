@@ -31,7 +31,7 @@
 - **共享文件约束**：
   - `backend/internal/learning/path.go`：你只修改 `/graph`、`/edges` 与 `deleteEdge`，不动学生的学习路径 `/path`。
   - `backend/internal/learning/http.go`、`web/src/live/routes.tsx`、`web/src/live/types.ts`、`backend/config/models.json`、`web/src/styles/*`、`backend/internal/store/*`（`sqlc` 生成物）由 **李然** 协调修改。
-  - 若需要新数据库迁移：**`00001—00017` 已使用，必须从 `00018` 起先向李然预约编号**，严禁修改已执行迁移。
+  - 若需要新数据库迁移：**`00001—00018` 已使用，必须从 `00019` 起先向李然预约编号**，严禁修改已执行迁移。
 
 ## 4. 逐项自查挑错清单
 

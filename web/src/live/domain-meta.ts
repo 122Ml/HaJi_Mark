@@ -9,6 +9,7 @@ export const jobKindLabels: Record<string, string> = {
   bank_rubric: "题库标准起草",
   vision: "图像识别",
   source_suggest: "资料编排建议",
+  source_segment: "资料内容切分",
   knowledge_compare: "知识比较",
   paper_split: "整卷拆题",
   diagnosis: "学情诊断",

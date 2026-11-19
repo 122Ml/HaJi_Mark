@@ -9,6 +9,7 @@ import {
   Input,
   Select,
   Space,
+  Tag,
 } from "antd";
 import { Field } from "../shared/Field";
 import { useConfirm } from "../shared/confirm";
@@ -203,10 +204,25 @@ type OutlineItem = {
   fragment_ids: string[];
 };
 
+type NewPointCandidate = {
+  title: string;
+  parent_id: string;
+  duplicate_of: string;
+  reason?: string;
+};
+
+type NewPointDraft = {
+  key: string;
+  title: string;
+  parent_id: string;
+  duplicate_of: string;
+};
+
 type Suggestions = {
   outline: OutlineItem[];
   topic_ids: string[];
   new_topic_names: string[];
+  new_points: NewPointCandidate[];
   tags: string[];
   knowledge_point_ids: string[];
   similar_knowledge_ids: string[];
@@ -225,6 +241,17 @@ function parseSuggestions(raw: Record<string, unknown>): Suggestions {
         }))
         .filter((item) => item.title.trim().length > 0)
     : [];
+  const new_points: NewPointCandidate[] = Array.isArray(raw.new_points)
+    ? raw.new_points
+        .filter((item): item is Record<string, unknown> => !!item && typeof item === "object")
+        .map((item) => ({
+          title: typeof item.title === "string" ? item.title : "",
+          parent_id: typeof item.parent_id === "string" ? item.parent_id : "",
+          duplicate_of: typeof item.duplicate_of === "string" ? item.duplicate_of : "",
+          reason: typeof item.reason === "string" ? item.reason : undefined,
+        }))
+        .filter((item) => item.title.trim().length > 0)
+    : [];
   const strList = (v: unknown) =>
     Array.isArray(v)
       ? v.filter((x): x is string => typeof x === "string")
@@ -233,6 +260,7 @@ function parseSuggestions(raw: Record<string, unknown>): Suggestions {
     outline,
     topic_ids: dedupeStrings(strList(raw.topic_ids)),
     new_topic_names: cleanTags(strList(raw.new_topic_names)),
+    new_points,
     tags: cleanTags(strList(raw.tags)),
     knowledge_point_ids: dedupeStrings(strList(raw.knowledge_point_ids)),
     similar_knowledge_ids: dedupeStrings(strList(raw.similar_knowledge_ids)),
@@ -253,6 +281,7 @@ export function SourceSuggestions({ id }: { id: string }) {
   const [candidate, setCandidate] = useState<Suggestions | null>(null);
   const [job, setJob] = useState("");
   const [outlineIdx, setOutlineIdx] = useState<number[]>([]);
+  const [newPoints, setNewPoints] = useState<NewPointDraft[]>([]);
   const [topicIDs, setTopics] = useState<string[]>([]);
   const [newTopics, setNewTopics] = useState<string[]>([]);
   const [tags, setTags] = useState<string[]>([]);
@@ -309,6 +338,7 @@ export function SourceSuggestions({ id }: { id: string }) {
                   setCandidate(s);
                   setJob(j);
                   setOutlineIdx([]);
+                  setNewPoints([]);
                   setTopics(
                     dedupeStrings([...existingTopicIDs, ...suggestedActiveTopics]),
                   );
@@ -415,6 +445,93 @@ export function SourceSuggestions({ id }: { id: string }) {
                       }))}
                     />
                   </Field>
+                  {candidate.new_points.length > 0 && (
+                    <Card size="small" title={<>建议新知识点</>}>
+                      <Space direction="vertical" style={{ width: "100%" }}>
+                        {candidate.new_points.map((p, i) => {
+                          const key = `${i}:${p.title}`;
+                          const draftItem = newPoints.find((v) => v.key === key);
+                          const dupTitle = p.duplicate_of
+                            ? points.data?.points.find(
+                                (v) => v.id === p.duplicate_of,
+                              )?.title
+                            : "";
+                          return (
+                            <div key={key} style={{ marginBottom: 4 }}>
+                              <Checkbox
+                                className="rag-check"
+                                checked={!!draftItem}
+                                onChange={(e) =>
+                                  setNewPoints(
+                                    e.target.checked
+                                      ? [
+                                          ...newPoints,
+                                          {
+                                            key,
+                                            title: p.title,
+                                            parent_id: p.parent_id || "",
+                                            duplicate_of: p.duplicate_of || "",
+                                          },
+                                        ]
+                                      : newPoints.filter((v) => v.key !== key),
+                                  )
+                                }
+                              >
+                                {dupTitle
+                                  ? `已存在：${dupTitle}（改为关联）`
+                                  : p.title}
+                              </Checkbox>
+                              {!!draftItem && !dupTitle && (
+                                <Space
+                                  direction="vertical"
+                                  style={{ width: "100%", marginTop: 6 }}
+                                >
+                                  <Input
+                                    aria-label="新知识点名称"
+                                    value={draftItem.title}
+                                    onChange={(e) =>
+                                      setNewPoints(
+                                        newPoints.map((v) =>
+                                          v.key === key
+                                            ? { ...v, title: e.target.value }
+                                            : v,
+                                        ),
+                                      )
+                                    }
+                                  />
+                                  <Select
+                                    aria-label="上级目录"
+                                    allowClear
+                                    placeholder="挂到章或节（可留空）"
+                                    value={draftItem.parent_id || undefined}
+                                    style={{ width: "100%" }}
+                                    onChange={(value) =>
+                                      setNewPoints(
+                                        newPoints.map((v) =>
+                                          v.key === key
+                                            ? { ...v, parent_id: value || "" }
+                                            : v,
+                                        ),
+                                      )
+                                    }
+                                    options={(points.data?.points || [])
+                                      .filter((v) => v.kind !== "point")
+                                      .map((v) => ({
+                                        value: v.id,
+                                        label: v.title,
+                                      }))}
+                                  />
+                                </Space>
+                              )}
+                              {!!p.reason && (
+                                <div className="live-meta">{p.reason}</div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </Space>
+                    </Card>
+                  )}
                   <Field className="ui-field" label={<>采纳说明</>}>
                     <Input
                       aria-label="采纳说明"
@@ -467,6 +584,31 @@ export function SourceSuggestions({ id }: { id: string }) {
                         .filter((_, idx) => outlineIdx.includes(idx))
                         .map((item) => item.title.trim())
                         .filter(Boolean);
+                      if (newPoints.length > 10) {
+                        setValidationError("单次新增知识点不能超过 10 个");
+                        return;
+                      }
+                      const preparedNewPoints: {
+                        title: string;
+                        parent_id: string;
+                        duplicate_of: string;
+                      }[] = [];
+                      for (const item of newPoints) {
+                        const cleanTitle = item.title.trim();
+                        if (
+                          !cleanTitle ||
+                          utf8ByteLength(cleanTitle) > 200 ||
+                          hasControlNull(cleanTitle)
+                        ) {
+                          setValidationError("新知识点名称不能为空且不超过 200 字节");
+                          return;
+                        }
+                        preparedNewPoints.push({
+                          title: cleanTitle,
+                          parent_id: item.parent_id,
+                          duplicate_of: item.duplicate_of,
+                        });
+                      }
                       setValidationError("");
                       const saved = await action.run(
                         `/sources/${id}/suggestions/adopt`,
@@ -476,6 +618,7 @@ export function SourceSuggestions({ id }: { id: string }) {
                           tags: normalizedTags,
                           knowledge_point_ids: dedupeStrings(pointIDs),
                           new_topics: cleanTags(newTopics),
+                          new_points: preparedNewPoints,
                           outline: selectedOutline,
                           reason: cleanReason,
                         },
@@ -1487,6 +1630,199 @@ export function PaperImport({
                   assets.error ||
                   (validationError ? new Error(validationError) : undefined)
                 }
+                message={action.message}
+                failed={action.failed}
+              />
+            </>
+          ),
+        },
+      ]}
+    />
+  );
+}
+
+type SectionRow = {
+  id: string;
+  position: number;
+  title: string;
+  relation: string;
+  fragment_ids: string[];
+  knowledge_point_id: string | null;
+  state: string;
+  reason: string;
+};
+
+const sectionStateLabel: Record<string, string> = {
+  proposed: "待教师确认",
+  accepted: "已接受",
+  rejected: "已驳回",
+};
+
+const sectionStateColor: Record<string, string> = {
+  proposed: "blue",
+  accepted: "green",
+  rejected: "red",
+};
+
+export function SourceSegments({ id }: { id: string }) {
+  const [open, setOpen] = useState(false);
+  const action = useAction();
+  const confirm = useConfirm();
+  const points = useLiveQuery<{ points: Point[] }>("", open && !!id);
+  const [rows, setRows] = useState<SectionRow[] | null>(null);
+  const saved = useLiveQuery<SectionRow[]>(
+    `/sources/${id}/sections`,
+    open && !!id,
+  );
+  const shown = rows ?? saved.data ?? [];
+
+  useEffect(() => {
+    setRows(null);
+  }, [id]);
+
+  return (
+    <Collapse
+      className="card-panel"
+      onChange={(keys) =>
+        setOpen(Array.isArray(keys) ? keys.length > 0 : Boolean(keys))
+      }
+      items={[
+        {
+          key: "sections",
+          label: <>内容切分（按章节或知识点）</>,
+          children: (
+            <>
+              <WorkflowJob
+                kind="source_segment"
+                target={{ source_id: id }}
+                onAdopt={async (_o, j) => {
+                  const v = await action.run<SectionRow[]>(
+                    `/sources/${id}/sections/adopt`,
+                    { job_id: j },
+                    "POST",
+                    "已保存 AI 内容切分方案（待教师确认）",
+                    { invalidatePrefixes: ["sources"] },
+                  );
+                  if (v) setRows(v);
+                }}
+              />
+              {shown.length > 0 && (
+                <div className="live-form" style={{ marginTop: 12 }}>
+                  {shown.map((r) => {
+                    const pointTitle = r.knowledge_point_id
+                      ? points.data?.points.find(
+                          (p) => p.id === r.knowledge_point_id,
+                        )?.title || r.knowledge_point_id
+                      : "";
+                    return (
+                      <Card key={r.id} size="small">
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 8,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <strong>
+                            {r.position + 1}. {r.title}
+                          </strong>
+                          <Space>
+                            <Tag color={sectionStateColor[r.state] || "default"}>
+                              {sectionStateLabel[r.state] || r.state}
+                            </Tag>
+                            {r.state === "accepted" && (
+                              <Button
+                                size="small"
+                                htmlType="button"
+                                disabled={action.busy}
+                                onClick={async () => {
+                                  if (
+                                    !(await confirm(
+                                      `确认将分段「${r.title}」（含 ${r.fragment_ids.length} 个片段）发布为学习资料？`,
+                                    ))
+                                  ) {
+                                    return;
+                                  }
+                                  await action.run(
+                                    `/sources/${id}/publish`,
+                                    {
+                                      title: r.title,
+                                      fragment_ids: r.fragment_ids,
+                                      knowledge_point_id:
+                                        r.knowledge_point_id || "",
+                                      full_source: false,
+                                    },
+                                    "POST",
+                                    `已将「${r.title}」发布为学习资料并排队索引`,
+                                    {
+                                      invalidatePrefixes: [
+                                        "resources",
+                                        "sources",
+                                        "jobs",
+                                      ],
+                                    },
+                                  );
+                                }}
+                              >
+                                发布为学习资料
+                              </Button>
+                            )}
+                          </Space>
+                        </div>
+                        <div className="live-meta" style={{ marginTop: 4 }}>
+                          {r.relation === "point"
+                            ? `对应知识点：${pointTitle}`
+                            : "仅顺序切分，不挂知识点"}
+                          {" · "}
+                          {r.fragment_ids.length} 个片段
+                        </div>
+                        {!!r.reason && (
+                          <div style={{ marginTop: 4 }}>{r.reason}</div>
+                        )}
+                      </Card>
+                    );
+                  })}
+                  <Space wrap>
+                    <Button
+                      htmlType="button"
+                      disabled={action.busy}
+                      onClick={async () => {
+                        const v = await action.run<SectionRow[]>(
+                          `/sources/${id}/sections/state`,
+                          { state: "accepted" },
+                          "POST",
+                          "已接受全部切分方案",
+                          { invalidatePrefixes: ["sources"] },
+                        );
+                        if (v) setRows(v);
+                      }}
+                      type="primary"
+                    >
+                      接受全部切分
+                    </Button>
+                    <Button
+                      htmlType="button"
+                      disabled={action.busy}
+                      onClick={async () => {
+                        const v = await action.run<SectionRow[]>(
+                          `/sources/${id}/sections/state`,
+                          { state: "rejected" },
+                          "POST",
+                          "已驳回当前切分，可重新生成并采纳替换",
+                          { invalidatePrefixes: ["sources"] },
+                        );
+                        if (v) setRows(v);
+                      }}
+                    >
+                      驳回全部
+                    </Button>
+                  </Space>
+                </div>
+              )}
+              <Feedback
+                error={saved.error || points.error}
                 message={action.message}
                 failed={action.failed}
               />

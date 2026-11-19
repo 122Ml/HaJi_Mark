@@ -54,7 +54,7 @@ import { formatLocator, labelFor, stateLabels } from "./domain-meta";
 import { DraftNotice, EditorScope, useEditorDraft } from "./editing";
 import { useLocationValue } from "./location-state";
 import { MaterialAssets } from "./material-assets";
-import { PaperImport, SourceSuggestions, URLImport } from "./material-assist";
+import { PaperImport, SourceSegments, SourceSuggestions, URLImport } from "./material-assist";
 import type {
   Fragment,
   Job,
@@ -498,7 +498,14 @@ export function MaterialsPage() {
           )}
           <Feedback message={action.message} failed={action.failed} />
           <JobsPanel
-            kinds={["parse", "index", "extract", "vision", "source_suggest"]}
+            kinds={[
+              "parse",
+              "index",
+              "extract",
+              "vision",
+              "source_suggest",
+              "source_segment",
+            ]}
           />
         </Space>
       </Drawer>
@@ -1167,6 +1174,7 @@ function SourceDocument({
       )}
       <ContentLinks kind="source" id={id} />
       {editable && <SourceSuggestions id={id} />}
+      {editable && <SourceSegments id={id} />}
       <MaterialAssets
         sourceID={id}
         revision={source.parse_revision}

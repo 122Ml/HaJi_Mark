@@ -253,8 +253,13 @@ func (h *Handler) adoptSuggestions(c *gin.Context) {
 		Tags      []string `json:"tags"`
 		NewTopics []string `json:"new_topics"`
 		Outline   []string `json:"outline"`
-		Reason    string   `json:"reason"`
-		PointIDs  []string `json:"knowledge_point_ids"`
+		NewPoints []struct {
+			Title       string `json:"title"`
+			ParentID    string `json:"parent_id"`
+			DuplicateOf string `json:"duplicate_of"`
+		} `json:"new_points"`
+		Reason   string   `json:"reason"`
+		PointIDs []string `json:"knowledge_point_ids"`
 	}
 	if !bind(c, &in) {
 		return
@@ -268,7 +273,7 @@ func (h *Handler) adoptSuggestions(c *gin.Context) {
 		invalid(c, "建议不属于此资料")
 		return
 	}
-	if len(in.NewTopics) > 10 || len(in.Outline) > 30 || len(in.Reason) > 5000 {
+	if len(in.NewTopics) > 10 || len(in.Outline) > 30 || len(in.NewPoints) > 10 || len(in.Reason) > 5000 {
 		invalid(c, "采纳范围过大")
 		return
 	}
@@ -318,6 +323,71 @@ func (h *Handler) adoptSuggestions(c *gin.Context) {
 		}
 		in.TopicIDs = append(in.TopicIDs, t.ID)
 	}
+	if len(in.NewPoints) > 0 {
+		points, e := q.ListBusinessPoints(ctx, src.CourseID)
+		if e != nil {
+			result(c, nil, e)
+			return
+		}
+		kinds := map[string]string{}
+		byTitle := map[string]string{}
+		maxPos := int32(0)
+		for _, p := range points {
+			kinds[p.ID] = p.Kind
+			if p.Kind == "point" {
+				byTitle[pointTitleKey(p.Title)] = p.ID
+			}
+			if p.Position > maxPos {
+				maxPos = p.Position
+			}
+		}
+		selected := map[string]bool{}
+		for _, id := range in.PointIDs {
+			selected[id] = true
+		}
+		for _, np := range in.NewPoints {
+			title := strings.TrimSpace(np.Title)
+			if !validText(title, 200) {
+				invalid(c, "新知识点名称不能为空且不超过200字节")
+				return
+			}
+			if np.ParentID != "" && kinds[np.ParentID] != "chapter" && kinds[np.ParentID] != "section" {
+				invalid(c, "新知识点的上级目录须为本课程的章或节")
+				return
+			}
+			target := ""
+			if np.DuplicateOf != "" {
+				if kinds[np.DuplicateOf] != "point" {
+					invalid(c, "合并目标须为本课程知识点")
+					return
+				}
+				target = np.DuplicateOf
+			} else if id, ok := byTitle[pointTitleKey(title)]; ok {
+				target = id
+			} else {
+				maxPos++
+				v, e := q.AddBusinessPoint(ctx, store.AddBusinessPointParams{
+					ID:       uuid.NewString(),
+					CourseID: src.CourseID,
+					Title:    title,
+					Position: maxPos,
+					ParentID: text(np.ParentID),
+					Kind:     "point",
+				})
+				if e != nil {
+					result(c, nil, e)
+					return
+				}
+				byTitle[pointTitleKey(title)] = v.ID
+				kinds[v.ID] = "point"
+				target = v.ID
+			}
+			if !selected[target] {
+				selected[target] = true
+				in.PointIDs = append(in.PointIDs, target)
+			}
+		}
+	}
 	if e = replaceLinks(ctx, q, src.CourseID, "source", src.ID, in.TopicIDs, in.Tags, in.PointIDs); e != nil {
 		ragError(c, e)
 		return
@@ -357,4 +427,8 @@ func (h *Handler) adoptSuggestions(c *gin.Context) {
 		return
 	}
 	result(c, decision, tx.Commit(ctx))
+}
+
+func pointTitleKey(s string) string {
+	return strings.Join(strings.Fields(strings.ToLower(strings.TrimSpace(s))), "")
 }

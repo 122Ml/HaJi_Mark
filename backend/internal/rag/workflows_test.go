@@ -93,23 +93,57 @@ func TestSuggestionReferencesStayInInput(t *testing.T) {
 		"course_points":   []map[string]string{{"id": "p", "kind": "point"}, {"id": "ch", "kind": "chapter"}},
 		"known_knowledge": []map[string]string{{"id": "k"}},
 	}
-	raw := `{"outline":[{"title":"章节","fragment_ids":["f"]}],"topic_ids":["t"],"knowledge_point_ids":["p"],"similar_knowledge_ids":["k"],"new_topic_names":[],"tags":[],"reason":"原文依据"}`
+	raw := `{"outline":[{"title":"章节","fragment_ids":["f"]}],"topic_ids":["t"],"knowledge_point_ids":["p"],"similar_knowledge_ids":["k"],"new_topic_names":[],"new_points":[],"tags":[],"reason":"原文依据"}`
+	withPoint := `{"outline":[{"title":"章节","fragment_ids":["f"]}],"topic_ids":["t"],"knowledge_point_ids":["p"],"similar_knowledge_ids":["k"],"new_topic_names":[],"new_points":[{"title":"新知识点","parent_id":"ch","duplicate_of":"","reason":"原文依据"}],"tags":[],"reason":"原文依据"}`
 	for _, tc := range []struct {
 		name, body string
 		valid      bool
 	}{
 		{"valid", raw, true},
+		{"valid new point under chapter", withPoint, true},
 		{"chapter rejected", strings.Replace(raw, `["p"]`, `["ch"]`, 1), false},
 		{"foreign topic", strings.Replace(raw, `["t"]`, `["foreign"]`, 1), false},
 		{"foreign fragment", strings.Replace(raw, `["f"]`, `["foreign"]`, 1), false},
 		{"missing field", strings.Replace(raw, `"tags":[],`, "", 1), false},
+		{"missing new points", strings.Replace(raw, `"new_points":[],`, "", 1), false},
 		{"duplicate id", strings.Replace(raw, `["p"]`, `["p","p"]`, 1), false},
+		{"new point under a point", strings.Replace(withPoint, `"parent_id":"ch"`, `"parent_id":"p"`, 1), false},
+		{"new point merge target is chapter", strings.Replace(withPoint, `"duplicate_of":""`, `"duplicate_of":"ch"`, 1), false},
+		{"new point empty title", strings.Replace(withPoint, `"title":"新知识点"`, `"title":""`, 1), false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var out map[string]json.RawMessage
 			_ = json.Unmarshal([]byte(tc.body), &out)
 			if (validateSuggestions(out, payload) == nil) != tc.valid {
 				t.Fatal("unexpected validation result")
+			}
+		})
+	}
+}
+
+func TestValidateSegmentsExactPartition(t *testing.T) {
+	payload := map[string]any{
+		"fragments":     []map[string]string{{"id": "f1"}, {"id": "f2"}},
+		"course_points": []map[string]string{{"id": "p", "kind": "point"}, {"id": "ch", "kind": "chapter"}},
+	}
+	valid := `{"segments":[{"title":"第一部分","relation":"point","fragment_ids":["f1"],"knowledge_point_id":"p","reason":"对应知识点"},{"title":"第二部分","relation":"sequence","fragment_ids":["f2"],"knowledge_point_id":"","reason":"顺承衔接"}]}`
+	for _, tc := range []struct {
+		name, body string
+		wantValid  bool
+	}{
+		{"valid partition", valid, true},
+		{"missing fragment", `{"segments":[{"title":"只有第一部分","relation":"sequence","fragment_ids":["f1"],"knowledge_point_id":"","reason":"缺第二段"}]}`, false},
+		{"duplicate fragment", strings.Replace(valid, `"fragment_ids":["f2"]`, `"fragment_ids":["f1","f2"]`, 1), false},
+		{"foreign fragment", strings.Replace(valid, `"f2"`, `"f3"`, 1), false},
+		{"non-point target", strings.Replace(valid, `"knowledge_point_id":"p"`, `"knowledge_point_id":"ch"`, 1), false},
+		{"sequence with point id", `{"segments":[{"title":"第一部分","relation":"sequence","fragment_ids":["f1","f2"],"knowledge_point_id":"p","reason":"冲突"}]}`, false},
+		{"empty title", strings.Replace(valid, `"第一部分"`, `"   "`, 1), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var out map[string]json.RawMessage
+			_ = json.Unmarshal([]byte(tc.body), &out)
+			if (validateSegments(out, payload) == nil) != tc.wantValid {
+				t.Fatal("unexpected segment validation result")
 			}
 		})
 	}

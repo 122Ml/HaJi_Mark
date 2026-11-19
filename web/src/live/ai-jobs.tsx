@@ -153,6 +153,7 @@ const ACTION_BUTTON_LABELS: Record<string, string> = {
   bank_rubric: "题库标准起草",
   vision: "识别所选图像",
   source_suggest: "生成编排建议",
+  source_segment: "按知识点切分内容",
   knowledge_compare: "比较相关知识",
   paper_split: "拆分题卷",
 };
@@ -165,6 +166,7 @@ export type AIJobKind =
   | "bank_rubric"
   | "vision"
   | "source_suggest"
+  | "source_segment"
   | "knowledge_compare"
   | "paper_split";
 
@@ -185,7 +187,7 @@ export function AIJobRunner({
   const [model, setModel] = useState("");
   const [selectedJobID, setSelectedJobID] = useState("");
   const isBank = ["question_generate", "question_analyze", "bank_rubric"].includes(kind);
-  const isWorkflow = ["vision", "source_suggest", "knowledge_compare", "paper_split"].includes(kind);
+  const isWorkflow = ["vision", "source_suggest", "source_segment", "knowledge_compare", "paper_split"].includes(kind);
 
   const filterKeys = isWorkflow
     ? ["source_id", "knowledge_id", "asset_id"]

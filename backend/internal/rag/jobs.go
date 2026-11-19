@@ -289,7 +289,7 @@ func (s *Service) Process(ctx context.Context, t *asynq.Task) error {
 			output, e = s.Draft(jobCtx, j, in)
 		case "question_generate", "question_analyze", "bank_rubric":
 			output, e = s.BankDraft(jobCtx, j, in)
-		case "source_suggest", "knowledge_compare", "paper_split":
+		case "source_suggest", "source_segment", "knowledge_compare", "paper_split":
 			output, e = s.WorkflowDraft(jobCtx, j, in)
 		case "vision":
 			output, e = s.Vision(jobCtx, j, in)

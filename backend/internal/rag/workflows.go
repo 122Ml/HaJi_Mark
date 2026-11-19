@@ -192,8 +192,23 @@ func (s *Service) WorkflowDraft(ctx context.Context, j store.ProcessingJob, in J
 			}
 			payload["known_knowledge"] = summary
 			payload["retrieval_mode"] = mode
-			instruction = `根据有限摘录提出目录、分类、专题和知识点关联建议，不修改已有目录，不自动创建专题。识别与known_knowledge可能相似的知识，仅作比较入口。返回 {"outline":[{"title":"","fragment_ids":[]}],"topic_ids":[],"new_topic_names":[],"tags":[],"knowledge_point_ids":[],"similar_knowledge_ids":[],"reason":"概括依据和不确定性","review_status":"pending_teacher_review"}。所有id必须来自输入。`
-			instruction += `无可靠建议时对应字段必须返回空数组，不生成空标题目录。knowledge_point_ids只能取course_points中kind=point的id，绝不能使用fragment的id；topic_ids只能取topics的id，similar_knowledge_ids只能取known_knowledge的id。`
+			instruction = `根据有限摘录提出目录、分类、专题、知识点关联和新知识点建议，不修改已有目录，不自动创建专题或知识点。识别与known_knowledge可能相似的知识，仅作比较入口。返回 {"outline":[{"title":"","fragment_ids":[]}],"topic_ids":[],"new_topic_names":[],"new_points":[{"title":"","parent_id":"","duplicate_of":"","reason":""}],"tags":[],"knowledge_point_ids":[],"similar_knowledge_ids":[],"reason":"概括依据和不确定性","review_status":"pending_teacher_review"}。所有id必须来自输入。`
+			instruction += `无可靠建议时对应字段必须返回空数组，不生成空标题目录。knowledge_point_ids只能取course_points中kind=point的id，绝不能使用fragment的id；topic_ids只能取topics的id，similar_knowledge_ids只能取known_knowledge的id。new_points最多10条且只作候选，须教师逐条勾选后才创建：title为拟建知识点名称，不超过200字节，不得与course_points已有标题重复或仅措辞不同；parent_id只能取course_points中kind=chapter或section的id，不确定时返回空字符串；duplicate_of只在发现与course_points中kind=point的条目语义等价时填该id，否则返回空字符串。`
+		} else if j.Kind == "source_segment" {
+			if len(fs) > 120 {
+				return nil, errors.New("原件片段超过120段上限，请先拆分原件后再切分")
+			}
+			excerpts := append([]store.MaterialFragment(nil), fs...)
+			for i := range excerpts {
+				v := []rune(excerpts[i].Body)
+				if len(v) > 400 {
+					excerpts[i].Body = string(v[:400])
+				}
+			}
+			payload["fragments"] = excerpts
+			payload["excerpt_only"] = true
+			instruction = `把输入片段按内容切成若干连续段，覆盖全部片段，每个片段只能出现一次，顺序与输入一致。course_points只用于判断关联，不用于改写原文。返回 {"segments":[{"title":"本段主题","relation":"point|sequence","fragment_ids":[],"knowledge_point_id":"","reason":"切分依据"}],"review_status":"pending_teacher_review"}。`
+			instruction += `relation=point表示本段内容明确对应某个已有知识点，此时knowledge_point_id只能取course_points中kind=point的id；relation=sequence表示只是前后顺序不同、没有明确对应知识点，此时knowledge_point_id必须为空字符串。段数不超过50，标题不超过200字节。不得遗漏片段，不得重复片段，不得引用未提供的片段或知识点。`
 		} else if j.Kind == "paper_split" {
 			instruction = `将原卷拆为单选quiz、主观subjective、代码文本code候选，跨页题必须合并，不执行代码。每个fragment必须归题或excluded说明。保留公式、图片资产id。原卷无答案则reference_answer/correct_answer留空、answer_origin=missing；有则逐字提取reference_answer且answer_origin=extracted，不自行解题。缺失分值暂用1并在uncertain要求教师确认。返回 {"questions":[{"title":"题号与名称","prompt":"完整题干","type":"subjective","max_score":1,"options":[],"correct_answer":"","reference_answer":"","answer_origin":"missing","source_fragment_ids":[],"asset_ids":[],"uncertain":[]}],"excluded":[{"fragment_id":"","reason":"公共说明/原卷答案/页预览等"}],"review_status":"pending_teacher_review"}。`
 		} else {
@@ -220,6 +235,11 @@ func (s *Service) WorkflowDraft(ctx context.Context, j store.ProcessingJob, in J
 	}
 	if j.Kind == "source_suggest" {
 		if e = validateSuggestions(out, payload); e != nil {
+			return failed, e
+		}
+	}
+	if j.Kind == "source_segment" {
+		if e = validateSegments(out, payload); e != nil {
 			return failed, e
 		}
 	}
@@ -355,9 +375,113 @@ func validateSuggestions(out map[string]json.RawMessage, payload map[string]any)
 			}
 		}
 	}
+	var newPoints []struct {
+		Title       string `json:"title"`
+		ParentID    string `json:"parent_id"`
+		DuplicateOf string `json:"duplicate_of"`
+		Reason      string `json:"reason"`
+	}
+	if json.Unmarshal(out["new_points"], &newPoints) != nil || newPoints == nil || len(newPoints) > 10 {
+		return errors.New("新知识点建议格式无效")
+	}
+	kinds := map[string]string{}
+	var pointRows []struct {
+		ID   string `json:"id"`
+		Kind string `json:"kind"`
+	}
+	rawPoints, _ := json.Marshal(payload["course_points"])
+	_ = json.Unmarshal(rawPoints, &pointRows)
+	for _, row := range pointRows {
+		kinds[row.ID] = row.Kind
+	}
+	seenPointTitles := map[string]bool{}
+	for _, p := range newPoints {
+		title := strings.TrimSpace(p.Title)
+		if title == "" || len(title) > 200 || strings.ContainsRune(title, '\x00') || seenPointTitles[normalizeTitle(title)] {
+			return errors.New("新知识点建议标题为空、过长或重复")
+		}
+		seenPointTitles[normalizeTitle(title)] = true
+		if p.ParentID != "" && kinds[p.ParentID] != "chapter" && kinds[p.ParentID] != "section" {
+			return errors.New("新知识点建议的上级目录不在本课程")
+		}
+		if p.DuplicateOf != "" && kinds[p.DuplicateOf] != "point" {
+			return errors.New("新知识点建议的合并目标无效")
+		}
+		if len(p.Reason) > 500 {
+			return errors.New("新知识点建议依据过长")
+		}
+	}
 	var reason string
 	if json.Unmarshal(out["reason"], &reason) != nil || strings.TrimSpace(reason) == "" || len(reason) > 10000 {
 		return errors.New("归类建议缺少依据")
+	}
+	return nil
+}
+
+func normalizeTitle(s string) string {
+	return strings.Join(strings.Fields(strings.ToLower(strings.TrimSpace(s))), "")
+}
+
+// A split is only accepted when it is an exact partition of the input fragments.
+func validateSegments(out map[string]json.RawMessage, payload map[string]any) error {
+	var rows []struct {
+		Title       string   `json:"title"`
+		Relation    string   `json:"relation"`
+		FragmentIDs []string `json:"fragment_ids"`
+		PointID     string   `json:"knowledge_point_id"`
+		Reason      string   `json:"reason"`
+	}
+	if json.Unmarshal(out["segments"], &rows) != nil || len(rows) == 0 || len(rows) > 50 {
+		return errors.New("切分结果缺失、格式无效或段数超限")
+	}
+	fragments := map[string]bool{}
+	rawFragments, _ := json.Marshal(payload["fragments"])
+	var fs []struct {
+		ID string `json:"id"`
+	}
+	_ = json.Unmarshal(rawFragments, &fs)
+	for _, f := range fs {
+		fragments[f.ID] = true
+	}
+	points := map[string]bool{}
+	rawPoints, _ := json.Marshal(payload["course_points"])
+	var ps []struct {
+		ID   string `json:"id"`
+		Kind string `json:"kind"`
+	}
+	_ = json.Unmarshal(rawPoints, &ps)
+	for _, p := range ps {
+		if p.Kind == "point" {
+			points[p.ID] = true
+		}
+	}
+	seen := map[string]bool{}
+	for _, r := range rows {
+		title := strings.TrimSpace(r.Title)
+		if title == "" || len(title) > 200 || strings.ContainsRune(title, '\x00') || len(r.FragmentIDs) == 0 {
+			return errors.New("切分段缺少标题或片段")
+		}
+		if len(r.Reason) > 1000 {
+			return errors.New("切分依据过长")
+		}
+		if r.Relation != "point" && r.Relation != "sequence" {
+			return errors.New("切分段关联方式无效")
+		}
+		if r.Relation == "point" && !points[r.PointID] {
+			return errors.New("切分段引用了范围外知识点")
+		}
+		if r.Relation == "sequence" && r.PointID != "" {
+			return errors.New("顺序切分段不能指定知识点")
+		}
+		for _, id := range r.FragmentIDs {
+			if !fragments[id] || seen[id] {
+				return errors.New("切分片段重复或超出输入范围")
+			}
+			seen[id] = true
+		}
+	}
+	if len(seen) != len(fragments) {
+		return errors.New("切分未覆盖全部片段")
 	}
 	return nil
 }

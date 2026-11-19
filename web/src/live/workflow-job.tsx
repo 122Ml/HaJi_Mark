@@ -3,6 +3,7 @@ import { AIJobRunner } from "./ai-jobs";
 export type WorkflowJobKind =
   | "vision"
   | "source_suggest"
+  | "source_segment"
   | "knowledge_compare"
   | "paper_split";
 

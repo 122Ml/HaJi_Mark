@@ -185,6 +185,24 @@ type ContentDecision struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type ContentSection struct {
+	ID               string             `json:"id"`
+	CourseID         string             `json:"course_id"`
+	SourceID         string             `json:"source_id"`
+	Revision         int32              `json:"revision"`
+	Position         int32              `json:"position"`
+	Title            string             `json:"title"`
+	Relation         string             `json:"relation"`
+	FragmentIds      []string           `json:"fragment_ids"`
+	KnowledgePointID pgtype.Text        `json:"knowledge_point_id"`
+	TimeStartMs      int32              `json:"time_start_ms"`
+	TimeEndMs        int32              `json:"time_end_ms"`
+	Reason           string             `json:"reason"`
+	State            string             `json:"state"`
+	EditVersion      int32              `json:"edit_version"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+}
+
 type ContentTag struct {
 	CourseID          string   `json:"course_id"`
 	ObjectKind        string   `json:"object_kind"`

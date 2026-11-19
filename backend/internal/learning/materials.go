@@ -71,6 +71,9 @@ func (h *Handler) registerRAG(g *gin.RouterGroup, auth *identity.Handler) {
 	t.GET("/jobs/:jobID", h.job)
 	t.POST("/jobs/:jobID/cancel", auth.RequireCSRF(), h.cancelJob)
 	t.POST("/jobs/:jobID/retry", auth.RequireCSRF(), h.retryJob)
+	t.GET("/sources/:sourceID/sections", h.sections)
+	t.POST("/sources/:sourceID/sections/adopt", auth.RequireCSRF(), h.adoptSegments)
+	t.POST("/sources/:sourceID/sections/state", auth.RequireCSRF(), h.sectionsState)
 	g.POST("/retrieval", auth.RequireCSRF(), h.retrieval)
 	g.GET("/retrieval/status", h.retrievalStatus)
 }
@@ -859,7 +862,7 @@ func (h *Handler) createRAGJob(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	if in.Kind == "source_suggest" || in.Kind == "knowledge_compare" || in.Kind == "paper_split" || in.Kind == "vision" {
+	if in.Kind == "source_suggest" || in.Kind == "source_segment" || in.Kind == "knowledge_compare" || in.Kind == "paper_split" || in.Kind == "vision" {
 		h.createWorkflowJob(c, in.Kind, in.JobInput)
 		return
 	}

@@ -4,7 +4,7 @@
 
 ## 打开与登录
 
-[教师工作台](https://hajistudy.online/teacher/dashboard?course=4ff04beb-fc6b-476e-809f-eeeef50e7886) · [学生工作台](https://hajistudy.online/student/home?course=4ff04beb-fc6b-476e-809f-eeeef50e7886)。使用既有jiaoshi和xuesheng账号，密码保持原设置。旧测试课程链接已失效，使用以上链接直接进入演示课程。
+[教师工作台](https://hajistudy.online/teacher/dashboard?course=4ff04beb-fc6b-476e-809f-eeeef50e7886) · [学生工作台](https://hajistudy.online/student/home?course=4ff04beb-fc6b-476e-809f-eeeef50e7886)。使用教师账号te和学生账号st；2026-11-19已按用户要求与本地凭据对齐，密码仅保存在私密账号文件中。旧测试课程链接已失效，使用以上链接直接进入演示课程。
 
 ## 推荐演示顺序
 

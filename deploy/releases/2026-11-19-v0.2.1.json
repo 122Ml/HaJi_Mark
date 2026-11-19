@@ -1,0 +1,61 @@
+{
+  "observed_date": "2026-11-19",
+  "release_id": "hajimark-v0_2_1-20261119",
+  "source_tag": "v0.2.1",
+  "source_commit": "2a86b5d6cf6e1a38fa5fd55fd6b09e3fc9118351",
+  "github_branch": "codex/platform-completion",
+  "previous_release": "hajimark-v0_2_0-20261119-r2",
+  "images": [
+    {
+      "tag": "hajimark-postgres:v0_2_1-20261119",
+      "local_image_id": "sha256:d128ec774468cbb24b655c5f7f91f9dc4006a8c95040d6478fbe29c3ed46acbc",
+      "config_id": "sha256:f79f9270bbe07d1be455f15bd54cd98dec563064fe1cced44a581cddf89c3b3c",
+      "revision": "2a86b5d6cf6e1a38fa5fd55fd6b09e3fc9118351"
+    },
+    {
+      "tag": "hajimark-backend:v0_2_1-20261119",
+      "local_image_id": "sha256:598e413dc759413881f4554fd404cd17ab1be004e9d27bebb1c55fc0bcba6905",
+      "config_id": "sha256:ab0a95fc32bff79ccc81dc150973c8ac9983620d584c29e8f2f7e44ccbf1c570",
+      "revision": "2a86b5d6cf6e1a38fa5fd55fd6b09e3fc9118351"
+    },
+    {
+      "tag": "hajimark-worker:v0_2_1-20261119",
+      "local_image_id": "sha256:b774ceaf1029fa6164ce9e1fbba952b72268e44022ea9901faf95bdb9b050d87",
+      "config_id": "sha256:8222c46eb7ed48a5966249500e2e5bc7aab4809e53ab63491d5da85e958395c9",
+      "revision": "2a86b5d6cf6e1a38fa5fd55fd6b09e3fc9118351"
+    },
+    {
+      "tag": "hajimark-web:v0_2_1-20261119",
+      "local_image_id": "sha256:8c45aad641caa94963f6191057aa020dab51aa2e097e5cd4292454ddd290a222",
+      "config_id": "sha256:d930c3d6875145370ab09b2952cc1c43e3197160a2c17a92109cb674433e9021",
+      "revision": "2a86b5d6cf6e1a38fa5fd55fd6b09e3fc9118351"
+    }
+  ],
+  "images_archive_sha256": "8f44142dbad6eb3fd84d0c4e9b4af6a3726247ecc1a75de0884e8675b8e6cc26",
+  "migration": 17,
+  "pgvector_version": "0.8.7",
+  "database_preservation": {
+    "tables_with_existing_column_fingerprints": 54,
+    "mismatches": 0,
+    "users": 9,
+    "courses": 1,
+    "submissions": 27,
+    "grading_revisions": 25
+  },
+  "pre_switch_backup": "/opt/hajimark/backups/hajimark-20261119T123136Z.dump",
+  "models_configured": false,
+  "rag_business_routes_enabled": true,
+  "paid_calls_enabled": false,
+  "public_web_assets": {
+    "js": "/assets/index-C9slcqB4.js",
+    "css": "/assets/index-COw5-Ias.css",
+    "match_container": true
+  },
+  "container_oom": false,
+  "container_restarts": 0,
+  "urls": {
+    "application": "https://hajistudy.online/login",
+    "health": "https://hajistudy.online/api/v1/health/ready",
+    "diagrams": "https://hajistudy.online/diagrams/"
+  }
+}

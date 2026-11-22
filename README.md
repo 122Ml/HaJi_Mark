@@ -1,6 +1,6 @@
 # HaJi Mark · 智能学习平台
 
-2026-11-20 凌晨：最新 `v0.2.3`（`3747368`，`hajimark-v0_2_3-20261120`，合入全量审计加固、迁移 `00019`、`RapidOCR` 内存上限控制、Nginx/OpenResty 安全头与流式代理修复及全端隐患清零）已发布至[实际平台](https://hajistudy.online/login)，GitHub 分支 `codex/platform-completion` 与标签 `v0.2.3` 已同步；原账号和演示数据保留，公网未配置模型密钥（详见 [v0.2.3 收据](deploy/releases/2026-11-20-v0.2.3.json)，历史 [v0.2.2 收据](deploy/releases/2026-11-19-v0.2.2.json) 保留）。此前 `v0.2.0` 与[图册总入口](https://hajistudy.online/diagrams/)发布范围见[同步记录](deploy/sync-2026-11-19.md)，下列带日期的旧发布状态保留为历史。
+2026-11-23 凌晨：最新 `v0.2.4`（`abbf55d`，`hajimark-v0_2_4-20261123`，合入迁移 `00020` 性能覆盖索引、视频分段与知识点片段查询 `pointClips`、华为云模型配置档案、前端分包优化、Nginx/OpenResty 流式传输同步及全端 UI 视觉一致性修复）已发布至[实际平台](https://hajistudy.online/login)，GitHub 分支 `codex/platform-completion` 与标签 `v0.2.4` 已同步；保留原演示课程与全部 9 账号并无损新增《智能软件工程（2026秋）》（`50640a78-1886-475e-9dbe-08518905df36`）闭环课程数据，公网仍未配置模型密钥（详见 [v0.2.4 收据](deploy/releases/2026-11-23-v0.2.4.json)，历史 [v0.2.3 收据](deploy/releases/2026-11-20-v0.2.3.json) 与 [v0.2.2 收据](deploy/releases/2026-11-19-v0.2.2.json) 保留）。此前 `v0.2.0` 与[图册总入口](https://hajistudy.online/diagrams/)发布范围见[同步记录](deploy/sync-2026-11-19.md)，下列带日期的旧发布状态保留为历史。
 
 第6组智能软件工程课程项目。学生完成学习、作业测验、反馈与补学；教师维护课程、查看证据、评分和干预复查。资料解析、知识库和 RAG 模型链路已接入本地可选配置；公网发布版本与模型配置以本轮同步记录的直接观测为准。
 

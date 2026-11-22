@@ -7,6 +7,7 @@ import {
   Collapse,
   Form,
   Input,
+  InputNumber,
   Select,
   Space,
   Tag,
@@ -17,10 +18,10 @@ import { EmptyState, MetaTag, MetaTags } from "../shared/ui";
 import { Feedback, Link, useAction, useLearning, useLiveQuery } from "./context";
 import { RichContent } from "./content-render";
 import { type TopicData } from "./content-topics";
-import { ASSET_KIND_LABELS } from "./domain-meta";
+import { ASSET_KIND_LABELS, formatTimeRangeMs } from "./domain-meta";
 import { DraftNotice, useEditorDraft } from "./editing";
 import { IntegerInput } from "./shared-editors";
-import type { Job, Point } from "./types";
+import type { ContentSection, Job, Point } from "./types";
 import { cleanTags, dedupeStrings, hasControlNull, isValidHTTPUrl, utf8ByteLength } from "./validation";
 import { WorkflowJob } from "./workflow-job";
 
@@ -1608,17 +1609,6 @@ export function PaperImport({
   );
 }
 
-type SectionRow = {
-  id: string;
-  position: number;
-  title: string;
-  relation: string;
-  fragment_ids: string[];
-  knowledge_point_id: string | null;
-  state: string;
-  reason: string;
-};
-
 const sectionStateLabel: Record<string, string> = {
   proposed: "待教师确认",
   accepted: "已接受",
@@ -1631,13 +1621,33 @@ const sectionStateColor: Record<string, string> = {
   rejected: "red",
 };
 
-export function SourceSegments({ id }: { id: string }) {
+type SectionDraft = {
+  title: string;
+  relation: string;
+  knowledge_point_id: string;
+  startSec: number;
+  endSec: number;
+  reason: string;
+};
+
+export function SourceSegments({
+  id,
+  onSeek,
+  parseRevision,
+}: {
+  id: string;
+  onSeek?: (ms: number) => void;
+  parseRevision?: number;
+}) {
   const [open, setOpen] = useState(false);
   const action = useAction();
   const confirm = useConfirm();
   const points = useLiveQuery<{ points: Point[] }>("", open && !!id);
-  const [rows, setRows] = useState<SectionRow[] | null>(null);
-  const saved = useLiveQuery<SectionRow[]>(
+  const [rows, setRows] = useState<ContentSection[] | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<SectionDraft | null>(null);
+  const [editError, setEditError] = useState("");
+  const saved = useLiveQuery<ContentSection[]>(
     `/sources/${id}/sections`,
     open && !!id,
   );
@@ -1645,7 +1655,108 @@ export function SourceSegments({ id }: { id: string }) {
 
   useEffect(() => {
     setRows(null);
-  }, [id]);
+    setEditingId(null);
+    setDraft(null);
+    setEditError("");
+  }, [id, parseRevision]);
+
+  const pointOptions = useMemo(
+    () =>
+      (points.data?.points || [])
+        .filter((p) => p.kind === "point")
+        .map((p) => ({ value: p.id, label: p.title })),
+    [points.data?.points],
+  );
+
+  function toggleEdit(r: ContentSection) {
+    if (editingId === r.id) {
+      setEditingId(null);
+      setDraft(null);
+      setEditError("");
+      return;
+    }
+    setEditingId(r.id);
+    setEditError("");
+    setDraft({
+      title: r.title,
+      relation: r.relation || "sequence",
+      knowledge_point_id: r.knowledge_point_id || "",
+      startSec: Math.round(r.time_start_ms || 0) / 1000,
+      endSec: Math.round(r.time_end_ms || 0) / 1000,
+      reason: r.reason || "",
+    });
+  }
+
+  async function saveEdit(r: ContentSection) {
+    if (!draft) return;
+    const trimmedTitle = draft.title.trim();
+    const trimmedReason = draft.reason.trim();
+    if (
+      !trimmedTitle ||
+      utf8ByteLength(trimmedTitle) > 200 ||
+      hasControlNull(trimmedTitle)
+    ) {
+      setEditError("分段标题不能为空且不能超过 200 字节");
+      return;
+    }
+    if (draft.relation === "point" && !draft.knowledge_point_id) {
+      setEditError("选择关联知识点时必须指定知识点");
+      return;
+    }
+    if (
+      utf8ByteLength(trimmedReason) > 1000 ||
+      hasControlNull(trimmedReason)
+    ) {
+      setEditError("切分说明不能超过 1000 字节或包含非法字符");
+      return;
+    }
+    const showTime =
+      Boolean(onSeek) || r.time_end_ms > 0 || r.time_start_ms > 0;
+    const timeStartMs = showTime
+      ? Math.max(0, Math.round(draft.startSec * 1000))
+      : r.time_start_ms;
+    const timeEndMs = showTime
+      ? Math.max(0, Math.round(draft.endSec * 1000))
+      : r.time_end_ms;
+    if (
+      showTime &&
+      !(timeStartMs === 0 && timeEndMs === 0) &&
+      timeEndMs <= timeStartMs
+    ) {
+      setEditError("结束时间必须大于开始时间（或同时设为 0）");
+      return;
+    }
+    setEditError("");
+    const updated = await action.run<ContentSection | ContentSection[]>(
+      `/sources/${id}/sections/${r.id}`,
+      {
+        title: trimmedTitle,
+        relation: draft.relation,
+        knowledge_point_id:
+          draft.relation === "point" ? draft.knowledge_point_id : "",
+        time_start_ms: timeStartMs,
+        time_end_ms: timeEndMs,
+        reason: trimmedReason,
+        edit_version: r.edit_version,
+      },
+      "PUT",
+      "已保存切分修改",
+      { invalidatePrefixes: ["sources"] },
+    );
+    if (updated) {
+      if (Array.isArray(updated)) {
+        setRows(updated);
+      } else {
+        setRows((prev) =>
+          (prev ?? saved.data ?? []).map((item) =>
+            item.id === r.id ? updated : item,
+          ),
+        );
+      }
+      setEditingId(null);
+      setDraft(null);
+    }
+  }
 
   return (
     <Collapse
@@ -1663,14 +1774,18 @@ export function SourceSegments({ id }: { id: string }) {
                 kind="source_segment"
                 target={{ source_id: id }}
                 onAdopt={async (_o, j) => {
-                  const v = await action.run<SectionRow[]>(
+                  const v = await action.run<ContentSection[]>(
                     `/sources/${id}/sections/adopt`,
                     { job_id: j },
                     "POST",
                     "已保存 AI 内容切分方案（待教师确认）",
                     { invalidatePrefixes: ["sources"] },
                   );
-                  if (v) setRows(v);
+                  if (v) {
+                    setRows(v);
+                    setEditingId(null);
+                    setDraft(null);
+                  }
                 }}
               />
               {shown.length > 0 && (
@@ -1681,6 +1796,17 @@ export function SourceSegments({ id }: { id: string }) {
                           (p) => p.id === r.knowledge_point_id,
                         )?.title || r.knowledge_point_id
                       : "";
+                    const timeLabel = formatTimeRangeMs(
+                      r.time_start_ms,
+                      r.time_end_ms,
+                    );
+                    const canEdit =
+                      r.state === "proposed" || r.state === "rejected";
+                    const isEditing = editingId === r.id && draft !== null;
+                    const showTimeControls =
+                      Boolean(onSeek) ||
+                      r.time_end_ms > 0 ||
+                      r.time_start_ms > 0;
                     return (
                       <Card key={r.id} size="small">
                         <div
@@ -1695,10 +1821,30 @@ export function SourceSegments({ id }: { id: string }) {
                           <strong>
                             {r.position + 1}. {r.title}
                           </strong>
-                          <Space>
+                          <Space wrap size="small">
+                            {timeLabel && <Tag color="purple">{timeLabel}</Tag>}
                             <Tag color={sectionStateColor[r.state] || "default"}>
                               {sectionStateLabel[r.state] || r.state}
                             </Tag>
+                            {onSeek && r.time_end_ms > r.time_start_ms && (
+                              <Button
+                                size="small"
+                                htmlType="button"
+                                onClick={() => onSeek(r.time_start_ms)}
+                              >
+                                跳转播放
+                              </Button>
+                            )}
+                            {canEdit && (
+                              <Button
+                                size="small"
+                                htmlType="button"
+                                disabled={action.busy}
+                                onClick={() => toggleEdit(r)}
+                              >
+                                {isEditing ? "取消编辑" : "编辑"}
+                              </Button>
+                            )}
                             {r.state === "accepted" && (
                               <Button
                                 size="small"
@@ -1720,6 +1866,9 @@ export function SourceSegments({ id }: { id: string }) {
                                       knowledge_point_id:
                                         r.knowledge_point_id || "",
                                       full_source: false,
+                                      ...(parseRevision !== undefined
+                                        ? { parse_revision: parseRevision }
+                                        : {}),
                                     },
                                     "POST",
                                     `已将「${r.title}」发布为学习资料并排队索引`,
@@ -1748,6 +1897,185 @@ export function SourceSegments({ id }: { id: string }) {
                         {!!r.reason && (
                           <div style={{ marginTop: 4 }}>{r.reason}</div>
                         )}
+                        {isEditing && draft && (
+                          <div className="live-form" style={{ marginTop: 12 }}>
+                            {editError && (
+                              <Alert
+                                type="error"
+                                showIcon
+                                role="alert"
+                                message={editError}
+                              />
+                            )}
+                            <Field
+                              className="ui-field"
+                              label={<>分段标题</>}
+                              required
+                            >
+                              <Input
+                                aria-label="分段标题"
+                                disabled={action.busy}
+                                value={draft.title}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setDraft((d) =>
+                                    d ? { ...d, title: val } : d,
+                                  );
+                                  if (editError) setEditError("");
+                                }}
+                              />
+                            </Field>
+                            <Field className="ui-field" label={<>关联方式</>}>
+                              <Select
+                                aria-label="分段关联方式"
+                                disabled={action.busy}
+                                value={draft.relation}
+                                onChange={(val) => {
+                                  setDraft((d) =>
+                                    d
+                                      ? {
+                                          ...d,
+                                          relation: val,
+                                          knowledge_point_id:
+                                            val === "point"
+                                              ? d.knowledge_point_id
+                                              : "",
+                                        }
+                                      : d,
+                                  );
+                                  if (editError) setEditError("");
+                                }}
+                                options={[
+                                  {
+                                    value: "sequence",
+                                    label: "仅顺序切分，不挂知识点",
+                                  },
+                                  { value: "point", label: "关联课程知识点" },
+                                ]}
+                              />
+                            </Field>
+                            {draft.relation === "point" && (
+                              <Field
+                                className="ui-field"
+                                label={<>关联知识点</>}
+                                required
+                              >
+                                <Select
+                                  aria-label="分段关联知识点"
+                                  disabled={action.busy}
+                                  showSearch
+                                  optionFilterProp="label"
+                                  placeholder="请选择知识点"
+                                  value={draft.knowledge_point_id || undefined}
+                                  onChange={(val) => {
+                                    setDraft((d) =>
+                                      d
+                                        ? {
+                                            ...d,
+                                            knowledge_point_id: val || "",
+                                          }
+                                        : d,
+                                    );
+                                    if (editError) setEditError("");
+                                  }}
+                                  options={pointOptions}
+                                />
+                              </Field>
+                            )}
+                            {showTimeControls && (
+                              <div className="live-inline">
+                                <Field
+                                  className="ui-field"
+                                  label={<>开始(秒)</>}
+                                >
+                                  <InputNumber
+                                    aria-label="开始(秒)"
+                                    disabled={action.busy}
+                                    min={0}
+                                    step={1}
+                                    value={draft.startSec}
+                                    onChange={(val) => {
+                                      setDraft((d) =>
+                                        d
+                                          ? {
+                                              ...d,
+                                              startSec:
+                                                typeof val === "number" &&
+                                                Number.isFinite(val)
+                                                  ? Math.max(0, val)
+                                                  : 0,
+                                            }
+                                          : d,
+                                      );
+                                      if (editError) setEditError("");
+                                    }}
+                                  />
+                                </Field>
+                                <Field
+                                  className="ui-field"
+                                  label={<>结束(秒)</>}
+                                >
+                                  <InputNumber
+                                    aria-label="结束(秒)"
+                                    disabled={action.busy}
+                                    min={0}
+                                    step={1}
+                                    value={draft.endSec}
+                                    onChange={(val) => {
+                                      setDraft((d) =>
+                                        d
+                                          ? {
+                                              ...d,
+                                              endSec:
+                                                typeof val === "number" &&
+                                                Number.isFinite(val)
+                                                  ? Math.max(0, val)
+                                                  : 0,
+                                            }
+                                          : d,
+                                      );
+                                      if (editError) setEditError("");
+                                    }}
+                                  />
+                                </Field>
+                              </div>
+                            )}
+                            <Field className="ui-field" label={<>切分说明</>}>
+                              <Input.TextArea
+                                aria-label="切分说明"
+                                disabled={action.busy}
+                                rows={2}
+                                value={draft.reason}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setDraft((d) =>
+                                    d ? { ...d, reason: val } : d,
+                                  );
+                                  if (editError) setEditError("");
+                                }}
+                              />
+                            </Field>
+                            <Space wrap size="small">
+                              <Button
+                                size="small"
+                                type="primary"
+                                htmlType="button"
+                                disabled={action.busy}
+                                onClick={() => void saveEdit(r)}
+                              >
+                                保存分段修改
+                              </Button>
+                              <Button
+                                size="small"
+                                htmlType="button"
+                                disabled={action.busy}
+                                onClick={() => toggleEdit(r)}
+                              >
+                                取消
+                              </Button>
+                            </Space>
+                          </div>
+                        )}
                       </Card>
                     );
                   })}
@@ -1756,14 +2084,18 @@ export function SourceSegments({ id }: { id: string }) {
                       htmlType="button"
                       disabled={action.busy}
                       onClick={async () => {
-                        const v = await action.run<SectionRow[]>(
+                        const v = await action.run<ContentSection[]>(
                           `/sources/${id}/sections/state`,
                           { state: "accepted" },
                           "POST",
                           "已接受全部切分方案",
                           { invalidatePrefixes: ["sources"] },
                         );
-                        if (v) setRows(v);
+                        if (v) {
+                          setRows(v);
+                          setEditingId(null);
+                          setDraft(null);
+                        }
                       }}
                       type="primary"
                     >
@@ -1797,14 +2129,18 @@ export function SourceSegments({ id }: { id: string }) {
                       htmlType="button"
                       disabled={action.busy}
                       onClick={async () => {
-                        const v = await action.run<SectionRow[]>(
+                        const v = await action.run<ContentSection[]>(
                           `/sources/${id}/sections/state`,
                           { state: "rejected" },
                           "POST",
                           "已驳回当前切分，可重新生成并采纳替换",
                           { invalidatePrefixes: ["sources"] },
                         );
-                        if (v) setRows(v);
+                        if (v) {
+                          setRows(v);
+                          setEditingId(null);
+                          setDraft(null);
+                        }
                       }}
                     >
                       驳回全部

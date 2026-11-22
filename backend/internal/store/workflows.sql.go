@@ -1389,7 +1389,7 @@ func (q *Queries) SaveRegradeItem(ctx context.Context, arg SaveRegradeItemParams
 }
 
 const searchQuestionBank = `-- name: SearchQuestionBank :many
-SELECT b.archived,v.id, v.bank_id, v.version, v.title, v.prompt, v.type, v.max_score, v.requirements, v.reference_answer, v.reference_state, v.options, v.correct_answer, v.knowledge_point_id, v.evidence_refs, v.state, v.created_by, v.created_at FROM question_bank b
+SELECT b.archived,v.id, v.bank_id, v.version, v.title, v.prompt, v.type, v.max_score, v.requirements, v.reference_answer, v.reference_state, v.options, v.correct_answer, v.knowledge_point_id, v.evidence_refs, v.state, v.created_by, v.created_at,count(*) OVER()::int AS total FROM question_bank b
 JOIN LATERAL(SELECT id, bank_id, version, title, prompt, type, max_score, requirements, reference_answer, reference_state, options, correct_answer, knowledge_point_id, evidence_refs, state, created_by, created_at FROM bank_question_versions bv WHERE bv.bank_id=b.id ORDER BY version DESC LIMIT 1) v ON true
 WHERE b.course_id=$1
 AND ($2::text='' OR strpos(lower(v.title||' '||v.prompt),lower($2))>0)
@@ -1430,6 +1430,7 @@ type SearchQuestionBankRow struct {
 	State            string             `json:"state"`
 	CreatedBy        string             `json:"created_by"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	Total            int32              `json:"total"`
 }
 
 func (q *Queries) SearchQuestionBank(ctx context.Context, arg SearchQuestionBankParams) ([]SearchQuestionBankRow, error) {
@@ -1469,6 +1470,7 @@ func (q *Queries) SearchQuestionBank(ctx context.Context, arg SearchQuestionBank
 			&i.State,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.Total,
 		); err != nil {
 			return nil, err
 		}

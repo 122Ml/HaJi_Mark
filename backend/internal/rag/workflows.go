@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
 	"strings"
 
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
@@ -152,6 +153,9 @@ func (s *Service) WorkflowDraft(ctx context.Context, j store.ProcessingJob, in J
 		if src.State != "active" || src.ParseRevision != in.ParseRevision {
 			return nil, errors.New("来源版本已变化，请重新生成")
 		}
+		if j.Kind == "paper_split" && IsVideoSource(src.MediaType, src.Filename) {
+			return nil, errors.New("视频资料不支持试卷拆题")
+		}
 		fs, e := s.Q.ListMaterialFragments(ctx, store.ListMaterialFragmentsParams{SourceID: src.ID, Revision: src.ParseRevision})
 		if e != nil {
 			return nil, e
@@ -173,10 +177,7 @@ func (s *Service) WorkflowDraft(ctx context.Context, j store.ProcessingJob, in J
 		payload = map[string]any{"source": src.Title, "fragments": fs, "assets": assets, "course_points": points, "topics": topics}
 		if j.Kind == "source_suggest" {
 			// Suggestions use representative bounded excerpts; extraction uses explicit full selections.
-			excerpts := append([]store.MaterialFragment(nil), fs...)
-			if len(excerpts) > 60 {
-				excerpts = excerpts[:60]
-			}
+			excerpts := sampleFragments(fs, 60)
 			for i := range excerpts {
 				v := []rune(excerpts[i].Body)
 				if len(v) > 350 {
@@ -214,10 +215,12 @@ func (s *Service) WorkflowDraft(ctx context.Context, j store.ProcessingJob, in J
 				return nil, errors.New("原件片段超过120段上限，请先拆分原件后再切分")
 			}
 			type segFragment struct {
-				ID       string `json:"id"`
-				Position int32  `json:"position"`
-				Heading  string `json:"heading"`
-				Body     string `json:"body"`
+				ID          string `json:"id"`
+				Position    int32  `json:"position"`
+				Heading     string `json:"heading"`
+				Body        string `json:"body"`
+				TimeStartMs int64  `json:"time_start_ms,omitempty"`
+				TimeEndMs   int64  `json:"time_end_ms,omitempty"`
 			}
 			excerpts := make([]segFragment, len(fs))
 			for i, f := range fs {
@@ -226,11 +229,23 @@ func (s *Service) WorkflowDraft(ctx context.Context, j store.ProcessingJob, in J
 				if len(v) > 400 {
 					body = string(v[:400])
 				}
-				excerpts[i] = segFragment{ID: f.ID, Position: f.Position, Heading: f.Heading, Body: body}
+				var loc struct {
+					TimeStartMs int64 `json:"time_start_ms"`
+					TimeEndMs   int64 `json:"time_end_ms"`
+				}
+				_ = json.Unmarshal(f.Locator, &loc)
+				excerpts[i] = segFragment{
+					ID:          f.ID,
+					Position:    f.Position,
+					Heading:     f.Heading,
+					Body:        body,
+					TimeStartMs: loc.TimeStartMs,
+					TimeEndMs:   loc.TimeEndMs,
+				}
 			}
 			payload = map[string]any{"source": src.Title, "fragments": excerpts, "excerpt_only": true, "course_points": points}
-			instruction = `把输入片段按内容切成若干连续段，覆盖全部片段，每个片段只能出现一次，顺序与输入一致。course_points只用于判断关联，不用于改写原文。返回 {"segments":[{"title":"本段主题","relation":"point|sequence","fragment_ids":[],"knowledge_point_id":"","reason":"切分依据"}],"review_status":"pending_teacher_review"}。`
-			instruction += `relation=point表示本段内容明确对应某个已有知识点，此时knowledge_point_id只能取course_points中kind=point的id；relation=sequence表示只是前后顺序不同、没有明确对应知识点，此时knowledge_point_id必须为空字符串。段数不超过50，标题不超过200字节。不得遗漏片段，不得重复片段，不得引用未提供的片段或知识点。`
+			instruction = `把输入片段按内容切成若干连续段，覆盖全部片段，每个片段只能出现一次，顺序与输入一致。course_points只用于判断关联，不用于改写原文。返回 {"segments":[{"title":"本段主题","relation":"point|sequence","fragment_ids":[],"knowledge_point_id":"","time_start_ms":0,"time_end_ms":0,"reason":"切分依据"}],"review_status":"pending_teacher_review"}。`
+			instruction += `relation=point表示本段内容明确对应某个已有知识点，此时knowledge_point_id只能取course_points中kind=point的id；relation=sequence表示只是前后顺序不同、没有明确对应知识点，此时knowledge_point_id必须为空字符串。若输入片段含视频时间码，time_start_ms和time_end_ms对应首尾片段时间范围，非视频资料均填0。段数不超过50，标题不超过200字节。不得遗漏片段，不得重复片段，不得引用未提供的片段或知识点。`
 		} else if j.Kind == "paper_split" {
 			instruction = `将原卷拆为单选quiz、主观subjective、代码文本code候选，跨页题必须合并，不执行代码。每个fragment必须归题或excluded说明。保留公式、图片资产id。原卷无答案则reference_answer/correct_answer留空、answer_origin=missing；有则逐字提取reference_answer且answer_origin=extracted，不自行解题。缺失分值暂用1并在uncertain要求教师确认。返回 {"questions":[{"title":"题号与名称","prompt":"完整题干","type":"subjective","max_score":1,"options":[],"correct_answer":"","reference_answer":"","answer_origin":"missing","source_fragment_ids":[],"asset_ids":[],"uncertain":[]}],"excluded":[{"fragment_id":"","reason":"公共说明/原卷答案/页预览等"}],"review_status":"pending_teacher_review"}。`
 		} else {
@@ -337,6 +352,25 @@ func (s *Service) WorkflowDraft(ctx context.Context, j store.ProcessingJob, in J
 	}
 	out["input_snapshot"], _ = json.Marshal(compactSnapshot)
 	return out, nil
+}
+
+func sampleFragments(fs []store.MaterialFragment, limit int) []store.MaterialFragment {
+	if limit <= 0 || len(fs) == 0 {
+		return []store.MaterialFragment{}
+	}
+	if len(fs) <= limit {
+		return append([]store.MaterialFragment(nil), fs...)
+	}
+	if limit == 1 {
+		return []store.MaterialFragment{fs[0]}
+	}
+	out := make([]store.MaterialFragment, 0, limit)
+	last := len(fs) - 1
+	for i := 0; i < limit; i++ {
+		idx := i * last / (limit - 1)
+		out = append(out, fs[idx])
+	}
+	return out
 }
 
 func shortQuery(text string) string {
@@ -458,19 +492,24 @@ func normalizeTitle(s string) string {
 
 // A split is only accepted when it is an exact, contiguous, order-preserving partition.
 func validateSegments(out map[string]json.RawMessage, payload map[string]any) error {
-	var rows []struct {
+	type segmentRow struct {
 		Title       string   `json:"title"`
 		Relation    string   `json:"relation"`
 		FragmentIDs []string `json:"fragment_ids"`
 		PointID     string   `json:"knowledge_point_id"`
+		TimeStartMs int64    `json:"time_start_ms"`
+		TimeEndMs   int64    `json:"time_end_ms"`
 		Reason      string   `json:"reason"`
 	}
+	var rows []segmentRow
 	if json.Unmarshal(out["segments"], &rows) != nil || len(rows) == 0 || len(rows) > 50 {
 		return errors.New("切分结果缺失、格式无效或段数超限")
 	}
 	rawFragments, _ := json.Marshal(payload["fragments"])
 	var fs []struct {
-		ID string `json:"id"`
+		ID          string `json:"id"`
+		TimeStartMs int64  `json:"time_start_ms"`
+		TimeEndMs   int64  `json:"time_end_ms"`
 	}
 	_ = json.Unmarshal(rawFragments, &fs)
 	indexOf := make(map[string]int, len(fs))
@@ -490,7 +529,7 @@ func validateSegments(out map[string]json.RawMessage, payload map[string]any) er
 		}
 	}
 	cursor := 0
-	for _, r := range rows {
+	for i, r := range rows {
 		title := strings.TrimSpace(r.Title)
 		if title == "" || len(title) > 200 || strings.ContainsRune(title, '\x00') || len(r.FragmentIDs) == 0 {
 			return errors.New("切分段缺少标题或片段")
@@ -507,16 +546,48 @@ func validateSegments(out map[string]json.RawMessage, payload map[string]any) er
 		if r.Relation == "sequence" && r.PointID != "" {
 			return errors.New("顺序切分段不能指定知识点")
 		}
+		if !ValidTimeSpan(r.TimeStartMs, r.TimeEndMs) {
+			return errors.New("切分段起止时间无效")
+		}
+		var segStart, segEnd int64
+		hasTimecode := false
 		for _, id := range r.FragmentIDs {
 			idx, ok := indexOf[id]
 			if !ok || idx != cursor {
 				return errors.New("切分片段必须按原件顺序严格连续且不重复、不遗漏")
 			}
+			f := fs[idx]
+			if f.TimeStartMs >= 0 && f.TimeEndMs > f.TimeStartMs && f.TimeEndMs <= math.MaxInt32 {
+				if !hasTimecode {
+					segStart = f.TimeStartMs
+					segEnd = f.TimeEndMs
+					hasTimecode = true
+				} else {
+					if f.TimeStartMs < segStart {
+						segStart = f.TimeStartMs
+					}
+					if f.TimeEndMs > segEnd {
+						segEnd = f.TimeEndMs
+					}
+				}
+			}
 			cursor++
+		}
+		if hasTimecode {
+			rows[i].TimeStartMs = segStart
+			rows[i].TimeEndMs = segEnd
+		} else {
+			rows[i].TimeStartMs = 0
+			rows[i].TimeEndMs = 0
 		}
 	}
 	if cursor != len(fs) {
 		return errors.New("切分未覆盖全部片段")
 	}
+	normalized, err := json.Marshal(rows)
+	if err != nil {
+		return err
+	}
+	out["segments"] = normalized
 	return nil
 }

@@ -48,7 +48,10 @@ DESCRIPTIONS = {
     'sourceDetail':'读取原件及解析片段/指定历史片段版本', 'uploadSources':'上传原件并建立解析任务',
     'correctFragments':'人工校正原文并创建解析修订', 'publishFragments':'选择原文片段发布为学习资料',
     'archiveSource':'归档来源并限制未来使用', 'sourceDerivation':'设置或撤回知识提炼许可',
-    'downloadSource':'下载原件；按资料发布范围/角色校验', 'knowledge':'读取权限允许的知识条目',
+    'downloadSource':'下载原件；按资料发布范围/角色校验', 'streamSource':'按视频类型与发布权限流式播放原件视频',
+    'updateSection':'编辑待确认或已驳回的内容切分方案及时间码',
+    'pointClips':'按知识点查询未归档原件最新解析版本中已接受的内容及时间切片',
+    'knowledge':'读取权限允许的知识条目',
     'saveKnowledge':'新增/修改知识草稿或新版本', 'knowledgeState':'知识确认等状态转换',
     'createRAGJob':'提交解析/索引/提炼/标准/评分/视觉等后台任务', 'jobs':'查询处理任务',
     'job':'读取任务状态与候选结果', 'cancelJob':'请求取消后台任务', 'retryJob':'显式新建失败任务重试',
@@ -129,7 +132,7 @@ for file in FILES:
                     role = '师生；本课程；按对象/可见性过滤'
             mode = 'HTTP JSON；同步业务处理'
             if method == 'GET': mode = 'HTTP JSON；同步读取'
-            if handler in ['downloadSource', 'assetFile']: mode = 'HTTP文件响应'
+            if handler in ['downloadSource', 'assetFile', 'streamSource']: mode = 'HTTP文件响应'
             if handler == 'uploadSources': mode = 'multipart上传 → PG任务 → Asynq解析'
             if handler == 'importURL': mode = 'HTTP JSON → 同步公开网页抓取 → 异步解析'
             if handler in ['createRAGJob','createBankJob','regradeAI','retryJob']: mode = 'HTTP JSON返回任务ID → Asynq → 前端轮询'

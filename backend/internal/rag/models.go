@@ -75,7 +75,7 @@ func LoadModels(db *pgxpool.Pool) (*Models, error) {
 		if p.Thinking != "" && p.Thinking != "enabled" && p.Thinking != "disabled" {
 			return nil, errors.New("invalid thinking setting")
 		}
-		if p.ID == "" || seen[p.ID] || p.Protocol != "openai" || (p.Kind != "chat" && p.Kind != "embedding" && p.Kind != "vision") || (p.Kind == "vision" && (p.ImageTokenLimit < 1 || p.ImageTokenLimit > 100000)) || p.InputRate <= 0 || p.OutputRate < 0 || p.BatchSize < 1 || p.BatchSize > 100 || (p.Kind == "embedding" && (p.Dimensions < 1 || p.Dimensions > 16000)) {
+		if p.ID == "" || seen[p.ID] || p.Protocol != "openai" || (p.Kind != "chat" && p.Kind != "embedding" && p.Kind != "vision" && p.Kind != "asr") || (p.Kind == "vision" && (p.ImageTokenLimit < 1 || p.ImageTokenLimit > 100000)) || p.InputRate <= 0 || p.OutputRate < 0 || p.BatchSize < 1 || p.BatchSize > 100 || p.Dimensions < 0 || (p.Kind == "embedding" && (p.Dimensions < 1 || p.Dimensions > 16000)) {
 			return nil, errors.New("invalid model profile")
 		}
 		seen[p.ID] = true
@@ -314,6 +314,9 @@ func (m *Models) Chat(ctx context.Context, course, actor, purpose, profile, syst
 	}
 	if purpose == "diagnosis" || purpose == "recommendation" {
 		maxOutput = 6000
+	}
+	if purpose == "source_segment" {
+		maxOutput = 4096
 	}
 	body := map[string]any{"model": p.Model, "messages": []map[string]string{{"role": "system", "content": system}, {"role": "user", "content": input}}, "max_tokens": maxOutput}
 	if p.Thinking != "" {

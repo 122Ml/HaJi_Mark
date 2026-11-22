@@ -6,7 +6,7 @@ import { PageHeader } from "../shared/PageHeader";
 
 const StudyPath = lazy(() => import("./path").then((m) => ({ default: m.StudyPath })));
 const CourseWorkspace = lazy(() => import("./course").then((m) => ({ default: m.CourseWorkspace })));
-const AssignmentList = lazy(() => import("./assessment").then((m) => ({ default: m.AssignmentList })));
+const AssignmentList = lazy(() => import("./assignment-list").then((m) => ({ default: m.AssignmentList })));
 const AssignmentEditor = lazy(() => import("./assessment").then((m) => ({ default: m.AssignmentEditor })));
 const AssignmentDetail = lazy(() => import("./assessment").then((m) => ({ default: m.AssignmentDetail })));
 const SubmissionList = lazy(() => import("./assessment").then((m) => ({ default: m.SubmissionList })));

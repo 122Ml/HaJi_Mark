@@ -116,7 +116,7 @@ export function CourseManagement() {
         <Input
           aria-label="新课程名称"
           placeholder="输入新课程名称…"
-          style={{ flex: 1, minWidth: 220 }}
+          style={{ flex: "1 1 200px", minWidth: 0 }}
           value={title}
           onChange={(e) => {
             setError("");

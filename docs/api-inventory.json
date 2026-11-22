@@ -1,13 +1,13 @@
 {
-  "date": "2026-11-20",
-  "source_sha256": "674803b35ec4a9e5727185ffc2110bfd6b7ef2e1b8b8f707003178bb0a70d0e5",
+  "date": "2026-11-23",
+  "source_sha256": "ca542aea5d2222b0eb46f49eef791c3e68d6ef3487d3c95d8d2965fc3c22096e",
   "basis": "mounted source registrations; not runtime/network frequency",
-  "route_count": 167,
+  "route_count": 170,
   "method_counts": {
-    "GET": 68,
+    "GET": 70,
     "POST": 72,
     "DELETE": 7,
-    "PUT": 19,
+    "PUT": 20,
     "PATCH": 1
   },
   "routes": [
@@ -20,7 +20,7 @@
       "csrf": false,
       "handler": "inline",
       "source": "backend/internal/server/router.go",
-      "line": 84,
+      "line": 89,
       "rag_gate": false
     },
     {
@@ -32,7 +32,7 @@
       "csrf": false,
       "handler": "inline",
       "source": "backend/internal/server/router.go",
-      "line": 87,
+      "line": 92,
       "rag_gate": false
     },
     {
@@ -1016,7 +1016,7 @@
       "csrf": false,
       "handler": "models",
       "source": "backend/internal/learning/materials.go",
-      "line": 56,
+      "line": 58,
       "rag_gate": true
     },
     {
@@ -1028,7 +1028,7 @@
       "csrf": false,
       "handler": "sources",
       "source": "backend/internal/learning/materials.go",
-      "line": 57,
+      "line": 59,
       "rag_gate": true
     },
     {
@@ -1040,7 +1040,7 @@
       "csrf": false,
       "handler": "sourceDetail",
       "source": "backend/internal/learning/materials.go",
-      "line": 58,
+      "line": 60,
       "rag_gate": true
     },
     {
@@ -1052,7 +1052,7 @@
       "csrf": true,
       "handler": "uploadSources",
       "source": "backend/internal/learning/materials.go",
-      "line": 59,
+      "line": 61,
       "rag_gate": true
     },
     {
@@ -1064,7 +1064,7 @@
       "csrf": true,
       "handler": "correctFragments",
       "source": "backend/internal/learning/materials.go",
-      "line": 60,
+      "line": 62,
       "rag_gate": true
     },
     {
@@ -1076,7 +1076,7 @@
       "csrf": true,
       "handler": "publishFragments",
       "source": "backend/internal/learning/materials.go",
-      "line": 61,
+      "line": 63,
       "rag_gate": true
     },
     {
@@ -1088,7 +1088,7 @@
       "csrf": true,
       "handler": "archiveSource",
       "source": "backend/internal/learning/materials.go",
-      "line": 62,
+      "line": 64,
       "rag_gate": true
     },
     {
@@ -1100,7 +1100,7 @@
       "csrf": true,
       "handler": "sourceDerivation",
       "source": "backend/internal/learning/materials.go",
-      "line": 63,
+      "line": 65,
       "rag_gate": true
     },
     {
@@ -1112,7 +1112,19 @@
       "csrf": false,
       "handler": "downloadSource",
       "source": "backend/internal/learning/materials.go",
-      "line": 64,
+      "line": 66,
+      "rag_gate": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/learning/courses/:courseID/sources/:sourceID/stream",
+      "function": "按视频类型与发布权限流式播放原件视频",
+      "access": "师生；本课程；按对象/可见性过滤",
+      "invocation": "HTTP文件响应",
+      "csrf": false,
+      "handler": "streamSource",
+      "source": "backend/internal/learning/materials.go",
+      "line": 67,
       "rag_gate": true
     },
     {
@@ -1124,7 +1136,7 @@
       "csrf": false,
       "handler": "knowledge",
       "source": "backend/internal/learning/materials.go",
-      "line": 65,
+      "line": 68,
       "rag_gate": true
     },
     {
@@ -1136,7 +1148,7 @@
       "csrf": true,
       "handler": "saveKnowledge",
       "source": "backend/internal/learning/materials.go",
-      "line": 66,
+      "line": 69,
       "rag_gate": true
     },
     {
@@ -1148,7 +1160,7 @@
       "csrf": true,
       "handler": "saveKnowledge",
       "source": "backend/internal/learning/materials.go",
-      "line": 67,
+      "line": 70,
       "rag_gate": true
     },
     {
@@ -1160,7 +1172,7 @@
       "csrf": true,
       "handler": "knowledgeState",
       "source": "backend/internal/learning/materials.go",
-      "line": 68,
+      "line": 71,
       "rag_gate": true
     },
     {
@@ -1172,7 +1184,7 @@
       "csrf": true,
       "handler": "createRAGJob",
       "source": "backend/internal/learning/materials.go",
-      "line": 69,
+      "line": 72,
       "rag_gate": true
     },
     {
@@ -1184,7 +1196,7 @@
       "csrf": false,
       "handler": "jobs",
       "source": "backend/internal/learning/materials.go",
-      "line": 70,
+      "line": 73,
       "rag_gate": true
     },
     {
@@ -1196,7 +1208,7 @@
       "csrf": false,
       "handler": "job",
       "source": "backend/internal/learning/materials.go",
-      "line": 71,
+      "line": 74,
       "rag_gate": true
     },
     {
@@ -1208,7 +1220,7 @@
       "csrf": true,
       "handler": "cancelJob",
       "source": "backend/internal/learning/materials.go",
-      "line": 72,
+      "line": 75,
       "rag_gate": true
     },
     {
@@ -1220,7 +1232,7 @@
       "csrf": true,
       "handler": "retryJob",
       "source": "backend/internal/learning/materials.go",
-      "line": 73,
+      "line": 76,
       "rag_gate": true
     },
     {
@@ -1232,7 +1244,7 @@
       "csrf": false,
       "handler": "sections",
       "source": "backend/internal/learning/materials.go",
-      "line": 74,
+      "line": 77,
       "rag_gate": true
     },
     {
@@ -1244,7 +1256,19 @@
       "csrf": true,
       "handler": "adoptSegments",
       "source": "backend/internal/learning/materials.go",
-      "line": 75,
+      "line": 78,
+      "rag_gate": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/learning/courses/:courseID/sources/:sourceID/sections/:sectionID",
+      "function": "编辑待确认或已驳回的内容切分方案及时间码",
+      "access": "教师；本课程",
+      "invocation": "HTTP JSON；同步业务处理",
+      "csrf": true,
+      "handler": "updateSection",
+      "source": "backend/internal/learning/materials.go",
+      "line": 79,
       "rag_gate": true
     },
     {
@@ -1256,7 +1280,7 @@
       "csrf": true,
       "handler": "sectionsState",
       "source": "backend/internal/learning/materials.go",
-      "line": 76,
+      "line": 80,
       "rag_gate": true
     },
     {
@@ -1268,7 +1292,19 @@
       "csrf": true,
       "handler": "sectionsPublish",
       "source": "backend/internal/learning/materials.go",
-      "line": 77,
+      "line": 81,
+      "rag_gate": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/learning/courses/:courseID/knowledge-points/:pointID/clips",
+      "function": "按知识点查询未归档原件最新解析版本中已接受的内容及时间切片",
+      "access": "教师；本课程",
+      "invocation": "HTTP JSON；同步读取",
+      "csrf": false,
+      "handler": "pointClips",
+      "source": "backend/internal/learning/materials.go",
+      "line": 82,
       "rag_gate": true
     },
     {
@@ -1280,7 +1316,7 @@
       "csrf": true,
       "handler": "retrieval",
       "source": "backend/internal/learning/materials.go",
-      "line": 78,
+      "line": 83,
       "rag_gate": false
     },
     {
@@ -1292,7 +1328,7 @@
       "csrf": false,
       "handler": "retrievalStatus",
       "source": "backend/internal/learning/materials.go",
-      "line": 79,
+      "line": 84,
       "rag_gate": false
     },
     {

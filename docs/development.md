@@ -8,7 +8,7 @@
 
 ## 对话助理（2026-11-17，本地）
 
-当前代码执行迁移到00019；既有迁移不修改，新迁移从00020开始。默认Compose仍可运行人工业务；`compose.rag.yaml`显式启用RAG和`AGENT_ENABLED=true`，沿用忽略的模型密钥文件与共享50元账本。助理由API进程的关闭上下文管理，不另起Agent服务。运行时、模型／工具协议和三种模式见[助理说明](agent-harness.md)。
+当前代码执行迁移到00020；既有迁移不修改，新迁移从00021开始。默认Compose仍可运行人工业务；`compose.rag.yaml`显式启用RAG和`AGENT_ENABLED=true`，沿用忽略的模型密钥文件与共享50元账本。助理由API进程的关闭上下文管理，不另起Agent服务。运行时、模型／工具协议和三种模式见[助理说明](agent-harness.md)。
 
 ```powershell
 docker compose -f compose.yaml -f compose.rag.yaml build api
@@ -131,11 +131,11 @@ python scripts/backup.py --verify-restore
 
 默认Compose保持模型关闭，人工答疑、评分、客观规则和学习路径可单独运行。2026-11-11已获用户授权的本地真实RAG配置见下节；公网仍未启用，不沿用旧AI环境变量隐式开通新功能。
 
-迁移已分配并在本地执行00001—00019，后续从00020新建。修改queries后用sqlc1.30.0生成；不改已执行迁移，不手改store，不删除Goose历史来绕过失败。路由注册改动后运行 `python scripts/api-inventory.py` 并以 `--check` 复验一致性。Nginx使用Docker DNS解析API，API重建后应自动恢复代理。
+迁移已分配并在本地执行00001—00020，后续从00021新建。修改queries后用sqlc1.30.0生成；不改已执行迁移，不手改store，不删除Goose历史来绕过失败。路由注册改动后运行 `python scripts/api-inventory.py` 并以 `--check` 复验一致性。Nginx使用Docker DNS解析API，API重建后应自动恢复代理。
 
 ## 资料与知识库的本地运行
 
-密钥位于被忽略的`.local/model-secrets.env`：百炼使用`DASHSCOPE_API_KEY/DASHSCOPE_BASE_URL`，按需视觉使用`DEEPSEEK_API_KEY/DEEPSEEK_BASE_URL`。北京兼容地址为`https://dashscope.aliyuncs.com/compatible-mode/v1`。不要在终端打印该文件，不提交、不发给浏览器。模型清单在`backend/config/models.json`；可增加多组OpenAI兼容profile，专有协议必须明确实现适配器。`key_env/base_url_env`引用服务端环境变量，`dimensions/send_dimensions/batch_size`按供应商实际能力设置。
+密钥位于被忽略的`.local/model-secrets.env`：百炼使用`DASHSCOPE_API_KEY/DASHSCOPE_BASE_URL`，按需视觉使用`DEEPSEEK_API_KEY/DEEPSEEK_BASE_URL`，可选华为云MaaS使用`HUAWEI_API_KEY/HUAWEI_BASE_URL`。北京兼容地址为`https://dashscope.aliyuncs.com/compatible-mode/v1`。不要在终端打印该文件，不提交、不发给浏览器。模型清单在`backend/config/models.json`；可增加多组OpenAI兼容profile，专有协议必须明确实现适配器。`key_env/base_url_env`引用服务端环境变量，`dimensions/send_dimensions/batch_size`按供应商实际能力设置。
 
 ```powershell
 # 构建串行；首次需下载解析库和OCR权重，后续复用镜像层
@@ -157,7 +157,7 @@ Go worker复用Asynq，单任务执行，Python解析进程限制页数、输出
 
 若默认Go代理连接失败，对api与worker构建同时加`--build-arg GOPROXY=https://goproxy.cn,direct`；其余构建参数保持一致以复用缓存。浏览器脚本使用上文的NODE_PATH与Edge配置。HTTP和浏览器断点记录是本地构造场景的恢复入口，不作为公网运行脚本。
 
-文件限制：30MiB/个、10个/批、200页PDF或PPTX，解包上限200MiB、提取上限200万字符，单图最多2400万像素。文本按UTF-8读取。OCR和视觉候选须教师核对后才能使用；印刷公式、原生图表及简单图像样例的实际覆盖见[验收记录](research/three-module-acceptance-2026-11-12.md)，复杂公式／图表和手写不据此视为已验。正文过长分段处理，不静默截断。
+文件限制：文档30MiB/个、10个/批、200页PDF或PPTX，解包上限200MiB、提取上限200万字符，单图最多2400万像素；视频（mp4/mov/mkv/webm/m4v）单件上限512MiB、1个/批、最长45分钟并按时间窗合并为最多120个时间码片段（单课活跃原件配额2GiB）。worker默认镜像保持轻量（`INSTALL_LOCAL_ASR=false`）；若需启用离线Whisper视频转写，可加`--build-arg INSTALL_LOCAL_ASR=true`构建或将模型挂载至`/opt/whisper`。文本按UTF-8读取。OCR和视觉候选须教师核对后才能使用；印刷公式、原生图表及简单图像样例的实际覆盖见[验收记录](research/three-module-acceptance-2026-11-12.md)，复杂公式／图表和手写不据此视为已验。正文过长分段处理，不静默截断。
 
 `model_budget/model_calls`是本轮联调的共享预留账。示例profile使用每Token微元保守费率（Embedding输入1，生成输入10/输出40），不冒充供应商账单。50元包含预检留账；未知/超时调用按预留额保守计入，不自动免费重试。默认profile为`text-embedding-v4`1024维和`qwen-plus`；变更Embedding配置后重建新空间，完成后才切换。
 

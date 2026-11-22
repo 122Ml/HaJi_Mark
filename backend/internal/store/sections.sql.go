@@ -12,8 +12,8 @@ import (
 )
 
 const createContentSection = `-- name: CreateContentSection :one
-INSERT INTO content_sections(id,course_id,source_id,revision,position,title,relation,fragment_ids,knowledge_point_id,reason,state)
-VALUES($1,$2,$3,$4,$5,$6,$7,$8,$11,$9,$10) RETURNING id, course_id, source_id, revision, position, title, relation, fragment_ids, knowledge_point_id, time_start_ms, time_end_ms, reason, state, edit_version, created_at
+INSERT INTO content_sections(id,course_id,source_id,revision,position,title,relation,fragment_ids,knowledge_point_id,reason,state,time_start_ms,time_end_ms)
+VALUES($1,$2,$3,$4,$5,$6,$7,$8,$13,$9,$10,$11,$12) RETURNING id, course_id, source_id, revision, position, title, relation, fragment_ids, knowledge_point_id, time_start_ms, time_end_ms, reason, state, edit_version, created_at
 `
 
 type CreateContentSectionParams struct {
@@ -27,6 +27,8 @@ type CreateContentSectionParams struct {
 	FragmentIds      []string    `json:"fragment_ids"`
 	Reason           string      `json:"reason"`
 	State            string      `json:"state"`
+	TimeStartMs      int32       `json:"time_start_ms"`
+	TimeEndMs        int32       `json:"time_end_ms"`
 	KnowledgePointID pgtype.Text `json:"knowledge_point_id"`
 }
 
@@ -42,6 +44,8 @@ func (q *Queries) CreateContentSection(ctx context.Context, arg CreateContentSec
 		arg.FragmentIds,
 		arg.Reason,
 		arg.State,
+		arg.TimeStartMs,
+		arg.TimeEndMs,
 		arg.KnowledgePointID,
 	)
 	var i ContentSection
@@ -126,6 +130,67 @@ func (q *Queries) ListContentSections(ctx context.Context, arg ListContentSectio
 	return items, nil
 }
 
+const listSectionsByPoint = `-- name: ListSectionsByPoint :many
+SELECT s.id, s.title, s.relation, s.time_start_ms, s.time_end_ms, s.state,
+       s.source_id, m.title AS source_title, m.filename AS source_filename
+FROM content_sections s
+JOIN material_sources m ON m.id = s.source_id
+WHERE s.course_id = $1
+  AND m.course_id = $1
+  AND m.state = 'active'
+  AND s.revision = m.parse_revision
+  AND s.knowledge_point_id = $2::text
+  AND s.state = 'accepted'
+ORDER BY s.source_id, s.time_start_ms, s.position
+`
+
+type ListSectionsByPointParams struct {
+	CourseID         string `json:"course_id"`
+	KnowledgePointID string `json:"knowledge_point_id"`
+}
+
+type ListSectionsByPointRow struct {
+	ID             string `json:"id"`
+	Title          string `json:"title"`
+	Relation       string `json:"relation"`
+	TimeStartMs    int32  `json:"time_start_ms"`
+	TimeEndMs      int32  `json:"time_end_ms"`
+	State          string `json:"state"`
+	SourceID       string `json:"source_id"`
+	SourceTitle    string `json:"source_title"`
+	SourceFilename string `json:"source_filename"`
+}
+
+func (q *Queries) ListSectionsByPoint(ctx context.Context, arg ListSectionsByPointParams) ([]ListSectionsByPointRow, error) {
+	rows, err := q.db.Query(ctx, listSectionsByPoint, arg.CourseID, arg.KnowledgePointID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSectionsByPointRow{}
+	for rows.Next() {
+		var i ListSectionsByPointRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Relation,
+			&i.TimeStartMs,
+			&i.TimeEndMs,
+			&i.State,
+			&i.SourceID,
+			&i.SourceTitle,
+			&i.SourceFilename,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setContentSectionsState = `-- name: SetContentSectionsState :execrows
 UPDATE content_sections SET state=$4, edit_version=edit_version+1
  WHERE course_id=$1 AND source_id=$2 AND revision=$3
@@ -152,4 +217,60 @@ func (q *Queries) SetContentSectionsState(ctx context.Context, arg SetContentSec
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const updateContentSection = `-- name: UpdateContentSection :one
+UPDATE content_sections
+   SET title=$5, relation=$6, knowledge_point_id=$11, time_start_ms=$7, time_end_ms=$8, reason=$9, edit_version=edit_version+1
+ WHERE id=$1 AND course_id=$2 AND source_id=$3 AND revision=$4 AND edit_version=$10 AND state IN ('proposed','rejected')
+ RETURNING id, course_id, source_id, revision, position, title, relation, fragment_ids, knowledge_point_id, time_start_ms, time_end_ms, reason, state, edit_version, created_at
+`
+
+type UpdateContentSectionParams struct {
+	ID               string      `json:"id"`
+	CourseID         string      `json:"course_id"`
+	SourceID         string      `json:"source_id"`
+	Revision         int32       `json:"revision"`
+	Title            string      `json:"title"`
+	Relation         string      `json:"relation"`
+	TimeStartMs      int32       `json:"time_start_ms"`
+	TimeEndMs        int32       `json:"time_end_ms"`
+	Reason           string      `json:"reason"`
+	EditVersion      int32       `json:"edit_version"`
+	KnowledgePointID pgtype.Text `json:"knowledge_point_id"`
+}
+
+func (q *Queries) UpdateContentSection(ctx context.Context, arg UpdateContentSectionParams) (ContentSection, error) {
+	row := q.db.QueryRow(ctx, updateContentSection,
+		arg.ID,
+		arg.CourseID,
+		arg.SourceID,
+		arg.Revision,
+		arg.Title,
+		arg.Relation,
+		arg.TimeStartMs,
+		arg.TimeEndMs,
+		arg.Reason,
+		arg.EditVersion,
+		arg.KnowledgePointID,
+	)
+	var i ContentSection
+	err := row.Scan(
+		&i.ID,
+		&i.CourseID,
+		&i.SourceID,
+		&i.Revision,
+		&i.Position,
+		&i.Title,
+		&i.Relation,
+		&i.FragmentIds,
+		&i.KnowledgePointID,
+		&i.TimeStartMs,
+		&i.TimeEndMs,
+		&i.Reason,
+		&i.State,
+		&i.EditVersion,
+		&i.CreatedAt,
+	)
+	return i, err
 }

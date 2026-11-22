@@ -44,6 +44,42 @@ func TestTokensChinese(t *testing.T) {
 	if len(tokens) < 3 {
 		t.Fatal(tokens)
 	}
+	has := func(list []string, want string) bool {
+		for _, item := range list {
+			if item == want {
+				return true
+			}
+		}
+		return false
+	}
+	for _, want := range []string{"边界", "边界值", "边界值分析", "测试", "17", "18", "postgresql"} {
+		if !has(tokens, want) {
+			t.Fatalf("missing expected token %q in %v", want, tokens)
+		}
+	}
+	sysTokens := Tokens("数据库系统原理")
+	for _, want := range []string{"数据", "数据库", "系统", "原理", "系统原"} {
+		if !has(sysTokens, want) {
+			t.Fatalf("missing expected token %q in %v", want, sysTokens)
+		}
+	}
+	splitTokens := Tokens("数据的结构与算法")
+	for _, want := range []string{"数据", "结构", "算法"} {
+		if !has(splitTokens, want) {
+			t.Fatalf("missing split token %q in %v", want, splitTokens)
+		}
+	}
+	for _, banned := range []string{"据结", "的结", "构与", "构算"} {
+		if has(splitTokens, banned) {
+			t.Fatalf("stop-word boundary leaked bigram %q in %v", banned, splitTokens)
+		}
+	}
+	if single := Tokens("图"); len(single) != 1 || single[0] != "图" {
+		t.Fatalf("unexpected single Han tokens: %v", single)
+	}
+	if stopOnly := queryTokens("的"); stopOnly != "'的'" {
+		t.Fatalf("stop-word fallback broken: %s", stopOnly)
+	}
 	query := queryTokens("' | ! () <=>")
 	if strings.Contains(query, " | ") {
 		t.Fatal("operators must not survive as tokens")
@@ -55,6 +91,12 @@ func TestTokensChinese(t *testing.T) {
 	}
 	if strings.Contains(escaped, `\b`) && !strings.Contains(escaped, `\\b`) {
 		t.Fatalf("backslash was not escaped: %s", escaped)
+	}
+	if got := escapeTSLexeme(`a\b`); got != `'a\\b'` {
+		t.Fatalf("escapeTSLexeme backslash failed: %s", got)
+	}
+	if got := escapeTSLexeme("it's"); got != `'it''s'` {
+		t.Fatalf("escapeTSLexeme single quote failed: %s", got)
 	}
 }
 func TestGradeRejectsInventedEvidence(t *testing.T) {

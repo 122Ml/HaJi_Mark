@@ -1,8 +1,12 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Button, Drawer } from "antd";
 import { useConfirm } from "../shared/confirm";
-import { AgentPage } from "./agent";
+import { LoadingState } from "../shared/ui";
 import { EditorScope } from "./editing";
+
+const LazyAgentPage = lazy(() =>
+  import("./agent").then((m) => ({ default: m.AgentPage })),
+);
 
 export type BusinessContext = {
   kind:
@@ -53,12 +57,14 @@ export function ContextAgent({ context }: { context: BusinessContext }) {
       >
         {open && (
           <EditorScope isolated onDirtyChange={setScopeDirty}>
-            <AgentPage
-              key={`${context.kind}:${context.id}`}
-              embedded
-              context={context}
-              onDirtyChange={setComposerDirty}
-            />
+            <Suspense fallback={<LoadingState />}>
+              <LazyAgentPage
+                key={`${context.kind}:${context.id}`}
+                embedded
+                context={context}
+                onDirtyChange={setComposerDirty}
+              />
+            </Suspense>
           </EditorScope>
         )}
       </Drawer>

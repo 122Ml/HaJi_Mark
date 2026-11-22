@@ -27,7 +27,7 @@ import {
   MetaTags,
 } from "../shared/ui";
 import { DraftNotice, useEditorDraft } from "./editing";
-import { FrozenEvidence } from "./citations";
+import { FrozenEvidence } from "./frozen-evidence";
 import type { Hit, Resource } from "./types";
 import { hasControlNull, utf8ByteLength } from "./validation";
 

@@ -25,22 +25,22 @@
 }
 .live-page > .list-toolbar {
   margin-bottom: 0;
-  padding: 16px;
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: var(--canvas);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
 }
 .list-toolbar .toolbar-primary { margin-inline-start: auto; }
 .assignment-summary,
 .context-banner {
-  padding: 16px 20px;
+  padding: var(--space-3) var(--space-4);
   display: flex;
   gap: 16px;
   align-items: center;
   flex-wrap: wrap;
-  background: var(--mint-soft);
-  border: 1px solid var(--mint-line);
-  border-radius: var(--radius-md);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
 }
 .answer-status {
   display: flex;
@@ -68,7 +68,7 @@
 .grading-columns {
   display: grid;
   grid-template-columns: 232px minmax(300px, 1.08fr) minmax(360px, 420px);
-  gap: 16px;
+  gap: var(--space-3);
   align-items: stretch;
 }
 .grading-columns > .card-panel {
@@ -77,6 +77,7 @@
   padding: 0;
   height: calc(100dvh - 208px);
   min-height: 460px;
+  max-height: calc(100dvh - 208px);
   overflow: auto;
   overscroll-behavior: contain;
 }
@@ -85,22 +86,22 @@
 }
 .grading-queue .ant-select {
   width: 100%;
-  margin: 10px 0;
+  margin: 8px 0;
 }
 .queue-item {
   display: grid;
   width: 100%;
   text-align: left;
-  padding: 12px 10px;
+  padding: 6px 10px;
   border: 0;
   border-bottom: 1px solid var(--line);
   background: transparent;
   gap: 4px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 .queue-item.active {
   background: var(--mint);
-  box-shadow: inset 3px 0 var(--teal);
+  box-shadow: inset 2px 0 var(--teal);
 }
 .queue-item small {
   color: var(--muted);
@@ -115,10 +116,11 @@
   min-height: 160px;
 }
 .grading-original mark {
-  background: var(--highlight-bg);
-  color: var(--highlight-ink);
-  border-radius: 3px;
-  padding: 0 2px;
+  background: color-mix(in srgb, var(--teal) 12%, transparent);
+  color: var(--ink);
+  border-bottom: 1.5px solid color-mix(in srgb, var(--teal) 65%, transparent);
+  border-radius: 4px;
+  padding: 1px 4px;
 }
 .quote-toolbar {
   display: grid;
@@ -130,7 +132,7 @@
   gap: 6px;
 }
 .grading-editor .live-point-fields {
-  padding: 14px;
+  padding: 0;
   margin: 0;
 }
 .grading-editor textarea {
@@ -142,9 +144,9 @@
 }
 .grading-actions {
   position: sticky;
-  bottom: 0;
+  bottom: calc(-1 * var(--card-pad));
   background: var(--panel);
-  padding: 14px 0 4px;
+  padding: 10px 0;
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
@@ -162,12 +164,14 @@
   margin-top: 24px;
 }
 .score-hero {
-  font-size: 40px;
-  color: var(--teal);
-  font-weight: 650;
+  font-size: 32px;
+  color: var(--verdict);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
 }
 .score-hero small {
-  font-size: 18px;
+  font-size: var(--text-md);
   color: var(--muted);
 }
 .grading-editor blockquote button {
@@ -188,7 +192,7 @@
 }
 .ant-drawer-body .primary-link,
 .ant-drawer-body .ghost-btn {
-  min-height: 40px;
+  min-height: var(--control-h);
 }
 .course-content-grid {
   align-items: start;
@@ -200,10 +204,10 @@
   overflow: auto;
 }
 .evidence-checklist {
-  background: var(--mint-soft);
-  border: 1px solid var(--mint-line);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
   padding: 16px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 .table-text-action {
   max-width: 100%;
@@ -217,10 +221,10 @@
 .ant-pagination {
   margin-top: 16px;
 }
-.grading-columns > .ant-card > .ant-card-body { padding: 20px; }
-.queue-item.ant-btn { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; white-space: normal; height: auto; padding: 12px; }
-.queue-item.ant-btn:hover { background: var(--mint-soft); }
-.queue-item.ant-btn.active { background: var(--mint); border-color: var(--mint-line); }
+.grading-columns > .ant-card > .ant-card-body { padding: var(--card-pad); }
+.queue-item.ant-btn { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; white-space: normal; height: auto; padding: 6px 10px; border-color: transparent; box-shadow: none; }
+.queue-item.ant-btn:hover { background: var(--hover); }
+.queue-item.ant-btn.active { background: var(--mint); border-color: transparent; box-shadow: inset 2px 0 var(--teal); }
 .grading-original .ui-meta-tags { margin-bottom: var(--space-4); }
 
 @media (min-width: 1600px) {
@@ -228,10 +232,16 @@
     grid-template-columns: 256px minmax(420px, 1.15fr) minmax(420px, 460px);
   }
 }
+@media (max-width: 1320px) {
+  .grading-columns {
+    grid-template-columns: 204px minmax(260px, 1fr) minmax(320px, 380px);
+    gap: 10px;
+  }
+}
 @media (max-width: 1100px) {
   .grading-columns {
-    grid-template-columns: 190px minmax(240px, 1fr) minmax(300px, 1fr);
-    gap: 12px;
+    grid-template-columns: 180px minmax(220px, 1fr) minmax(280px, 1fr);
+    gap: 10px;
   }
 }
 @media (max-width: 1023px) {

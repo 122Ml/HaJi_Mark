@@ -3,17 +3,24 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { App as AntApp, ConfigProvider } from 'antd';
-import zhCN from 'antd/locale/zh_CN';
-import 'dayjs/locale/zh-cn';
+import { ConfigProvider } from 'antd';
 import { App } from './app/App';
+import { preloadPathRoute, preloadWorkspace } from './app/route-preload';
 import { darkTheme, theme } from './app/theme';
 import { ThemeModeProvider, useThemeMode } from './app/theme-mode';
-import { APIError } from './shared/api';
+import { APIError, requestJSON } from './shared/api';
+import { primeInitialSession } from './shared/session';
 import './styles.css';
 import './styles/kit.css';
 
 const router = createBrowserRouter([{ path: '*', element: <App /> }]);
+let lastRouterPathname = router.state.location.pathname;
+router.subscribe((state) => {
+  if (state.location.pathname !== lastRouterPathname) {
+    lastRouterPathname = state.location.pathname;
+    document.getElementById('main-content')?.focus({ preventScroll: true });
+  }
+});
 
 const queryClient = new QueryClient({
   queryCache: new QueryCache({
@@ -36,16 +43,32 @@ const queryClient = new QueryClient({
   },
 });
 
+const bootPath = window.location.pathname;
+if (bootPath.startsWith('/teacher') || bootPath.startsWith('/student')) {
+  void preloadWorkspace();
+  preloadPathRoute(bootPath);
+}
+void primeInitialSession()
+  .then(({ data }) => {
+    const rolePrefix = data.user.role === 'teacher' ? '/teacher' : '/student';
+    if (bootPath.startsWith(rolePrefix)) {
+      void queryClient.prefetchQuery({
+        queryKey: ['courses', data.user.id],
+        queryFn: async () => (await requestJSON<{ data: unknown }>('/me/courses')).data,
+      });
+    }
+  })
+  .catch(() => {});
+
 function UIProvider({ children }: { children: React.ReactNode }) {
   const { mode } = useThemeMode();
   const baseTheme = mode === 'dark' ? darkTheme : theme;
   return (
     <ConfigProvider
-      locale={zhCN}
       button={{ autoInsertSpace: false }}
       theme={{ ...baseTheme, cssVar: { key: 'haji-theme' } }}
     >
-      <AntApp>{children}</AntApp>
+      {children}
     </ConfigProvider>
   );
 }

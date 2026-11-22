@@ -1,13 +1,46 @@
 package learning
 
 import (
+	"context"
 	"strings"
 
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
+
+func execBatch(ctx context.Context, tx pgx.Tx, b *pgx.Batch) error {
+	if b.Len() == 0 {
+		return nil
+	}
+	br := tx.SendBatch(ctx, b)
+	for i := 0; i < b.Len(); i++ {
+		if _, err := br.Exec(); err != nil {
+			_ = br.Close()
+			return err
+		}
+	}
+	return br.Close()
+}
+
+func filterByID[T any](items []T, id string, itemID func(T) string) []T {
+	if id == "" {
+		if items == nil {
+			return []T{}
+		}
+		return items
+	}
+	out := make([]T, 0, 1)
+	for _, item := range items {
+		if itemID(item) == id {
+			out = append(out, item)
+			break
+		}
+	}
+	return out
+}
 
 func (h *Handler) renameCourse(c *gin.Context) {
 	var in struct {
@@ -91,32 +124,28 @@ func (h *Handler) importCurriculum(c *gin.Context) {
 		identity.Fail(c, 409, "curriculum_exists", "仅空课程可导入目录，已有内容请逐项维护")
 		return
 	}
+	const addPointSQL = `INSERT INTO knowledge_points(id,course_id,title,position,parent_id,kind,description) VALUES($1,$2,$3,$4,$5,$6,$7)`
+	courseID := c.Param("courseID")
+	batch := &pgx.Batch{}
 	position := int32(0)
-	add := func(title, kind, parent string) (string, error) {
+	add := func(title, kind, parent string) string {
 		id := uuid.NewString()
-		_, e := q.AddBusinessPoint(ctx, store.AddBusinessPointParams{ID: id, CourseID: c.Param("courseID"), Title: title, Kind: kind, ParentID: text(parent), Position: position})
+		batch.Queue(addPointSQL, id, courseID, title, position, text(parent), kind, "")
 		position++
-		return id, e
+		return id
 	}
 	for _, chapter := range in.Chapters {
-		chapterID, e := add(chapter.Title, "chapter", "")
-		if e != nil {
-			result(c, nil, e)
-			return
-		}
+		chapterID := add(chapter.Title, "chapter", "")
 		for _, section := range chapter.Sections {
-			sectionID, e := add(section.Title, "section", chapterID)
-			if e != nil {
-				result(c, nil, e)
-				return
-			}
+			sectionID := add(section.Title, "section", chapterID)
 			for _, point := range section.Points {
-				if _, e = add(point, "point", sectionID); e != nil {
-					result(c, nil, e)
-					return
-				}
+				add(point, "point", sectionID)
 			}
 		}
+	}
+	if e = execBatch(ctx, tx, batch); e != nil {
+		result(c, nil, e)
+		return
 	}
 	e = tx.Commit(ctx)
 	result(c, gin.H{"imported": count}, e)

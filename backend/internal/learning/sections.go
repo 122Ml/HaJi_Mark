@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strings"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type sectionRow struct {
@@ -22,7 +24,13 @@ type sectionRow struct {
 	Relation    string   `json:"relation"`
 	FragmentIDs []string `json:"fragment_ids"`
 	PointID     string   `json:"knowledge_point_id"`
+	TimeStartMs int64    `json:"time_start_ms"`
+	TimeEndMs   int64    `json:"time_end_ms"`
 	Reason      string   `json:"reason"`
+}
+
+func validTimeSpan(start, end int64) bool {
+	return rag.ValidTimeSpan(start, end)
 }
 
 func carryForwardContentSections(ctx context.Context, q *store.Queries, courseID, sourceID string, oldRev, newRev int32, fragMap map[string]string) error {
@@ -54,6 +62,8 @@ func carryForwardContentSections(ctx context.Context, q *store.Queries, courseID
 			KnowledgePointID: s.KnowledgePointID,
 			Reason:           s.Reason,
 			State:            s.State,
+			TimeStartMs:      s.TimeStartMs,
+			TimeEndMs:        s.TimeEndMs,
 		}); err != nil {
 			return err
 		}
@@ -129,9 +139,9 @@ func (h *Handler) adoptSegments(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
-	validFrags := make(map[string]bool, len(fs))
+	fragByID := make(map[string]store.MaterialFragment, len(fs))
 	for _, f := range fs {
-		validFrags[f.ID] = true
+		fragByID[f.ID] = f
 	}
 	pts, e := q.ListBusinessPoints(ctx, locked.CourseID)
 	if e != nil {
@@ -151,7 +161,7 @@ func (h *Handler) adoptSegments(c *gin.Context) {
 			return
 		}
 		for _, fid := range s.FragmentIDs {
-			if !validFrags[fid] || seenFrags[fid] {
+			if _, ok := fragByID[fid]; !ok || seenFrags[fid] {
 				ragError(c, errors.New("切分片段重复或不属于当前原件版本"))
 				return
 			}
@@ -175,7 +185,46 @@ func (h *Handler) adoptSegments(c *gin.Context) {
 			return
 		}
 	}
+	isVideo := rag.IsVideoSource(locked.MediaType, locked.Filename)
 	for i, s := range out.Segments {
+		var startMs, endMs int64
+		if isVideo {
+			var minStart, maxEnd int64
+			hasLoc := false
+			for _, fid := range s.FragmentIDs {
+				var loc struct {
+					TimeStartMs int64 `json:"time_start_ms"`
+					TimeEndMs   int64 `json:"time_end_ms"`
+				}
+				if json.Unmarshal(fragByID[fid].Locator, &loc) == nil && loc.TimeStartMs >= 0 && loc.TimeEndMs > loc.TimeStartMs && loc.TimeEndMs <= math.MaxInt32 {
+					if !hasLoc {
+						minStart = loc.TimeStartMs
+						maxEnd = loc.TimeEndMs
+						hasLoc = true
+					} else {
+						if loc.TimeStartMs < minStart {
+							minStart = loc.TimeStartMs
+						}
+						if loc.TimeEndMs > maxEnd {
+							maxEnd = loc.TimeEndMs
+						}
+					}
+				}
+			}
+			if hasLoc {
+				if s.TimeStartMs == 0 && s.TimeEndMs == 0 {
+					startMs, endMs = minStart, maxEnd
+				} else {
+					startMs = max(s.TimeStartMs, minStart)
+					endMs = min(s.TimeEndMs, maxEnd)
+					if !validTimeSpan(startMs, endMs) {
+						startMs, endMs = minStart, maxEnd
+					}
+				}
+			} else {
+				startMs, endMs = s.TimeStartMs, s.TimeEndMs
+			}
+		}
 		if _, e = q.CreateContentSection(ctx, store.CreateContentSectionParams{
 			ID:               uuid.NewString(),
 			CourseID:         locked.CourseID,
@@ -188,6 +237,8 @@ func (h *Handler) adoptSegments(c *gin.Context) {
 			KnowledgePointID: text(s.PointID),
 			Reason:           strings.TrimSpace(s.Reason),
 			State:            "proposed",
+			TimeStartMs:      int32(startMs),
+			TimeEndMs:        int32(endMs),
 		}); e != nil {
 			result(c, nil, e)
 			return
@@ -221,8 +272,109 @@ func validateSectionRows(rows []sectionRow) error {
 		if r.Relation == "sequence" && r.PointID != "" {
 			return errors.New("顺序切分段不能指定知识点")
 		}
+		if !validTimeSpan(r.TimeStartMs, r.TimeEndMs) {
+			return errors.New("切分段起止时间无效")
+		}
 	}
 	return nil
+}
+
+func (h *Handler) updateSection(c *gin.Context) {
+	var in struct {
+		Title       string `json:"title"`
+		Relation    string `json:"relation"`
+		PointID     string `json:"knowledge_point_id"`
+		TimeStartMs int64  `json:"time_start_ms"`
+		TimeEndMs   int64  `json:"time_end_ms"`
+		Reason      string `json:"reason"`
+		EditVersion int32  `json:"edit_version"`
+	}
+	if !bind(c, &in) {
+		return
+	}
+	in.Title = strings.TrimSpace(in.Title)
+	in.PointID = strings.TrimSpace(in.PointID)
+	in.Reason = strings.TrimSpace(in.Reason)
+	if !validText(in.Title, 200) {
+		invalid(c, "切分段标题不能为空且不超过200字节")
+		return
+	}
+	if len(in.Reason) > 1000 || strings.ContainsRune(in.Reason, '\x00') {
+		invalid(c, "切分依据过长或包含非法字符")
+		return
+	}
+	if in.Relation != "point" && in.Relation != "sequence" {
+		invalid(c, "切分段关联方式无效")
+		return
+	}
+	if in.Relation == "point" && (in.PointID == "" || strings.ContainsRune(in.PointID, '\x00')) {
+		invalid(c, "挂知识点的切分段必须选择知识点")
+		return
+	}
+	if in.Relation == "sequence" && in.PointID != "" {
+		invalid(c, "顺序切分段不能指定知识点")
+		return
+	}
+	if !validTimeSpan(in.TimeStartMs, in.TimeEndMs) {
+		invalid(c, "切分段起止时间无效")
+		return
+	}
+	if in.EditVersion <= 0 {
+		invalid(c, "编辑版本号无效")
+		return
+	}
+	ctx := c.Request.Context()
+	courseID := c.Param("courseID")
+	sourceID := c.Param("sourceID")
+	sectionID := c.Param("sectionID")
+	tx, e := h.db.Begin(ctx)
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	defer tx.Rollback(ctx)
+	q := h.q.WithTx(tx)
+	src, e := q.LockMaterialSource(ctx, store.LockMaterialSourceParams{ID: sourceID, CourseID: courseID})
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	if src.State != "active" || src.ParseState != "ready" {
+		identity.Fail(c, 409, "state_conflict", "原件已归档或尚未解析就绪")
+		return
+	}
+	if in.Relation == "point" {
+		if e := h.rag.ValidateLinksWithQueries(ctx, q, src.CourseID, []string{in.PointID}, nil, ""); e != nil {
+			ragError(c, e)
+			return
+		}
+	}
+	updated, e := q.UpdateContentSection(ctx, store.UpdateContentSectionParams{
+		ID:               sectionID,
+		CourseID:         src.CourseID,
+		SourceID:         src.ID,
+		Revision:         src.ParseRevision,
+		Title:            in.Title,
+		Relation:         in.Relation,
+		KnowledgePointID: text(in.PointID),
+		TimeStartMs:      int32(in.TimeStartMs),
+		TimeEndMs:        int32(in.TimeEndMs),
+		Reason:           in.Reason,
+		EditVersion:      in.EditVersion,
+	})
+	if errors.Is(e, pgx.ErrNoRows) {
+		identity.Fail(c, 409, "state_conflict", "切分段不存在、已接受锁定或版本已变化，请刷新后重试")
+		return
+	}
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	if e = tx.Commit(ctx); e != nil {
+		result(c, nil, e)
+		return
+	}
+	result(c, updated, nil)
 }
 
 // Bulk teacher decision. AI proposals stay proposed until a teacher accepts them.
@@ -319,7 +471,7 @@ func (h *Handler) sectionsPublish(c *gin.Context) {
 	}
 	parts := make([]string, len(accepted))
 	for i, sec := range accepted {
-		parts[i] = fmt.Sprintf("%s:%d", sec.ID, sec.EditVersion)
+		parts[i] = fmt.Sprintf("%s:%d:%d:%d", sec.ID, sec.EditVersion, sec.TimeStartMs, sec.TimeEndMs)
 	}
 	slices.Sort(parts)
 	sum := sha256.Sum256([]byte(fmt.Sprintf("%s:%d|%s", src.ID, src.ParseRevision, strings.Join(parts, "|"))))
@@ -417,4 +569,22 @@ func (h *Handler) sectionsPublish(c *gin.Context) {
 	}
 	h.enqueueIndex(jobID)
 	result(c, published, nil)
+}
+
+// Accepted video/document segments for one knowledge point on active latest revisions.
+func (h *Handler) pointClips(c *gin.Context) {
+	ctx := c.Request.Context()
+	p, e := h.q.GetKnowledgePoint(ctx, c.Param("pointID"))
+	if e != nil {
+		result(c, nil, e)
+		return
+	}
+	if !scope(c, p.CourseID) {
+		return
+	}
+	v, e := h.q.ListSectionsByPoint(ctx, store.ListSectionsByPointParams{
+		CourseID:         p.CourseID,
+		KnowledgePointID: p.ID,
+	})
+	result(c, v, e)
 }

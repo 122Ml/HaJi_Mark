@@ -270,6 +270,11 @@ func (h *Handler) searchBank(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
-	total, e := h.q.CountSearchQuestionBank(c.Request.Context(), store.CountSearchQuestionBankParams{CourseID: p.CourseID, Search: p.Search, State: p.State, QuestionType: p.QuestionType, PointID: p.PointID, TopicID: p.TopicID})
+	var total int64
+	if len(rows) > 0 {
+		total = int64(rows[0].Total)
+	} else if page > 1 {
+		total, e = h.q.CountSearchQuestionBank(c.Request.Context(), store.CountSearchQuestionBankParams{CourseID: p.CourseID, Search: p.Search, State: p.State, QuestionType: p.QuestionType, PointID: p.PointID, TopicID: p.TopicID})
+	}
 	result(c, gin.H{"items": rows, "total": total, "page": page, "page_size": size}, e)
 }

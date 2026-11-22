@@ -12,7 +12,6 @@ import {
   Popconfirm,
   Select,
   Space,
-  Tag,
   Tooltip,
   Tree,
 } from "antd";
@@ -73,7 +72,7 @@ function buildCurriculumTree(
       title: (
         <Space size={6} wrap>
           <span>{node.title}</span>
-          <Tag>{labelFor(pointKindLabels, node.kind, node.kind)}</Tag>
+          <MetaTag>{labelFor(pointKindLabels, node.kind, node.kind)}</MetaTag>
           <Button
             size="small"
             type="link"
@@ -315,6 +314,11 @@ export function CurriculumPage() {
                 <Tree
                   aria-label="课程目录树"
                   blockNode
+                  className={
+                    treeData.some((n) => n.children.length > 0)
+                      ? undefined
+                      : "live-flat-tree"
+                  }
                   expandedKeys={expandedKeys}
                   onExpand={(keys) => setExpandedKeys(keys.map(String))}
                   treeData={treeData}

@@ -10,6 +10,9 @@ UPDATE courses SET status='published',version=version+1 WHERE id=$1 AND teacher_
 -- name: ListBusinessPoints :many
 SELECT * FROM knowledge_points WHERE course_id=$1 ORDER BY position,id;
 
+-- name: CountCourseKnowledgePoints :one
+SELECT count(*)::int FROM knowledge_points WHERE course_id=$1 AND kind='point';
+
 -- name: AddBusinessPoint :one
 INSERT INTO knowledge_points(id,course_id,title,position,parent_id,kind,description) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *;
 

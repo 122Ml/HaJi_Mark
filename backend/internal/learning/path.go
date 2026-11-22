@@ -240,16 +240,10 @@ func (h *Handler) path(c *gin.Context) {
 	if items == nil {
 		items = []store.ListStudyPathItemsRow{}
 	}
-	points, e := h.q.ListBusinessPoints(ctx, c.Param("courseID"))
+	totalPoints, e := h.q.CountCourseKnowledgePoints(ctx, c.Param("courseID"))
 	if e != nil {
 		result(c, nil, e)
 		return
-	}
-	totalPoints := 0
-	for _, pt := range points {
-		if pt.Kind == "point" {
-			totalPoints++
-		}
 	}
 	result(c, gin.H{"path": p, "items": items, "total_points": totalPoints}, nil)
 }
@@ -362,6 +356,8 @@ func (h *Handler) planPath(c *gin.Context) {
 		result(c, nil, e)
 		return
 	}
+	const addPathItemSQL = `INSERT INTO study_path_items(path_id,knowledge_point_id,position,reason) VALUES($1,$2,$3,$4)`
+	batch := &pgx.Batch{}
 	items := make([]store.ListStudyPathItemsRow, 0, len(ordered))
 	for i, k := range ordered {
 		reason := "尚无正式评分证据，建议补充学习与测验"
@@ -371,10 +367,7 @@ func (h *Handler) planPath(c *gin.Context) {
 				reason = "作为后续薄弱点的前置知识复习"
 			}
 		}
-		if e = q.AddStudyPathItem(ctx, store.AddStudyPathItemParams{PathID: p.ID, KnowledgePointID: k.ID, Position: int32(i), Reason: reason}); e != nil {
-			result(c, nil, e)
-			return
-		}
+		batch.Queue(addPathItemSQL, p.ID, k.ID, int32(i), reason)
 		items = append(items, store.ListStudyPathItemsRow{
 			PathID:           p.ID,
 			KnowledgePointID: k.ID,
@@ -383,6 +376,10 @@ func (h *Handler) planPath(c *gin.Context) {
 			Title:            k.Title,
 			Description:      k.Description,
 		})
+	}
+	if e = execBatch(ctx, tx, batch); e != nil {
+		result(c, nil, e)
+		return
 	}
 	e = tx.Commit(ctx)
 	result(c, gin.H{"path": p, "items": items, "total_points": totalPoints}, e)

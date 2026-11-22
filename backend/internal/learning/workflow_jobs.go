@@ -154,6 +154,10 @@ func (h *Handler) createWorkflowJob(c *gin.Context, kind string, in rag.JobInput
 			invalid(c, "来源须为已解析的有效版本")
 			return
 		}
+		if kind == "paper_split" && rag.IsVideoSource(src.MediaType, src.Filename) {
+			invalid(c, "视频资料不支持试卷拆题")
+			return
+		}
 		in.ParseRevision = src.ParseRevision
 	}
 	profileKind := "chat"

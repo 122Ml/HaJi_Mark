@@ -3,9 +3,12 @@ package rag
 import (
 	"context"
 	"encoding/json"
-	"github.com/122Ml/HaJi_Mark/backend/internal/store"
+	"fmt"
+	"math"
 	"strings"
 	"testing"
+
+	"github.com/122Ml/HaJi_Mark/backend/internal/store"
 )
 
 func TestPublicImportRejectsUnsafeDestinations(t *testing.T) {
@@ -148,5 +151,141 @@ func TestValidateSegmentsExactPartition(t *testing.T) {
 				t.Fatal("unexpected segment validation result")
 			}
 		})
+	}
+}
+
+func TestVideoHelpersAndValidTimeSpan(t *testing.T) {
+	for _, ext := range []string{".mp4", ".MP4", " .mov ", ".mkv", ".webm", ".m4v"} {
+		if !IsVideoExtension(ext) {
+			t.Errorf("expected %q to be a video extension", ext)
+		}
+	}
+	for _, ext := range []string{"", ".pdf", ".txt", ".avi", "mp4"} {
+		if IsVideoExtension(ext) {
+			t.Errorf("expected %q not to be a video extension", ext)
+		}
+	}
+	if !IsVideoSource("video/mp4", "x.bin") || !IsVideoSource(" VIDEO/webm ", "") || !IsVideoSource("application/octet-stream", "clip.MKV") {
+		t.Fatal("expected video sources to be detected")
+	}
+	if IsVideoSource("application/pdf", "doc.pdf") || IsVideoSource("", "notes.md") {
+		t.Fatal("non-video source misclassified as video")
+	}
+	for _, tc := range []struct {
+		start, end int64
+		want       bool
+	}{
+		{0, 0, true},
+		{0, 1, true},
+		{100, 500, true},
+		{0, math.MaxInt32, true},
+		{1000, 0, false},
+		{-1, 100, false},
+		{500, 500, false},
+		{500, 200, false},
+		{0, int64(math.MaxInt32) + 1, false},
+	} {
+		if got := ValidTimeSpan(tc.start, tc.end); got != tc.want {
+			t.Errorf("ValidTimeSpan(%d, %d) = %v, want %v", tc.start, tc.end, got, tc.want)
+		}
+	}
+}
+
+func TestSampleFragmentsUniform(t *testing.T) {
+	small := make([]store.MaterialFragment, 12)
+	for i := range small {
+		small[i] = store.MaterialFragment{ID: fmt.Sprintf("f-%d", i), Position: int32(i)}
+	}
+	if got := sampleFragments(small, 60); len(got) != 12 || got[0].ID != "f-0" || got[11].ID != "f-11" {
+		t.Fatalf("unexpected small sample: len=%d", len(got))
+	}
+
+	large := make([]store.MaterialFragment, 125)
+	for i := range large {
+		large[i] = store.MaterialFragment{ID: fmt.Sprintf("f-%d", i), Position: int32(i)}
+	}
+	sampled := sampleFragments(large, 60)
+	if len(sampled) != 60 {
+		t.Fatalf("expected 60 sampled fragments, got %d", len(sampled))
+	}
+	if sampled[0].ID != "f-0" || sampled[59].ID != "f-124" {
+		t.Fatalf("expected uniform endpoints f-0..f-124, got %s..%s", sampled[0].ID, sampled[59].ID)
+	}
+	seen := map[string]bool{}
+	prevPos := int32(-1)
+	for _, f := range sampled {
+		if seen[f.ID] || f.Position <= prevPos {
+			t.Fatalf("sampled fragments not strictly increasing/unique: %+v", f)
+		}
+		seen[f.ID] = true
+		prevPos = f.Position
+	}
+}
+
+func TestValidateSegmentsTimecodesAndNormalization(t *testing.T) {
+	videoPayload := map[string]any{
+		"fragments": []map[string]any{
+			{"id": "f1", "time_start_ms": 0, "time_end_ms": 10000},
+			{"id": "f2", "time_start_ms": 10000, "time_end_ms": 25000},
+			{"id": "f3", "time_start_ms": 25000, "time_end_ms": 40000},
+		},
+		"course_points": []map[string]string{{"id": "p", "kind": "point"}},
+	}
+
+	// Valid video segments normalize omitted or inaccurate spans to exact [firstStart, lastEnd].
+	var videoOut map[string]json.RawMessage
+	_ = json.Unmarshal([]byte(`{"segments":[{"title":"段一","relation":"point","fragment_ids":["f1","f2"],"knowledge_point_id":"p","time_start_ms":100,"time_end_ms":20000,"reason":"要点"},{"title":"段二","relation":"sequence","fragment_ids":["f3"],"knowledge_point_id":"","time_start_ms":0,"time_end_ms":0,"reason":"顺承"}]}`), &videoOut)
+	if err := validateSegments(videoOut, videoPayload); err != nil {
+		t.Fatalf("expected video segments to validate and normalize: %v", err)
+	}
+	var normalized []struct {
+		TimeStartMs int64 `json:"time_start_ms"`
+		TimeEndMs   int64 `json:"time_end_ms"`
+	}
+	if err := json.Unmarshal(videoOut["segments"], &normalized); err != nil || len(normalized) != 2 {
+		t.Fatalf("failed to decode normalized segments: %v", err)
+	}
+	if normalized[0].TimeStartMs != 0 || normalized[0].TimeEndMs != 25000 || normalized[1].TimeStartMs != 25000 || normalized[1].TimeEndMs != 40000 {
+		t.Fatalf("unexpected normalized video timecodes: %+v", normalized)
+	}
+
+	// Invalid video spans must be rejected.
+	for _, bad := range []struct {
+		name, body string
+	}{
+		{"end zero with nonzero start", `{"segments":[{"title":"段一","relation":"sequence","fragment_ids":["f1","f2","f3"],"knowledge_point_id":"","time_start_ms":1000,"time_end_ms":0,"reason":"bad"}]}`},
+		{"negative start", `{"segments":[{"title":"段一","relation":"sequence","fragment_ids":["f1","f2","f3"],"knowledge_point_id":"","time_start_ms":-1,"time_end_ms":500,"reason":"bad"}]}`},
+		{"equal start end", `{"segments":[{"title":"段一","relation":"sequence","fragment_ids":["f1","f2","f3"],"knowledge_point_id":"","time_start_ms":500,"time_end_ms":500,"reason":"bad"}]}`},
+		{"int32 overflow", fmt.Sprintf(`{"segments":[{"title":"段一","relation":"sequence","fragment_ids":["f1","f2","f3"],"knowledge_point_id":"","time_start_ms":0,"time_end_ms":%d,"reason":"bad"}]}`, int64(math.MaxInt32)+1)},
+	} {
+		t.Run(bad.name, func(t *testing.T) {
+			var out map[string]json.RawMessage
+			_ = json.Unmarshal([]byte(bad.body), &out)
+			if validateSegments(out, videoPayload) == nil {
+				t.Fatalf("expected %s to be rejected", bad.name)
+			}
+		})
+	}
+
+	// Non-video fragments must enforce 0,0 in normalized segments and still reject invalid spans.
+	docPayload := map[string]any{
+		"fragments":     []map[string]any{{"id": "d1"}, {"id": "d2"}},
+		"course_points": []map[string]string{},
+	}
+	var docOut map[string]json.RawMessage
+	_ = json.Unmarshal([]byte(`{"segments":[{"title":"文档段","relation":"sequence","fragment_ids":["d1","d2"],"knowledge_point_id":"","time_start_ms":100,"time_end_ms":500,"reason":"doc"}]}`), &docOut)
+	if err := validateSegments(docOut, docPayload); err != nil {
+		t.Fatalf("expected non-video segments to normalize to 0,0: %v", err)
+	}
+	normalized = nil
+	_ = json.Unmarshal(docOut["segments"], &normalized)
+	if len(normalized) != 1 || normalized[0].TimeStartMs != 0 || normalized[0].TimeEndMs != 0 {
+		t.Fatalf("expected non-video segment times normalized to 0,0, got %+v", normalized)
+	}
+
+	var badDoc map[string]json.RawMessage
+	_ = json.Unmarshal([]byte(`{"segments":[{"title":"文档段","relation":"sequence","fragment_ids":["d1","d2"],"knowledge_point_id":"","time_start_ms":1000,"time_end_ms":0,"reason":"bad"}]}`), &badDoc)
+	if validateSegments(badDoc, docPayload) == nil {
+		t.Fatal("expected invalid (1000,0) on non-video segment to fail")
 	}
 }

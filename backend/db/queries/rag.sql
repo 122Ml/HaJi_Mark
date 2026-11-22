@@ -38,6 +38,9 @@ SELECT EXISTS(SELECT 1 FROM resources r WHERE r.course_id=$1 AND r.status='publi
 -- name: StudentCanDownloadSource :one
 SELECT EXISTS(SELECT 1 FROM resources r JOIN material_sources s ON s.id=r.source_id WHERE s.id=$1 AND s.course_id=$2 AND s.state='active' AND r.status='published' AND r.full_source=true);
 
+-- name: StudentCanStreamVideoSource :one
+SELECT EXISTS(SELECT 1 FROM resources r JOIN material_sources s ON s.id=r.source_id WHERE s.id=$1 AND s.course_id=$2 AND s.state='active' AND s.media_type LIKE 'video/%' AND r.status='published');
+
 -- name: CreateKnowledgeEntry :one
 INSERT INTO knowledge_entries(id,course_id,created_by,title,body,category,content_kind,conditions,knowledge_point_ids,evidence,related_ids,student_visible,use_for_learning,use_for_grading,version,supersedes_id,origin)
 VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,COALESCE(NULLIF(sqlc.arg(origin)::text,''),'source')) RETURNING *;
@@ -94,36 +97,50 @@ AND ((s.state='active' AND ((sqlc.arg(teacher)::boolean AND EXISTS(SELECT 1 FROM
 ORDER BY distance,c.id LIMIT 20;
 
 -- name: VectorSearch1024 :many
-SELECT c.id,c.source_id,c.knowledge_id,c.resource_id,c.fragment_ids,c.title,c.heading,c.body,c.locator,
- ((e.embedding::vector(1024)) <=> (sqlc.arg(vector_text)::text::vector(1024)))::float8 AS distance
-FROM retrieval_chunks c JOIN chunk_embeddings e ON e.chunk_id=c.id
-LEFT JOIN material_sources s ON s.id=c.source_id
-LEFT JOIN knowledge_entries k ON k.id=c.knowledge_id
-LEFT JOIN resources r ON r.id=c.resource_id
-WHERE c.course_id=sqlc.arg(course_id) AND e.space_id=sqlc.arg(space_id) AND e.dimensions=1024 AND c.active
-AND (sqlc.arg(purpose)::text<>'comparison' OR k.id IS NOT NULL)
-AND ((s.state='active' AND ((sqlc.arg(teacher)::boolean AND EXISTS(SELECT 1 FROM material_fragments mf WHERE mf.source_id=s.id AND mf.revision=s.parse_revision AND mf.id=ANY(c.fragment_ids)))
-   OR (NOT sqlc.arg(teacher)::boolean AND EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids))))
- OR (k.state='confirmed' AND CASE WHEN sqlc.arg(purpose)::text='grading' THEN k.use_for_grading WHEN sqlc.arg(purpose)::text='comparison' THEN k.use_for_grading OR k.use_for_learning ELSE k.use_for_learning END AND (sqlc.arg(teacher)::boolean OR k.student_visible)
- AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT sqlc.arg(teacher)::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.course_id=c.course_id AND pr.status='published' AND pr.fragment_ids @> ARRAY[ev->>'fragment_id']))))
- OR (r.status='published' AND r.source_id IS NULL))
-ORDER BY (e.embedding::vector(1024)) <=> (sqlc.arg(vector_text)::text::vector(1024)),c.id LIMIT 20;
+WITH nn AS (
+ SELECT c.id,c.source_id,c.knowledge_id,c.resource_id,c.fragment_ids,c.title,c.heading,c.body,c.locator,
+  ((e.embedding::vector(1024)) <=> (sqlc.arg(vector_text)::text::vector(1024)))::float8 AS distance
+ FROM chunk_embeddings e
+ JOIN retrieval_chunks c ON c.id=e.chunk_id
+ LEFT JOIN material_sources s ON s.id=c.source_id
+ LEFT JOIN knowledge_entries k ON k.id=c.knowledge_id
+ LEFT JOIN resources r ON r.id=c.resource_id
+ WHERE c.course_id=sqlc.arg(course_id) AND e.space_id=sqlc.arg(space_id) AND e.dimensions=1024 AND c.active
+ AND (sqlc.arg(purpose)::text<>'comparison' OR k.id IS NOT NULL)
+ AND ((s.state='active' AND ((sqlc.arg(teacher)::boolean AND EXISTS(SELECT 1 FROM material_fragments mf WHERE mf.id=ANY(c.fragment_ids) AND (mf.source_id,mf.revision) IS NOT DISTINCT FROM (s.id,s.parse_revision)))
+    OR (NOT sqlc.arg(teacher)::boolean AND EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids))))
+  OR (k.state='confirmed' AND CASE WHEN sqlc.arg(purpose)::text='grading' THEN k.use_for_grading WHEN sqlc.arg(purpose)::text='comparison' THEN k.use_for_grading OR k.use_for_learning ELSE k.use_for_learning END AND (sqlc.arg(teacher)::boolean OR k.student_visible)
+  AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT sqlc.arg(teacher)::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.course_id=c.course_id AND pr.status='published' AND pr.fragment_ids @> ARRAY[ev->>'fragment_id']))))
+  OR (r.status='published' AND r.source_id IS NULL))
+ ORDER BY (e.embedding::vector(1024)) <=> (sqlc.arg(vector_text)::text::vector(1024))
+ LIMIT 20
+)
+SELECT id,source_id,knowledge_id,resource_id,fragment_ids,title,heading,body,locator,distance
+FROM nn
+ORDER BY distance,id;
 
 -- name: VectorSearch1536 :many
-SELECT c.id,c.source_id,c.knowledge_id,c.resource_id,c.fragment_ids,c.title,c.heading,c.body,c.locator,
- ((e.embedding::vector(1536)) <=> (sqlc.arg(vector_text)::text::vector(1536)))::float8 AS distance
-FROM retrieval_chunks c JOIN chunk_embeddings e ON e.chunk_id=c.id
-LEFT JOIN material_sources s ON s.id=c.source_id
-LEFT JOIN knowledge_entries k ON k.id=c.knowledge_id
-LEFT JOIN resources r ON r.id=c.resource_id
-WHERE c.course_id=sqlc.arg(course_id) AND e.space_id=sqlc.arg(space_id) AND e.dimensions=1536 AND c.active
-AND (sqlc.arg(purpose)::text<>'comparison' OR k.id IS NOT NULL)
-AND ((s.state='active' AND ((sqlc.arg(teacher)::boolean AND EXISTS(SELECT 1 FROM material_fragments mf WHERE mf.source_id=s.id AND mf.revision=s.parse_revision AND mf.id=ANY(c.fragment_ids)))
-   OR (NOT sqlc.arg(teacher)::boolean AND EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids))))
- OR (k.state='confirmed' AND CASE WHEN sqlc.arg(purpose)::text='grading' THEN k.use_for_grading WHEN sqlc.arg(purpose)::text='comparison' THEN k.use_for_grading OR k.use_for_learning ELSE k.use_for_learning END AND (sqlc.arg(teacher)::boolean OR k.student_visible)
- AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT sqlc.arg(teacher)::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.course_id=c.course_id AND pr.status='published' AND pr.fragment_ids @> ARRAY[ev->>'fragment_id']))))
- OR (r.status='published' AND r.source_id IS NULL))
-ORDER BY (e.embedding::vector(1536)) <=> (sqlc.arg(vector_text)::text::vector(1536)),c.id LIMIT 20;
+WITH nn AS (
+ SELECT c.id,c.source_id,c.knowledge_id,c.resource_id,c.fragment_ids,c.title,c.heading,c.body,c.locator,
+  ((e.embedding::vector(1536)) <=> (sqlc.arg(vector_text)::text::vector(1536)))::float8 AS distance
+ FROM chunk_embeddings e
+ JOIN retrieval_chunks c ON c.id=e.chunk_id
+ LEFT JOIN material_sources s ON s.id=c.source_id
+ LEFT JOIN knowledge_entries k ON k.id=c.knowledge_id
+ LEFT JOIN resources r ON r.id=c.resource_id
+ WHERE c.course_id=sqlc.arg(course_id) AND e.space_id=sqlc.arg(space_id) AND e.dimensions=1536 AND c.active
+ AND (sqlc.arg(purpose)::text<>'comparison' OR k.id IS NOT NULL)
+ AND ((s.state='active' AND ((sqlc.arg(teacher)::boolean AND EXISTS(SELECT 1 FROM material_fragments mf WHERE mf.id=ANY(c.fragment_ids) AND (mf.source_id,mf.revision) IS NOT DISTINCT FROM (s.id,s.parse_revision)))
+    OR (NOT sqlc.arg(teacher)::boolean AND EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids))))
+  OR (k.state='confirmed' AND CASE WHEN sqlc.arg(purpose)::text='grading' THEN k.use_for_grading WHEN sqlc.arg(purpose)::text='comparison' THEN k.use_for_grading OR k.use_for_learning ELSE k.use_for_learning END AND (sqlc.arg(teacher)::boolean OR k.student_visible)
+  AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT sqlc.arg(teacher)::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.course_id=c.course_id AND pr.status='published' AND pr.fragment_ids @> ARRAY[ev->>'fragment_id']))))
+  OR (r.status='published' AND r.source_id IS NULL))
+ ORDER BY (e.embedding::vector(1536)) <=> (sqlc.arg(vector_text)::text::vector(1536))
+ LIMIT 20
+)
+SELECT id,source_id,knowledge_id,resource_id,fragment_ids,title,heading,body,locator,distance
+FROM nn
+ORDER BY distance,id;
 
 -- name: KeywordSearch :many
 SELECT c.id,c.source_id,c.knowledge_id,c.resource_id,c.fragment_ids,c.title,c.heading,c.body,c.locator,

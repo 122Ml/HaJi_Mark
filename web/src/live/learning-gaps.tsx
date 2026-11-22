@@ -11,6 +11,7 @@ import {
   Typography,
 } from "antd";
 import { Link } from "./context";
+import { EmptyState } from "../shared/ui";
 import type { Member, PointFeedback } from "./types";
 
 export interface ReleasedEvidence {
@@ -183,9 +184,19 @@ export function LearningGaps({
         scroll={{ x: 640 }}
         pagination={{ pageSize: 8, showSizeChanger: false, hideOnSinglePage: true }}
         locale={{
-          emptyText: groups.length
-            ? "当前逐点正式结果没有失分项"
-            : "尚无可比较的逐点正式结果；整题评分、待评及未提交不补算",
+          emptyText: (
+            <EmptyState
+              title={
+                groups.length
+                  ? "当前逐点正式结果没有失分项"
+                  : "尚无可比较的逐点正式结果"
+              }
+            >
+              {groups.length
+                ? undefined
+                : "整题评分、待评及未提交不补算"}
+            </EmptyState>
+          ),
         }}
         columns={[
           {

@@ -16,6 +16,7 @@ import {
   uuid,
 } from "./context";
 import { formatHitLocator, labelFor, stateLabels } from "./domain-meta";
+import { resourceHref, sourceHref } from "./frozen-evidence";
 import { RetrievalHistory } from "./retrieval-history";
 import type { AssistAnswer, Hit, Resource } from "./types";
 import { hasControlNull, utf8ByteLength } from "./validation";
@@ -48,18 +49,6 @@ function formatSearchMode(rawMode: string, teacher: boolean): string {
     return `${friendlyBase} · ${rest.join(" · ")}`;
   }
   return friendlyBase;
-}
-
-function resourceHref(teacher: boolean, resourceID: string): string {
-  return teacher
-    ? `/teacher/materials?tab=published&resource=${encodeURIComponent(resourceID)}`
-    : `/student/course-content?resource=${encodeURIComponent(resourceID)}`;
-}
-
-function sourceHref(sourceID: string, fragmentID?: string): string {
-  const sp = new URLSearchParams({ source: sourceID });
-  if (fragmentID) sp.set("fragment", fragmentID);
-  return `/teacher/materials?${sp.toString()}`;
 }
 
 export function RetrievalPage({
@@ -425,7 +414,7 @@ export function RetrievalPage({
                 <p className="live-prose">{h.body}</p>
                 <Space wrap size="small">
                   {teacher && h.source_id && (
-                    <Link to={sourceHref(h.source_id, h.fragment_ids?.[0])}>
+                    <Link to={sourceHref(h.source_id, h.fragment_ids?.[0], h.locator)}>
                       查看原文
                     </Link>
                   )}
@@ -437,7 +426,7 @@ export function RetrievalPage({
                     </Link>
                   )}
                   {h.resource_id && (
-                    <Link to={resourceHref(teacher, h.resource_id)}>
+                    <Link to={resourceHref(teacher, h.resource_id, h.locator)}>
                       查看引用学习资料
                     </Link>
                   )}

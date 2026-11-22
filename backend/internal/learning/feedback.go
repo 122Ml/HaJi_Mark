@@ -279,8 +279,8 @@ func (h *Handler) gradeState(c *gin.Context) {
 }
 func (h *Handler) interventions(c *gin.Context) {
 	v, e := h.q.ListBusinessInterventions(c.Request.Context(), store.ListBusinessInterventionsParams{CourseID: c.Param("courseID"), Teacher: teacher(c), ActorID: identity.Current(c).ID})
-	if e == nil && v == nil {
-		v = []store.ListBusinessInterventionsRow{}
+	if e == nil {
+		v = filterByID(v, strings.TrimSpace(c.Query("id")), func(i store.ListBusinessInterventionsRow) string { return i.ID })
 	}
 	result(c, v, e)
 }

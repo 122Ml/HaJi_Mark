@@ -33,7 +33,7 @@ func newRateLimiter(limit int, window time.Duration, maxKeys int) *loginLimiter 
 }
 
 func (l *loginLimiter) sweepExpiredLocked(now time.Time) {
-	if now.Sub(l.lastSweep) < l.window/4 && len(l.windows) < l.maxKeys {
+	if now.Sub(l.lastSweep) < l.window/4 {
 		return
 	}
 	l.lastSweep = now

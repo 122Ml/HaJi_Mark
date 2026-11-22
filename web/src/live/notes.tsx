@@ -2,7 +2,7 @@ import { Field } from "../shared/Field";
 import { Alert, Button, Checkbox, Form, Input, Typography } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DraftNotice, useEditorDraft } from "./editing";
-import { Feedback, useAction, useLiveQuery } from "./context";
+import { Feedback, useAction, useLearning, useLiveQuery } from "./context";
 import { hasControlNull, utf8ByteLength } from "./validation";
 
 export interface Note {
@@ -14,7 +14,8 @@ export interface Note {
 const MAX_NOTE_BYTES = 100_000;
 
 export function ResourceNotes({ resourceId }: { resourceId: string }) {
-  const query = useLiveQuery<Note[]>("/notes", true, true);
+  const { course } = useLearning();
+  const query = useLiveQuery<Note[]>("/notes");
   const action = useAction();
   const saved = query.data?.find((n) => n.resource_id === resourceId);
   const initial = useMemo(
@@ -24,7 +25,17 @@ export function ResourceNotes({ resourceId }: { resourceId: string }) {
     }),
     [saved?.note, saved?.favorite],
   );
-  const ready = query.isSuccess && query.isFetchedAfterMount;
+  const readyScope = `${course?.id ?? ""}:${resourceId}`;
+  const readyNow =
+    query.isSuccess &&
+    (query.isFetchedAfterMount || (!query.isStale && !query.isFetching));
+  const [readyScopeDone, setReadyScopeDone] = useState("");
+  useEffect(() => {
+    if (readyNow && readyScopeDone !== readyScope) {
+      setReadyScopeDone(readyScope);
+    }
+  }, [readyNow, readyScope, readyScopeDone]);
+  const ready = readyNow || readyScopeDone === readyScope;
   const draft = useEditorDraft(`note:${resourceId}`, initial, ready);
   const { note, favorite } = draft.value;
 

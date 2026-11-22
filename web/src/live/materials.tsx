@@ -8,11 +8,13 @@ import {
   useState,
 } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Alert,
   Button,
   Card,
   Checkbox,
+  Divider,
   Drawer,
   Form,
   Input,
@@ -20,6 +22,7 @@ import {
   Select,
   Space,
   Tabs,
+  Tag,
   Typography,
 } from "antd";
 import { Database, Upload } from "lucide-react";
@@ -50,11 +53,20 @@ import {
   useLiveQuery,
   when,
 } from "./context";
-import { formatLocator, labelFor, stateLabels } from "./domain-meta";
+import {
+  VIDEO_EXTENSIONS,
+  extractTimeRangeMs,
+  formatLocator,
+  formatTimeRangeMs,
+  isVideoSource,
+  labelFor,
+  stateLabels,
+} from "./domain-meta";
 import { DraftNotice, EditorScope, useEditorDraft } from "./editing";
 import { useLocationValue } from "./location-state";
 import { MaterialAssets } from "./material-assets";
 import { PaperImport, SourceSegments, SourceSuggestions, URLImport } from "./material-assist";
+import { MediaPlayer } from "./media-player";
 import type {
   Fragment,
   Job,
@@ -82,8 +94,10 @@ const ALLOWED_EXTENSIONS = new Set([
   ".html",
   ".htm",
   ".csv",
+  ...VIDEO_EXTENSIONS,
 ]);
 const MAX_FILE_BYTES = 30 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 512 * 1024 * 1024;
 const MAX_BATCH_FILES = 10;
 const FRAGMENTS_PAGE_SIZE = 20;
 const SOURCES_PAGE_SIZE = 10;
@@ -91,6 +105,10 @@ const SOURCES_PAGE_SIZE = 10;
 function fileExtension(filename: string): string {
   const idx = filename.lastIndexOf(".");
   return idx >= 0 ? filename.slice(idx).toLowerCase() : "";
+}
+
+function isVideoFilename(name: string): boolean {
+  return (VIDEO_EXTENSIONS as readonly string[]).includes(fileExtension(name));
 }
 
 function parseContentDispositionFilename(header: string | null, fallback: string): string {
@@ -364,6 +382,9 @@ export function MaterialsPage() {
                           <strong>{s.title}</strong>
                           {s.filename !== s.title && <span>{s.filename}</span>}
                           <MetaTags>
+                            {isVideoSource(s.media_type, s.filename) && (
+                              <Tag color="purple">视频</Tag>
+                            )}
                             <StatusTag
                               status={
                                 s.state === "archived"
@@ -559,7 +580,8 @@ function UploadForm({
   supersedesID?: string;
   onBusyChange?: (busy: boolean) => void;
 }) {
-  const { course, reload } = useLearning();
+  const { course } = useLearning();
+  const queryClient = useQueryClient();
   const { session } = useSession();
   const [files, setFiles] = useState<File[]>([]);
   const [resetKey, setResetKey] = useState(0);
@@ -590,20 +612,36 @@ function UploadForm({
     if (supersedesID && files.length !== 1) {
       return "替换原件时一次只能上传一个文件";
     }
-    if (files.length > MAX_BATCH_FILES) {
-      return `每批最多 ${MAX_BATCH_FILES} 个文件`;
-    }
+    let videoCount = 0;
+    let docCount = 0;
     for (const file of files) {
       const ext = fileExtension(file.name);
       if (!ALLOWED_EXTENSIONS.has(ext)) {
-        return `文件「${file.name}」类型不支持（仅支持 PDF/DOCX/PPTX/TXT/MD/HTML/CSV）`;
+        return `文件「${file.name}」类型不支持（仅支持 PDF/DOCX/PPTX/TXT/MD/HTML/CSV 与 MP4/MOV/MKV/WEBM/M4V 视频）`;
       }
       if (file.size <= 0) {
         return `文件「${file.name}」为空文件，无法导入`;
       }
-      if (file.size > MAX_FILE_BYTES) {
-        return `文件「${file.name}」超过 30MiB 限制`;
+      if (isVideoFilename(file.name)) {
+        videoCount += 1;
+        if (file.size > MAX_VIDEO_BYTES) {
+          return `视频文件「${file.name}」超过 512MiB 限制`;
+        }
+      } else {
+        docCount += 1;
+        if (file.size > MAX_FILE_BYTES) {
+          return `文件「${file.name}」超过 30MiB 限制`;
+        }
       }
+    }
+    if (videoCount > 0 && docCount > 0) {
+      return "不能在同一批次中混传视频和文档文件，请分开上传";
+    }
+    if (videoCount > 1) {
+      return "视频文件每次只能上传 1 个";
+    }
+    if (files.length > MAX_BATCH_FILES) {
+      return `每批最多 ${MAX_BATCH_FILES} 个文件`;
     }
     const trimmedNote = note.trim();
     if (!trimmedNote) return "请登记资料来源";
@@ -661,7 +699,18 @@ function UploadForm({
           }
         }
         try {
-          await reload();
+          const filters = {
+            predicate: (q: { queryKey: readonly unknown[] }) =>
+              q.queryKey[0] === "live" &&
+              q.queryKey[1] === course.id &&
+              ["sources", "jobs"].includes(
+                String(q.queryKey[2] || "")
+                  .split("/")[1]
+                  ?.split("?")[0] || "",
+              ),
+          };
+          await queryClient.cancelQueries(filters);
+          await queryClient.invalidateQueries(filters);
         } catch {
           if (mountedRef.current) {
             setError("上传回执已保留，列表刷新失败，请刷新后核对。");
@@ -683,7 +732,7 @@ function UploadForm({
           required
           multiple={!supersedesID}
           resetKey={resetKey}
-          accept=".pdf,.docx,.pptx,.txt,.md,.html,.htm,.csv"
+          accept=".pdf,.docx,.pptx,.txt,.md,.html,.htm,.csv,.mp4,.mov,.mkv,.webm,.m4v"
           onChange={(nextFiles) => {
             setFiles(nextFiles);
             setReceipts([]);
@@ -693,8 +742,8 @@ function UploadForm({
       </Field>
       <small>
         {supersedesID
-          ? "替换原件一次仅支持上传 1 个文件，不超过 30MiB；PDF / PPTX 最多 200 页。"
-          : "每批10个以内，每个30MiB以内；PDF / PPTX最多200页。扫描文字须人工核对。"}
+          ? "替换原件一次仅支持 1 个文件：文档 30MiB 以内（PDF / PPTX 最多 200 页），视频（MP4/MOV/MKV/WEBM/M4V）512MiB 以内。"
+          : "文档每批 10 个以内、单个 30MiB 以内（PDF / PPTX 最多 200 页）；视频每次仅限 1 个、512MiB 以内，不可与文档混传。"}
       </small>
       <Field className="ui-field" label={<>资料来源</>} required={true}>
         <Input.TextArea
@@ -929,8 +978,26 @@ function SourceDocument({
   const [downloadError, setDownloadError] = useState("");
   const [fragmentSearch, setFragmentSearch] = useState("");
   const [fragmentPage, setFragmentPage] = useState(1);
+  const [searchParams] = useSearchParams();
+  const rawT = searchParams.get("t");
+  const initialSeekMs = useMemo(() => {
+    if (!rawT) return null;
+    const parsed = Number(rawT);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+  }, [rawT]);
+  const [seekState, setSeekState] = useState<{
+    ms: number | null;
+    nonce: number;
+  }>(() => ({ ms: initialSeekMs, nonce: 0 }));
+  const handleSeek = useCallback((ms: number) => {
+    setSeekState((prev) => ({ ms, nonce: prev.nonce + 1 }));
+  }, []);
   const dirtyFragmentsRef = useRef<Set<number>>(new Set());
   const points = useLiveQuery<{ points: Point[] }>("");
+
+  useEffect(() => {
+    setSeekState((prev) => ({ ms: initialSeekMs, nonce: prev.nonce + 1 }));
+  }, [id, initialSeekMs]);
 
   const source = query.data?.source;
   const fragments = query.data?.fragments || [];
@@ -1005,6 +1072,7 @@ function SourceDocument({
 
   const historical = displayRevision !== source.parse_revision;
   const editable = source.state === "active" && !historical;
+  const videoSource = isVideoSource(source.media_type, source.filename);
   const isParsing =
     source.parse_state === "queued" || source.parse_state === "running";
   const publishTitle = (title || source.title).trim();
@@ -1080,6 +1148,7 @@ function SourceDocument({
           </Link>
         )}
         <MetaTags>
+          {videoSource && <Tag color="purple">视频</Tag>}
           <StatusTag
             status={
               source.state === "archived" ? "archived" : source.parse_state
@@ -1173,15 +1242,29 @@ function SourceDocument({
         />
       )}
       <ContentLinks kind="source" id={id} />
+      {videoSource && (
+        <MediaPlayer
+          src={`/api/v1/learning/courses/${encodeURIComponent(course.id)}/sources/${encodeURIComponent(id)}/stream`}
+          title={source.title}
+          seekMs={seekState.ms}
+          seekNonce={seekState.nonce}
+        />
+      )}
       {editable && <SourceSuggestions id={id} />}
-      {editable && <SourceSegments id={id} />}
+      {editable && (
+        <SourceSegments
+          id={id}
+          onSeek={videoSource ? handleSeek : undefined}
+          parseRevision={source.parse_revision}
+        />
+      )}
       <MaterialAssets
         sourceID={id}
         revision={source.parse_revision}
         editable={editable}
         activeFragmentAssetIDs={activeFragmentAssetIDs}
       />
-      {editable && fragments.length > 0 && (
+      {editable && !videoSource && fragments.length > 0 && (
         <Button htmlType="button" onClick={() => setPaperOpen(true)}>
           在此拆分试卷
         </Button>
@@ -1290,6 +1373,7 @@ function SourceDocument({
             editable={editable}
             highlighted={f.id === fragmentID}
             selected={selected.includes(f.id)}
+            onSeek={videoSource ? handleSeek : undefined}
             onDirtyChange={(dirty) => {
               if (dirty) dirtyFragmentsRef.current.add(index);
               else dirtyFragmentsRef.current.delete(index);
@@ -1463,7 +1547,7 @@ function SourceDocument({
               }
             />
           )}
-          <hr />
+          <Divider style={{ margin: "4px 0" }} />
           {extractTooLarge && selected.length > 0 && (
             <Alert
               type="info"
@@ -1512,6 +1596,7 @@ function FragmentEditor({
   editable,
   highlighted,
   selected,
+  onSeek,
   onDirtyChange,
   onSelect,
   onSave,
@@ -1524,6 +1609,7 @@ function FragmentEditor({
   editable: boolean;
   highlighted: boolean;
   selected: boolean;
+  onSeek?: (ms: number) => void;
   onDirtyChange: (dirty: boolean) => void;
   onSelect: (v: boolean) => void;
   onSave: (p: Partial<Fragment>) => Promise<boolean>;
@@ -1557,6 +1643,7 @@ function FragmentEditor({
   }, [draft.restored, editable]);
 
   const loc = formatLocator(f.locator);
+  const timeRange = extractTimeRangeMs(f.locator);
   const displayHeading = draft.dirty ? heading : f.heading;
   const displayBody = draft.dirty ? body : f.body;
 
@@ -1602,6 +1689,16 @@ function FragmentEditor({
             <StatusTag status="warning" label="有未保存编辑" />
           )}
         </MetaTags>
+        {onSeek && timeRange && (
+          <Button
+            type="link"
+            size="small"
+            htmlType="button"
+            onClick={() => onSeek(timeRange.startMs)}
+          >
+            {`跳转 ${formatTimeRangeMs(timeRange.startMs, timeRange.endMs)}`}
+          </Button>
+        )}
       </div>
       {displayHeading && loc && <small>{loc}</small>}
       {editing ? (

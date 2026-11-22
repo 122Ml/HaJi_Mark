@@ -385,7 +385,6 @@ func (s *Service) process(ctx context.Context, id string) error {
 	var msg rag.AgentMessage
 	if model, ok := s.Model.(streamingModel); ok {
 		var (
-			lastCheck   time.Time
 			text        string
 			flushMu     sync.Mutex
 			lastFlushed string
@@ -449,24 +448,10 @@ func (s *Service) process(ctx context.Context, id string) error {
 			close(flusherDone)
 		}
 		emit := func(value string) error {
-			text = value
-			if lastCheck.IsZero() || time.Since(lastCheck) >= time.Second {
-				lastCheck = time.Now()
-				checkCtx, checkCancel := context.WithTimeout(modelCtx, 5*time.Second)
-				fresh, err := s.Q.GetAgentRun(checkCtx, run.ID)
-				if err == nil && !fresh.CancelRequested {
-					_, err = s.authorized(checkCtx, run, conv)
-				}
-				checkCancel()
-				if err != nil {
-					cancel()
-					return err
-				}
-				if fresh.CancelRequested {
-					cancel()
-					return context.Canceled
-				}
+			if err := modelCtx.Err(); err != nil {
+				return err
 			}
+			text = value
 			if f.Domain != "coordinator" {
 				return nil
 			}

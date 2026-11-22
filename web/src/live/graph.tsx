@@ -707,7 +707,7 @@ export function KnowledgeGraph() {
           )}
 
           {edges.length > 0 && (
-            <Card size="small" className="card-panel" title="已登记先修关系">
+            <Card className="card-panel" title="已登记先修关系">
               <List
                 size="small"
                 dataSource={edges}

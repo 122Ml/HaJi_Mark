@@ -1,6 +1,7 @@
 package learning
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -15,6 +16,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/122Ml/HaJi_Mark/backend/internal/identity"
@@ -62,6 +64,7 @@ func (h *Handler) registerRAG(g *gin.RouterGroup, auth *identity.Handler) {
 	t.POST("/sources/:sourceID/archive", auth.RequireCSRF(), h.archiveSource)
 	t.PUT("/sources/:sourceID/derivation", auth.RequireCSRF(), h.sourceDerivation)
 	r.GET("/sources/:sourceID/download", h.downloadSource)
+	r.GET("/sources/:sourceID/stream", h.streamSource)
 	r.GET("/knowledge", h.knowledge)
 	t.POST("/knowledge", auth.RequireCSRF(), h.saveKnowledge)
 	t.PUT("/knowledge/:knowledgeID", auth.RequireCSRF(), h.saveKnowledge)
@@ -73,8 +76,10 @@ func (h *Handler) registerRAG(g *gin.RouterGroup, auth *identity.Handler) {
 	t.POST("/jobs/:jobID/retry", auth.RequireCSRF(), h.retryJob)
 	t.GET("/sources/:sourceID/sections", h.sections)
 	t.POST("/sources/:sourceID/sections/adopt", auth.RequireCSRF(), h.adoptSegments)
+	t.PUT("/sources/:sourceID/sections/:sectionID", auth.RequireCSRF(), h.updateSection)
 	t.POST("/sources/:sourceID/sections/state", auth.RequireCSRF(), h.sectionsState)
 	t.POST("/sources/:sourceID/sections/publish", auth.RequireCSRF(), h.sectionsPublish)
+	t.GET("/knowledge-points/:pointID/clips", h.pointClips)
 	g.POST("/retrieval", auth.RequireCSRF(), h.retrieval)
 	g.GET("/retrieval/status", h.retrievalStatus)
 }
@@ -195,14 +200,59 @@ func (h *Handler) sourceDetail(c *gin.Context) {
 	fs, e := h.q.ListMaterialFragments(c.Request.Context(), store.ListMaterialFragmentsParams{SourceID: src.ID, Revision: revision})
 	result(c, gin.H{"source": src, "fragments": fs, "display_revision": revision}, e)
 }
+
+var videoMIMETypes = map[string]string{
+	".mp4":  "video/mp4",
+	".mov":  "video/quicktime",
+	".mkv":  "video/x-matroska",
+	".webm": "video/webm",
+	".m4v":  "video/mp4",
+}
+
+func validVideoMagic(ext string, head []byte) bool {
+	switch ext {
+	case ".mp4", ".m4v":
+		return len(head) >= 8 && string(head[4:8]) == "ftyp"
+	case ".mov":
+		if len(head) < 8 {
+			return false
+		}
+		switch string(head[4:8]) {
+		case "ftyp", "moov", "mdat", "wide", "free", "skip", "pnot":
+			return true
+		}
+		return false
+	case ".mkv", ".webm":
+		return len(head) >= 4 && head[0] == 0x1A && head[1] == 0x45 && head[2] == 0xDF && head[3] == 0xA3
+	}
+	return false
+}
+
+func videoContentType(mediaType, filename string) string {
+	ext := strings.ToLower(filepath.Ext(strings.TrimSpace(filename)))
+	if ct, ok := videoMIMETypes[ext]; ok {
+		return ct
+	}
+	mt := strings.ToLower(strings.TrimSpace(mediaType))
+	if semi := strings.IndexByte(mt, ';'); semi >= 0 {
+		mt = strings.TrimSpace(mt[:semi])
+	}
+	switch mt {
+	case "video/mp4", "video/quicktime", "video/x-matroska", "video/webm":
+		return mt
+	}
+	return "video/mp4"
+}
+
 func (h *Handler) uploadSources(c *gin.Context) {
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 310<<20)
+	_ = http.NewResponseController(c.Writer).SetReadDeadline(time.Now().Add(15 * time.Minute))
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 520<<20)
 	mr, e := c.Request.MultipartReader()
 	if e != nil {
-		invalid(c, "请求须为 multipart/form-data（每个文件30MiB，每批最多10个）")
+		invalid(c, "请求须为 multipart/form-data（文档每个30MiB最多10个，视频每个512MiB仅限1个）")
 		return
 	}
-	allowedMIME := map[string]string{
+	docMIME := map[string]string{
 		".pdf":  "application/pdf",
 		".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 		".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -229,6 +279,7 @@ func (h *Handler) uploadSources(c *gin.Context) {
 		mediaType    string
 	}
 	staged := make([]stagedFile, 0, 10)
+	hasVideo := false
 	committed := false
 	defer func() {
 		if committed {
@@ -248,7 +299,7 @@ func (h *Handler) uploadSources(c *gin.Context) {
 		if err != nil {
 			var maxErr *http.MaxBytesError
 			if errors.As(err, &maxErr) {
-				identity.Fail(c, http.StatusRequestEntityTooLarge, "payload_too_large", "上传总大小超出限制（上限310MiB）")
+				identity.Fail(c, http.StatusRequestEntityTooLarge, "payload_too_large", "上传总大小超出限制（上限520MiB）")
 				return
 			}
 			invalid(c, "上传内容格式无效或连接中断")
@@ -283,17 +334,60 @@ func (h *Handler) uploadSources(c *gin.Context) {
 			_ = part.Close()
 			continue
 		}
-		if len(staged) >= 10 {
+		ext := strings.ToLower(filepath.Ext(rawFilename))
+		mimeType := docMIME[ext]
+		isVideo := false
+		maxFileBytes := int64(30 << 20)
+		if mimeType == "" {
+			mimeType = videoMIMETypes[ext]
+			if mimeType == "" {
+				_ = part.Close()
+				invalid(c, "文件类型不支持")
+				return
+			}
+			isVideo = true
+			maxFileBytes = 512 << 20
+		}
+		if isVideo && len(staged) > 0 {
+			_ = part.Close()
+			if hasVideo {
+				invalid(c, "每次只能上传1个视频文件")
+			} else {
+				invalid(c, "视频不能与文档在同一批次混合上传")
+			}
+			return
+		}
+		if !isVideo && hasVideo {
+			_ = part.Close()
+			invalid(c, "视频不能与文档在同一批次混合上传")
+			return
+		}
+		if !isVideo && len(staged) >= 10 {
 			_ = part.Close()
 			invalid(c, "每次请选择1到10个文件")
 			return
 		}
-		ext := strings.ToLower(filepath.Ext(rawFilename))
-		mimeType := allowedMIME[ext]
-		if mimeType == "" {
-			_ = part.Close()
-			invalid(c, "文件类型不支持")
-			return
+		var srcReader io.Reader = part
+		if isVideo {
+			buf := make([]byte, 512)
+			hn, readErr := io.ReadFull(part, buf)
+			if readErr != nil && !errors.Is(readErr, io.EOF) && !errors.Is(readErr, io.ErrUnexpectedEOF) {
+				_ = part.Close()
+				var maxErr *http.MaxBytesError
+				if errors.As(readErr, &maxErr) {
+					identity.Fail(c, http.StatusRequestEntityTooLarge, "payload_too_large", "上传总大小超出限制（上限520MiB）")
+					return
+				}
+				invalid(c, "读取上传视频失败")
+				return
+			}
+			head := buf[:hn]
+			if !validVideoMagic(ext, head) {
+				_ = part.Close()
+				invalid(c, "视频文件头无效或与扩展名不匹配")
+				return
+			}
+			srcReader = io.MultiReader(bytes.NewReader(head), part)
 		}
 		id := uuid.NewString()
 		name := id + ext
@@ -305,14 +399,17 @@ func (h *Handler) uploadSources(c *gin.Context) {
 			return
 		}
 		staged = append(staged, stagedFile{id: id, name: name, path: path, ext: ext, baseFilename: strings.ReplaceAll(filepath.Base(strings.ReplaceAll(rawFilename, `\`, `/`)), "\x00", "")})
+		if isVideo {
+			hasVideo = true
+		}
 		hash := sha256.New()
-		n, copyErr := io.Copy(io.MultiWriter(out, hash), io.LimitReader(part, 30<<20+1))
+		n, copyErr := io.Copy(io.MultiWriter(out, hash), io.LimitReader(srcReader, maxFileBytes+1))
 		_ = part.Close()
 		closeErr := out.Close()
 		if copyErr != nil {
 			var maxErr *http.MaxBytesError
 			if errors.As(copyErr, &maxErr) {
-				identity.Fail(c, http.StatusRequestEntityTooLarge, "payload_too_large", "上传总大小超出限制")
+				identity.Fail(c, http.StatusRequestEntityTooLarge, "payload_too_large", "上传总大小超出限制（上限520MiB）")
 				return
 			}
 			result(c, nil, copyErr)
@@ -322,8 +419,12 @@ func (h *Handler) uploadSources(c *gin.Context) {
 			result(c, nil, closeErr)
 			return
 		}
-		if n < 1 || n > 30<<20 {
-			invalid(c, "文件为空或超过30MiB")
+		if n < 1 || n > maxFileBytes {
+			if isVideo {
+				invalid(c, "视频文件为空或超过512MiB")
+			} else {
+				invalid(c, "文件为空或超过30MiB")
+			}
 			return
 		}
 		batchBytes += n
@@ -413,8 +514,8 @@ func (h *Handler) uploadSources(c *gin.Context) {
 			}
 		}
 	}
-	if usedBytes+batchBytes > 500<<20 {
-		identity.Fail(c, http.StatusRequestEntityTooLarge, "quota_exceeded", "课程有效原件存储空间已达500MiB上限，请归档旧资料后重试")
+	if usedBytes+batchBytes > 2<<30 {
+		identity.Fail(c, http.StatusRequestEntityTooLarge, "quota_exceeded", "课程有效原件存储空间已达2GiB上限，请归档旧资料后重试")
 		return
 	}
 	version := int32(1)
@@ -514,7 +615,47 @@ func (h *Handler) downloadSource(c *gin.Context) {
 	c.Header("X-Content-Type-Options", "nosniff")
 	c.Header("Cache-Control", "private, no-store")
 	c.Header("Content-Security-Policy", "default-src 'none'; sandbox; frame-ancestors 'none'")
+	if rag.IsVideoSource(src.MediaType, src.Filename) {
+		c.Header("Content-Type", videoContentType(src.MediaType, src.Filename))
+	}
 	setAttachmentDisposition(c, src.Filename)
+	c.File(path)
+}
+func (h *Handler) streamSource(c *gin.Context) {
+	src, ok := h.sourceRecord(c)
+	if !ok {
+		return
+	}
+	if !rag.IsVideoSource(src.MediaType, src.Filename) {
+		invalid(c, "仅视频原件支持在线流式播放")
+		return
+	}
+	if !teacher(c) {
+		allowed, e := h.q.StudentCanStreamVideoSource(c.Request.Context(), store.StudentCanStreamVideoSourceParams{ID: src.ID, CourseID: src.CourseID})
+		if e != nil {
+			result(c, nil, e)
+			return
+		}
+		if !allowed {
+			identity.Fail(c, 403, "forbidden", "该视频尚未发布给学生")
+			return
+		}
+	}
+	path, e := rag.SafeMaterialPath(src.StoragePath)
+	if e != nil {
+		identity.Fail(c, 404, "not_found", "原始文件不存在")
+		return
+	}
+	info, e := os.Stat(path)
+	if e != nil || info.IsDir() {
+		identity.Fail(c, 404, "not_found", "原始文件不存在")
+		return
+	}
+	c.Header("Content-Type", videoContentType(src.MediaType, src.Filename))
+	c.Header("Content-Disposition", "inline")
+	c.Header("X-Content-Type-Options", "nosniff")
+	c.Header("Cache-Control", "private, max-age=3600")
+	_ = http.NewResponseController(c.Writer).SetWriteDeadline(time.Now().Add(15 * time.Minute))
 	c.File(path)
 }
 func (h *Handler) correctFragments(c *gin.Context) {
@@ -562,18 +703,22 @@ func (h *Handler) correctFragments(c *gin.Context) {
 		invalid(c, "请完整提交当前版本片段，不删除原文")
 		return
 	}
+	const insertFragSQL = `INSERT INTO material_fragments(id,source_id,revision,position,heading,body,locator,quality) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`
 	fragMap := make(map[string]string, len(in.Fragments))
+	batch := &pgx.Batch{}
+	nextRevision := src.ParseRevision + 1
 	for i, f := range in.Fragments {
 		if old[i].ID != f.ID || len(f.Heading) > 500 || strings.ContainsRune(f.Heading, '\x00') || !validText(f.Body, 500000) || (f.Quality != "ready" && f.Quality != "needs_review") {
 			invalid(c, "片段顺序、标题、正文或核对状态无效")
 			return
 		}
-		newFrag, err := q.InsertMaterialFragment(ctx, store.InsertMaterialFragmentParams{ID: uuid.NewString(), SourceID: src.ID, Revision: src.ParseRevision + 1, Position: int32(i), Heading: f.Heading, Body: f.Body, Locator: old[i].Locator, Quality: f.Quality})
-		if err != nil {
-			result(c, nil, err)
-			return
-		}
-		fragMap[old[i].ID] = newFrag.ID
+		newID := uuid.NewString()
+		batch.Queue(insertFragSQL, newID, src.ID, nextRevision, int32(i), f.Heading, f.Body, old[i].Locator, f.Quality)
+		fragMap[old[i].ID] = newID
+	}
+	if e = execBatch(ctx, tx, batch); e != nil {
+		result(c, nil, e)
+		return
 	}
 	if e = carryForwardContentSections(ctx, q, src.CourseID, src.ID, src.ParseRevision, src.ParseRevision+1, fragMap); e != nil {
 		result(c, nil, e)
@@ -769,6 +914,9 @@ func (h *Handler) sourceDerivation(c *gin.Context) {
 }
 func (h *Handler) knowledge(c *gin.Context) {
 	v, e := h.q.ListKnowledgeEntries(c.Request.Context(), store.ListKnowledgeEntriesParams{CourseID: c.Param("courseID"), Teacher: teacher(c)})
+	if e == nil {
+		v = filterByID(v, strings.TrimSpace(c.Query("id")), func(k store.KnowledgeEntry) string { return k.ID })
+	}
 	result(c, v, e)
 }
 func (h *Handler) saveKnowledge(c *gin.Context) {
@@ -1204,6 +1352,10 @@ func (h *Handler) retryJob(c *gin.Context) {
 		}
 		if (old.Kind == "source_suggest" || old.Kind == "source_segment" || old.Kind == "paper_split") && src.ParseState != "ready" {
 			invalid(c, "来源尚未解析完成")
+			return
+		}
+		if old.Kind == "paper_split" && rag.IsVideoSource(src.MediaType, src.Filename) {
+			invalid(c, "视频资料不支持试卷拆题")
 			return
 		}
 		if (old.Kind == "extract" || old.Kind == "source_suggest" || old.Kind == "source_segment" || old.Kind == "paper_split") && in.ParseRevision != 0 && src.ParseRevision != in.ParseRevision {

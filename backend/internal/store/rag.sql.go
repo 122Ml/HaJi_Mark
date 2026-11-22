@@ -1742,6 +1742,22 @@ func (q *Queries) StudentCanDownloadSource(ctx context.Context, arg StudentCanDo
 	return exists, err
 }
 
+const studentCanStreamVideoSource = `-- name: StudentCanStreamVideoSource :one
+SELECT EXISTS(SELECT 1 FROM resources r JOIN material_sources s ON s.id=r.source_id WHERE s.id=$1 AND s.course_id=$2 AND s.state='active' AND s.media_type LIKE 'video/%' AND r.status='published')
+`
+
+type StudentCanStreamVideoSourceParams struct {
+	ID       string `json:"id"`
+	CourseID string `json:"course_id"`
+}
+
+func (q *Queries) StudentCanStreamVideoSource(ctx context.Context, arg StudentCanStreamVideoSourceParams) (bool, error) {
+	row := q.db.QueryRow(ctx, studentCanStreamVideoSource, arg.ID, arg.CourseID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const transitionKnowledgeEntry = `-- name: TransitionKnowledgeEntry :one
 UPDATE knowledge_entries SET state=$3,edit_version=edit_version+1,confirmed_at=CASE WHEN $3='confirmed' THEN now() ELSE confirmed_at END
 WHERE id=$1 AND course_id=$2 AND state=$4 AND edit_version=$5 RETURNING id, course_id, created_by, title, body, category, content_kind, conditions, knowledge_point_ids, evidence, related_ids, student_visible, use_for_learning, use_for_grading, state, version, supersedes_id, edit_version, confirmed_at, created_at, origin
@@ -1910,20 +1926,27 @@ func (q *Queries) VectorSearch(ctx context.Context, arg VectorSearchParams) ([]V
 }
 
 const vectorSearch1024 = `-- name: VectorSearch1024 :many
-SELECT c.id,c.source_id,c.knowledge_id,c.resource_id,c.fragment_ids,c.title,c.heading,c.body,c.locator,
- ((e.embedding::vector(1024)) <=> ($1::text::vector(1024)))::float8 AS distance
-FROM retrieval_chunks c JOIN chunk_embeddings e ON e.chunk_id=c.id
-LEFT JOIN material_sources s ON s.id=c.source_id
-LEFT JOIN knowledge_entries k ON k.id=c.knowledge_id
-LEFT JOIN resources r ON r.id=c.resource_id
-WHERE c.course_id=$2 AND e.space_id=$3 AND e.dimensions=1024 AND c.active
-AND ($4::text<>'comparison' OR k.id IS NOT NULL)
-AND ((s.state='active' AND (($5::boolean AND EXISTS(SELECT 1 FROM material_fragments mf WHERE mf.source_id=s.id AND mf.revision=s.parse_revision AND mf.id=ANY(c.fragment_ids)))
-   OR (NOT $5::boolean AND EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids))))
- OR (k.state='confirmed' AND CASE WHEN $4::text='grading' THEN k.use_for_grading WHEN $4::text='comparison' THEN k.use_for_grading OR k.use_for_learning ELSE k.use_for_learning END AND ($5::boolean OR k.student_visible)
- AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT $5::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.course_id=c.course_id AND pr.status='published' AND pr.fragment_ids @> ARRAY[ev->>'fragment_id']))))
- OR (r.status='published' AND r.source_id IS NULL))
-ORDER BY (e.embedding::vector(1024)) <=> ($1::text::vector(1024)),c.id LIMIT 20
+WITH nn AS (
+ SELECT c.id,c.source_id,c.knowledge_id,c.resource_id,c.fragment_ids,c.title,c.heading,c.body,c.locator,
+  ((e.embedding::vector(1024)) <=> ($1::text::vector(1024)))::float8 AS distance
+ FROM chunk_embeddings e
+ JOIN retrieval_chunks c ON c.id=e.chunk_id
+ LEFT JOIN material_sources s ON s.id=c.source_id
+ LEFT JOIN knowledge_entries k ON k.id=c.knowledge_id
+ LEFT JOIN resources r ON r.id=c.resource_id
+ WHERE c.course_id=$2 AND e.space_id=$3 AND e.dimensions=1024 AND c.active
+ AND ($4::text<>'comparison' OR k.id IS NOT NULL)
+ AND ((s.state='active' AND (($5::boolean AND EXISTS(SELECT 1 FROM material_fragments mf WHERE mf.id=ANY(c.fragment_ids) AND (mf.source_id,mf.revision) IS NOT DISTINCT FROM (s.id,s.parse_revision)))
+    OR (NOT $5::boolean AND EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids))))
+  OR (k.state='confirmed' AND CASE WHEN $4::text='grading' THEN k.use_for_grading WHEN $4::text='comparison' THEN k.use_for_grading OR k.use_for_learning ELSE k.use_for_learning END AND ($5::boolean OR k.student_visible)
+  AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT $5::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.course_id=c.course_id AND pr.status='published' AND pr.fragment_ids @> ARRAY[ev->>'fragment_id']))))
+  OR (r.status='published' AND r.source_id IS NULL))
+ ORDER BY (e.embedding::vector(1024)) <=> ($1::text::vector(1024))
+ LIMIT 20
+)
+SELECT id,source_id,knowledge_id,resource_id,fragment_ids,title,heading,body,locator,distance
+FROM nn
+ORDER BY distance,id
 `
 
 type VectorSearch1024Params struct {
@@ -1985,20 +2008,27 @@ func (q *Queries) VectorSearch1024(ctx context.Context, arg VectorSearch1024Para
 }
 
 const vectorSearch1536 = `-- name: VectorSearch1536 :many
-SELECT c.id,c.source_id,c.knowledge_id,c.resource_id,c.fragment_ids,c.title,c.heading,c.body,c.locator,
- ((e.embedding::vector(1536)) <=> ($1::text::vector(1536)))::float8 AS distance
-FROM retrieval_chunks c JOIN chunk_embeddings e ON e.chunk_id=c.id
-LEFT JOIN material_sources s ON s.id=c.source_id
-LEFT JOIN knowledge_entries k ON k.id=c.knowledge_id
-LEFT JOIN resources r ON r.id=c.resource_id
-WHERE c.course_id=$2 AND e.space_id=$3 AND e.dimensions=1536 AND c.active
-AND ($4::text<>'comparison' OR k.id IS NOT NULL)
-AND ((s.state='active' AND (($5::boolean AND EXISTS(SELECT 1 FROM material_fragments mf WHERE mf.source_id=s.id AND mf.revision=s.parse_revision AND mf.id=ANY(c.fragment_ids)))
-   OR (NOT $5::boolean AND EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids))))
- OR (k.state='confirmed' AND CASE WHEN $4::text='grading' THEN k.use_for_grading WHEN $4::text='comparison' THEN k.use_for_grading OR k.use_for_learning ELSE k.use_for_learning END AND ($5::boolean OR k.student_visible)
- AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT $5::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.course_id=c.course_id AND pr.status='published' AND pr.fragment_ids @> ARRAY[ev->>'fragment_id']))))
- OR (r.status='published' AND r.source_id IS NULL))
-ORDER BY (e.embedding::vector(1536)) <=> ($1::text::vector(1536)),c.id LIMIT 20
+WITH nn AS (
+ SELECT c.id,c.source_id,c.knowledge_id,c.resource_id,c.fragment_ids,c.title,c.heading,c.body,c.locator,
+  ((e.embedding::vector(1536)) <=> ($1::text::vector(1536)))::float8 AS distance
+ FROM chunk_embeddings e
+ JOIN retrieval_chunks c ON c.id=e.chunk_id
+ LEFT JOIN material_sources s ON s.id=c.source_id
+ LEFT JOIN knowledge_entries k ON k.id=c.knowledge_id
+ LEFT JOIN resources r ON r.id=c.resource_id
+ WHERE c.course_id=$2 AND e.space_id=$3 AND e.dimensions=1536 AND c.active
+ AND ($4::text<>'comparison' OR k.id IS NOT NULL)
+ AND ((s.state='active' AND (($5::boolean AND EXISTS(SELECT 1 FROM material_fragments mf WHERE mf.id=ANY(c.fragment_ids) AND (mf.source_id,mf.revision) IS NOT DISTINCT FROM (s.id,s.parse_revision)))
+    OR (NOT $5::boolean AND EXISTS(SELECT 1 FROM resources pr WHERE pr.status='published' AND pr.course_id=c.course_id AND c.fragment_ids <@ pr.fragment_ids))))
+  OR (k.state='confirmed' AND CASE WHEN $4::text='grading' THEN k.use_for_grading WHEN $4::text='comparison' THEN k.use_for_grading OR k.use_for_learning ELSE k.use_for_learning END AND ($5::boolean OR k.student_visible)
+  AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(k.evidence) ev LEFT JOIN material_sources ms ON ms.id=ev->>'source_id' WHERE ms.id IS NULL OR ms.state<>'active' OR NOT ms.allow_derived OR (NOT $5::boolean AND NOT EXISTS(SELECT 1 FROM resources pr WHERE pr.course_id=c.course_id AND pr.status='published' AND pr.fragment_ids @> ARRAY[ev->>'fragment_id']))))
+  OR (r.status='published' AND r.source_id IS NULL))
+ ORDER BY (e.embedding::vector(1536)) <=> ($1::text::vector(1536))
+ LIMIT 20
+)
+SELECT id,source_id,knowledge_id,resource_id,fragment_ids,title,heading,body,locator,distance
+FROM nn
+ORDER BY distance,id
 `
 
 type VectorSearch1536Params struct {

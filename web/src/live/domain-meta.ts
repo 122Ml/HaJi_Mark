@@ -94,17 +94,185 @@ export const locatorKeyLabels: Record<string, string> = {
   method: "解析方式",
 };
 
+export const VIDEO_EXTENSIONS = [".mp4", ".mov", ".mkv", ".webm", ".m4v"] as const;
+
+export function isVideoSource(
+  mediaType?: string | null,
+  filename?: string | null,
+): boolean {
+  const mt = (mediaType || "").trim().toLowerCase().split(";")[0];
+  if (mt.startsWith("video/") || mt === "application/mp4") return true;
+  if (mt && mt !== "application/octet-stream") return false;
+  const name = (filename || "").trim().toLowerCase();
+  return VIDEO_EXTENSIONS.some((ext) => name.endsWith(ext));
+}
+
+export function formatDurationMs(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return "";
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const mm = String(minutes).padStart(2, "0");
+  const ss = String(seconds).padStart(2, "0");
+  return hours > 0 ? `${String(hours).padStart(2, "0")}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+export function formatTimeRangeMs(
+  startMs?: number | null,
+  endMs?: number | null,
+): string {
+  if (
+    startMs === null ||
+    startMs === undefined ||
+    endMs === null ||
+    endMs === undefined
+  ) {
+    return "";
+  }
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || startMs < 0 || endMs <= startMs) {
+    return "";
+  }
+  const start = formatDurationMs(startMs);
+  const end = formatDurationMs(endMs);
+  return start && end ? `${start}–${end}` : "";
+}
+
+function toFiniteNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+export function extractTimeRangeMs(
+  locator?: Record<string, unknown> | null,
+): { startMs: number; endMs: number } | null {
+  if (!locator || typeof locator !== "object") return null;
+  const startMs =
+    toFiniteNumber(locator.time_start_ms) ?? toFiniteNumber(locator.start_ms);
+  const endMs =
+    toFiniteNumber(locator.time_end_ms) ?? toFiniteNumber(locator.end_ms);
+  if (startMs === null || endMs === null || startMs < 0 || endMs <= startMs) {
+    return null;
+  }
+  return { startMs, endMs };
+}
+
 export function labelFor(map: Record<string, string>, key?: string | null, fallback = "未知") {
   if (!key) return fallback;
   return map[key] || key;
 }
 
 export function formatLocator(locator?: Record<string, unknown> | null): string {
-  if (!locator) return "";
-  return Object.entries(locator)
+  if (!locator || typeof locator !== "object") return "";
+  const parts = Object.entries(locator)
     .filter(([k, v]) => k in locatorKeyLabels && v !== null && v !== undefined && String(v).trim() !== "")
-    .map(([k, v]) => `${locatorKeyLabels[k]} ${String(v)}`)
-    .join(" · ");
+    .map(([k, v]) => `${locatorKeyLabels[k]} ${String(v)}`);
+  const range = extractTimeRangeMs(locator);
+  if (range) {
+    const timeLabel = formatTimeRangeMs(range.startMs, range.endMs);
+    if (timeLabel) parts.push(`时间 ${timeLabel}`);
+  }
+  return parts.join(" · ");
+}
+
+function parseResourceLocatorArray(
+  raw?: string | null,
+): { prefix: string; items: Record<string, unknown>[] } | null {
+  const trimmed = (raw || "").trim();
+  if (!trimmed || !trimmed.endsWith("]")) return null;
+  let idx = trimmed.indexOf("[");
+  while (idx >= 0) {
+    if (idx === 0 || /\s/.test(trimmed[idx - 1])) {
+      try {
+        const parsed: unknown = JSON.parse(trimmed.slice(idx));
+        if (Array.isArray(parsed)) {
+          const items = parsed.filter(
+            (item): item is Record<string, unknown> =>
+              !!item && typeof item === "object" && !Array.isArray(item),
+          );
+          return { prefix: trimmed.slice(0, idx).trim(), items };
+        }
+      } catch {
+        // Continue searching for the trailing JSON array boundary.
+      }
+    }
+    idx = trimmed.indexOf("[", idx + 1);
+  }
+  return null;
+}
+
+export function extractResourceTimeRangeMs(
+  raw?: string | null,
+): { startMs: number; endMs: number } | null {
+  const trimmed = (raw || "").trim();
+  if (!trimmed) return null;
+  const parsed = parseResourceLocatorArray(trimmed);
+  if (parsed) {
+    const ranges = parsed.items
+      .map((item) => extractTimeRangeMs(item))
+      .filter((r): r is { startMs: number; endMs: number } => r !== null);
+    if (!ranges.length) return null;
+    const startMs = Math.min(...ranges.map((r) => r.startMs));
+    const endMs = Math.max(...ranges.map((r) => r.endMs));
+    return endMs > startMs ? { startMs, endMs } : null;
+  }
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    try {
+      const obj: unknown = JSON.parse(trimmed);
+      if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+        return extractTimeRangeMs(obj as Record<string, unknown>);
+      }
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+export function formatResourceLocator(raw?: string | null): string {
+  const trimmed = (raw || "").trim();
+  if (!trimmed) return "";
+  const parsed = parseResourceLocatorArray(trimmed);
+  if (parsed) {
+    const ranges = parsed.items
+      .map((item) => extractTimeRangeMs(item))
+      .filter((r): r is { startMs: number; endMs: number } => r !== null);
+    if (ranges.length) {
+      const startMs = Math.min(...ranges.map((r) => r.startMs));
+      const endMs = Math.max(...ranges.map((r) => r.endMs));
+      const rangeText = formatTimeRangeMs(startMs, endMs);
+      if (rangeText) {
+        return parsed.prefix ? `${parsed.prefix} · ${rangeText}` : rangeText;
+      }
+    }
+    const formatted = Array.from(
+      new Set(parsed.items.map((item) => formatLocator(item)).filter(Boolean)),
+    );
+    if (formatted.length === 1) {
+      return parsed.prefix ? `${parsed.prefix} · ${formatted[0]}` : formatted[0];
+    }
+    if (formatted.length > 1) {
+      const summary = `${formatted[0]} 等 ${formatted.length} 处`;
+      return parsed.prefix ? `${parsed.prefix} · ${summary}` : summary;
+    }
+    return parsed.prefix || trimmed;
+  }
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    try {
+      const obj: unknown = JSON.parse(trimmed);
+      if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+        const formatted = formatLocator(obj as Record<string, unknown>);
+        if (formatted) return formatted;
+      }
+    } catch {
+      return trimmed;
+    }
+  }
+  return trimmed;
 }
 
 export function formatHitLocator(locator?: Record<string, unknown> | null): string {
@@ -121,8 +289,10 @@ export function formatHitLocator(locator?: Record<string, unknown> | null): stri
   for (const [key, label] of extra) {
     const val = locator[key];
     if (val !== null && val !== undefined && String(val).trim() !== "") {
-      const text =
-        key.endsWith("_version") ? `v${String(val)}` : String(val).trim();
+      const rawText = String(val).trim();
+      const text = key.endsWith("_version")
+        ? `v${rawText}`
+        : formatResourceLocator(rawText);
       parts.push(`${label} ${text}`);
     }
   }

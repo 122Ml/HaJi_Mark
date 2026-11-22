@@ -45,6 +45,10 @@ func (s *Service) verifyContext(c *gin.Context, ref *businessContext) (string, b
 	default:
 		return "", false, fmt.Errorf("不支持的业务上下文")
 	}
+	readPath := path
+	if list {
+		path += "?id=" + url.QueryEscape(ref.ID)
+	}
 	response, err := s.Gateway.Invoke(c.Request.Context(), identity.SessionReference(c), "GET", "/api/v1/learning/courses/"+c.Param("courseID")+path, "application/json", nil)
 	if err != nil || response.Status != 200 {
 		return "", false, fmt.Errorf("当前业务对象不可访问，请刷新后核对")
@@ -73,6 +77,6 @@ func (s *Service) verifyContext(c *gin.Context, ref *businessContext) (string, b
 			return "", false, fmt.Errorf("当前业务对象不可访问，请刷新后核对")
 		}
 	}
-	verified := map[string]string{"kind": ref.Kind, "id": ref.ID, "course_id": c.Param("courseID"), "read_path": path}
+	verified := map[string]string{"kind": ref.Kind, "id": ref.ID, "course_id": c.Param("courseID"), "read_path": readPath}
 	return "\n当前业务对象（服务端已核验访问权限；仅作为定位，操作前须读取当前版本）：" + string(raw(verified)), learner, nil
 }

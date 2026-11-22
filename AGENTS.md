@@ -10,7 +10,7 @@
 - RequireSession→RequireRole/RequireCourse；所有认证写请求再 RequireCSRF。对象 ID 要从数据库读取课程/学生归属，不只检查请求 body。学生不能读别人提交、笔记、路径、评分草稿，教师只能访问本人课程。
 - 题目/标准发布后冻结，原始作答保存 attempt、assignment_version、原文 SHA256。评分新增修订，教师确认后单独发布；客观题使用教师答案规则判分。知识点表现只用已发布、去重结果，不把无证据当零分或能力概率。
 - 资料修订新增版本并保留旧文，题目绑定确切 resource_id；干预关联学习/练习时验证下发之后的新证据。状态转换和相关写入在数据库事务中完成。
-- 新增迁移不得修改已执行迁移；当前 00001—00019 已分配，后续从 00020 开始。先修改 db/queries，再用 sqlc 生成 store，不手改生成物。
+- 新增迁移不得修改已执行迁移；当前 00001—00020 已分配，后续从 00021 开始。先修改 db/queries，再用 sqlc 生成 store，不手改生成物。
 - 独立题库入口是learning/question_bank.go、rag/question_bank.go和live/question-bank.tsx。题目/参考解答分别确认，题库标准归属确切题目版本；questions保留为作业实例，bank_question_version_id/bound_rubric_id固定组合，评分不能改绑。旧作业仍走原question_id归属，不重写历史。
 - 逐点评分入口为 learning/rubrics.go、feedback.go 和 live/rubrics.tsx、grading.tsx；AI草稿任务在internal/rag，确认标准绑定题目，评分绑定当时标准及依据。规则私有，机械核对不代替教师语义复核。
 - 资料/知识HTTP入口为learning/materials.go，页面为live/knowledge.tsx。原件、解析修订、学习资料发布、知识确认和索引空间分开；索引不能扩大权限，部分发布不允许下载完整原件。来源归档/撤回提炼许可须阻断派生知识未来检索，历史评分快照保留。

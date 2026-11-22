@@ -6,13 +6,13 @@ ENV GOPROXY=$GOPROXY
 COPY go.mod go.sum ./
 RUN go mod download -x
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -o /out/api ./cmd/api && CGO_ENABLED=0 go build -trimpath -o /out/worker ./cmd/worker && CGO_ENABLED=0 go build -trimpath -o /out/seed-s1 ./cmd/seed-s1
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/api ./cmd/api && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/worker ./cmd/worker && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/seed-s1 ./cmd/seed-s1
 
 FROM golang:1.26.1-alpine AS migration-tools
 ENV GOMAXPROCS=2 GOMEMLIMIT=768MiB
 ARG GOPROXY=https://proxy.golang.org,direct
 ENV GOPROXY=$GOPROXY
-RUN GOBIN=/out go install -tags='no_clickhouse no_mssql no_mysql no_sqlite3 no_vertica no_ydb no_libsql' github.com/pressly/goose/v3/cmd/goose@v3.26.0
+RUN GOBIN=/out go install -ldflags="-s -w" -tags='no_clickhouse no_mssql no_mysql no_sqlite3 no_vertica no_ydb no_libsql' github.com/pressly/goose/v3/cmd/goose@v3.26.0
 
 FROM alpine:3.22 AS runtime
 ENV MALLOC_ARENA_MAX=2
@@ -29,12 +29,24 @@ HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=6 CMD wget 
 CMD ["./api"]
 
 FROM python:3.12-slim-bookworm AS rag-worker
-ENV OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 PYTHONUNBUFFERED=1 MALLOC_ARENA_MAX=2
+ENV OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 PYTHONUNBUFFERED=1 MALLOC_ARENA_MAX=2 WHISPER_MODEL_DIR=/opt/whisper HF_HUB_OFFLINE=1
 WORKDIR /app
 COPY tools/parser/requirements.txt /tmp/requirements.txt
 ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
-RUN pip install --no-cache-dir -r /tmp/requirements.txt && rm -f /tmp/requirements.txt
-RUN python -c "from rapidocr import RapidOCR; RapidOCR(); print('Chinese OCR models ready')"
+ARG INSTALL_LOCAL_ASR=false
+ARG WHISPER_MODEL_SIZE=small
+ARG HF_ENDPOINT=https://hf-mirror.com
+RUN pip install --no-cache-dir -r /tmp/requirements.txt \
+    && rm -f /tmp/requirements.txt \
+    && python -c "from rapidocr import RapidOCR; RapidOCR(); print('Chinese OCR models ready')" \
+    && python -c "import pathlib, rapidocr, shutil; base = pathlib.Path(rapidocr.__file__).resolve().parent / 'inference_engine'; [shutil.rmtree(base / name, ignore_errors=True) for name in ('pytorch', 'paddle', 'openvino', 'mnn', 'tensorrt')]" \
+    && mkdir -p /opt/whisper \
+    && if [ "$INSTALL_LOCAL_ASR" = "true" ]; then \
+        pip install --no-cache-dir faster-whisper==1.2.0 \
+        && HF_HUB_OFFLINE=0 HF_ENDPOINT="$HF_ENDPOINT" WHISPER_MODEL_SIZE="$WHISPER_MODEL_SIZE" python -c "import os; from faster_whisper import WhisperModel; WhisperModel(os.environ['WHISPER_MODEL_SIZE'], device='cpu', compute_type='int8', download_root='/opt/whisper')" \
+        && chmod -R a+rX /opt/whisper; \
+    fi \
+    && python -m pip uninstall -y sympy mpmath pip
 COPY --from=build /out/worker ./worker
 COPY config ./config
 COPY tools/parser ./tools/parser

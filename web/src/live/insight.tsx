@@ -1,16 +1,14 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { lazy, Suspense, useMemo, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Alert,
   Button,
   Card,
-  Input,
   Pagination,
   Progress,
   Select,
   Space,
   Statistic,
-  Table,
   Tabs,
   Tag,
   Tooltip,
@@ -38,23 +36,26 @@ import {
 } from "../shared/ui";
 import { ActivityTimeline } from "./activity";
 import { Link, useLearning, useLiveQuery, when } from "./context";
-import { DiagnosisPanel } from "./intelligence";
-import { LearningGaps, type ReleasedEvidence } from "./learning-gaps";
-import { RevisionPoints } from "./rubrics";
+import type { ReleasedEvidence } from "./learning-gaps";
+import { RevisionPoints } from "./revision-points";
 import type { Assignment, Point, Resource } from "./types";
 
-interface Overview {
+const LazyDiagnosisPanel = lazy(() =>
+  import("./intelligence").then((m) => ({ default: m.DiagnosisPanel })),
+);
+const LazyLearningGaps = lazy(() =>
+  import("./learning-gaps").then((m) => ({ default: m.LearningGaps })),
+);
+const LazyInsightStudents = lazy(() =>
+  import("./insight-students").then((m) => ({ default: m.InsightStudents })),
+);
+
+export interface Overview {
   id: string;
   display_name: string;
   completed_events: number;
   submitted_assignments: number;
   pending_interventions: number;
-}
-
-interface StudentRiskRow extends Overview {
-  releasedCount: number;
-  avgPct: number | null;
-  minPct: number | null;
 }
 
 interface KnowledgeMasteryItem {
@@ -311,7 +312,6 @@ export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
         ? "gaps"
         : "overview";
 
-  const [studentSearch, setStudentSearch] = useState("");
   const [evidencePage, setEvidencePage] = useState(1);
 
   const overview = useLiveQuery<Overview[]>("/overview", teacher);
@@ -390,17 +390,34 @@ export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
   }, [activeEvidence.data, teacher, validStudentFilter, useServerStudentEvidence]);
 
   const knowledgeMastery = useMemo<KnowledgeMasteryItem[]>(() => {
+    const byPoint = new Map<
+      string,
+      { count: number; scoreSum: number; maxSum: number }
+    >();
+    for (const r of rows) {
+      if (!r.knowledge_point_id) continue;
+      const cur = byPoint.get(r.knowledge_point_id) || {
+        count: 0,
+        scoreSum: 0,
+        maxSum: 0,
+      };
+      cur.count += 1;
+      cur.scoreSum += r.score;
+      cur.maxSum += r.max_score;
+      byPoint.set(r.knowledge_point_id, cur);
+    }
     const kpList = (points.data?.points || []).filter((p) => p.kind === "point");
     return kpList
       .map((p) => {
-        const group = rows.filter((r) => r.knowledge_point_id === p.id);
-        const sum = group.reduce((v, r) => v + r.score, 0);
-        const maximum = group.reduce((v, r) => v + r.max_score, 0);
+        const stats = byPoint.get(p.id);
         return {
           id: p.id,
           title: p.title,
-          count: group.length,
-          rate: maximum > 0 ? Math.round((sum / maximum) * 100) : null,
+          count: stats?.count || 0,
+          rate:
+            stats && stats.maxSum > 0
+              ? Math.round((stats.scoreSum / stats.maxSum) * 100)
+              : null,
         };
       })
       .sort((a, b) => {
@@ -412,50 +429,6 @@ export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
       });
   }, [points.data, rows]);
 
-  const studentRiskRows = useMemo<StudentRiskRow[]>(() => {
-    if (!teacher) return [];
-    const byStudent = new Map<
-      string,
-      { count: number; scoreSum: number; maxSum: number; minPct: number | null }
-    >();
-    for (const r of classEvidence.data || []) {
-      const cur = byStudent.get(r.student_id) || {
-        count: 0,
-        scoreSum: 0,
-        maxSum: 0,
-        minPct: null,
-      };
-      cur.count += 1;
-      cur.scoreSum += r.score;
-      cur.maxSum += r.max_score;
-      if (r.max_score > 0) {
-        const pct = Math.round((r.score / r.max_score) * 100);
-        cur.minPct = cur.minPct === null ? pct : Math.min(cur.minPct, pct);
-      }
-      byStudent.set(r.student_id, cur);
-    }
-    const needle = studentSearch.trim().toLocaleLowerCase();
-    return (overview.data || [])
-      .filter(
-        (s) =>
-          (!validStudentFilter || s.id === validStudentFilter) &&
-          (!needle || s.display_name.toLocaleLowerCase().includes(needle)),
-      )
-      .map((s) => {
-        const stats = byStudent.get(s.id);
-        const avgPct =
-          stats && stats.maxSum > 0
-            ? Math.round((stats.scoreSum / stats.maxSum) * 100)
-            : null;
-        return {
-          ...s,
-          releasedCount: stats?.count || 0,
-          avgPct,
-          minPct: stats?.minPct ?? null,
-        };
-      });
-  }, [teacher, classEvidence.data, overview.data, validStudentFilter, studentSearch]);
-
   const completedResourceSet = useMemo(
     () =>
       new Set(
@@ -466,9 +439,19 @@ export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
     [events.data],
   );
 
-  const score = rows.reduce((v, r) => v + r.score, 0);
-  const max = rows.reduce((v, r) => v + r.max_score, 0);
-  const low = rows.filter((r) => r.max_score > 0 && r.score / r.max_score < 0.6);
+  const { score, max, lowCount } = useMemo(() => {
+    let totalScore = 0;
+    let totalMax = 0;
+    let lowRecords = 0;
+    for (const r of rows) {
+      totalScore += r.score;
+      totalMax += r.max_score;
+      if (r.max_score > 0 && r.score / r.max_score < 0.6) {
+        lowRecords += 1;
+      }
+    }
+    return { score: totalScore, max: totalMax, lowCount: lowRecords };
+  }, [rows]);
 
   const isLoading =
     (teacher && overview.isPending) ||
@@ -549,10 +532,16 @@ export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
 
   const renderMetrics = () => (
     <div className="live-metrics">
-      <Card className="card-panel">
+      <Card className="card-panel metric-card">
         <Statistic
-          prefix={<Users size={15} aria-hidden="true" />}
-          title={teacher && !validStudentFilter ? "课程学生" : "有效评分记录"}
+          title={
+            <>
+              <span className="metric-title-icon" aria-hidden="true">
+                <Users size={14} />
+              </span>
+              <span>{teacher && !validStudentFilter ? "课程学生" : "有效评分记录"}</span>
+            </>
+          }
           value={
             teacher && !validStudentFilter
               ? overview.data?.length || 0
@@ -560,28 +549,57 @@ export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
           }
         />
       </Card>
-      <Card className="card-panel">
+      <Card className="card-panel metric-card">
         <Statistic
-          prefix={<ClipboardCheck size={15} aria-hidden="true" />}
-          title="已发布作业"
+          title={
+            <>
+              <span className="metric-title-icon" aria-hidden="true">
+                <ClipboardCheck size={14} />
+              </span>
+              <span>已发布作业</span>
+            </>
+          }
           value={
             assignments.data?.filter((a) => a.status === "published").length || 0
           }
         />
       </Card>
-      <Card className="card-panel">
+      <Card
+        className={
+          max
+            ? "card-panel metric-card"
+            : "card-panel metric-card is-empty-state"
+        }
+      >
         <Statistic
-          prefix={<TrendingUp size={15} aria-hidden="true" />}
-          title="正式结果表现"
-          value={max ? Math.round((score / max) * 100) : "证据不足"}
+          title={
+            <>
+              <span className="metric-title-icon" aria-hidden="true">
+                <TrendingUp size={14} />
+              </span>
+              <span>正式结果表现</span>
+            </>
+          }
+          value={max ? Math.round((score / max) * 100) : 0}
           suffix={max ? "%" : undefined}
+          formatter={
+            max
+              ? undefined
+              : () => <StatusTag status="pending" label="证据不足" />
+          }
         />
       </Card>
-      <Card className="card-panel">
+      <Card className="card-panel metric-card">
         <Statistic
-          prefix={<AlertCircle size={15} aria-hidden="true" />}
-          title="需复习记录"
-          value={low.length}
+          title={
+            <>
+              <span className="metric-title-icon" aria-hidden="true">
+                <AlertCircle size={14} />
+              </span>
+              <span>需复习记录</span>
+            </>
+          }
+          value={lowCount}
         />
       </Card>
     </div>
@@ -703,16 +721,23 @@ export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
       <div className="live-page overview-page student-overview">
         <PageHeader title={pageHeading} subtitle={course?.title} />
         {renderMetrics()}
-        <Card className="card-panel" title={<>资料学习进度</>}>
+        <Card
+          className="card-panel"
+          title={<>资料学习进度</>}
+          extra={
+            <Link className="ghost-btn" to="/student/course-content">
+              继续学习课程资料
+            </Link>
+          }
+        >
           <Space direction="vertical" className="live-full-width" size="small">
             <Progress
               percent={progressPct}
               status={progressPct === 100 && publishedResources.length > 0 ? "success" : "active"}
             />
-            <p>
+            <p className="live-meta">
               已完成 {completedCount} / {publishedResources.length} 份资料
             </p>
-            <Link to="/student/course-content">继续学习课程资料</Link>
           </Space>
         </Card>
         {renderKnowledgePerformance()}
@@ -772,7 +797,7 @@ export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
             <>
               <Select
                 aria-label="学生范围"
-                style={{ minWidth: 164 }}
+                style={{ minWidth: 140, maxWidth: "100%" }}
                 value={validStudentFilter}
                 onChange={(v) => setStudentFilter(v || "")}
                 showSearch
@@ -871,121 +896,14 @@ export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
 
       {view === "students" && (
         <>
-          <Card
-            className="card-panel student-section"
-            title={
-              <>{validStudentFilter ? "该学生完成情况" : "班级完成与风险"}</>
-            }
-          >
-            <Space direction="vertical" className="live-full-width" size="middle">
-              {!validStudentFilter && (
-                <Input.Search
-                  aria-label="搜索学生姓名"
-                  placeholder="搜索学生姓名"
-                  allowClear
-                  value={studentSearch}
-                  onChange={(e) => setStudentSearch(e.target.value)}
-                />
-              )}
-              <Table<StudentRiskRow>
-                rowKey="id"
-                scroll={{ x: 760 }}
-                pagination={{
-                  pageSize: 10,
-                  showSizeChanger: false,
-                  hideOnSinglePage: true,
-                }}
-                dataSource={studentRiskRows}
-                locale={{ emptyText: "暂无匹配的学生数据" }}
-                columns={[
-                  {
-                    title: "学生",
-                    key: "student",
-                    sorter: (a, b) =>
-                      a.display_name.localeCompare(b.display_name, "zh-CN"),
-                    render: (_, s) => (
-                      <Space wrap size={4}>
-                        <Button
-                          type="link"
-                          className="table-text-action"
-                          onClick={() => setStudentFilter(s.id)}
-                        >
-                          {s.display_name}
-                        </Button>
-                        {s.avgPct !== null && s.avgPct < 60 && (
-                          <Tag color="error">需关注</Tag>
-                        )}
-                        {s.pending_interventions > 0 && (
-                          <Tag color="warning">待补学</Tag>
-                        )}
-                      </Space>
-                    ),
-                  },
-                  {
-                    title: "正式结果数",
-                    dataIndex: "releasedCount",
-                    sorter: (a, b) => a.releasedCount - b.releasedCount,
-                  },
-                  {
-                    title: "平均得分率",
-                    dataIndex: "avgPct",
-                    sorter: (a, b) => (a.avgPct ?? -1) - (b.avgPct ?? -1),
-                    render: (v: number | null) =>
-                      v !== null ? (
-                        <Tag
-                          color={
-                            v < 60 ? "error" : v < 80 ? "warning" : "success"
-                          }
-                        >
-                          {v}%
-                        </Tag>
-                      ) : (
-                        <Typography.Text type="secondary">暂无</Typography.Text>
-                      ),
-                  },
-                  {
-                    title: "最低得分率",
-                    dataIndex: "minPct",
-                    sorter: (a, b) => (a.minPct ?? -1) - (b.minPct ?? -1),
-                    render: (v: number | null) =>
-                      v !== null ? (
-                        `${v}%`
-                      ) : (
-                        <Typography.Text type="secondary">暂无</Typography.Text>
-                      ),
-                  },
-                  {
-                    title: "已提交作业",
-                    dataIndex: "submitted_assignments",
-                    sorter: (a, b) =>
-                      a.submitted_assignments - b.submitted_assignments,
-                  },
-                  {
-                    title: "完成学习",
-                    dataIndex: "completed_events",
-                    sorter: (a, b) => a.completed_events - b.completed_events,
-                  },
-                  {
-                    title: "待执行任务",
-                    dataIndex: "pending_interventions",
-                    sorter: (a, b) =>
-                      a.pending_interventions - b.pending_interventions,
-                  },
-                  {
-                    title: "操作",
-                    key: "actions",
-                    render: (_, s) => (
-                      <Link
-                        to={`/teacher/intervention?new=1&student=${encodeURIComponent(s.id)}`}
-                      >
-                        创建补学任务
-                      </Link>
-                    ),
-                  },
-                ]}
-              />
-            </Space>
-          </Card>
+          <Suspense fallback={<LoadingState />}>
+            <LazyInsightStudents
+              overview={overview.data || []}
+              evidence={classEvidence.data || []}
+              validStudentFilter={validStudentFilter}
+              onSelectStudent={setStudentFilter}
+            />
+          </Suspense>
           <ActivityTimeline
             key={validStudentFilter}
             teacher
@@ -997,16 +915,16 @@ export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
       {view === "evidence" && renderEvidenceCard()}
 
       {view === "gaps" && (
-        <>
-          <DiagnosisPanel
+        <Suspense fallback={<LoadingState />}>
+          <LazyDiagnosisPanel
             evidence={classEvidence.data || []}
             members={overview.data || []}
           />
-          <LearningGaps
+          <LazyLearningGaps
             evidence={classEvidence.data || []}
             members={overview.data || []}
           />
-        </>
+        </Suspense>
       )}
     </div>
   );

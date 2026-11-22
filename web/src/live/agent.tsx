@@ -1061,15 +1061,52 @@ export function AgentPage({
     turn: number;
     text: string;
   } | null>(null);
+  const streamFlushRafRef = useRef<number | null>(null);
+  const streamFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelScheduledStreamFlush = useCallback(() => {
+    if (streamFlushRafRef.current !== null) {
+      window.cancelAnimationFrame(streamFlushRafRef.current);
+      streamFlushRafRef.current = null;
+    }
+    if (streamFlushTimerRef.current !== null) {
+      window.clearTimeout(streamFlushTimerRef.current);
+      streamFlushTimerRef.current = null;
+    }
+  }, []);
+  const flushLiveStream = useCallback(() => {
+    cancelScheduledStreamFlush();
+    setLiveStream(liveStreamRef.current);
+  }, [cancelScheduledStreamFlush]);
   const updateLiveStream = useCallback(
     (
       next: { conversationID: string; turn: number; text: string } | null,
     ) => {
+      cancelScheduledStreamFlush();
       liveStreamRef.current = next;
       setLiveStream(next);
     },
+    [cancelScheduledStreamFlush],
+  );
+  const scheduleLiveStream = useCallback(
+    (next: { conversationID: string; turn: number; text: string }) => {
+      liveStreamRef.current = next;
+      if (
+        streamFlushTimerRef.current !== null ||
+        streamFlushRafRef.current !== null
+      ) {
+        return;
+      }
+      streamFlushTimerRef.current = setTimeout(() => {
+        streamFlushTimerRef.current = null;
+        streamFlushRafRef.current = window.requestAnimationFrame(() => {
+          streamFlushRafRef.current = null;
+          setLiveStream(liveStreamRef.current);
+        });
+      }, 80);
+    },
     [],
   );
+  useEffect(() => cancelScheduledStreamFlush, [cancelScheduledStreamFlush]);
   const [liveStage, setLiveStage] = useState<{
     conversationID: string;
     label: string;
@@ -1640,11 +1677,17 @@ export function AgentPage({
         };
         const turn = payload.turn ?? 0;
         if (typeof payload.text === "string") {
-          updateLiveStream({
-            conversationID,
-            turn,
-            text: payload.text,
-          });
+          const prev = liveStreamRef.current;
+          const next = { conversationID, turn, text: payload.text };
+          if (
+            !prev ||
+            prev.conversationID !== conversationID ||
+            prev.turn !== turn
+          ) {
+            updateLiveStream(next);
+          } else {
+            scheduleLiveStream(next);
+          }
         } else if (typeof payload.delta === "string") {
           const cur = liveStreamRef.current;
           if (
@@ -1654,7 +1697,7 @@ export function AgentPage({
             typeof payload.offset === "number" &&
             utf8ByteLength(cur.text) === payload.offset
           ) {
-            updateLiveStream({
+            scheduleLiveStream({
               conversationID,
               turn,
               text: cur.text + payload.delta,
@@ -1676,8 +1719,10 @@ export function AgentPage({
         };
         const nextState = payload.state || "";
         if (nextState === "waiting_job") {
+          flushLiveStream();
           setLiveStage({ conversationID, label: "正在等待后台任务完成…" });
         } else if (nextState === "running") {
+          flushLiveStream();
           setLiveStage({ conversationID, label: "正在思考与执行…" });
         } else {
           updateLiveStream(null);
@@ -1773,6 +1818,7 @@ export function AgentPage({
     return () => {
       silentReconnect = true;
       stream.close();
+      cancelScheduledStreamFlush();
       if (invalidateTimer) clearTimeout(invalidateTimer);
       if (errorFlashTimer) clearTimeout(errorFlashTimer);
     };
@@ -1784,6 +1830,9 @@ export function AgentPage({
     courseID,
     streamNonce,
     invalidate,
+    cancelScheduledStreamFlush,
+    flushLiveStream,
+    scheduleLiveStream,
     updateLiveStream,
     cache,
     refresh,
@@ -2074,7 +2123,10 @@ export function AgentPage({
             {snapshot.isPending && conversationID ? (
               <LoadingState label="正在读取会话…" />
             ) : !timeline.length ? (
-              <Empty description="发送要求或上传资料，开始处理当前课程任务" />
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="发送要求或上传资料，开始处理当前课程任务"
+              />
             ) : (
               timeline.map((item) => {
                 if (item.kind === "message") {

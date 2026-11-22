@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"net"
 	"os"
 	"os/exec"
@@ -382,6 +383,7 @@ func (s *Service) Parse(ctx context.Context, j store.ProcessingJob, in JobInput)
 	var out, stderr bytes.Buffer
 	command.Stdout = &out
 	command.Stderr = &stderr
+	configureParserCommand(command)
 	runErr := command.Run()
 	var parsed struct {
 		Assets []struct {
@@ -509,6 +511,28 @@ func materialsDir() string {
 	return v
 }
 func MaterialsDir() string { return materialsDir() }
+
+// IsVideoExtension reports whether ext is a supported video container extension.
+func IsVideoExtension(ext string) bool {
+	switch strings.ToLower(strings.TrimSpace(ext)) {
+	case ".mp4", ".mov", ".mkv", ".webm", ".m4v":
+		return true
+	}
+	return false
+}
+
+// IsVideoSource reports whether a material source represents a video file.
+func IsVideoSource(mediaType, filename string) bool {
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(mediaType)), "video/") {
+		return true
+	}
+	return IsVideoExtension(filepath.Ext(strings.TrimSpace(filename)))
+}
+
+// ValidTimeSpan reports whether a millisecond range is unset (0,0) or a valid positive int32 interval.
+func ValidTimeSpan(start, end int64) bool {
+	return (start == 0 && end == 0) || (start >= 0 && end > start && end <= math.MaxInt32)
+}
 
 // SafeMaterialPath resolves storagePath strictly inside MaterialsDir().
 func SafeMaterialPath(storagePath string) (string, error) {

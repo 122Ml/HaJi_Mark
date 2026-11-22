@@ -322,6 +322,17 @@ func (q *Queries) BusinessOverview(ctx context.Context, courseID string) ([]Busi
 	return items, nil
 }
 
+const countCourseKnowledgePoints = `-- name: CountCourseKnowledgePoints :one
+SELECT count(*)::int FROM knowledge_points WHERE course_id=$1 AND kind='point'
+`
+
+func (q *Queries) CountCourseKnowledgePoints(ctx context.Context, courseID string) (int32, error) {
+	row := q.db.QueryRow(ctx, countCourseKnowledgePoints, courseID)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const countPointReferences = `-- name: CountPointReferences :one
 SELECT (
  (SELECT count(*) FROM knowledge_points kp WHERE kp.parent_id=$2) +

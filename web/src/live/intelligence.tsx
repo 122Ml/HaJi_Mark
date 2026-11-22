@@ -174,13 +174,13 @@ function useReports(kind: string) {
     (list.data?.some((r) => pending(r.job_state)) ?? false);
 
   useEffect(() => {
-    if (!running) return;
+    if (!running || activeJobID) return;
     const id = window.setInterval(() => {
       void list.refetch();
       if (selected) void detail.refetch();
     }, 2000);
     return () => window.clearInterval(id);
-  }, [running, selected, list.refetch, detail.refetch]);
+  }, [running, activeJobID, selected, list.refetch, detail.refetch]);
 
   return { list, detail, selected, setSelected, running };
 }
@@ -1035,7 +1035,7 @@ export function DiagnosisReview({
                     <Space wrap>
                       <Select
                         aria-label={`问题标签${i + 1}`}
-                        style={{ minWidth: 220 }}
+                        style={{ minWidth: 220, maxWidth: "100%" }}
                         value={f.label_id || undefined}
                         placeholder="选择已维护标签"
                         options={selectOptions}

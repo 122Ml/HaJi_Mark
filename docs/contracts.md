@@ -84,8 +84,8 @@ HttpOnly、SameSiteStrict、Path=/api/v1、8小时cookie，DB仅存token哈希�
 | 方法/路径 | 权限 | 主要契约 |
 | --- | --- | --- |
 | GET /sources；GET /sources/:sourceID | T | 原件清单；当前解析修订/片段，`?fragment_id=`可回看引用所属历史修订 |
-| POST /sources | T | multipart `files`、`source_note`、`allow_derived`；可选`supersedes_id`上传一件新版本，返回解析任务列表 |
-| GET /sources/:sourceID/download | TS | 教师可读原件；学生须存在当前发布且`full_source=true`绑定，部分片段发布不能下载全件 |
+| POST /sources | T | multipart `files`、`source_note`、`allow_derived`；可选`supersedes_id`上传一件新版本；文档上限30MiB/10件，视频（mp4/mov/mkv/webm/m4v）单件上限512MiB（容器魔数校验、不可与文档混批），课程活跃原件总配额2GiB |
+| GET /sources/:sourceID/download；GET /sources/:sourceID/stream | TS | download按`full_source=true`控制整件下载（attachment）；stream仅限视频MIME，支持HTTP Range（206）内联播放，学生对本课已发布资料关联的视频可读（含切分发布`full_source=false`） |
 | PUT /sources/:sourceID/fragments | T | `revision/fragments`完整当前列表；检查旧版本和片段顺序，新建解析修订，OCR可校正为ready |
 | POST /sources/:sourceID/publish | T | `title/fragment_ids/full_source/knowledge_point_id`；锁定来源后校验当前ready片段；片段ID不得重复，full_source须包含全部已核对片段；创建并发布学习资源 |
 | POST /sources/:sourceID/archive；PUT /sources/:sourceID/derivation | T | 来源归档；`allow_derived`调整提炼许可，派生检索实时检查当前许可 |
@@ -276,8 +276,11 @@ CO-01 发布 course demo-boundary 与资料版本 → AS-01 学生提交“测�
 
 ## 2026-11-19 全量安全与闭环加固（00017–00019，仅本地）
 
-- **迁移 `00017`–`00019`**：`00017` 补齐作业/题库及字段约束；`00018` 新增 `content_sections`（按知识点切分方案与批量发布）；`00019` 新增 `1024/1536` HNSW 部分索引、外键及状态局部索引、`interactions.evidence_refs`、`courses.status` 支持 `archived`、`model_calls` 支持 `completed` 状态及 JSONB/级联检查约束。新迁移编号从 `00020` 起分配。
-- **新增／补齐接口（全量见 [api-inventory.md](api-inventory.md)，共 167 个 method + path）**：
+- **迁移 `00017`–`00019`**：`00017` 补齐作业/题库及字段约束；`00018` 新增 `content_sections`（按知识点切分方案与批量发布）；`00019` 新增 `1024/1536` HNSW 部分索引、外键及状态局部索引、`interactions.evidence_refs`、`courses.status` 支持 `archived`、`model_calls` 支持 `completed` 状态及 JSONB/级联检查约束。`00020` 补充高频查询/覆盖/局部索引，新迁移编号从 `00021` 起分配。
+- **新增／补齐接口（全量见 [api-inventory.md](api-inventory.md)，共 169 个 method + path）**：
+  - `GET /learning/courses/:courseID/sources/:sourceID/stream`（TS）：仅允许已校验视频原件的 `inline` Range 流式播放；已选课学生可在来源对应资料已发布时播放。
+  - `PUT /learning/courses/:courseID/sources/:sourceID/sections/:sectionID`（T）：人工编辑 `proposed`/`rejected` 状态内容切分段的标题、关联、时间码（`time_start_ms/time_end_ms` 须 `(0,0)` 或 `0<=start<end<=MaxInt32`）与理由，带 `edit_version` 冲突校验（`409`）。
+  - 视频原件拒绝触发 `paper_split`（422）；`source_segment` 与 `sections/adopt` 自动从匹配视频片段提取起止毫秒（文档强制为 `0,0`），并在修订继承时保留时间码。
   - `POST /learning/courses/:courseID/state`（T）：`state=draft|published|archived`；切换课程发布／存档状态。
   - `DELETE /learning/courses/:courseID/members/:studentID`（T）：将指定学生移出当前课程。
   - `PUT /learning/courses/:courseID/points/:pointID`、`DELETE /learning/courses/:courseID/points/:pointID`（T）：编辑名称与说明、删除无业务引用节点；删除父节点前须无不可删除业务引用。

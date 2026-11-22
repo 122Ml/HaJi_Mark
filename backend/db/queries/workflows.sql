@@ -70,7 +70,7 @@ SELECT * FROM knowledge_entries WHERE id=$1 AND course_id=$2 FOR UPDATE;
 UPDATE knowledge_entries SET state='archived',edit_version=edit_version+1 WHERE id=$1 AND course_id=$2 AND state='draft' AND edit_version=$3;
 
 -- name: SearchQuestionBank :many
-SELECT b.archived,v.* FROM question_bank b
+SELECT b.archived,v.*,count(*) OVER()::int AS total FROM question_bank b
 JOIN LATERAL(SELECT * FROM bank_question_versions bv WHERE bv.bank_id=b.id ORDER BY version DESC LIMIT 1) v ON true
 WHERE b.course_id=sqlc.arg(course_id)
 AND (sqlc.arg(search)::text='' OR strpos(lower(v.title||' '||v.prompt),lower(sqlc.arg(search)))>0)

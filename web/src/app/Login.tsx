@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
-import { Alert, Button, Card, Input, Form } from "antd";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, Button, Form, Input } from "antd";
 import { Moon, Sun } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { preloadWorkspace } from "./route-preload";
 import { homeFor, useSession } from "../shared/session";
 import { useThemeMode } from "./theme-mode";
 
@@ -14,9 +15,23 @@ export function Login() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const prefetchedWorkspace = useRef(false);
+  const prefetchWorkspace = useCallback(() => {
+    if (prefetchedWorkspace.current) return;
+    prefetchedWorkspace.current = true;
+    void preloadWorkspace();
+  }, []);
+
   useEffect(() => {
     document.title = "登录 · HaJi Mark";
   }, []);
+
+  useEffect(() => {
+    if (!loading && session) {
+      prefetchWorkspace();
+    }
+  }, [loading, session, prefetchWorkspace]);
+
   return (
     <div className="welcome-page">
       <div className="welcome-hero">
@@ -54,7 +69,11 @@ export function Login() {
             <h1>让每一步学习，都看得见成长</h1>
             <p className="welcome-sub">课程资料 · 作业批阅 · 知识图谱 · 课程助理</p>
           </section>
-          <Card className="sign-in-card" id="sign-in" title="登录">
+          <section className="card-panel sign-in-card" id="sign-in">
+            <div className="sign-in-head">
+              <span className="sign-in-title">登录</span>
+              <kbd aria-hidden="true">Enter ↵</kbd>
+            </div>
             {!loading && session && (
               <Alert
                 type="info"
@@ -74,7 +93,9 @@ export function Login() {
             )}
             <Form
               className="sign-in-form"
+              onFocus={prefetchWorkspace}
               onFinish={async () => {
+                prefetchWorkspace();
                 setBusy(true);
                 setError("");
                 try {
@@ -132,7 +153,7 @@ export function Login() {
               </Button>
             </Form>
             <p className="sign-in-help">忘记密码请联系课程教师。</p>
-          </Card>
+          </section>
         </main>
       </div>
       <footer className="welcome-footer">

@@ -1,8 +1,8 @@
 # 当前 API 全量清单
 
-盘点日期：2026-11-20；注册入口内容 SHA256：`674803b35ec4a9e5727185ffc2110bfd6b7ef2e1b8b8f707003178bb0a70d0e5`。
+盘点日期：2026-11-23；注册入口内容 SHA256：`ca542aea5d2222b0eb46f49eef791c3e68d6ef3487d3c95d8d2965fc3c22096e`。
 
-共 **167 个 method + path**，方法统计：`{"GET": 68, "POST": 72, "DELETE": 7, "PUT": 19, "PATCH": 1}`。
+共 **170 个 method + path**，方法统计：`{"GET": 70, "POST": 72, "DELETE": 7, "PUT": 20, "PATCH": 1}`。
 
 依据 server.New 实际调用的注册入口展开角色循环；这是源码入口清单，不是线上调用量、生产启用证明或安全审计结论。
 
@@ -16,8 +16,8 @@ Agent审批和业务状态转换分别执行；审批通过后仍走原业务路
 
 | 方法 | 完整路径 | 功能 | 访问范围 | 调用方式 | CSRF | 代码 |
 |---|---|---|---|---|---|---|
-| GET | `/api/v1/health/live` | 进程存活探针 | 公开 | HTTP JSON；同步读取 | — | [inline:84](../backend/internal/server/router.go) |
-| GET | `/api/v1/health/ready` | 数据库与Redis就绪探针 | 公开 | HTTP JSON；同步读取 | — | [inline:87](../backend/internal/server/router.go) |
+| GET | `/api/v1/health/live` | 进程存活探针 | 公开 | HTTP JSON；同步读取 | — | [inline:89](../backend/internal/server/router.go) |
+| GET | `/api/v1/health/ready` | 数据库与Redis就绪探针 | 公开 | HTTP JSON；同步读取 | — | [inline:92](../backend/internal/server/router.go) |
 
 ## course/http.go
 
@@ -124,30 +124,33 @@ Agent审批和业务状态转换分别执行；审批通过后仍走原业务路
 
 | 方法 | 完整路径 | 功能 | 访问范围 | 调用方式 | CSRF | 代码 |
 |---|---|---|---|---|---|---|
-| GET | `/api/v1/learning/courses/:courseID/models` | 查询模型profile及预算/调用台账（没有配置修改接口） | 教师；本课程 | HTTP JSON；同步读取 | — | [models:56](../backend/internal/learning/materials.go) |
-| GET | `/api/v1/learning/courses/:courseID/sources` | 查询原件列表 | 教师；本课程 | HTTP JSON；同步读取 | — | [sources:57](../backend/internal/learning/materials.go) |
-| GET | `/api/v1/learning/courses/:courseID/sources/:sourceID` | 读取原件及解析片段/指定历史片段版本 | 教师；本课程 | HTTP JSON；同步读取 | — | [sourceDetail:58](../backend/internal/learning/materials.go) |
-| POST | `/api/v1/learning/courses/:courseID/sources` | 上传原件并建立解析任务 | 教师；本课程 | multipart上传 → PG任务 → Asynq解析 | 是 | [uploadSources:59](../backend/internal/learning/materials.go) |
-| PUT | `/api/v1/learning/courses/:courseID/sources/:sourceID/fragments` | 人工校正原文并创建解析修订 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [correctFragments:60](../backend/internal/learning/materials.go) |
-| POST | `/api/v1/learning/courses/:courseID/sources/:sourceID/publish` | 选择原文片段发布为学习资料 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [publishFragments:61](../backend/internal/learning/materials.go) |
-| POST | `/api/v1/learning/courses/:courseID/sources/:sourceID/archive` | 归档来源并限制未来使用 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [archiveSource:62](../backend/internal/learning/materials.go) |
-| PUT | `/api/v1/learning/courses/:courseID/sources/:sourceID/derivation` | 设置或撤回知识提炼许可 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [sourceDerivation:63](../backend/internal/learning/materials.go) |
-| GET | `/api/v1/learning/courses/:courseID/sources/:sourceID/download` | 下载原件；按资料发布范围/角色校验 | 师生；本课程；按对象/可见性过滤 | HTTP文件响应 | — | [downloadSource:64](../backend/internal/learning/materials.go) |
-| GET | `/api/v1/learning/courses/:courseID/knowledge` | 读取权限允许的知识条目 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [knowledge:65](../backend/internal/learning/materials.go) |
-| POST | `/api/v1/learning/courses/:courseID/knowledge` | 新增/修改知识草稿或新版本 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [saveKnowledge:66](../backend/internal/learning/materials.go) |
-| PUT | `/api/v1/learning/courses/:courseID/knowledge/:knowledgeID` | 新增/修改知识草稿或新版本 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [saveKnowledge:67](../backend/internal/learning/materials.go) |
-| POST | `/api/v1/learning/courses/:courseID/knowledge/:knowledgeID/state` | 知识确认等状态转换 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [knowledgeState:68](../backend/internal/learning/materials.go) |
-| POST | `/api/v1/learning/courses/:courseID/jobs` | 提交解析/索引/提炼/标准/评分/视觉等后台任务 | 教师；本课程 | HTTP JSON返回任务ID → Asynq → 前端轮询 | 是 | [createRAGJob:69](../backend/internal/learning/materials.go) |
-| GET | `/api/v1/learning/courses/:courseID/jobs` | 查询处理任务 | 教师；本课程 | HTTP JSON；后台状态读取/轮询 | — | [jobs:70](../backend/internal/learning/materials.go) |
-| GET | `/api/v1/learning/courses/:courseID/jobs/:jobID` | 读取任务状态与候选结果 | 教师；本课程 | HTTP JSON；后台状态读取/轮询 | — | [job:71](../backend/internal/learning/materials.go) |
-| POST | `/api/v1/learning/courses/:courseID/jobs/:jobID/cancel` | 请求取消后台任务 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [cancelJob:72](../backend/internal/learning/materials.go) |
-| POST | `/api/v1/learning/courses/:courseID/jobs/:jobID/retry` | 显式新建失败任务重试 | 教师；本课程 | HTTP JSON返回任务ID → Asynq → 前端轮询 | 是 | [retryJob:73](../backend/internal/learning/materials.go) |
-| GET | `/api/v1/learning/courses/:courseID/sources/:sourceID/sections` | 查询原件当前解析版本的内容切分方案 | 教师；本课程 | HTTP JSON；同步读取 | — | [sections:74](../backend/internal/learning/materials.go) |
-| POST | `/api/v1/learning/courses/:courseID/sources/:sourceID/sections/adopt` | 采纳 AI 生成的资料内容切分方案 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [adoptSegments:75](../backend/internal/learning/materials.go) |
-| POST | `/api/v1/learning/courses/:courseID/sources/:sourceID/sections/state` | 批量接受或驳回资料内容切分方案 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [sectionsState:76](../backend/internal/learning/materials.go) |
-| POST | `/api/v1/learning/courses/:courseID/sources/:sourceID/sections/publish` | 按已接受的内容切分方案批量发布学习资料 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [sectionsPublish:77](../backend/internal/learning/materials.go) |
-| POST | `/api/v1/learning/courses/:courseID/retrieval` | 按学习/评分/比较用途检索；可调用查询Embedding | 师生；本课程；按对象/可见性过滤 | HTTP同步；关键词/向量检索；可能调用Embedding | 是 | [retrieval:78](../backend/internal/learning/materials.go) |
-| GET | `/api/v1/learning/courses/:courseID/retrieval/status` | 查询检索配置/索引状态 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [retrievalStatus:79](../backend/internal/learning/materials.go) |
+| GET | `/api/v1/learning/courses/:courseID/models` | 查询模型profile及预算/调用台账（没有配置修改接口） | 教师；本课程 | HTTP JSON；同步读取 | — | [models:58](../backend/internal/learning/materials.go) |
+| GET | `/api/v1/learning/courses/:courseID/sources` | 查询原件列表 | 教师；本课程 | HTTP JSON；同步读取 | — | [sources:59](../backend/internal/learning/materials.go) |
+| GET | `/api/v1/learning/courses/:courseID/sources/:sourceID` | 读取原件及解析片段/指定历史片段版本 | 教师；本课程 | HTTP JSON；同步读取 | — | [sourceDetail:60](../backend/internal/learning/materials.go) |
+| POST | `/api/v1/learning/courses/:courseID/sources` | 上传原件并建立解析任务 | 教师；本课程 | multipart上传 → PG任务 → Asynq解析 | 是 | [uploadSources:61](../backend/internal/learning/materials.go) |
+| PUT | `/api/v1/learning/courses/:courseID/sources/:sourceID/fragments` | 人工校正原文并创建解析修订 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [correctFragments:62](../backend/internal/learning/materials.go) |
+| POST | `/api/v1/learning/courses/:courseID/sources/:sourceID/publish` | 选择原文片段发布为学习资料 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [publishFragments:63](../backend/internal/learning/materials.go) |
+| POST | `/api/v1/learning/courses/:courseID/sources/:sourceID/archive` | 归档来源并限制未来使用 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [archiveSource:64](../backend/internal/learning/materials.go) |
+| PUT | `/api/v1/learning/courses/:courseID/sources/:sourceID/derivation` | 设置或撤回知识提炼许可 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [sourceDerivation:65](../backend/internal/learning/materials.go) |
+| GET | `/api/v1/learning/courses/:courseID/sources/:sourceID/download` | 下载原件；按资料发布范围/角色校验 | 师生；本课程；按对象/可见性过滤 | HTTP文件响应 | — | [downloadSource:66](../backend/internal/learning/materials.go) |
+| GET | `/api/v1/learning/courses/:courseID/sources/:sourceID/stream` | 按视频类型与发布权限流式播放原件视频 | 师生；本课程；按对象/可见性过滤 | HTTP文件响应 | — | [streamSource:67](../backend/internal/learning/materials.go) |
+| GET | `/api/v1/learning/courses/:courseID/knowledge` | 读取权限允许的知识条目 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [knowledge:68](../backend/internal/learning/materials.go) |
+| POST | `/api/v1/learning/courses/:courseID/knowledge` | 新增/修改知识草稿或新版本 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [saveKnowledge:69](../backend/internal/learning/materials.go) |
+| PUT | `/api/v1/learning/courses/:courseID/knowledge/:knowledgeID` | 新增/修改知识草稿或新版本 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [saveKnowledge:70](../backend/internal/learning/materials.go) |
+| POST | `/api/v1/learning/courses/:courseID/knowledge/:knowledgeID/state` | 知识确认等状态转换 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [knowledgeState:71](../backend/internal/learning/materials.go) |
+| POST | `/api/v1/learning/courses/:courseID/jobs` | 提交解析/索引/提炼/标准/评分/视觉等后台任务 | 教师；本课程 | HTTP JSON返回任务ID → Asynq → 前端轮询 | 是 | [createRAGJob:72](../backend/internal/learning/materials.go) |
+| GET | `/api/v1/learning/courses/:courseID/jobs` | 查询处理任务 | 教师；本课程 | HTTP JSON；后台状态读取/轮询 | — | [jobs:73](../backend/internal/learning/materials.go) |
+| GET | `/api/v1/learning/courses/:courseID/jobs/:jobID` | 读取任务状态与候选结果 | 教师；本课程 | HTTP JSON；后台状态读取/轮询 | — | [job:74](../backend/internal/learning/materials.go) |
+| POST | `/api/v1/learning/courses/:courseID/jobs/:jobID/cancel` | 请求取消后台任务 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [cancelJob:75](../backend/internal/learning/materials.go) |
+| POST | `/api/v1/learning/courses/:courseID/jobs/:jobID/retry` | 显式新建失败任务重试 | 教师；本课程 | HTTP JSON返回任务ID → Asynq → 前端轮询 | 是 | [retryJob:76](../backend/internal/learning/materials.go) |
+| GET | `/api/v1/learning/courses/:courseID/sources/:sourceID/sections` | 查询原件当前解析版本的内容切分方案 | 教师；本课程 | HTTP JSON；同步读取 | — | [sections:77](../backend/internal/learning/materials.go) |
+| POST | `/api/v1/learning/courses/:courseID/sources/:sourceID/sections/adopt` | 采纳 AI 生成的资料内容切分方案 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [adoptSegments:78](../backend/internal/learning/materials.go) |
+| PUT | `/api/v1/learning/courses/:courseID/sources/:sourceID/sections/:sectionID` | 编辑待确认或已驳回的内容切分方案及时间码 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [updateSection:79](../backend/internal/learning/materials.go) |
+| POST | `/api/v1/learning/courses/:courseID/sources/:sourceID/sections/state` | 批量接受或驳回资料内容切分方案 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [sectionsState:80](../backend/internal/learning/materials.go) |
+| POST | `/api/v1/learning/courses/:courseID/sources/:sourceID/sections/publish` | 按已接受的内容切分方案批量发布学习资料 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [sectionsPublish:81](../backend/internal/learning/materials.go) |
+| GET | `/api/v1/learning/courses/:courseID/knowledge-points/:pointID/clips` | 按知识点查询未归档原件最新解析版本中已接受的内容及时间切片 | 教师；本课程 | HTTP JSON；同步读取 | — | [pointClips:82](../backend/internal/learning/materials.go) |
+| POST | `/api/v1/learning/courses/:courseID/retrieval` | 按学习/评分/比较用途检索；可调用查询Embedding | 师生；本课程；按对象/可见性过滤 | HTTP同步；关键词/向量检索；可能调用Embedding | 是 | [retrieval:83](../backend/internal/learning/materials.go) |
+| GET | `/api/v1/learning/courses/:courseID/retrieval/status` | 查询检索配置/索引状态 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [retrievalStatus:84](../backend/internal/learning/materials.go) |
 
 ## learning/question_bank.go
 

@@ -1,4 +1,4 @@
-import { Select, Button, Alert, Tooltip, Typography } from "antd";
+import { Select, Button, Alert, Tooltip } from "antd";
 import { RefreshCw } from "lucide-react";
 import {
   createContext,
@@ -502,7 +502,7 @@ function ActionLink({ to, className, replace, state, target, preventScrollReset,
     if (!click.defaultPrevented && !reloadDocument) navigate(click);
   };
   if (typeof className === "string" && /primary-link|ghost-btn/.test(className)) return <Button {...props} className={className.split(/\s+/).filter(c => c !== "primary-link" && c !== "ghost-btn").join(" ")} href={href} target={target} type={className.includes("primary-link") ? "primary" : "default"} onClick={onNavigate} />;
-  return <Typography.Link {...props} className={className} href={href} target={target} onClick={onNavigate} />;
+  return <a {...props} className={className} href={href} target={target} onClick={onNavigate} />;
 }
 
 export function useCourseNavigate() {

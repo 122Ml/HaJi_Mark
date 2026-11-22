@@ -45,7 +45,14 @@ import { ResourceNotes, type Note } from "./notes";
 import { JobsPanel } from "./ai-jobs";
 import { RetrievalPage } from "./retrieval";
 import { PublishedAssets, RichContent } from "./content-render";
-import { labelFor, stateLabels } from "./domain-meta";
+import {
+  extractResourceTimeRangeMs,
+  formatResourceLocator,
+  isVideoSource,
+  labelFor,
+  stateLabels,
+} from "./domain-meta";
+import { MediaPlayer } from "./media-player";
 import type { Point, Resource } from "./types";
 import { hasControlNull, isValidHTTPUrl, utf8ByteLength } from "./validation";
 
@@ -149,12 +156,18 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
   }
 
   function openResource(r: CourseResource | null) {
-    updateParams({ resource: r?.id || "" });
+    updateParams({ resource: r?.id || "", t: "" });
   }
 
   const selected = params.get("node") || "";
   const viewID = params.get("resource") || "";
   const taskParam = params.get("task") || "";
+  const rawT = params.get("t");
+  const requestedSeekMs = useMemo(() => {
+    if (!rawT) return null;
+    const parsed = Number(rawT);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+  }, [rawT]);
 
   // Derive `view` synchronously from URL so navigation blockers stay atomic.
   const view = useMemo(() => {
@@ -165,6 +178,22 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
       ) || null
     );
   }, [viewID, resources.data, sourceID]);
+
+  const viewLocatorFilename = view
+    ? (view.locator || "").replace(/\s+\[[\s\S]*\]$/, "").trim()
+    : "";
+  const viewIsVideo = Boolean(
+    course &&
+      view?.source_id &&
+      (isVideoSource(view.media_type, viewLocatorFilename) ||
+        isVideoSource(view.media_type, (view.locator || "").split(" ")[0])),
+  );
+  const viewClipRange = useMemo(
+    () => (view ? extractResourceTimeRangeMs(view.locator) : null),
+    [view],
+  );
+  const viewSeekMs = requestedSeekMs ?? viewClipRange?.startMs ?? null;
+  const viewLocatorText = view ? formatResourceLocator(view.locator) : "";
 
   const missingView = !!viewID && resources.isSuccess && !view;
 
@@ -459,7 +488,15 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
   return (
     <div className="live-page">
       {!teacher && !sourceID && (
-        <PageHeader title="学习资料" subtitle={course?.title} />
+        <PageHeader
+          title="学习资料"
+          subtitle={course?.title}
+          extra={
+            <Link className="ghost-btn" to={retrievalHref}>
+              资料问答
+            </Link>
+          }
+        />
       )}
       {taskParam && (
         <Link
@@ -485,12 +522,13 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
               <aside>
                 <Card className="card-panel" title="课程目录">
                   <Button
+                    block
                     type={!selected ? "primary" : "default"}
                     onClick={() => {
                       setPage(1);
                       updateParams({ node: "", resource: "" });
                     }}
-                    style={{ marginBottom: 12 }}
+                    style={{ marginBottom: 8 }}
                   >
                     全部资料
                   </Button>
@@ -500,6 +538,11 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
                     <Tree
                       aria-label="课程目录"
                       blockNode
+                      className={
+                        treeData.some((n) => n.children.length > 0)
+                          ? undefined
+                          : "live-flat-tree"
+                      }
                       expandedKeys={expandedKeys}
                       onExpand={(keys) => setExpandedKeys(keys.map(String))}
                       selectedKeys={selected ? [selected] : []}
@@ -599,7 +642,7 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
                       label={labelFor(stateLabels, view.status, names[view.status] || view.status)}
                     />
                     <MetaTag>v{view.version}</MetaTag>
-                    {view.locator && <MetaTag>{view.locator}</MetaTag>}
+                    {viewLocatorText && <MetaTag>{viewLocatorText}</MetaTag>}
                     {!teacher && (
                       <StatusTag
                         status={
@@ -616,6 +659,14 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
                     {supersededIDs.has(view.id) && <MetaTag>已有新版本</MetaTag>}
                     <span className="live-meta">{when(view.published_at)}</span>
                   </MetaTags>
+                  {viewIsVideo && course && view.source_id && (
+                    <MediaPlayer
+                      src={`/api/v1/learning/courses/${encodeURIComponent(course.id)}/sources/${encodeURIComponent(view.source_id)}/stream`}
+                      title={view.title}
+                      seekMs={viewSeekMs}
+                      clipRange={viewClipRange}
+                    />
+                  )}
                   <RichContent text={view.content} />
                   <PublishedAssets kind="resources" id={view.id} />
                   {!teacher && (
@@ -771,6 +822,7 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
                         const completed = completedSet.has(r.id);
                         const favorited = favoriteSet.has(r.id);
                         const superseded = supersededIDs.has(r.id);
+                        const loc = formatResourceLocator(r.locator);
                         return (
                           <article className="live-row" key={r.id}>
                             <div>
@@ -787,7 +839,7 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
                                   )}
                                 />
                                 <MetaTag>v{r.version}</MetaTag>
-                                {r.locator && <MetaTag>{r.locator}</MetaTag>}
+                                {loc && <MetaTag>{loc}</MetaTag>}
                                 {!teacher && favorited && (
                                   <Tag color="gold">已收藏</Tag>
                                 )}
@@ -1069,13 +1121,6 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
                 },
               ]}
             />
-          )}
-          {!teacher && (
-            <div className="live-inline">
-              <Link className="ghost-btn" to={retrievalHref}>
-                资料问答
-              </Link>
-            </div>
           )}
         </>
       )}

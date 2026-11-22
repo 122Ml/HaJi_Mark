@@ -9,17 +9,13 @@ import (
 	"os"
 	"sort"
 	"strings"
-	"sync"
 	"unicode"
 
 	"github.com/122Ml/HaJi_Mark/backend/internal/store"
-	"github.com/go-ego/gse"
 	"github.com/hibiken/asynq"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
-
-var tokenizer gse.Segmenter
-var tokenOnce sync.Once
 
 var searchStopWords = map[string]bool{
 	"的": true, "了": true, "是": true, "在": true, "和": true, "与": true, "或": true,
@@ -39,22 +35,71 @@ var searchStopWords = map[string]bool{
 	"how": true, "why": true, "who": true, "when": true, "where": true,
 }
 
+func isSingleStopWord(r rune) bool {
+	return searchStopWords[string(r)]
+}
+
 func Tokens(s string) []string {
-	tokenOnce.Do(func() {
-		if err := tokenizer.LoadDictEmbed("zh"); err != nil {
-			log.Printf("gse LoadDictEmbed failed: %v", err)
-		}
-	})
-	tokens := []string{}
-	seen := map[string]bool{}
-	for _, v := range tokenizer.CutSearch(strings.ToLower(s), true) {
-		v = strings.ReplaceAll(v, "\x00", "")
-		v = strings.TrimFunc(v, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsNumber(r) })
-		if v != "" && !seen[v] {
-			seen[v] = true
-			tokens = append(tokens, v)
+	s = strings.ToLower(strings.ReplaceAll(s, "\x00", ""))
+	if s == "" {
+		return []string{}
+	}
+	tokens := make([]string, 0, 16)
+	seen := make(map[string]bool, 16)
+	add := func(t string) {
+		if t != "" && !seen[t] {
+			seen[t] = true
+			tokens = append(tokens, t)
 		}
 	}
+	var hanRun []rune
+	var wordRun []rune
+	flushHan := func() {
+		L := len(hanRun)
+		if L == 0 {
+			return
+		}
+		if L == 1 {
+			add(string(hanRun))
+		} else {
+			for i := 0; i+1 < L; i++ {
+				add(string(hanRun[i : i+2]))
+			}
+			for i := 0; i+2 < L; i++ {
+				add(string(hanRun[i : i+3]))
+			}
+			if L <= 6 {
+				add(string(hanRun))
+			}
+		}
+		hanRun = hanRun[:0]
+	}
+	flushWord := func() {
+		if len(wordRun) > 0 {
+			add(string(wordRun))
+			wordRun = wordRun[:0]
+		}
+	}
+	for _, r := range s {
+		switch {
+		case unicode.Is(unicode.Han, r):
+			flushWord()
+			if isSingleStopWord(r) {
+				flushHan()
+				add(string(r))
+			} else {
+				hanRun = append(hanRun, r)
+			}
+		case unicode.IsLetter(r) || unicode.IsNumber(r):
+			flushHan()
+			wordRun = append(wordRun, r)
+		default:
+			flushHan()
+			flushWord()
+		}
+	}
+	flushHan()
+	flushWord()
 	return tokens
 }
 
@@ -65,8 +110,7 @@ func escapeTSLexeme(t string) string {
 	return "'" + t + "'"
 }
 
-func queryTokens(s string) string {
-	all := Tokens(s)
+func queryTokensFrom(all []string) string {
 	filtered := make([]string, 0, len(all))
 	for _, t := range all {
 		if searchStopWords[t] {
@@ -88,6 +132,10 @@ func queryTokens(s string) string {
 		return "'__empty__'"
 	}
 	return strings.Join(out, " | ")
+}
+
+func queryTokens(s string) string {
+	return queryTokensFrom(Tokens(s))
 }
 
 type Hit struct {
@@ -148,7 +196,8 @@ func (s *Service) Search(ctx context.Context, course, actor, query, purpose stri
 		return nil, "", e
 	}
 	merged := map[string]*Hit{}
-	keywords, e := s.Q.KeywordSearch(ctx, store.KeywordSearchParams{CourseID: course, QueryTokens: queryTokens(query), Teacher: teacher, Purpose: purpose})
+	queryToks := Tokens(query)
+	keywords, e := s.Q.KeywordSearch(ctx, store.KeywordSearchParams{CourseID: course, QueryTokens: queryTokensFrom(queryToks), Teacher: teacher, Purpose: purpose})
 	if e != nil {
 		return nil, "", e
 	}
@@ -158,7 +207,7 @@ func (s *Service) Search(ctx context.Context, course, actor, query, purpose stri
 	mode := "keyword"
 	warning := ""
 	if c.EmbeddingSpaceID.Valid {
-		if len(Tokens(query)) == 0 {
+		if len(queryToks) == 0 {
 			warning = "查询词有效特征为空，仅使用关键词检索"
 		} else {
 			space, e := s.Q.GetEmbeddingSpace(ctx, c.EmbeddingSpaceID.String)
@@ -178,18 +227,28 @@ func (s *Service) Search(ctx context.Context, course, actor, query, purpose stri
 				var rows []store.VectorSearchRow
 				var err error
 				switch space.Dimensions {
-				case 1024:
-					r1024, e1024 := s.Q.VectorSearch1024(ctx, store.VectorSearch1024Params{CourseID: course, SpaceID: space.ID, VectorText: string(raw), Teacher: teacher, Purpose: purpose})
-					err = e1024
-					for _, r := range r1024 {
-						rows = append(rows, store.VectorSearchRow(r))
+				case 1024, 1536:
+					tx, txErr := s.Models.DB.BeginTx(ctx, pgx.TxOptions{AccessMode: pgx.ReadOnly})
+					if txErr != nil {
+						return nil, "", txErr
 					}
-				case 1536:
-					r1536, e1536 := s.Q.VectorSearch1536(ctx, store.VectorSearch1536Params{CourseID: course, SpaceID: space.ID, VectorText: string(raw), Teacher: teacher, Purpose: purpose})
-					err = e1536
-					for _, r := range r1536 {
-						rows = append(rows, store.VectorSearchRow(r))
+					if _, err = tx.Exec(ctx, "SET LOCAL hnsw.iterative_scan = strict_order"); err == nil {
+						vq := s.Q.WithTx(tx)
+						if space.Dimensions == 1024 {
+							r1024, e1024 := vq.VectorSearch1024(ctx, store.VectorSearch1024Params{CourseID: course, SpaceID: space.ID, VectorText: string(raw), Teacher: teacher, Purpose: purpose})
+							err = e1024
+							for _, r := range r1024 {
+								rows = append(rows, store.VectorSearchRow(r))
+							}
+						} else {
+							r1536, e1536 := vq.VectorSearch1536(ctx, store.VectorSearch1536Params{CourseID: course, SpaceID: space.ID, VectorText: string(raw), Teacher: teacher, Purpose: purpose})
+							err = e1536
+							for _, r := range r1536 {
+								rows = append(rows, store.VectorSearchRow(r))
+							}
+						}
 					}
+					_ = tx.Rollback(ctx)
 				default:
 					rows, err = s.Q.VectorSearch(ctx, store.VectorSearchParams{CourseID: course, SpaceID: space.ID, VectorText: string(raw), Teacher: teacher, Purpose: purpose})
 				}
@@ -291,14 +350,32 @@ func chunks(body string) []string {
 	}
 	return out
 }
-func putChunksWithQueries(ctx context.Context, q *store.Queries, course, source, knowledge, resource, title, heading, body string, fragments []string, loc json.RawMessage) error {
-	for i, b := range chunks(body) {
-		id := Hash(strings.Join([]string{course, source, knowledge, resource, strings.Join(fragments, ","), title, heading, string(loc), fmt.Sprint(i), b}, "|"))
-		if e := q.PutRetrievalChunk(ctx, store.PutRetrievalChunkParams{ID: id, CourseID: course, SourceID: nullable(source), KnowledgeID: nullable(knowledge), ResourceID: nullable(resource), FragmentIds: fragments, Title: title, Heading: heading, Body: b, Locator: loc, InputHash: Hash(b), SearchTokens: strings.Join(Tokens(title+" "+heading+" "+b), " ")}); e != nil {
-			return e
+const (
+	putRetrievalChunkSQL = `INSERT INTO retrieval_chunks(id,course_id,source_id,knowledge_id,resource_id,fragment_ids,title,heading,body,locator,input_hash,search_tokens) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT(id) DO UPDATE SET active=true`
+	putChunkEmbeddingSQL = `INSERT INTO chunk_embeddings(chunk_id,space_id,dimensions,embedding) VALUES($1,$2,$3,$4::text::vector) ON CONFLICT DO NOTHING`
+)
+
+func execBatch(ctx context.Context, sender interface {
+	SendBatch(context.Context, *pgx.Batch) pgx.BatchResults
+}, b *pgx.Batch) error {
+	if b.Len() == 0 {
+		return nil
+	}
+	br := sender.SendBatch(ctx, b)
+	for i := 0; i < b.Len(); i++ {
+		if _, err := br.Exec(); err != nil {
+			_ = br.Close()
+			return err
 		}
 	}
-	return nil
+	return br.Close()
+}
+
+func queueChunks(batch *pgx.Batch, course, source, knowledge, resource, title, heading, body string, fragments []string, loc json.RawMessage) {
+	for i, b := range chunks(body) {
+		id := Hash(strings.Join([]string{course, source, knowledge, resource, strings.Join(fragments, ","), title, heading, string(loc), fmt.Sprint(i), b}, "|"))
+		batch.Queue(putRetrievalChunkSQL, id, course, nullable(source), nullable(knowledge), nullable(resource), fragments, title, heading, b, loc, Hash(b), strings.Join(Tokens(title+" "+heading+" "+b), " "))
+	}
 }
 func nullable(s string) pgtype.Text { return pgtype.Text{String: s, Valid: s != ""} }
 func (s *Service) Index(ctx context.Context, j store.ProcessingJob, in JobInput) (any, error) {
@@ -317,6 +394,17 @@ func (s *Service) Index(ctx context.Context, j store.ProcessingJob, in JobInput)
 	if e = iq.RetireObsoleteResourceChunks(ctx, j.CourseID); e != nil {
 		return nil, e
 	}
+	chunkBatch := &pgx.Batch{}
+	flushChunks := func() error {
+		if chunkBatch.Len() == 0 {
+			return nil
+		}
+		if err := execBatch(ctx, indexTx, chunkBatch); err != nil {
+			return err
+		}
+		chunkBatch = &pgx.Batch{}
+		return nil
+	}
 	sources, e := iq.ListMaterialSources(ctx, j.CourseID)
 	if e != nil {
 		return nil, e
@@ -333,8 +421,11 @@ func (s *Service) Index(ctx context.Context, j store.ProcessingJob, in JobInput)
 			if f.Quality != "ready" {
 				continue
 			}
-			if e = putChunksWithQueries(ctx, iq, j.CourseID, src.ID, "", "", src.Title, f.Heading, f.Body, []string{f.ID}, f.Locator); e != nil {
-				return nil, e
+			queueChunks(chunkBatch, j.CourseID, src.ID, "", "", src.Title, f.Heading, f.Body, []string{f.ID}, f.Locator)
+			if chunkBatch.Len() >= 500 {
+				if e = flushChunks(); e != nil {
+					return nil, e
+				}
 			}
 		}
 	}
@@ -344,8 +435,11 @@ func (s *Service) Index(ctx context.Context, j store.ProcessingJob, in JobInput)
 	}
 	for _, k := range knowledge {
 		loc, _ := json.Marshal(map[string]any{"knowledge_version": k.Version})
-		if e = putChunksWithQueries(ctx, iq, j.CourseID, "", k.ID, "", k.Title, k.Category, k.Body+"\n适用条件："+k.Conditions, []string{}, loc); e != nil {
-			return nil, e
+		queueChunks(chunkBatch, j.CourseID, "", k.ID, "", k.Title, k.Category, k.Body+"\n适用条件："+k.Conditions, []string{}, loc)
+		if chunkBatch.Len() >= 500 {
+			if e = flushChunks(); e != nil {
+				return nil, e
+			}
 		}
 	}
 	resources, e := iq.ListLegacyIndexResources(ctx, j.CourseID)
@@ -354,9 +448,15 @@ func (s *Service) Index(ctx context.Context, j store.ProcessingJob, in JobInput)
 	}
 	for _, r := range resources {
 		loc, _ := json.Marshal(map[string]any{"resource_version": r.Version, "locator": r.Locator})
-		if e = putChunksWithQueries(ctx, iq, j.CourseID, "", "", r.ID, r.Title, "", r.Content, []string{}, loc); e != nil {
-			return nil, e
+		queueChunks(chunkBatch, j.CourseID, "", "", r.ID, r.Title, "", r.Content, []string{}, loc)
+		if chunkBatch.Len() >= 500 {
+			if e = flushChunks(); e != nil {
+				return nil, e
+			}
 		}
+	}
+	if e = flushChunks(); e != nil {
+		return nil, e
 	}
 	if e = indexTx.Commit(ctx); e != nil {
 		return nil, e
@@ -406,11 +506,13 @@ func (s *Service) Index(ctx context.Context, j store.ProcessingJob, in JobInput)
 		if err != nil {
 			return nil, err
 		}
+		embBatch := &pgx.Batch{}
 		for i, v := range vecs {
 			raw, _ := json.Marshal(v)
-			if e = s.Q.PutChunkEmbedding(ctx, store.PutChunkEmbeddingParams{ChunkID: pending[start+i].ID, SpaceID: space.ID, Dimensions: int32(p.Dimensions), VectorText: string(raw)}); e != nil {
-				return nil, e
-			}
+			embBatch.Queue(putChunkEmbeddingSQL, pending[start+i].ID, space.ID, int32(p.Dimensions), string(raw))
+		}
+		if e = execBatch(ctx, s.Models.DB, embBatch); e != nil {
+			return nil, e
 		}
 		if err := s.Q.ProgressProcessingJob(ctx, store.ProgressProcessingJobParams{ID: j.ID, Progress: int32(end * 90 / len(pending))}); err != nil {
 			log.Printf("RAG index progress update %s failed: %v", j.ID, err)

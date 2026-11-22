@@ -87,8 +87,8 @@ func (h *Handler) validateResourceInput(c *gin.Context, q *store.Queries, in *re
 
 func (h *Handler) resources(c *gin.Context) {
 	v, e := h.q.ListBusinessResources(c.Request.Context(), store.ListBusinessResourcesParams{CourseID: c.Param("courseID"), Teacher: teacher(c)})
-	if e == nil && v == nil {
-		v = []store.Resource{}
+	if e == nil {
+		v = filterByID(v, strings.TrimSpace(c.Query("id")), func(r store.Resource) string { return r.ID })
 	}
 	result(c, v, e)
 }

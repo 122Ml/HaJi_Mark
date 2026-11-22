@@ -15,7 +15,7 @@ func (h *Handler) activity(c *gin.Context) {
 		}
 		studentID = identity.Current(c).ID
 	}
-	if studentID != "" {
+	if teacher(c) && studentID != "" {
 		enrolled, e := h.q.IsEnrolled(c.Request.Context(), store.IsEnrolledParams{CourseID: c.Param("courseID"), StudentID: studentID})
 		if e != nil {
 			result(c, nil, e)

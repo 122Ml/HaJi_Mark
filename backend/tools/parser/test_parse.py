@@ -1,7 +1,9 @@
 """Unit tests for bounded document parser guards and format handlers."""
 import io
 import json
+import os
 import struct
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -12,7 +14,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
-import numpy  # noqa: F401 - pre-import before mock.patch.dict(sys.modules) tests.
+import numpy as np  # noqa: F401 - pre-import before mock.patch.dict(sys.modules) tests.
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import parse as parser
@@ -362,6 +364,291 @@ class ParserTests(unittest.TestCase):
         with mock.patch("zipfile.ZipFile", return_value=fake_archive):
             with self.assertRaises(ValueError):
                 parser.validate_zip_container("fake.docx")
+
+    def test_merge_speech_segments_caps_600_dense_utterances_and_normalizes(self):
+        self.assertEqual(parser.merge_speech_segments([(0, 1000, "   \t\n ")]), [])
+
+        normalized = parser.merge_speech_segments([
+            (-250, -10, "开场"),
+            (500, 500, "相等时间"),
+            (800, 600, "倒挂时间"),
+        ])
+        self.assertEqual(len(normalized), 1)
+        self.assertEqual(normalized[0]["heading"], "")
+        self.assertEqual(normalized[0]["quality"], "ready")
+        self.assertEqual(normalized[0]["locator"], {"time_start_ms": 0, "time_end_ms": 801})
+        self.assertEqual(normalized[0]["body"], "开场 相等时间 倒挂时间")
+
+        # 600 dense utterances (~120 chars each) force Pass 1 (>120 buckets) and Pass 2 coalescing.
+        utterances = []
+        for idx in range(600):
+            s = idx * 4000
+            e = s + 3800
+            utterances.append((s, e, f"第{idx:03d}句_" + "讲解内容" * 28))
+
+        fragments = parser.merge_speech_segments(utterances)
+        self.assertGreater(len(fragments), 0)
+        self.assertLessEqual(len(fragments), parser.MAX_VIDEO_FRAGMENTS)
+        self.assertEqual(fragments[0]["locator"]["time_start_ms"], 0)
+        self.assertEqual(fragments[-1]["locator"]["time_end_ms"], utterances[-1][1])
+
+        for i, frag in enumerate(fragments):
+            self.assertEqual(frag["heading"], "")
+            self.assertEqual(frag["quality"], "ready")
+            loc = frag["locator"]
+            self.assertGreaterEqual(loc["time_start_ms"], 0)
+            self.assertLess(loc["time_start_ms"], loc["time_end_ms"])
+            if i > 0:
+                prev_loc = fragments[i - 1]["locator"]
+                self.assertLessEqual(prev_loc["time_end_ms"], loc["time_start_ms"])
+
+        combined_body = " ".join(frag["body"] for frag in fragments)
+        expected_body = " ".join(text for _s, _e, text in utterances)
+        self.assertEqual(combined_body, expected_body)
+
+    def test_transcribe_video_multi_chunk_offsets_and_dispatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            video_path = Path(tmp) / "lecture.mp4"
+            video_path.write_bytes(b"fake-mp4")
+
+            created = []
+            transcribe_calls = []
+
+            class FakeWhisperModel:
+                def __init__(self, model_size, **kwargs):
+                    created.append((model_size, kwargs))
+
+                def transcribe(self, audio, **kwargs):
+                    transcribe_calls.append((audio.dtype, len(audio), kwargs))
+                    if len(transcribe_calls) == 1:
+                        segs = [
+                            SimpleNamespace(start=0.5, end=2.0, text="第一段讲解"),
+                            SimpleNamespace(start=2.0, end=2.5, text="   "),
+                            SimpleNamespace(start=298.0, end=299.5, text="跨块前半"),
+                        ]
+                    else:
+                        segs = [
+                            SimpleNamespace(start=1.25, end=3.5, text="跨块后半"),
+                        ]
+                    return iter(segs), SimpleNamespace(language="zh")
+
+            fake_fw = SimpleNamespace(WhisperModel=FakeWhisperModel)
+            chunks = [
+                (0.0, np.zeros(1600, dtype=np.float32)),
+                (300.0, np.ones(1600, dtype=np.float32)),
+            ]
+            env = {
+                "WHISPER_MODEL_SIZE": "medium",
+                "WHISPER_MODEL_DIR": "/opt/custom-whisper",
+                "WHISPER_COMPUTE_TYPE": "int8",
+                "WHISPER_CPU_THREADS": "2",
+                "HF_HUB_OFFLINE": "1",
+            }
+            with mock.patch.dict(sys.modules, {"faster_whisper": fake_fw}), \
+                 mock.patch.dict(os.environ, env, clear=False), \
+                 mock.patch.object(parser, "iter_video_audio_chunks", return_value=iter(chunks)):
+                res = parser.parse(str(video_path), ".MP4")
+
+            self.assertEqual(res["assets"], [])
+            self.assertEqual(len(res["fragments"]), 2)
+            self.assertEqual(res["fragments"][0], {
+                "heading": "",
+                "body": "第一段讲解",
+                "locator": {"time_start_ms": 500, "time_end_ms": 2000},
+                "quality": "ready",
+            })
+            self.assertEqual(res["fragments"][1], {
+                "heading": "",
+                "body": "跨块前半 跨块后半",
+                "locator": {"time_start_ms": 298000, "time_end_ms": 303500},
+                "quality": "ready",
+            })
+
+            self.assertEqual(len(created), 1)
+            self.assertEqual(created[0][0], "medium")
+            self.assertEqual(created[0][1], {
+                "device": "cpu",
+                "compute_type": "int8",
+                "download_root": "/opt/custom-whisper",
+                "cpu_threads": 2,
+                "num_workers": 1,
+                "local_files_only": True,
+            })
+            self.assertEqual(len(transcribe_calls), 2)
+            for dtype, _n, kwargs in transcribe_calls:
+                self.assertEqual(dtype, np.float32)
+                self.assertEqual(kwargs["language"], "zh")
+                self.assertTrue(kwargs["vad_filter"])
+                self.assertEqual(kwargs["vad_parameters"], {"min_silence_duration_ms": 500})
+
+    def test_transcribe_video_empty_speech_and_runtime_or_model_errors(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            video_path = Path(tmp) / "secret_lecture_dir_marker.mp4"
+            video_path.write_bytes(b"fake-mp4")
+
+            # Empty speech (only whitespace segments returned).
+            class EmptySpeechModel:
+                def __init__(self, *args, **kwargs):
+                    pass
+
+                def transcribe(self, audio, **kwargs):
+                    return iter([SimpleNamespace(start=0.0, end=1.0, text="  \n ")]), SimpleNamespace()
+
+            fake_fw_empty = SimpleNamespace(WhisperModel=EmptySpeechModel)
+            with mock.patch.dict(sys.modules, {"faster_whisper": fake_fw_empty}), \
+                 mock.patch.object(parser, "iter_video_audio_chunks", return_value=iter([(0.0, np.zeros(800, dtype=np.float32))])):
+                with self.assertRaises(ValueError) as ctx:
+                    parser.transcribe_video(str(video_path))
+                self.assertEqual(str(ctx.exception), "未识别到讲解语音，无法切分")
+
+            # Missing local model files must never leak container paths.
+            class MissingModel:
+                def __init__(self, *args, **kwargs):
+                    raise FileNotFoundError("missing /opt/whisper/models--small/model.bin")
+
+            fake_fw_missing = SimpleNamespace(WhisperModel=MissingModel)
+            with mock.patch.dict(sys.modules, {"faster_whisper": fake_fw_missing}):
+                with self.assertRaises(ValueError) as ctx:
+                    parser.transcribe_video(str(video_path))
+                self.assertEqual(str(ctx.exception), "本地语音转写模型未就绪，请联系管理员配置后重试")
+                self.assertNotIn("/opt/whisper", str(ctx.exception))
+                self.assertNotIn("secret_lecture_dir_marker", str(ctx.exception))
+
+            # Local ASR disabled (faster_whisper and av absent).
+            with mock.patch.dict(sys.modules, {"faster_whisper": None}):
+                with self.assertRaises(ValueError) as ctx:
+                    parser.parse(str(video_path), ".mp4")
+                self.assertEqual(str(ctx.exception), "当前服务未启用本地视频语音转写组件，请在启用本地转写构建或挂载语音模型后重试")
+                self.assertNotIn("secret_lecture_dir_marker", str(ctx.exception))
+
+            with mock.patch.dict(sys.modules, {"av": None}):
+                with self.assertRaises(ValueError) as ctx:
+                    list(parser.iter_video_audio_chunks(str(video_path)))
+                self.assertEqual(str(ctx.exception), "当前服务未启用本地视频语音转写组件，请在启用本地转写构建或挂载语音模型后重试")
+                self.assertNotIn("secret_lecture_dir_marker", str(ctx.exception))
+
+            proc = subprocess.run(
+                [sys.executable, str(Path(parser.__file__).resolve()), str(video_path), ".mp4"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            self.assertEqual(proc.returncode, 1)
+            self.assertEqual(proc.stderr.strip(), "")
+            payload = json.loads(proc.stdout)
+            self.assertIsInstance(payload.get("error"), str)
+            self.assertTrue(payload["error"])
+            self.assertNotIn("secret_lecture_dir_marker", payload["error"])
+            self.assertNotIn("/opt/whisper", payload["error"])
+
+    def test_iter_video_audio_chunks_no_audio_forged_duration_and_averror(self):
+        class FakeAVError(Exception):
+            pass
+
+        def make_fake_av(open_fn, resampler_cls=None):
+            return SimpleNamespace(
+                AVError=FakeAVError,
+                FFmpegError=FakeAVError,
+                open=open_fn,
+                AudioResampler=resampler_cls or mock.MagicMock(),
+            )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            video_path = Path(tmp) / "clip_sensitive_name.mp4"
+            video_path.write_bytes(b"fake-mp4")
+
+            # 1) No audio stream.
+            no_audio_container = mock.MagicMock()
+            no_audio_container.__enter__.return_value = SimpleNamespace(streams=SimpleNamespace(audio=[]))
+            no_audio_container.__exit__.return_value = False
+            fake_av = make_fake_av(lambda _p: no_audio_container)
+            fake_model = mock.MagicMock()
+            fake_model.transcribe.side_effect = lambda *a, **kw: (iter([]), SimpleNamespace())
+            fake_fw = SimpleNamespace(WhisperModel=mock.MagicMock(return_value=fake_model))
+            with mock.patch.dict(sys.modules, {"av": fake_av, "faster_whisper": fake_fw}):
+                with self.assertRaises(ValueError) as ctx:
+                    parser.transcribe_video(str(video_path))
+                self.assertEqual(str(ctx.exception), "视频不包含音轨，无法转写")
+
+            # 2) >45 minute audio stream rejected by decoded samples even if header duration is forged to 0.
+            one_sec_pcm = np.full((1, 16000), 16384, dtype=np.int16)
+            over_frames = [
+                SimpleNamespace(to_ndarray=lambda arr=one_sec_pcm: arr)
+                for _ in range(10)
+            ]
+            one_min_pcm = np.zeros((1, 60 * 16000), dtype=np.int16)
+            one_sample_pcm = np.zeros((1, 1), dtype=np.int16)
+            decoded_packets = 0
+
+            class FakeResampler:
+                def __init__(self, **kwargs):
+                    pass
+
+                def resample(self, frame):
+                    if frame is None:
+                        return []
+                    return [frame]
+
+            def make_packet(frame):
+                def decode():
+                    nonlocal decoded_packets
+                    decoded_packets += 1
+                    return [frame]
+                return SimpleNamespace(decode=decode)
+
+            over_packets = (
+                [make_packet(SimpleNamespace(to_ndarray=lambda arr=one_min_pcm: arr)) for _ in range(45)]
+                + [make_packet(SimpleNamespace(to_ndarray=lambda arr=one_sample_pcm: arr))]
+                + [make_packet(SimpleNamespace(to_ndarray=lambda arr=one_min_pcm: arr))]
+            )
+            over_container = mock.MagicMock()
+            over_container.__enter__.return_value = SimpleNamespace(
+                duration=0,  # Forged header
+                streams=SimpleNamespace(audio=[SimpleNamespace()]),
+                demux=lambda _s: iter(over_packets),
+            )
+            over_container.__exit__.return_value = False
+            fake_av_over = make_fake_av(lambda _p: over_container, FakeResampler)
+            with mock.patch.dict(sys.modules, {"av": fake_av_over, "faster_whisper": fake_fw}):
+                with self.assertRaises(ValueError) as ctx:
+                    parser.transcribe_video(str(video_path))
+                self.assertEqual(str(ctx.exception), "视频超过45分钟，请先拆分后上传")
+            self.assertEqual(decoded_packets, 46)
+
+            # 3) Multi-chunk PCM -> float32 streaming accuracy + resampler flush.
+            chunk_packets = [
+                SimpleNamespace(decode=lambda: over_frames[:6]),
+                SimpleNamespace(decode=lambda: over_frames[6:]),
+            ]
+            chunk_container = mock.MagicMock()
+            chunk_container.__enter__.return_value = SimpleNamespace(
+                streams=SimpleNamespace(audio=[SimpleNamespace()]),
+                demux=lambda _s: iter(chunk_packets),
+            )
+            chunk_container.__exit__.return_value = False
+            fake_av_chunks = make_fake_av(lambda _p: chunk_container, FakeResampler)
+            with mock.patch.dict(sys.modules, {"av": fake_av_chunks}):
+                got = list(parser.iter_video_audio_chunks(str(video_path), chunk_sec=4.0, max_duration_sec=10.0))
+            self.assertEqual(len(got), 3)
+            self.assertAlmostEqual(got[0][0], 0.0)
+            self.assertEqual(len(got[0][1]), 4 * 16000)
+            self.assertEqual(got[0][1].dtype, np.float32)
+            self.assertAlmostEqual(float(got[0][1][0]), 0.5, places=4)
+            self.assertAlmostEqual(got[1][0], 4.0)
+            self.assertEqual(len(got[1][1]), 4 * 16000)
+            self.assertAlmostEqual(got[2][0], 8.0)
+            self.assertEqual(len(got[2][1]), 2 * 16000)
+
+            # 4) AVError sanitized without leaking path.
+            def failing_open(p):
+                raise FakeAVError(f"cannot open {p}")
+
+            fake_av_err = make_fake_av(failing_open)
+            with mock.patch.dict(sys.modules, {"av": fake_av_err}):
+                with self.assertRaises(ValueError) as ctx:
+                    list(parser.iter_video_audio_chunks(str(video_path)))
+                self.assertEqual(str(ctx.exception), "视频解码失败，请确认文件未损坏且包含有效音轨")
+                self.assertNotIn("clip_sensitive_name", str(ctx.exception))
 
 
 if __name__ == "__main__":

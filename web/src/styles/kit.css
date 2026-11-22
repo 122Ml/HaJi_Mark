@@ -257,6 +257,7 @@ kbd { display: inline-block; min-width: 18px; padding: 0 5px; border: 1px solid 
 
 /* §5 Status ---------------------------------------------------------------- */
 /* 状态用图标而非色块：中性底 + ○ 待办 / ◐ 进行中 / ● 完成 */
+.ui-meta-tags > .ant-tag { margin: 0; padding: 0 6px; border-radius: 4px; font-size: var(--text-xs); line-height: 18px; }
 .ant-tag.ui-meta-tag, .ant-tag.ui-status-tag { padding: 0 6px; border-radius: 4px; font-size: var(--text-xs); line-height: 18px; }
 .ant-tag.ui-status-tag { border-color: var(--line); background: var(--panel); color: var(--ink-soft); }
 .ui-status-tag::before { width: 7px; height: 7px; vertical-align: 0; background: var(--muted); }
@@ -272,6 +273,9 @@ kbd { display: inline-block; min-width: 18px; padding: 0 5px; border: 1px solid 
 .state-block { padding: var(--space-5) var(--space-4); font-size: var(--text-md); }
 .state-block strong { font-size: 14px; }
 .state-block .state-title { font-size: var(--text-lg); }
+.state-icon { margin-bottom: 4px; }
+.state-icon.is-danger { color: var(--danger); }
+.state-icon.is-warning { color: var(--warning); }
 
 /* §6 Live pages ------------------------------------------------------------ */
 .live-page { gap: var(--space-4); }
@@ -450,10 +454,9 @@ html .agent-composer { border-top-color: var(--line); background: var(--panel); 
 .welcome-story { color: var(--ink); text-align: center; display: grid; gap: 10px; justify-items: center; }
 .welcome-story h1 { margin: 0; color: var(--ink); font-size: clamp(26px, 2.8vw, 34px); font-weight: 600; letter-spacing: -.03em; }
 .welcome-sub { margin: 0; color: var(--muted); font-family: var(--font-mono); font-size: 12px; letter-spacing: .04em; }
-.sign-in-card.ant-card { width: 100%; max-width: 380px; border-color: var(--line); border-radius: var(--radius-lg); background: var(--panel); box-shadow: var(--shadow-raised); }
-.sign-in-card.ant-card > .ant-card-head { padding: 20px 24px 0; border-bottom: 0; }
-.sign-in-card.ant-card > .ant-card-body { padding: 16px 24px 24px; }
-.sign-in-card .ant-card-head-title::after { content: "Enter ↵"; float: right; margin-top: 2px; padding: 0 6px; border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 4px; color: var(--muted); font: 500 11px/16px var(--font-mono); }
+.sign-in-card { width: 100%; max-width: 380px; padding: 20px 24px 24px; border-color: var(--line); border-radius: var(--radius-lg); background: var(--panel); box-shadow: var(--shadow-raised); scroll-margin-top: 24px; }
+.sign-in-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.sign-in-title { font-size: 16px; font-weight: 600; color: var(--ink); line-height: 1.4; }
 .sign-in-form .ant-form-item { margin-bottom: 14px; }
 .sign-in-form > .ant-btn { margin-top: 8px; }
 .sign-in-help { margin-top: 18px; padding-top: 14px; border-top-color: var(--line); font-size: 12px; }
@@ -487,9 +490,8 @@ html .agent-composer { border-top-color: var(--line); background: var(--panel); 
   .page-container { padding: var(--space-3) var(--space-3) var(--space-5); }
   .card-panel { padding: var(--space-3); }
   .welcome-main { padding: 32px 16px 48px; }
-  .sign-in-card.ant-card > .ant-card-head { padding: 18px 20px 0; }
-  .sign-in-card.ant-card > .ant-card-body { padding: 14px 20px 20px; }
-  .sign-in-card .ant-card-head-title::after { display: none; }
+  .sign-in-card { padding: 18px 20px 20px; }
+  .sign-in-head kbd { display: none; }
   .live-shortcut { justify-content: flex-end; }
   /* design.md：640px 以下输入框 16px 防 iOS 缩放（13px 基础字号下必须显式保留） */
   .ant-input, .ant-input-affix-wrapper > input.ant-input, textarea.ant-input,
@@ -519,7 +521,8 @@ html .agent-composer { border-top-color: var(--line); background: var(--panel); 
   padding: 4px 6px;
 }
 .lab-rail-head .brand { font-size: 14px; }
-.lab-rail-head .brand-mark { background: var(--ink); color: var(--canvas); box-shadow: 0 1px 2px #00000024; }
+.lab-rail-head .brand-mark,
+.lab-shell .topbar .brand-mark { background: var(--ink); color: var(--canvas); box-shadow: 0 1px 2px #00000024; }
 .lab-mode-btn.ant-btn,
 .lab-cmd-btn.ant-btn,
 .lab-icon-btn.ant-btn {
@@ -841,7 +844,7 @@ html .agent-conversations::-webkit-scrollbar-thumb,
   .lab-shell .nav-user .lab-cmd-btn.ant-btn { min-width: 28px; padding: 0 6px; }
   .lab-shell .topbar .workspace-course-select { order: 10; flex: 1 0 100%; max-width: 100%; padding-top: 6px; border-top: 1px solid var(--line); }
   .page-container, .page-container:has(.is-wide-workspace) { padding: 16px; }
-  .filter-bar .ant-input-search, .filter-bar .ant-select { width: 100%; max-width: 100%; }
+  .filter-bar .ant-input-search, .filter-bar .ant-select { min-width: 0; width: 100%; max-width: 100%; }
 }
 
 /* §12 Motion --------------------------------------------------------------- */

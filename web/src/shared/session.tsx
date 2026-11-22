@@ -1,4 +1,5 @@
-import { Button, Result } from "antd";
+import { Button, Space } from "antd";
+import { ShieldAlert } from "lucide-react";
 import { ErrorState, LoadingState } from "./ui";
 import {
   createContext,
@@ -35,6 +36,21 @@ interface SessionContext {
   refresh: () => void;
 }
 const Context = createContext<SessionContext | null>(null);
+
+let bootMe: { controller: AbortController; promise: Promise<{ data: Session }> } | null = null;
+let bootMeTaken = false;
+
+export function primeInitialSession(): Promise<{ data: Session }> {
+  if (!bootMe) {
+    const controller = new AbortController();
+    const promise = requestJSON<{ data: Session }>("/me", { signal: controller.signal }).catch((err) => {
+      if (bootMe?.promise === promise) bootMe = null;
+      throw err;
+    });
+    bootMe = { controller, promise };
+  }
+  return bootMe.promise;
+}
 
 export function clearSessionDrafts() {
   try {
@@ -76,10 +92,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, [queryClient]);
   useEffect(() => {
-    const controller = new AbortController();
+    const useBoot = !bootMeTaken && bootMe !== null && revision === 0;
+    const controller = useBoot ? bootMe!.controller : new AbortController();
+    const pending = useBoot ? bootMe!.promise : requestJSON<{ data: Session }>("/me", { signal: controller.signal });
+    if (useBoot) {
+      bootMeTaken = true;
+      bootMe = null;
+    }
     pendingRefresh.current = controller;
     lastRefreshAt.current = Date.now();
-    requestJSON<{ data: Session }>("/me", { signal: controller.signal })
+    pending
       .then(({ data }) => {
         if (!controller.signal.aborted) {
           if (actorID.current !== null && actorID.current !== data.user.id) {
@@ -204,15 +226,27 @@ export function RequireSession({
   }
   if (session.user.role !== role)
     return (
-      <Result
-        status="403"
-        title="无权访问"
-        extra={
-          <Button type="primary" onClick={() => navigate(homeFor(session.user), { replace: true })}>
-            返回我的工作台
-          </Button>
-        }
-      />
+      <div className="page-container" role="alert">
+        <section className="card-panel state-block">
+          <ShieldAlert
+            size={28}
+            aria-hidden="true"
+            className="state-icon is-warning"
+          />
+          <div className="state-title" role="heading" aria-level={2}>
+            无权访问
+          </div>
+          <p>当前账号角色无法访问此工作台页面。</p>
+          <Space>
+            <Button
+              type="primary"
+              onClick={() => navigate(homeFor(session.user), { replace: true })}
+            >
+              返回我的工作台
+            </Button>
+          </Space>
+        </section>
+      </div>
     );
   return children;
 }

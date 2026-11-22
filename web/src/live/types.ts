@@ -25,6 +25,10 @@ export interface Resource {
   source_note: string;
   published_at: string | null;
   supersedes_id?: string | null;
+  source_id?: string | null;
+  fragment_ids?: string[];
+  full_source?: boolean;
+  media_type?: string;
 }
 
 export interface Profile {
@@ -53,6 +57,7 @@ export interface Source {
   id: string;
   title: string;
   filename: string;
+  media_type?: string;
   state: string;
   parse_state: string;
   parse_error: string;
@@ -215,4 +220,18 @@ export interface ActiveRegradeNotice {
   id: string;
   state: string;
   reason?: string;
+}
+
+export interface ContentSection {
+  id: string;
+  position: number;
+  title: string;
+  relation: string;
+  fragment_ids: string[];
+  knowledge_point_id: string | null;
+  time_start_ms: number;
+  time_end_ms: number;
+  reason: string;
+  state: string;
+  edit_version: number;
 }

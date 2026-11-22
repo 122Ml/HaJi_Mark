@@ -62,11 +62,16 @@ func NewApp(ctx context.Context, db *pgxpool.Pool, cache *redis.Client, cfg plat
 		c.Header("Referrer-Policy", "same-origin")
 		c.Header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
 		c.Next()
+		path := c.FullPath()
+		status := c.Writer.Status()
+		if (path == "/api/v1/health/live" || path == "/api/v1/health/ready") && status == http.StatusOK {
+			return
+		}
 		slog.Info("http_request",
 			"request_id", rid,
 			"method", c.Request.Method,
-			"path", c.FullPath(),
-			"status", c.Writer.Status(),
+			"path", path,
+			"status", status,
 			"latency_ms", time.Since(start).Milliseconds(),
 		)
 	})

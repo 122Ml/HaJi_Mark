@@ -691,7 +691,7 @@ export function RegradeDetail({ id }: { id: string }) {
             onChange={(e) => setSelected(e)}
             showSearch
             optionFilterProp="children"
-            style={{ minWidth: 260 }}
+            style={{ minWidth: 260, maxWidth: "100%" }}
           >
             {items.map((i) => (
               <Select.Option key={i.submission_id} value={i.submission_id}>

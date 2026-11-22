@@ -36,3 +36,25 @@ func TestLoginLimitExpiresAndSeparatesClients(t *testing.T) {
 		t.Fatal("reset key should be allowed again")
 	}
 }
+
+func TestLoginLimiterSweepCooldownAtCapacity(t *testing.T) {
+	l := newRateLimiter(30, time.Minute, 3)
+	now := time.Now()
+	l.allow("k1", now)
+	l.allow("k2", now)
+	l.allow("k3", now)
+	prevSweep := l.lastSweep
+	// Within window/4 cooldown, hitting maxKeys must evict in O(1) without re-sweeping.
+	l.allow("k4", now.Add(5*time.Second))
+	if !l.lastSweep.Equal(prevSweep) {
+		t.Fatalf("expected sweep cooldown to hold at capacity: prev=%v got=%v", prevSweep, l.lastSweep)
+	}
+	if len(l.windows) != 3 {
+		t.Fatalf("expected bounded map size 3, got %d", len(l.windows))
+	}
+	// After window/4 elapses, sweep runs again and expires old keys.
+	l.allow("k5", now.Add(65*time.Second))
+	if len(l.windows) != 1 {
+		t.Fatalf("expected expired keys swept after cooldown, got %d", len(l.windows))
+	}
+}

@@ -2,8 +2,10 @@
 import csv
 import gc
 import hashlib
+import heapq
 import io
 import json
+import os
 import re
 import sys
 import uuid
@@ -23,6 +25,12 @@ MAX_DOCX_BLOCKS = 5000
 MAX_DOCX_IMAGES = 200
 MAX_PPTX_IMAGES = 200
 MAX_OMML_DEPTH = 64
+VIDEO_EXTENSIONS = (".mp4", ".mov", ".mkv", ".webm", ".m4v")
+MAX_VIDEO_DURATION_SEC = 45 * 60
+MAX_VIDEO_FRAGMENTS = 120
+VIDEO_CHUNK_SEC = 300.0
+VIDEO_MERGE_WINDOW_MS = 35_000
+VIDEO_MERGE_MAX_CHARS = 380
 
 
 def create_ocr():
@@ -111,7 +119,262 @@ def validate_manifest(result):
     return result
 
 
+def merge_speech_segments(
+    raw_segments,
+    target_window_ms=VIDEO_MERGE_WINDOW_MS,
+    max_chars=VIDEO_MERGE_MAX_CHARS,
+    max_fragments=MAX_VIDEO_FRAGMENTS,
+):
+    """Merge ASR utterance tuples into bounded, monotonic timestamped fragments."""
+    cleaned = []
+    for start_ms, end_ms, text in raw_segments:
+        body = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", str(text or "")).strip()
+        if not body:
+            continue
+        s = max(0, int(round(start_ms)))
+        e = max(s + 1, int(round(end_ms)))
+        cleaned.append((s, e, body))
+
+    if not cleaned:
+        return []
+
+    cleaned.sort(key=lambda item: (item[0], item[1]))
+
+    merged = []
+    cur_start = None
+    cur_end = None
+    cur_parts = []
+    cur_len = 0
+
+    for s, e, body in cleaned:
+        if cur_start is None:
+            cur_start, cur_end = s, e
+            cur_parts = [body]
+            cur_len = len(body)
+            continue
+        cand_end = max(cur_end, e)
+        cand_len = cur_len + 1 + len(body)
+        if (cand_end - cur_start) <= target_window_ms and cand_len <= max_chars:
+            cur_end = cand_end
+            cur_parts.append(body)
+            cur_len = cand_len
+        else:
+            merged.append([cur_start, cur_end, " ".join(cur_parts)])
+            cur_start, cur_end = s, e
+            cur_parts = [body]
+            cur_len = len(body)
+
+    if cur_start is not None:
+        merged.append([cur_start, cur_end, " ".join(cur_parts)])
+
+    limit = max(1, int(max_fragments))
+    if len(merged) > limit:
+        n = len(merged)
+        starts = [item[0] for item in merged]
+        ends = [item[1] for item in merged]
+        texts = [item[2] for item in merged]
+        prev_idx = [i - 1 for i in range(n)]
+        next_idx = [i + 1 if i + 1 < n else -1 for i in range(n)]
+        alive = [True] * n
+        versions = [0] * n
+        heap = []
+
+        def push_pair(i, j):
+            if i < 0 or j < 0 or not alive[i] or not alive[j]:
+                return
+            gap = max(0, starts[j] - ends[i])
+            combined_duration = max(ends[i], ends[j]) - starts[i]
+            combined_chars = len(texts[i]) + 1 + len(texts[j])
+            heapq.heappush(heap, (gap, combined_duration, combined_chars, i, j, versions[i], versions[j]))
+
+        for i in range(n - 1):
+            push_pair(i, i + 1)
+
+        count = n
+        while count > limit and heap:
+            _gap, _dur, _chars, i, j, vi, vj = heapq.heappop(heap)
+            if not alive[i] or not alive[j] or next_idx[i] != j:
+                continue
+            if versions[i] != vi or versions[j] != vj:
+                continue
+            ends[i] = max(ends[i], ends[j])
+            texts[i] = texts[i] + " " + texts[j]
+            alive[j] = False
+            count -= 1
+            nxt = next_idx[j]
+            next_idx[i] = nxt
+            if nxt != -1:
+                prev_idx[nxt] = i
+            versions[i] += 1
+            push_pair(prev_idx[i], i)
+            push_pair(i, nxt)
+
+        merged = []
+        idx = 0
+        while idx != -1:
+            merged.append([starts[idx], ends[idx], texts[idx]])
+            idx = next_idx[idx]
+
+    return [
+        {
+            "heading": "",
+            "body": body,
+            "locator": {"time_start_ms": s, "time_end_ms": e},
+            "quality": "ready",
+        }
+        for s, e, body in merged
+    ]
+
+
+def iter_video_audio_chunks(path, chunk_sec=VIDEO_CHUNK_SEC, max_duration_sec=MAX_VIDEO_DURATION_SEC):
+    """Stream-decode video audio into 16kHz mono float32 chunks with sample-count bounds."""
+    resolved = str(Path(path).resolve(strict=True))
+    try:
+        import av
+        import numpy as np
+    except ImportError as exc:
+        raise ValueError("当前服务未启用本地视频语音转写组件，请在启用本地转写构建或挂载语音模型后重试") from exc
+
+    sample_rate = 16000
+    chunk_samples = max(1, int(round(chunk_sec * sample_rate)))
+    av_errors = tuple(
+        cls for cls in (getattr(av, "AVError", None), getattr(av, "FFmpegError", None))
+        if isinstance(cls, type) and issubclass(cls, BaseException)
+    )
+
+    total_samples = 0
+    emitted_samples = 0
+    pending_parts = []
+    pending_len = 0
+
+    def to_float32_chunk(pcm):
+        if pcm.dtype == np.float32:
+            return pcm
+        if np.issubdtype(pcm.dtype, np.integer):
+            return pcm.astype(np.float32) / 32768.0
+        return pcm.astype(np.float32)
+
+    def consume_resampled(resampled):
+        nonlocal total_samples, pending_len
+        if resampled is None:
+            return
+        frames = resampled if isinstance(resampled, (list, tuple)) else (resampled,)
+        for r_frame in frames:
+            arr = np.asarray(r_frame.to_ndarray()).reshape(-1)
+            if arr.size == 0:
+                continue
+            total_samples += arr.size
+            if total_samples / 16000.0 > max_duration_sec:
+                raise ValueError("视频超过45分钟，请先拆分后上传")
+            pending_parts.append(arr)
+            pending_len += arr.size
+
+    def drain_full_chunks():
+        nonlocal emitted_samples, pending_len
+        if pending_len < chunk_samples:
+            return
+        buf = np.concatenate(pending_parts) if len(pending_parts) > 1 else pending_parts[0]
+        pending_parts.clear()
+        pos = 0
+        while len(buf) - pos >= chunk_samples:
+            piece = buf[pos : pos + chunk_samples]
+            pos += chunk_samples
+            offset_sec = emitted_samples / float(sample_rate)
+            emitted_samples += len(piece)
+            yield (offset_sec, to_float32_chunk(piece))
+        if pos < len(buf):
+            rem = buf[pos:].copy()
+            pending_parts.append(rem)
+            pending_len = len(rem)
+        else:
+            pending_len = 0
+        del buf
+
+    try:
+        with av.open(resolved) as container:
+            audio_streams = container.streams.audio
+            if not audio_streams:
+                raise ValueError("视频不包含音轨，无法转写")
+            stream = audio_streams[0]
+            resampler = av.AudioResampler(format="s16", layout="mono", rate=sample_rate)
+            for packet in container.demux(stream):
+                for frame in packet.decode():
+                    consume_resampled(resampler.resample(frame))
+                    yield from drain_full_chunks()
+            consume_resampled(resampler.resample(None))
+            yield from drain_full_chunks()
+    except av_errors as exc:
+        if type(exc) is ValueError:
+            raise
+        raise ValueError("视频解码失败，请确认文件未损坏且包含有效音轨") from exc
+
+    if pending_len > 0:
+        tail = np.concatenate(pending_parts) if len(pending_parts) > 1 else pending_parts[0]
+        pending_parts.clear()
+        yield (emitted_samples / float(sample_rate), to_float32_chunk(tail))
+
+
+def transcribe_video(path):
+    """Transcribe video lecture audio offline chunk-by-chunk using faster-whisper."""
+    try:
+        from faster_whisper import WhisperModel
+    except ImportError as exc:
+        raise ValueError("当前服务未启用本地视频语音转写组件，请在启用本地转写构建或挂载语音模型后重试") from exc
+
+    model_size = os.getenv("WHISPER_MODEL_SIZE", "small") or "small"
+    model_dir = os.getenv("WHISPER_MODEL_DIR", "/opt/whisper") or "/opt/whisper"
+    compute_type = os.getenv("WHISPER_COMPUTE_TYPE", "int8") or "int8"
+    raw_threads = os.getenv("WHISPER_CPU_THREADS", "1").strip()
+    try:
+        cpu_threads = max(1, int(raw_threads or "1"))
+    except ValueError:
+        cpu_threads = 1
+    local_files_only = os.getenv("HF_HUB_OFFLINE", "1") == "1"
+
+    try:
+        model = WhisperModel(
+            model_size,
+            device="cpu",
+            compute_type=compute_type,
+            download_root=model_dir,
+            cpu_threads=cpu_threads,
+            num_workers=1,
+            local_files_only=local_files_only,
+        )
+    except Exception as exc:
+        raise ValueError("本地语音转写模型未就绪，请联系管理员配置后重试") from exc
+
+    raw_segments = []
+    try:
+        for offset_sec, audio in iter_video_audio_chunks(path):
+            offset_ms = int(round(offset_sec * 1000))
+            segments, _info = model.transcribe(
+                audio,
+                language="zh",
+                vad_filter=True,
+                vad_parameters={"min_silence_duration_ms": 500},
+            )
+            for seg in segments:
+                s_ms = offset_ms + int(round(seg.start * 1000))
+                e_ms = offset_ms + int(round(seg.end * 1000))
+                raw_segments.append((s_ms, e_ms, seg.text))
+            del audio
+            gc.collect()
+    finally:
+        del model
+        gc.collect()
+
+    fragments = merge_speech_segments(raw_segments)
+    if not fragments:
+        raise ValueError("未识别到讲解语音，无法切分")
+    if sum(len(frag["body"]) for frag in fragments) > MAX_CHARS:
+        raise ValueError("解析内容超限，请拆分文件")
+    return validate_manifest({"fragments": fragments, "assets": []})
+
+
 def parse(path, extension):
+    if (extension or "").lower() in VIDEO_EXTENSIONS:
+        return transcribe_video(path)
     fragments = []
     assets = []
     total = 0

@@ -1,0 +1,85 @@
+{
+  "observed_date": "2026-11-24",
+  "release_id": "hajimark-v0_2_5-20261124",
+  "source_tag": "v0.2.5",
+  "source_commit": "623bc6e5aaea3dce4fdb52c792b8af2f2d2a01e0",
+  "github_branch": "codex/platform-completion",
+  "previous_release": "hajimark-v0_2_4-20261123",
+  "images": [
+    {
+      "tag": "hajimark-postgres:v0_2_5-20261124",
+      "local_image_id": "sha256:0107507652c61fa9e89906af84ec96e8022f8ad21e11b1319841d5448db6fd1e",
+      "config_id": "sha256:b2eaacf4ade41a2c4b405786e118f4a9c8be8c928fd5a400122cc6e938f72857",
+      "revision": "623bc6e5aaea3dce4fdb52c792b8af2f2d2a01e0"
+    },
+    {
+      "tag": "hajimark-backend:v0_2_5-20261124",
+      "local_image_id": "sha256:9a10e8c160e52b8349d15d47a57d4d7257e2cfa6f6495b355a2d7906f4d315fb",
+      "config_id": "sha256:de100f971d94b893bb57d6a33ef3b0350fae66f31d88b32afc8117e0b5341c43",
+      "revision": "623bc6e5aaea3dce4fdb52c792b8af2f2d2a01e0"
+    },
+    {
+      "tag": "hajimark-worker:v0_2_5-20261124",
+      "local_image_id": "sha256:8eeb175715b08cf188d74cd765bcfe5c91b622581c21f729c9705789fa37db2a",
+      "config_id": "sha256:0193c83fa33a95f1066683a9cd10b4f87277342db062fa546df02e193195c68e",
+      "revision": "623bc6e5aaea3dce4fdb52c792b8af2f2d2a01e0"
+    },
+    {
+      "tag": "hajimark-web:v0_2_5-20261124",
+      "local_image_id": "sha256:a0f825f36959e420c4c59aee40ea46433ce4fc8349f8b3a98665b2b2860c926f",
+      "config_id": "sha256:942be8d7b74210fc0c20ee59d2dc2ecac82066856ceb70097a56d83810323e24",
+      "revision": "623bc6e5aaea3dce4fdb52c792b8af2f2d2a01e0"
+    }
+  ],
+  "images_archive_sha256": "81e87485bbde4d925a32527aa1db3863152ab9f6522349436a8ecd892f42f67b",
+  "migration": 20,
+  "pgvector_version": "0.8.7",
+  "database_preservation": {
+    "tables_with_existing_column_fingerprints": 55,
+    "mismatches": 0,
+    "pre_seed_users": 9,
+    "pre_seed_courses": 2,
+    "pre_seed_submissions": 43,
+    "pre_seed_grading_revisions": 44,
+    "post_seed_users": 9,
+    "post_seed_courses": 2,
+    "post_seed_submissions": 43,
+    "post_seed_grading_revisions": 44,
+    "post_seed_interventions": 6,
+    "post_seed_material_sources": 4,
+    "post_seed_knowledge_entries": 4
+  },
+  "pre_switch_backup": "/opt/hajimark/backups/hajimark-20261124T170203Z.dump",
+  "openresty_reloaded": false,
+  "models_configured": false,
+  "rag_business_routes_enabled": true,
+  "paid_calls_enabled": false,
+  "public_web_assets": {
+    "js": "/assets/index-9Scp21v-.js",
+    "css": "/assets/index-B7uGagAp.css",
+    "match_container": true
+  },
+  "container_oom": false,
+  "container_restarts": 0,
+  "seeded_course": {
+    "original_demo_course_preserved": "4ff04beb-fc6b-476e-809f-eeeef50e7886",
+    "course_id": "50640a78-1886-475e-9dbe-08518905df36",
+    "title": "智能软件工程（2026秋）",
+    "enrolled_usernames": [
+      "te",
+      "st",
+      "demo-student-02",
+      "demo-student-03"
+    ],
+    "assignment1_id": "f7e065e8-9123-416b-bdf7-0afd96882cc6",
+    "assignment2_draft_id": "4ea38b28-feb0-4ff6-8119-0dedef32ba2f",
+    "quiz1_id": "dcf7a87c-3d08-440a-928c-494e3ccbca0a",
+    "teacher_dashboard_url": "https://hajistudy.online/teacher/dashboard?course=50640a78-1886-475e-9dbe-08518905df36",
+    "student_home_url": "https://hajistudy.online/student/home?course=50640a78-1886-475e-9dbe-08518905df36"
+  },
+  "urls": {
+    "application": "https://hajistudy.online/login",
+    "health": "https://hajistudy.online/api/v1/health/ready",
+    "diagrams": "https://hajistudy.online/diagrams/"
+  }
+}

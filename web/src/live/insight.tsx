@@ -36,6 +36,7 @@ import {
 } from "../shared/ui";
 import { ActivityTimeline } from "./activity";
 import { Link, useLearning, useLiveQuery, when } from "./context";
+import { formatResourceLocator } from "./domain-meta";
 import type { ReleasedEvidence } from "./learning-gaps";
 import { RevisionPoints } from "./revision-points";
 import type { Assignment, Point, Resource } from "./types";
@@ -758,6 +759,7 @@ export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
           ) : (
             publishedResources.slice(0, 6).map((r) => {
               const done = completedResourceSet.has(r.id);
+              const loc = formatResourceLocator(r.locator);
               return (
                 <article className="live-row" key={r.id}>
                   <div>
@@ -771,7 +773,7 @@ export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
                         status={done ? "completed" : "pending"}
                         label={done ? "已完成" : "待学习"}
                       />
-                      {r.locator && <MetaTag>{r.locator}</MetaTag>}
+                      {loc && <MetaTag>{loc}</MetaTag>}
                       <MetaTag>v{r.version}</MetaTag>
                     </MetaTags>
                   </div>

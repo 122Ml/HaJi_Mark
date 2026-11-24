@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Card, Collapse, Pagination, Select, Typography } from "antd";
 import { Link, useLiveQuery, when } from "./context";
+import { formatResourceLocator } from "./domain-meta";
 import {
   EmptyState,
   ErrorState,
@@ -139,13 +140,16 @@ export function ActivityTimeline({
                 <MetaTag>v{event.object_version}</MetaTag>
                 <span className="live-meta">{when(event.occurred_at)}</span>
               </MetaTags>
-              {event.resource_id && (
-                <p>
-                  来源：
-                  {event.source_note || event.source_url || "尚未登记来源"}
-                  {event.locator ? ` · ${event.locator}` : ""}
-                </p>
-              )}
+              {event.resource_id && (() => {
+                const loc = formatResourceLocator(event.locator);
+                return (
+                  <p>
+                    来源：
+                    {event.source_note || event.source_url || "尚未登记来源"}
+                    {loc ? ` · ${loc}` : ""}
+                  </p>
+                );
+              })()}
               {event.submission_id && (
                 <p>
                   第{event.attempt}次作答 · 原文指纹{" "}

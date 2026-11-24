@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright');
+const { choose, selectedText } = require('./browser-ui.cjs');
 const root = path.resolve(__dirname, '..');
 const base = process.env.HAJI_BASE_URL || 'http://127.0.0.1:18080';
 if (!['http://127.0.0.1:18080', 'https://hajistudy.online'].includes(base)) throw Error('Unexpected test target');
@@ -8,6 +9,8 @@ const fixtures = JSON.parse(fs.readFileSync(process.env.HAJI_ACCOUNTS || path.jo
 const ids = JSON.parse(fs.readFileSync(process.env.HAJI_CHECK_IDS || path.join(root, '.local/platform-check.json'), 'utf8'));
 const account = fixtures.accounts.find(a => a.username === (process.env.HAJI_TEACHER_USER || 's1-teacher'));
 const assert = (value, message) => { if (!value) throw Error(message); };
+const watchdog = setTimeout(() => { console.error('Timed out after 90s'); process.exit(124); }, 90000);
+watchdog.unref();
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   const context = await browser.newContext({ acceptDownloads: true });
@@ -19,7 +22,16 @@ const assert = (value, message) => { if (!value) throw Error(message); };
     await page.getByLabel('密码', { exact: true }).fill(account.password);
     await page.getByRole('button', { name: '登录', exact: true }).click();
     await page.waitForURL(u=>u.pathname==='/teacher/dashboard');
-    await page.getByLabel('当前课程', { exact: true }).selectOption(ids.course_id);
+    const coursesRes = await context.request.get(`${base}/api/v1/me/courses`);
+    assert(coursesRes.ok(), 'Courses request failed');
+    const courses = (await coursesRes.json()).data || [];
+    const targetCourse = courses.find(c => c.id === ids.course_id);
+    assert(targetCourse, `Fixture course not found: ${ids.course_id}`);
+    const courseSelect = page.getByRole('combobox', { name: '当前课程', exact: true });
+    await courseSelect.waitFor();
+    await choose(courseSelect, targetCourse.title);
+    const chosen = await selectedText(courseSelect);
+    assert(chosen.startsWith(targetCourse.title), `Unexpected selected course: ${chosen}`);
     const url = `${base}/api/v1/learning/courses/${ids.course_id}/evidence`;
     const result = await context.request.get(url);
     assert(result.ok(), 'Evidence request failed');
@@ -52,8 +64,8 @@ const assert = (value, message) => { if (!value) throw Error(message); };
     console.log('PASS: delayed evidence blocks export; loaded CSV preserves records; failed reads block export');
   } finally {
     release();
-    const me = await context.request.get(base + '/api/v1/me');
-    if (me.ok()) await context.request.delete(base + '/api/v1/sessions/current', { headers: { 'X-CSRF-Token': (await me.json()).data.csrf_token } });
-    await browser.close();
+    const me = await context.request.get(base + '/api/v1/me').catch(() => null);
+    if (me && me.ok()) await context.request.delete(base + '/api/v1/sessions/current', { headers: { 'X-CSRF-Token': (await me.json()).data.csrf_token } }).catch(() => {});
+    await Promise.race([browser.close().catch(() => {}), new Promise(r => setTimeout(r, 5000))]);
   }
-})().catch(error => { console.error(error.message.replaceAll(account.password, '[redacted]')); process.exitCode = 1; });
+})().catch(error => { console.error(error.message.replaceAll(account.password, '[redacted]')); process.exitCode = 1; }).finally(() => process.exit(process.exitCode || 0));

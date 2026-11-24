@@ -11,6 +11,7 @@ import {
   StatusTag,
 } from "../shared/ui";
 import { Feedback, Link, useAction, useLearning, useLiveQuery, when } from "./context";
+import { formatResourceLocator } from "./domain-meta";
 import type { Knowledge, Resource } from "./types";
 import { RecommendationPanel } from "./intelligence";
 
@@ -237,6 +238,7 @@ export function StudyPath() {
                 {linked.length ? (
                   linked.map((r) => {
                     const done = completedSet.has(r.id);
+                    const loc = formatResourceLocator(r.locator);
                     return (
                       <div className="live-row" key={r.id}>
                         <div>
@@ -250,7 +252,7 @@ export function StudyPath() {
                               status={done ? "completed" : "pending"}
                               label={done ? "已完成学习" : "待学习"}
                             />
-                            {r.locator && <MetaTag>{r.locator}</MetaTag>}
+                            {loc && <MetaTag>{loc}</MetaTag>}
                           </MetaTags>
                         </div>
                       </div>

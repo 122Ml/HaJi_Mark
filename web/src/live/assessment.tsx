@@ -44,7 +44,12 @@ import {
   uuid,
   when,
 } from "./context";
-import { labelFor, questionTypeLabels, stateLabels } from "./domain-meta";
+import {
+  formatResourceLocator,
+  labelFor,
+  questionTypeLabels,
+  stateLabels,
+} from "./domain-meta";
 import { DraftNotice, useEditorDraft } from "./editing";
 import { reviewNames, type QueueItem } from "./grading";
 import { BankQuestionPicker } from "./question-bank";
@@ -688,11 +693,15 @@ export function AssignmentEditor({
                   optionFilterProp="children"
                 >
                   <Select.Option value="">教师手填标准</Select.Option>
-                  {publishedResources.map((r) => (
-                    <Select.Option key={r.id} value={r.id}>
-                      {r.title} · {r.locator} · v{r.version}
-                    </Select.Option>
-                  ))}
+                  {publishedResources.map((r) => {
+                    const loc = formatResourceLocator(r.locator);
+                    return (
+                      <Select.Option key={r.id} value={r.id}>
+                        {r.title}
+                        {loc ? ` · ${loc}` : ""} · v{r.version}
+                      </Select.Option>
+                    );
+                  })}
                 </Select>
               </Field>
               {quiz && (

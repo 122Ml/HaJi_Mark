@@ -98,7 +98,7 @@ pwsh -File scripts/smoke.ps1
 python scripts/check-platform.py          # 创建有明确标签的测试课程，保留记录
 python scripts/check-platform.py --resume # 用上次ID复查持久化
 python scripts/backup.py --verify-restore # 本地备份＋独立临时数据库恢复演练
-python scripts/api-inventory.py --check   # 校验 167 项 API 清单与源码一致
+python scripts/api-inventory.py --check   # 校验 170 项 API 清单与源码一致
 node scripts/check-frontend-ui.cjs        # Ant Design 复用率与未使用声明静态检查
 python scripts/check_docs.py
 ```

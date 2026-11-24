@@ -50,7 +50,7 @@ import {
   uuid,
   when,
 } from "./context";
-import { labelFor, stateLabels } from "./domain-meta";
+import { formatResourceLocator, labelFor, stateLabels } from "./domain-meta";
 import { DraftNotice, useEditorDraft } from "./editing";
 import {
   PointGradeForm,
@@ -828,8 +828,11 @@ export function GradePage() {
                   key: "content",
                   label: (
                     <>
-                      评分依据：{source.title} · {source.locator} · v
-                      {source.version}
+                      评分依据：{source.title}
+                      {formatResourceLocator(source.locator)
+                        ? ` · ${formatResourceLocator(source.locator)}`
+                        : ""}{" "}
+                      · v{source.version}
                     </>
                   ),
                   children: (

@@ -2,6 +2,15 @@
 
 以下旧S1/前端记录按发生阶段保留。当前状态以本页最新收口/部署记录为准；旧“尚无提交/评分、仅localStorage”的结论不再适用于当前代码。历史测试结果不自动移用到新版本。
 
+## 2026-11-24 验收问题修复与脚本回归（本地）
+
+针对验收遗留的原文引用 JSON 展示与两条旧版 Playwright 脚本选择器兼容问题完成修复并回归验证：
+
+- 修复 5 处实时工作台视图（`web/src/live/activity.tsx`、`assessment.tsx`、`grading.tsx`、`insight.tsx`、`path.tsx`）中原始 JSON 数组形式 `locator` 的展示问题，统一复用 `formatResourceLocator`（`web/src/live/domain-meta.ts`）；实测 DOM 渲染为 `ise-ch1-requirements-and-rag.md · 段落 1 等 2 处`。
+- 将 `scripts/check-evidence-export.cjs` 与 `scripts/check-platform-query-race.cjs` 迁移至 Ant Design `<Select showSearch>` 共用交互辅助（`scripts/browser-ui.cjs` 中的 `choose` / `selectedText`），并补充总超时看门狗与 `browser.close()` 防挂起清理。
+- 回归验证通过：`npm run build`（3973 modules）、`check-evidence-export.cjs`、`check-platform-query-race.cjs`（`research`/`industry`）、`check-platform-browser.cjs`（18/18）、`check-navigation-browser.cjs`（9/9）、`check-frontend-ui.cjs`（957/957）、`check-ui-console.cjs`（28×3 / 1165 控件，0 错误/0 溢出）、`scripts/check_docs.py`、`scripts/api-inventory.py --check`（170 项路由）、`git diff --check`。
+- 变更仅在本地分支 `codex/platform-completion` 提交保存；未向 GitHub 推送，也未重新部署公网服务器。
+
 ## 2026-11-17 对话交互收口（本地，后续复查）
 
 修复消息与运行卡片脱离顺序、切换对话丢草稿、刷新后发送重试编号丢失、导出文件入口过深，以及长会话最早1000条步骤挤掉最新回执的问题。输入区复用既有账号隔离草稿能力，按课程／对话保存文本和附件选择；问题卡表单使用唯一标识，已处理卡折叠，待处理卡保持展开。业务SSE不再对每个中间事件刷新全课程数据。

@@ -293,3 +293,11 @@ CO-01 发布 course demo-boundary 与资料版本 → AS-01 学生提交“测�
   - `GET/POST /learning/courses/:courseID/interactions` 支持可选 JSON 数组 `evidence_refs`，前端仅提交授权已发布资料引用，服务端校验证据格式与大小。
   - 客观测验默认仅允许作答 `1` 次；仅当存在已下发的该题补学任务（`HasAssignedQuizIntervention`）时允许补充作答，否则返回 `409`。
   - Agent SSE `text` 事件：当累计公开文本 `<= 2048` 字节发送 `{turn, text}` 全量快照；当 `> 2048` 字节且增量可追加时发送 `{turn, delta, offset}`（`offset` 为前序公开文本 UTF-8 字节长度），前端核对偏移匹配后追加或回退快照重读。
+
+## 2026-11-25 段落内切点（`00021`）
+
+- **迁移 `00021`**：`content_sections` 增加 `split_quotes text[]`（最多 1 条切点引文）、`start_char`/`end_char`（相对首/末片段的 rune 区间，`end_char=0` 表示到末片段末尾），并以约束保证单切点、非负区间与单片段 `end_char > start_char`（跨多片段时允许首末片段独立 rune 偏移）。
+- **生成侧**（`internal/rag`）：`source_segment` 允许相邻两段共用一个片段——后一段 `fragment_ids` 首项必须等于前一段末项，且必须给出唯一逐字切点引文；未共用片段时 `split_quotes` 必须为空；单个片段最多拆分为两段（禁止三切及以上）；视频片段（带时间码）禁止片段内切分。
+- **采纳与修订侧**（`internal/learning`）：`adoptSegments` 用原文解析切点，要求引文在首片段内唯一、不在开头，重算区间并校验连续、不重叠、覆盖全部片段；任一不满足整份拒绝，不写业务表。原件解析修订延续时，`carryForwardContentSections` 对新片段重算偏移；若任一切点引文失配，整体回退为整片段（`0..0`）并清空 `split_quotes`。
+- **前端**：分段卡片显示「同页续段」标签（悬浮提示切点引文）并在摘要行展示切点偏移。
+- **边界**：片段内切分只影响分段归属、前端展示与反查，不改变检索块（chunk）与向量索引。

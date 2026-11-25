@@ -8,7 +8,7 @@
 
 ## 对话助理（2026-11-17，本地）
 
-当前代码执行迁移到00020；既有迁移不修改，新迁移从00021开始。默认Compose仍可运行人工业务；`compose.rag.yaml`显式启用RAG和`AGENT_ENABLED=true`，沿用忽略的模型密钥文件与共享50元账本。助理由API进程的关闭上下文管理，不另起Agent服务。运行时、模型／工具协议和三种模式见[助理说明](agent-harness.md)。
+当前代码执行迁移到00021；既有迁移不修改，新迁移从00022开始。默认Compose仍可运行人工业务；`compose.rag.yaml`显式启用RAG和`AGENT_ENABLED=true`，沿用忽略的模型密钥文件与共享50元账本。助理由API进程的关闭上下文管理，不另起Agent服务。运行时、模型／工具协议和三种模式见[助理说明](agent-harness.md)。
 
 ```powershell
 docker compose -f compose.yaml -f compose.rag.yaml build api
@@ -131,7 +131,7 @@ python scripts/backup.py --verify-restore
 
 默认Compose保持模型关闭，人工答疑、评分、客观规则和学习路径可单独运行。2026-11-11已获用户授权的本地真实RAG配置见下节；公网仍未启用，不沿用旧AI环境变量隐式开通新功能。
 
-迁移已分配并在本地执行00001—00020，后续从00021新建。修改queries后用sqlc1.30.0生成；不改已执行迁移，不手改store，不删除Goose历史来绕过失败。路由注册改动后运行 `python scripts/api-inventory.py` 并以 `--check` 复验一致性。Nginx使用Docker DNS解析API，API重建后应自动恢复代理。
+迁移已分配并在本地执行00001—00021，后续从00022新建。修改queries后用sqlc1.30.0生成；不改已执行迁移，不手改store，不删除Goose历史来绕过失败。路由注册改动后运行 `python scripts/api-inventory.py` 并以 `--check` 复验一致性。Nginx使用Docker DNS解析API，API重建后应自动恢复代理。
 
 ## 资料与知识库的本地运行
 

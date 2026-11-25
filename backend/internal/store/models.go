@@ -201,6 +201,9 @@ type ContentSection struct {
 	State            string             `json:"state"`
 	EditVersion      int32              `json:"edit_version"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	SplitQuotes      []string           `json:"split_quotes"`
+	StartChar        int32              `json:"start_char"`
+	EndChar          int32              `json:"end_char"`
 }
 
 type ContentTag struct {

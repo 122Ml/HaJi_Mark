@@ -1,6 +1,6 @@
 -- name: CreateContentSection :one
-INSERT INTO content_sections(id,course_id,source_id,revision,position,title,relation,fragment_ids,knowledge_point_id,reason,state,time_start_ms,time_end_ms)
-VALUES($1,$2,$3,$4,$5,$6,$7,$8,sqlc.narg(knowledge_point_id),$9,$10,$11,$12) RETURNING *;
+INSERT INTO content_sections(id,course_id,source_id,revision,position,title,relation,fragment_ids,knowledge_point_id,reason,state,time_start_ms,time_end_ms,split_quotes,start_char,end_char)
+VALUES($1,$2,$3,$4,$5,$6,$7,$8,sqlc.narg(knowledge_point_id),$9,$10,$11,$12,$13,$14,$15) RETURNING *;
 
 -- name: ListContentSections :many
 SELECT * FROM content_sections WHERE course_id=$1 AND source_id=$2 AND revision=$3 ORDER BY position;

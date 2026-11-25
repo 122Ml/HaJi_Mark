@@ -234,4 +234,7 @@ export interface ContentSection {
   reason: string;
   state: string;
   edit_version: number;
+  split_quotes?: string[];
+  start_char?: number;
+  end_char?: number;
 }

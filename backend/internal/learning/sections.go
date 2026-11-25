@@ -27,10 +27,27 @@ type sectionRow struct {
 	TimeStartMs int64    `json:"time_start_ms"`
 	TimeEndMs   int64    `json:"time_end_ms"`
 	Reason      string   `json:"reason"`
+	SplitQuotes []string `json:"split_quotes"`
+}
+
+func sectionSplitInputs(rows []sectionRow) []rag.SectionSplitInput {
+	out := make([]rag.SectionSplitInput, len(rows))
+	for i, r := range rows {
+		out[i] = rag.SectionSplitInput{Title: r.Title, FragmentIDs: r.FragmentIDs, SplitQuotes: r.SplitQuotes}
+	}
+	return out
 }
 
 func validTimeSpan(start, end int64) bool {
 	return rag.ValidTimeSpan(start, end)
+}
+
+// splitQuotes keeps the text[] parameter non-null for the NOT NULL column.
+func splitQuotes(in []string) []string {
+	if len(in) == 0 {
+		return []string{}
+	}
+	return in
 }
 
 func carryForwardContentSections(ctx context.Context, q *store.Queries, courseID, sourceID string, oldRev, newRev int32, fragMap map[string]string) error {
@@ -38,6 +55,9 @@ func carryForwardContentSections(ctx context.Context, q *store.Queries, courseID
 	if err != nil {
 		return err
 	}
+	kept := make([]store.ContentSection, 0, len(sections))
+	mappedRows := make([][]string, 0, len(sections))
+	inputs := make([]rag.SectionSplitInput, 0, len(sections))
 	for _, s := range sections {
 		mapped := make([]string, 0, len(s.FragmentIds))
 		for _, oldID := range s.FragmentIds {
@@ -50,6 +70,28 @@ func carryForwardContentSections(ctx context.Context, q *store.Queries, courseID
 		if len(mapped) == 0 {
 			continue
 		}
+		kept = append(kept, s)
+		mappedRows = append(mappedRows, mapped)
+		inputs = append(inputs, rag.SectionSplitInput{Title: s.Title, FragmentIDs: mapped, SplitQuotes: s.SplitQuotes})
+	}
+	if len(kept) == 0 {
+		return nil
+	}
+	// Re-resolve in-fragment offsets against the new revision; fall back to whole
+	// fragments (and clear stale split_quotes) when a carried quote no longer matches.
+	spans := make([]rag.SectionSpan, len(kept))
+	resolvedOK := false
+	if frags, e := q.ListMaterialFragments(ctx, store.ListMaterialFragmentsParams{SourceID: sourceID, Revision: newRev}); e == nil {
+		if resolved, e := rag.ResolveSectionSpans(inputs, frags); e == nil {
+			spans = resolved
+			resolvedOK = true
+		}
+	}
+	for i, s := range kept {
+		quotes := []string{}
+		if resolvedOK {
+			quotes = splitQuotes(s.SplitQuotes)
+		}
 		if _, err := q.CreateContentSection(ctx, store.CreateContentSectionParams{
 			ID:               uuid.NewString(),
 			CourseID:         courseID,
@@ -58,12 +100,15 @@ func carryForwardContentSections(ctx context.Context, q *store.Queries, courseID
 			Position:         s.Position,
 			Title:            s.Title,
 			Relation:         s.Relation,
-			FragmentIds:      mapped,
+			FragmentIds:      mappedRows[i],
 			KnowledgePointID: s.KnowledgePointID,
 			Reason:           s.Reason,
 			State:            s.State,
 			TimeStartMs:      s.TimeStartMs,
 			TimeEndMs:        s.TimeEndMs,
+			SplitQuotes:      quotes,
+			StartChar:        spans[i].StartChar,
+			EndChar:          spans[i].EndChar,
 		}); err != nil {
 			return err
 		}
@@ -155,14 +200,36 @@ func (h *Handler) adoptSegments(c *gin.Context) {
 		}
 	}
 	seenFrags := map[string]bool{}
-	for _, s := range out.Segments {
+	splitFrags := map[string]bool{}
+	for i, s := range out.Segments {
 		if s.Relation == "point" && !validPoints[s.PointID] {
 			ragError(c, errors.New("切分段引用的知识点不存在或不属于本课程"))
 			return
 		}
-		for _, fid := range s.FragmentIDs {
-			if _, ok := fragByID[fid]; !ok || seenFrags[fid] {
-				ragError(c, errors.New("切分片段重复或不属于当前原件版本"))
+		// A fragment may be reused only as the shared boundary of two sections,
+		// and only when the later section declares one split quote.
+		sharedFirst := ""
+		if i > 0 && len(s.SplitQuotes) == 1 {
+			prev := out.Segments[i-1].FragmentIDs
+			if len(prev) > 0 {
+				sharedFirst = prev[len(prev)-1]
+			}
+		}
+		for j, fid := range s.FragmentIDs {
+			if _, ok := fragByID[fid]; !ok {
+				ragError(c, errors.New("切分片段不属于当前原件版本"))
+				return
+			}
+			shared := j == 0 && fid == sharedFirst
+			if shared {
+				if splitFrags[fid] {
+					ragError(c, errors.New("单个片段最多拆分为两段，不支持三段及以上切分"))
+					return
+				}
+				splitFrags[fid] = true
+			}
+			if seenFrags[fid] && !shared {
+				ragError(c, errors.New("切分片段重复"))
 				return
 			}
 			seenFrags[fid] = true
@@ -184,6 +251,11 @@ func (h *Handler) adoptSegments(c *gin.Context) {
 			result(c, nil, e)
 			return
 		}
+	}
+	spans, e := rag.ResolveSectionSpans(sectionSplitInputs(out.Segments), fs)
+	if e != nil {
+		ragError(c, e)
+		return
 	}
 	isVideo := rag.IsVideoSource(locked.MediaType, locked.Filename)
 	for i, s := range out.Segments {
@@ -239,6 +311,9 @@ func (h *Handler) adoptSegments(c *gin.Context) {
 			State:            "proposed",
 			TimeStartMs:      int32(startMs),
 			TimeEndMs:        int32(endMs),
+			SplitQuotes:      splitQuotes(s.SplitQuotes),
+			StartChar:        spans[i].StartChar,
+			EndChar:          spans[i].EndChar,
 		}); e != nil {
 			result(c, nil, e)
 			return

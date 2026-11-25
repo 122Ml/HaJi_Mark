@@ -298,6 +298,88 @@ func TestSectionsCrudAndHardeningAudit(t *testing.T) {
 	if w := request(teacher, http.MethodPost, base+"/sources/sec-src/sections/adopt", map[string]any{"job_id": "seg-job"}); w.Code != http.StatusOK {
 		t.Fatalf("sections/adopt failed: %d %s", w.Code, w.Body.String())
 	}
+	// In-fragment split: two sections share one fragment, the second starts at a unique quote.
+	if _, err = db.Exec(ctx, `
+		INSERT INTO material_sources(id,course_id,created_by,title,filename,media_type,storage_path,source_note,sha256,parse_state,parse_revision)
+		VALUES('split-src','course','teacher','讲义2','doc2.txt','text/plain','split-src.txt','教师讲义2','sha-split','ready',1);
+		INSERT INTO material_fragments(id,source_id,revision,position,heading,body,locator,quality)
+		VALUES('sf-1','split-src',1,0,'节一','第一段讲概念。第二段讲方法。','{"page":1}','ready');
+		INSERT INTO processing_jobs(id,course_id,created_by,kind,state,input,output)
+		VALUES('split-job','course','teacher','source_segment','succeeded','{"source_id":"split-src","parse_revision":1}',
+		       '{"segments":[{"title":"概念","relation":"point","fragment_ids":["sf-1"],"knowledge_point_id":"`+ptB.Data.ID+`","reason":"甲"},{"title":"方法","relation":"sequence","fragment_ids":["sf-1"],"split_quotes":["第二段讲方法"],"knowledge_point_id":"","reason":"乙"}]}');
+	`); err != nil {
+		t.Fatalf("seed split fixture failed: %v", err)
+	}
+	if w := request(teacher, http.MethodPost, base+"/sources/split-src/sections/adopt", map[string]any{"job_id": "split-job"}); w.Code != http.StatusOK {
+		t.Fatalf("split adopt failed: %d %s", w.Code, w.Body.String())
+	}
+	var splitStart, splitEnd int32
+	if err = db.QueryRow(ctx, `SELECT start_char, end_char FROM content_sections WHERE source_id='split-src' AND position=0`).Scan(&splitStart, &splitEnd); err != nil {
+		t.Fatalf("read first split span failed: %v", err)
+	}
+	if splitStart != 0 || splitEnd <= 0 {
+		t.Fatalf("unexpected first split span %d..%d", splitStart, splitEnd)
+	}
+	firstEnd := splitEnd
+	if err = db.QueryRow(ctx, `SELECT start_char, end_char FROM content_sections WHERE source_id='split-src' AND position=1`).Scan(&splitStart, &splitEnd); err != nil {
+		t.Fatalf("read second split span failed: %v", err)
+	}
+	if splitStart != firstEnd || splitStart <= 0 {
+		t.Fatalf("second section must start exactly at the split point: first end %d, second start %d", firstEnd, splitStart)
+	}
+	// Triple split on a single fragment must be rejected before persistence.
+	if _, err = db.Exec(ctx, `
+		INSERT INTO processing_jobs(id,course_id,created_by,kind,state,input,output)
+		VALUES('triple-split-job','course','teacher','source_segment','succeeded','{"source_id":"split-src","parse_revision":1}',
+		       '{"segments":[{"title":"甲","relation":"point","fragment_ids":["sf-1"],"knowledge_point_id":"`+ptB.Data.ID+`","reason":"甲"},{"title":"乙","relation":"sequence","fragment_ids":["sf-1"],"split_quotes":["。第二"],"knowledge_point_id":"","reason":"乙"},{"title":"丙","relation":"sequence","fragment_ids":["sf-1"],"split_quotes":["方法。"],"knowledge_point_id":"","reason":"丙"}]}');
+	`); err != nil {
+		t.Fatalf("seed triple-split fixture failed: %v", err)
+	}
+	if w := request(teacher, http.MethodPost, base+"/sources/split-src/sections/adopt", map[string]any{"job_id": "triple-split-job"}); w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("triple split adopt expected 422, got %d %s", w.Code, w.Body.String())
+	}
+	// Editing split-src fragments so the split quote disappears must clear split_quotes and reset spans to 0..0.
+	if w := request(teacher, http.MethodPut, base+"/sources/split-src/fragments", map[string]any{
+		"revision": 1,
+		"fragments": []map[string]any{
+			{"id": "sf-1", "heading": "节一修订", "body": "完全改写的新讲义文本", "quality": "ready"},
+		},
+	}); w.Code != http.StatusOK {
+		t.Fatalf("split-src correctFragments failed: %d %s", w.Code, w.Body.String())
+	}
+	var rev2Quotes []string
+	var rev2Start, rev2End int32
+	if err = db.QueryRow(ctx, `SELECT split_quotes, start_char, end_char FROM content_sections WHERE source_id='split-src' AND revision=2 AND position=1`).Scan(&rev2Quotes, &rev2Start, &rev2End); err != nil {
+		t.Fatalf("read carried-forward split fallback failed: %v", err)
+	}
+	if len(rev2Quotes) != 0 || rev2Start != 0 || rev2End != 0 {
+		t.Fatalf("stale split metadata must clear on fallback: quotes=%v span=%d..%d", rev2Quotes, rev2Start, rev2End)
+	}
+	// Cross-fragment boundary split where middle section has StartChar > EndChar across two fragments must satisfy Go & DB constraints.
+	if _, err = db.Exec(ctx, `
+		INSERT INTO material_sources(id,course_id,created_by,title,filename,media_type,storage_path,source_note,sha256,parse_state,parse_revision)
+		VALUES('multi-split-src','course','teacher','讲义3','doc3.txt','text/plain','multi-split.txt','教师讲义3','sha-multi','ready',1);
+		INSERT INTO material_fragments(id,source_id,revision,position,heading,body,locator,quality)
+		VALUES
+		  ('msf-1','multi-split-src',1,0,'节一','前九字一二三四五六。边界后','{"page":1}','ready'),
+		  ('msf-2','multi-split-src',1,1,'节二','二三。次片段尾','{"page":2}','ready');
+		INSERT INTO processing_jobs(id,course_id,created_by,kind,state,input,output)
+		VALUES('multi-split-job','course','teacher','source_segment','succeeded','{"source_id":"multi-split-src","parse_revision":1}',
+		       '{"segments":[{"title":"首段","relation":"point","fragment_ids":["msf-1"],"knowledge_point_id":"`+ptB.Data.ID+`","reason":"甲"},{"title":"跨页段","relation":"sequence","fragment_ids":["msf-1","msf-2"],"split_quotes":["边界后"],"knowledge_point_id":"","reason":"乙"},{"title":"尾段","relation":"sequence","fragment_ids":["msf-2"],"split_quotes":["次片段尾"],"knowledge_point_id":"","reason":"丙"}]}');
+	`); err != nil {
+		t.Fatalf("seed multi-split fixture failed: %v", err)
+	}
+	if w := request(teacher, http.MethodPost, base+"/sources/multi-split-src/sections/adopt", map[string]any{"job_id": "multi-split-job"}); w.Code != http.StatusOK {
+		t.Fatalf("multi-split adopt failed: %d %s", w.Code, w.Body.String())
+	}
+	var mStart, mEnd int32
+	if err = db.QueryRow(ctx, `SELECT start_char, end_char FROM content_sections WHERE source_id='multi-split-src' AND position=1`).Scan(&mStart, &mEnd); err != nil {
+		t.Fatalf("read cross-boundary multi-split span failed: %v", err)
+	}
+	if mStart != 10 || mEnd != 3 {
+		t.Fatalf("expected cross-boundary span 10..3, got %d..%d", mStart, mEnd)
+	}
+
 	if w := request(teacher, http.MethodPost, base+"/sources/sec-src/sections/state", map[string]any{"state": "accepted"}); w.Code != http.StatusOK {
 		t.Fatalf("sections/state accepted failed: %d %s", w.Code, w.Body.String())
 	}

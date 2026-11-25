@@ -12,8 +12,8 @@ import (
 )
 
 const createContentSection = `-- name: CreateContentSection :one
-INSERT INTO content_sections(id,course_id,source_id,revision,position,title,relation,fragment_ids,knowledge_point_id,reason,state,time_start_ms,time_end_ms)
-VALUES($1,$2,$3,$4,$5,$6,$7,$8,$13,$9,$10,$11,$12) RETURNING id, course_id, source_id, revision, position, title, relation, fragment_ids, knowledge_point_id, time_start_ms, time_end_ms, reason, state, edit_version, created_at
+INSERT INTO content_sections(id,course_id,source_id,revision,position,title,relation,fragment_ids,knowledge_point_id,reason,state,time_start_ms,time_end_ms,split_quotes,start_char,end_char)
+VALUES($1,$2,$3,$4,$5,$6,$7,$8,$16,$9,$10,$11,$12,$13,$14,$15) RETURNING id, course_id, source_id, revision, position, title, relation, fragment_ids, knowledge_point_id, time_start_ms, time_end_ms, reason, state, edit_version, created_at, split_quotes, start_char, end_char
 `
 
 type CreateContentSectionParams struct {
@@ -29,6 +29,9 @@ type CreateContentSectionParams struct {
 	State            string      `json:"state"`
 	TimeStartMs      int32       `json:"time_start_ms"`
 	TimeEndMs        int32       `json:"time_end_ms"`
+	SplitQuotes      []string    `json:"split_quotes"`
+	StartChar        int32       `json:"start_char"`
+	EndChar          int32       `json:"end_char"`
 	KnowledgePointID pgtype.Text `json:"knowledge_point_id"`
 }
 
@@ -46,6 +49,9 @@ func (q *Queries) CreateContentSection(ctx context.Context, arg CreateContentSec
 		arg.State,
 		arg.TimeStartMs,
 		arg.TimeEndMs,
+		arg.SplitQuotes,
+		arg.StartChar,
+		arg.EndChar,
 		arg.KnowledgePointID,
 	)
 	var i ContentSection
@@ -65,6 +71,9 @@ func (q *Queries) CreateContentSection(ctx context.Context, arg CreateContentSec
 		&i.State,
 		&i.EditVersion,
 		&i.CreatedAt,
+		&i.SplitQuotes,
+		&i.StartChar,
+		&i.EndChar,
 	)
 	return i, err
 }
@@ -85,7 +94,7 @@ func (q *Queries) DeleteContentSections(ctx context.Context, arg DeleteContentSe
 }
 
 const listContentSections = `-- name: ListContentSections :many
-SELECT id, course_id, source_id, revision, position, title, relation, fragment_ids, knowledge_point_id, time_start_ms, time_end_ms, reason, state, edit_version, created_at FROM content_sections WHERE course_id=$1 AND source_id=$2 AND revision=$3 ORDER BY position
+SELECT id, course_id, source_id, revision, position, title, relation, fragment_ids, knowledge_point_id, time_start_ms, time_end_ms, reason, state, edit_version, created_at, split_quotes, start_char, end_char FROM content_sections WHERE course_id=$1 AND source_id=$2 AND revision=$3 ORDER BY position
 `
 
 type ListContentSectionsParams struct {
@@ -119,6 +128,9 @@ func (q *Queries) ListContentSections(ctx context.Context, arg ListContentSectio
 			&i.State,
 			&i.EditVersion,
 			&i.CreatedAt,
+			&i.SplitQuotes,
+			&i.StartChar,
+			&i.EndChar,
 		); err != nil {
 			return nil, err
 		}
@@ -223,7 +235,7 @@ const updateContentSection = `-- name: UpdateContentSection :one
 UPDATE content_sections
    SET title=$5, relation=$6, knowledge_point_id=$11, time_start_ms=$7, time_end_ms=$8, reason=$9, edit_version=edit_version+1
  WHERE id=$1 AND course_id=$2 AND source_id=$3 AND revision=$4 AND edit_version=$10 AND state IN ('proposed','rejected')
- RETURNING id, course_id, source_id, revision, position, title, relation, fragment_ids, knowledge_point_id, time_start_ms, time_end_ms, reason, state, edit_version, created_at
+ RETURNING id, course_id, source_id, revision, position, title, relation, fragment_ids, knowledge_point_id, time_start_ms, time_end_ms, reason, state, edit_version, created_at, split_quotes, start_char, end_char
 `
 
 type UpdateContentSectionParams struct {
@@ -271,6 +283,9 @@ func (q *Queries) UpdateContentSection(ctx context.Context, arg UpdateContentSec
 		&i.State,
 		&i.EditVersion,
 		&i.CreatedAt,
+		&i.SplitQuotes,
+		&i.StartChar,
+		&i.EndChar,
 	)
 	return i, err
 }

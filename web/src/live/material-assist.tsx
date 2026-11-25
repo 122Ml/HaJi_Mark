@@ -1826,6 +1826,11 @@ export function SourceSegments({
                             <Tag color={sectionStateColor[r.state] || "default"}>
                               {sectionStateLabel[r.state] || r.state}
                             </Tag>
+                            {r.split_quotes && r.split_quotes.length > 0 && (
+                              <Tag color="orange" title={r.split_quotes[0]}>
+                                同页续段
+                              </Tag>
+                            )}
                             {onSeek && r.time_end_ms > r.time_start_ms && (
                               <Button
                                 size="small"
@@ -1893,6 +1898,11 @@ export function SourceSegments({
                             : "仅顺序切分，不挂知识点"}
                           {" · "}
                           {r.fragment_ids.length} 个片段
+                          {((r.start_char ?? 0) > 0 ||
+                            (r.split_quotes && r.split_quotes.length > 0)) &&
+                            ` · 切点偏移 ${r.start_char ?? 0}${
+                              r.end_char ? `–${r.end_char}` : "+"
+                            }`}
                         </div>
                         {!!r.reason && (
                           <div style={{ marginTop: 4 }}>{r.reason}</div>

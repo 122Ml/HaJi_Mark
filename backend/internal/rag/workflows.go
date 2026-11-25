@@ -244,8 +244,8 @@ func (s *Service) WorkflowDraft(ctx context.Context, j store.ProcessingJob, in J
 				}
 			}
 			payload = map[string]any{"source": src.Title, "fragments": excerpts, "excerpt_only": true, "course_points": points}
-			instruction = `把输入片段按内容切成若干连续段，覆盖全部片段，每个片段只能出现一次，顺序与输入一致。course_points只用于判断关联，不用于改写原文。返回 {"segments":[{"title":"本段主题","relation":"point|sequence","fragment_ids":[],"knowledge_point_id":"","time_start_ms":0,"time_end_ms":0,"reason":"切分依据"}],"review_status":"pending_teacher_review"}。`
-			instruction += `relation=point表示本段内容明确对应某个已有知识点，此时knowledge_point_id只能取course_points中kind=point的id；relation=sequence表示只是前后顺序不同、没有明确对应知识点，此时knowledge_point_id必须为空字符串。若输入片段含视频时间码，time_start_ms和time_end_ms对应首尾片段时间范围，非视频资料均填0。段数不超过50，标题不超过200字节。不得遗漏片段，不得重复片段，不得引用未提供的片段或知识点。`
+			instruction = `把输入片段按内容切成若干连续段，默认每个片段归属一段，按输入顺序覆盖全部片段（不得遗漏或乱序）。course_points只用于判断关联，不用于改写原文。返回 {"segments":[{"title":"本段主题","relation":"point|sequence","fragment_ids":[],"split_quotes":[],"knowledge_point_id":"","time_start_ms":0,"time_end_ms":0,"reason":"切分依据"}],"review_status":"pending_teacher_review"}。`
+			instruction += `relation=point表示本段内容明确对应某个已有知识点，此时knowledge_point_id只能取course_points中kind=point的id；relation=sequence表示只是前后顺序不同、没有明确对应知识点，此时knowledge_point_id必须为空字符串。若输入片段含视频时间码，time_start_ms和time_end_ms对应首尾片段时间范围，非视频资料均填0。段数不超过50，标题不超过200字节。不得遗漏片段，不得无切点重复片段，不得将同一片段拆成三段及以上，不得引用未提供的片段或知识点。若某个非视频片段内部包含两个主题、单靠片段边界无法分段，可让本段与上一段共用这个片段：该段 fragment_ids 的首项必须与上一段末项相同，并在 split_quotes 中给出恰好 1 条切点引文——必须是该片段正文里逐字出现、唯一且不在开头的一句（不超过 200 字节），表示本段从这句话开始；不共用片段时 split_quotes 必须为空数组；视频片段不允许使用切点。`
 		} else if j.Kind == "paper_split" {
 			instruction = `将原卷拆为单选quiz、主观subjective、代码文本code候选，跨页题必须合并，不执行代码。每个fragment必须归题或excluded说明。保留公式、图片资产id。原卷无答案则reference_answer/correct_answer留空、answer_origin=missing；有则逐字提取reference_answer且answer_origin=extracted，不自行解题。缺失分值暂用1并在uncertain要求教师确认。返回 {"questions":[{"title":"题号与名称","prompt":"完整题干","type":"subjective","max_score":1,"options":[],"correct_answer":"","reference_answer":"","answer_origin":"missing","source_fragment_ids":[],"asset_ids":[],"uncertain":[]}],"excluded":[{"fragment_id":"","reason":"公共说明/原卷答案/页预览等"}],"review_status":"pending_teacher_review"}。`
 		} else {
@@ -500,6 +500,7 @@ func validateSegments(out map[string]json.RawMessage, payload map[string]any) er
 		TimeStartMs int64    `json:"time_start_ms"`
 		TimeEndMs   int64    `json:"time_end_ms"`
 		Reason      string   `json:"reason"`
+		SplitQuotes []string `json:"split_quotes"`
 	}
 	var rows []segmentRow
 	if json.Unmarshal(out["segments"], &rows) != nil || len(rows) == 0 || len(rows) > 50 {
@@ -528,6 +529,7 @@ func validateSegments(out map[string]json.RawMessage, payload map[string]any) er
 			points[p.ID] = true
 		}
 	}
+	splitFrags := map[string]bool{}
 	cursor := 0
 	for i, r := range rows {
 		title := strings.TrimSpace(r.Title)
@@ -549,9 +551,33 @@ func validateSegments(out map[string]json.RawMessage, payload map[string]any) er
 		if !ValidTimeSpan(r.TimeStartMs, r.TimeEndMs) {
 			return errors.New("切分段起止时间无效")
 		}
+		start := 0
+		if len(r.SplitQuotes) > 1 {
+			return errors.New("单个切分段最多一个切点引文")
+		}
+		if i == 0 && len(r.SplitQuotes) == 1 {
+			return errors.New("首个切分段不能使用切点引文")
+		}
+		if i > 0 && r.FragmentIDs[0] == rows[i-1].FragmentIDs[len(rows[i-1].FragmentIDs)-1] {
+			if splitFrags[r.FragmentIDs[0]] {
+				return errors.New("单个片段最多拆分为两段，不支持三段及以上切分")
+			}
+			if len(r.SplitQuotes) != 1 || strings.TrimSpace(r.SplitQuotes[0]) == "" || len([]byte(strings.TrimSpace(r.SplitQuotes[0]))) > 200 {
+				return errors.New("同一片段被相邻两段共用时必须给出唯一切点引文")
+			}
+			if pidx, ok := indexOf[rows[i-1].FragmentIDs[len(rows[i-1].FragmentIDs)-1]]; ok {
+				if fs[pidx].TimeEndMs > fs[pidx].TimeStartMs {
+					return errors.New("视频片段不支持片段内切分")
+				}
+			}
+			splitFrags[r.FragmentIDs[0]] = true
+			start = 1
+		} else if len(r.SplitQuotes) == 1 {
+			return errors.New("切点引文只能用在相邻两段共用的片段上")
+		}
 		var segStart, segEnd int64
 		hasTimecode := false
-		for _, id := range r.FragmentIDs {
+		for _, id := range r.FragmentIDs[start:] {
 			idx, ok := indexOf[id]
 			if !ok || idx != cursor {
 				return errors.New("切分片段必须按原件顺序严格连续且不重复、不遗漏")

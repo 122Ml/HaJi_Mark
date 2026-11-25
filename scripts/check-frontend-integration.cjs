@@ -4,7 +4,7 @@ const path = require('node:path');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const { chromium } = require('playwright');
-const { choose, selectFile } = require('./browser-ui.cjs');
+const { choose, selectFile, selectRoot } = require('./browser-ui.cjs');
 const root = path.resolve(__dirname, '..');
 const folder = path.join(root, '.local/frontend-integration-2026-11-19');
 const base = process.env.INTEGRATION_BASE || 'http://127.0.0.1:18082';
@@ -138,9 +138,10 @@ const until = async (title, read, predicate, timeout = 60000) => {
       assert(source.fragments.length >= 2);
       await t.getByText('原文已落库，尚需核对、发布和确认知识。索引状态独立查看。', { exact: true }).waitFor();
       pass('F03/F04/F14 多文件一成一败保留逐份回执，不自动重传，选中首份原件及真实解析记录');
-      await t.getByRole('tab', { name: '原文核对', exact: true }).click();
-      const fragment = t.locator('.rag-fragment').first();
-      await fragment.getByRole('checkbox').first().check();
+      await t.getByRole('tab', { name: '分段与发布', exact: true }).click();
+      await t.locator('.ant-segmented-item').filter({ hasText: '手动自选片段发布' }).click();
+      const manualPublish = t.locator('.ant-card').filter({ hasText: '手动自选片段发布 · 已选' });
+      await manualPublish.locator('label.rag-check').filter({ hasNotText: /仅看标题与前 60 字预览|发布完整原件/ }).first().getByRole('checkbox').check();
       ids.publishedTitle = '仅发布第一段的学习资料 ' + Date.now(); save();
       await t.getByLabel('发布标题', { exact: true }).fill(ids.publishedTitle);
       await choose(t.getByLabel('发布关联知识点', { exact: true }), '边界值分析');
@@ -148,7 +149,7 @@ const until = async (title, read, predicate, timeout = 60000) => {
       await t.getByRole('button', { name: '确认并发布到课程学习', exact: true }).click(); await confirm();
       const published = (await (await publication).json()).data; ids.published = published.id; save();
       assert.equal(published.knowledge_point_id, ids.point);
-      await t.getByRole('link', { name: '查看已发布学习内容与学生可见文本', exact: true }).click();
+      await t.locator('.live-row').filter({ has: t.getByText(ids.publishedTitle, { exact: true }) }).getByRole('button', { name: '打开资料', exact: true }).click();
       await t.getByText(published.content, { exact: true }).first().waitFor();
       assert.equal(new URL(t.url()).searchParams.get('resource'), published.id);
       const visible = (await sc('GET', '/resources')).find(r => r.id === published.id);
@@ -156,12 +157,17 @@ const until = async (title, read, predicate, timeout = 60000) => {
       const privateSearch = await sc('POST', '/retrieval', { query: '私有说明', purpose: 'learning', resource_id: published.id });
       assert(!JSON.stringify(privateSearch).includes('未发布私有说明'));
       pass('F07/F12 原文只选第一片段发布，知识点和确切版本回执保留，学生检索不展开私有原件');
-      await t.getByRole('tab', { name: '原文核对', exact: true }).click();
-      await t.locator('.rag-fragment').first().getByRole('checkbox').first().check();
+      await t.getByRole('tab', { name: '知识候选', exact: true }).click();
+      const extractSelect = t.getByRole('combobox', { name: '选择提炼片段', exact: true });
+      await selectRoot(extractSelect).click();
+      const extractPopup = t.locator('.ant-select-dropdown:visible');
+      await extractPopup.locator('.ant-select-item-option:not(.ant-select-item-option-disabled)').first().click();
+      await extractSelect.press('Escape');
+      await extractPopup.waitFor({ state: 'hidden' });
       await t.getByRole('button', { name: 'AI提炼知识候选', exact: true }).click();
       const extraction = await until('extraction finishes', () => tc('GET', '/jobs?kind=extract&source_id=' + ids.source), v => v[0]?.state === 'succeeded');
       ids.extraction = extraction[0].id; save();
-      await t.getByRole('tab', { name: '处理记录', exact: true }).click();
+      await t.getByRole('tab', { name: '任务与记录', exact: true }).click();
       await t.getByRole('link', { name: '核对本次知识候选', exact: true }).click();
       await t.getByText('构造验收边界知识候选', { exact: true }).waitFor();
       assert.equal(new URL(t.url()).searchParams.get('job'), ids.extraction);
@@ -184,7 +190,8 @@ const until = async (title, read, predicate, timeout = 60000) => {
       pass('F07 候选在原件内编辑用途并确认，确认前学生不可见、确认后学生页面读取真实入库条目');
       await t.getByRole('tab', { name: '原文核对', exact: true }).click();
       const sourceURL = t.url();
-      await t.getByRole('button', { name: '在此拆分试卷', exact: true }).click();
+      await t.getByRole('button', { name: '出题/拆卷', exact: true }).click();
+      await t.getByRole('menuitem', { name: '在此拆分试卷', exact: true }).click();
       const paperDrawer = t.getByRole('dialog');
       await paperDrawer.getByText('当前原件 · 整卷拆题', { exact: true }).waitFor();
       assert.equal(t.url(), sourceURL);
@@ -447,7 +454,7 @@ const until = async (title, read, predicate, timeout = 60000) => {
       assert.equal(await t.getByLabel('搜索知识', { exact: true }).inputValue(), '边界');
       pass('F13 原件后退恢复、题库和知识筛选刷新恢复');
       const cases = [
-        ['materials', { source: ids.source, source_view: 'original' }, '发布标题'],
+        ['materials', { source: ids.source, source_view: 'publication' }, '发布标题', '手动自选片段发布'],
         ['materials', { source: ids.source, source_view: 'knowledge' }, '搜索知识'],
         ['materials', { tab: 'published', resource: ids.manual }, null],
         ['insight', { view: 'gaps', diagnosis_report: ids.diagnosis }, '分析历史'],
@@ -456,8 +463,14 @@ const until = async (title, read, predicate, timeout = 60000) => {
       ];
       for (const width of [1440, 375, 812]) {
         await t.setViewportSize({ width, height: width === 812 ? 375 : 1000 });
-        for (const [route, params, label] of cases) {
+        for (const [route, params, label, segmented] of cases) {
           await go(route, params);
+          if (segmented) {
+            await t.getByRole('button', { name: '发起智能切分', exact: true }).waitFor();
+            await t.evaluate(() => document.fonts.ready);
+            assert(await t.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${route} horizontal overflow at ${width}`);
+            await t.locator('.ant-segmented-item').filter({ hasText: segmented }).click();
+          }
           if (label) await t.getByLabel(label, { exact: true }).first().waitFor();
           else await t.getByRole('button', { name: '助理协作', exact: true }).first().waitFor();
           await t.evaluate(() => document.fonts.ready);

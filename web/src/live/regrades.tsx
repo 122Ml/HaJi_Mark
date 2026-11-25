@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   Collapse,
+  Form,
   Input,
   Select,
   Space,
@@ -291,8 +292,9 @@ export function CreateRegrade({
     rubrics.error;
 
   return (
-    <Card className="card-panel live-form" title={<>冻结本题有效提交</>}>
-      <Field className="ui-field" label={<>已关闭作业</>}>
+    <Card className="card-panel" title={<>冻结本题有效提交</>}>
+      <Form layout="vertical" className="live-form" style={{ maxWidth: "none" }}>
+        <Field className="ui-field" label={<>已关闭作业</>}>
         <Select
           aria-label="已关闭作业"
           loading={assignments.isPending}
@@ -457,6 +459,7 @@ export function CreateRegrade({
               size="small"
               rowKey="id"
               dataSource={preview.submissions}
+              scroll={{ x: 640 }}
               pagination={{ pageSize: 5, showSizeChanger: false }}
               columns={[
                 {
@@ -464,10 +467,17 @@ export function CreateRegrade({
                   width: 64,
                   render: (_, __, idx) => idx + 1,
                 },
-                { title: "提交次数", dataIndex: "attempt", render: (v: number) => `第 ${v} 次` },
+                {
+                  title: "提交次数",
+                  dataIndex: "attempt",
+                  width: 100,
+                  render: (v: number) => `第 ${v} 次`,
+                },
                 {
                   title: "提交时间",
                   dataIndex: "submitted_at",
+                  width: 165,
+                  onCell: () => ({ style: { whiteSpace: "nowrap" } }),
                   render: (v?: string) => when(v),
                 },
               ]}
@@ -491,6 +501,7 @@ export function CreateRegrade({
           </Button>
         </Space>
       )}
+      </Form>
     </Card>
   );
 }
@@ -586,8 +597,9 @@ export function RegradeDetail({ id }: { id: string }) {
   }
 
   return (
-    <Card className="card-panel live-form">
-      <div className="workspace-heading">
+    <Card className="card-panel">
+      <div className="live-stack">
+        <div className="workspace-heading">
         <MetaTags>
           <StatusTag
             status={d.batch.state}
@@ -657,84 +669,88 @@ export function RegradeDetail({ id }: { id: string }) {
 
       {!d.rubric && d.batch.state === "active" && unconfirmedItems.length > 0 && (
         <Card size="small" title="客观题批量重评">
-          <Space direction="vertical" size="small" className="live-full-width">
-            <span className="live-meta">
-              当前有 {unconfirmedItems.length} 份待复核客观题提交，将按更正答案「{d.batch.correct_answer}」自动重新计分。
-            </span>
-            <Field className="ui-field" label="统一重评反馈" required>
-              <Input
-                aria-label="客观题批量重评反馈"
-                disabled={bulkBusy || action.busy}
-                value={bulkFeedback}
-                onChange={(e) => setBulkFeedback(e.target.value)}
-              />
-            </Field>
-            <Button
-              type="primary"
-              htmlType="button"
-              loading={bulkBusy}
-              disabled={action.busy || !bulkFeedback.trim()}
-              onClick={() => void applyQuizBulk()}
-            >
-              一键批量应用并确认待复核项（{unconfirmedItems.length}）
-            </Button>
-            <Feedback message={bulkMessage} failed={bulkFailed} />
-          </Space>
+          <Form layout="vertical" component={false}>
+            <Space direction="vertical" size="small" className="live-full-width">
+              <span className="live-meta">
+                当前有 {unconfirmedItems.length} 份待复核客观题提交，将按更正答案「{d.batch.correct_answer}」自动重新计分。
+              </span>
+              <Field className="ui-field" label="统一重评反馈" required>
+                <Input
+                  aria-label="客观题批量重评反馈"
+                  disabled={bulkBusy || action.busy}
+                  value={bulkFeedback}
+                  onChange={(e) => setBulkFeedback(e.target.value)}
+                />
+              </Field>
+              <Button
+                type="primary"
+                htmlType="button"
+                loading={bulkBusy}
+                disabled={action.busy || !bulkFeedback.trim()}
+                onClick={() => void applyQuizBulk()}
+              >
+                一键批量应用并确认待复核项（{unconfirmedItems.length}）
+              </Button>
+              <Feedback message={bulkMessage} failed={bulkFailed} />
+            </Space>
+          </Form>
         </Card>
       )}
 
-      <Space wrap align="end">
-        <Field className="ui-field" label={<>冻结名单</>}>
-          <Select
-            aria-label="冻结名单"
-            value={item?.submission_id || ""}
-            onChange={(e) => setSelected(e)}
-            showSearch
-            optionFilterProp="children"
-            style={{ minWidth: 260, maxWidth: "100%" }}
-          >
-            {items.map((i) => (
-              <Select.Option key={i.submission_id} value={i.submission_id}>
-                {i.display_name} · 第{i.attempt}次 ·{" "}
-                {i.confirmed ? "已确认" : "待复核"}
-                {i.score !== null ? ` · ${i.score}分` : ""}
-              </Select.Option>
-            ))}
-          </Select>
-        </Field>
-        {items.length > 1 && (
-          <Space wrap size="small">
-            <Button
-              htmlType="button"
-              disabled={currentIdx <= 0}
-              onClick={() => {
-                if (currentIdx > 0) setSelected(items[currentIdx - 1].submission_id);
-              }}
+      <Form layout="vertical" component={false}>
+        <Space wrap align="end">
+          <Field className="ui-field" label={<>冻结名单</>}>
+            <Select
+              aria-label="冻结名单"
+              value={item?.submission_id || ""}
+              onChange={(e) => setSelected(e)}
+              showSearch
+              optionFilterProp="children"
+              style={{ minWidth: 260, maxWidth: "100%" }}
             >
-              上一份
-            </Button>
-            <Button
-              htmlType="button"
-              disabled={currentIdx < 0 || currentIdx >= items.length - 1}
-              onClick={() => {
-                if (currentIdx >= 0 && currentIdx < items.length - 1) {
-                  setSelected(items[currentIdx + 1].submission_id);
-                }
-              }}
-            >
-              下一份
-            </Button>
-            {nextUnconfirmed && (
+              {items.map((i) => (
+                <Select.Option key={i.submission_id} value={i.submission_id}>
+                  {i.display_name} · 第{i.attempt}次 ·{" "}
+                  {i.confirmed ? "已确认" : "待复核"}
+                  {i.score !== null ? ` · ${i.score}分` : ""}
+                </Select.Option>
+              ))}
+            </Select>
+          </Field>
+          {items.length > 1 && (
+            <Space wrap size="small">
               <Button
                 htmlType="button"
-                onClick={() => setSelected(nextUnconfirmed.submission_id)}
+                disabled={currentIdx <= 0}
+                onClick={() => {
+                  if (currentIdx > 0) setSelected(items[currentIdx - 1].submission_id);
+                }}
               >
-                下一份待复核
+                上一份
               </Button>
-            )}
-          </Space>
-        )}
-      </Space>
+              <Button
+                htmlType="button"
+                disabled={currentIdx < 0 || currentIdx >= items.length - 1}
+                onClick={() => {
+                  if (currentIdx >= 0 && currentIdx < items.length - 1) {
+                    setSelected(items[currentIdx + 1].submission_id);
+                  }
+                }}
+              >
+                下一份
+              </Button>
+              {nextUnconfirmed && (
+                <Button
+                  htmlType="button"
+                  onClick={() => setSelected(nextUnconfirmed.submission_id)}
+                >
+                  下一份待复核
+                </Button>
+              )}
+            </Space>
+          )}
+        </Space>
+      </Form>
 
       {item && (
         <RegradeEditor
@@ -745,6 +761,7 @@ export function RegradeDetail({ id }: { id: string }) {
           onRefresh={() => void q.refetch()}
         />
       )}
+      </div>
     </Card>
   );
 }
@@ -889,7 +906,17 @@ function RegradeEditor({
           {item.display_name} · 作答原文
         </Typography.Text>
         <MetaTags>
-          <Tag color={deltaInfo.color}>{deltaInfo.text}</Tag>
+          <Tag
+            className="ui-meta-tag"
+            color={deltaInfo.color}
+            style={{
+              whiteSpace: "normal",
+              overflowWrap: "anywhere",
+              maxWidth: "100%",
+            }}
+          >
+            {deltaInfo.text}
+          </Tag>
           <StatusTag
             status={item.confirmed ? "confirmed" : "pending"}
             label={item.confirmed ? "本份已确认" : "待复核"}
@@ -927,7 +954,8 @@ function RegradeEditor({
         </Link>
       </article>
 
-      <div className="live-form">
+      <Form layout="vertical" component={false}>
+        <div className="live-form">
         <DraftNotice
           restored={draft.restored}
           storageError={draft.storageError}
@@ -1021,41 +1049,43 @@ function RegradeEditor({
                 </>
               }
             >
-              <p>{c.rule}</p>
-              <Field className="ui-field" label={<>得分</>} required>
-                <IntegerInput
-                  aria-label={criteriaCount === 1 ? "得分" : `${c.id} 得分`}
-                  min={0}
-                  max={c.max_score}
-                  value={entry.score}
-                  onChange={(val) => updateCriterion(c.id, { score: val })}
-                  disabled={batch.state !== "active" || action.busy}
-                />
-              </Field>
-              <Field className="ui-field" label={<>学生原文引用</>}>
-                <Input.TextArea
-                  aria-label={
-                    criteriaCount === 1 ? "学生原文引用" : `${c.id} 学生原文引用`
-                  }
-                  value={entry.quote}
-                  onChange={(e) =>
-                    updateCriterion(c.id, { quote: e.target.value })
-                  }
-                  disabled={batch.state !== "active" || action.busy}
-                />
-              </Field>
-              <Field className="ui-field" label={<>逐点反馈</>} required>
-                <Input.TextArea
-                  aria-label={
-                    criteriaCount === 1 ? "逐点反馈" : `${c.id} 逐点反馈`
-                  }
-                  value={entry.feedback}
-                  onChange={(e) =>
-                    updateCriterion(c.id, { feedback: e.target.value })
-                  }
-                  disabled={batch.state !== "active" || action.busy}
-                />
-              </Field>
+              <div className="live-stack" style={{ gap: 12 }}>
+                <p style={{ margin: 0 }}>{c.rule}</p>
+                <Field className="ui-field" label={<>得分</>} required>
+                  <IntegerInput
+                    aria-label={criteriaCount === 1 ? "得分" : `${c.id} 得分`}
+                    min={0}
+                    max={c.max_score}
+                    value={entry.score}
+                    onChange={(val) => updateCriterion(c.id, { score: val })}
+                    disabled={batch.state !== "active" || action.busy}
+                  />
+                </Field>
+                <Field className="ui-field" label={<>学生原文引用</>}>
+                  <Input.TextArea
+                    aria-label={
+                      criteriaCount === 1 ? "学生原文引用" : `${c.id} 学生原文引用`
+                    }
+                    value={entry.quote}
+                    onChange={(e) =>
+                      updateCriterion(c.id, { quote: e.target.value })
+                    }
+                    disabled={batch.state !== "active" || action.busy}
+                  />
+                </Field>
+                <Field className="ui-field" label={<>逐点反馈</>} required>
+                  <Input.TextArea
+                    aria-label={
+                      criteriaCount === 1 ? "逐点反馈" : `${c.id} 逐点反馈`
+                    }
+                    value={entry.feedback}
+                    onChange={(e) =>
+                      updateCriterion(c.id, { feedback: e.target.value })
+                    }
+                    disabled={batch.state !== "active" || action.busy}
+                  />
+                </Field>
+              </div>
             </Card>
           );
         })}
@@ -1064,7 +1094,17 @@ function RegradeEditor({
           <strong>
             总分 {total}/{max}
           </strong>
-          <Tag color={deltaInfo.color}>{deltaInfo.text}</Tag>
+          <Tag
+            className="ui-meta-tag"
+            color={deltaInfo.color}
+            style={{
+              whiteSpace: "normal",
+              overflowWrap: "anywhere",
+              maxWidth: "100%",
+            }}
+          >
+            {deltaInfo.text}
+          </Tag>
         </Space>
         {!rubric && <p>按本批固定答案「{batch.correct_answer}」判分</p>}
 
@@ -1143,7 +1183,8 @@ function RegradeEditor({
             </Button>
           ))}
         </div>
-      </div>
+        </div>
+      </Form>
     </div>
   );
 }

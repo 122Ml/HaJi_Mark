@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Button, Space, Tag, Typography } from "antd";
 import { formatTimeRangeMs } from "./domain-meta";
-import "./knowledge.css";
 
 export function MediaPlayer({
   src,

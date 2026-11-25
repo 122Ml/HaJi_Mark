@@ -244,6 +244,7 @@ export function InterventionPage() {
             total={rows.length}
             showSizeChanger={false}
             hideOnSinglePage
+            responsive
             onChange={setPage}
           />
         </Card>
@@ -465,8 +466,10 @@ export function TaskCreator({
       )}
       {origin.data && (
         <aside className="context-banner">
-          <div>
-            <strong>来自：{origin.data.question.prompt}</strong>
+          <div style={{ minWidth: 0, flex: "1 1 200px" }}>
+            <strong style={{ overflowWrap: "anywhere" }}>
+              来自：{origin.data.question.prompt}
+            </strong>
             <p>第{origin.data.submission.attempt}次作答</p>
           </div>
           <Space wrap>
@@ -776,7 +779,7 @@ function TaskDetail({
           <Typography.Text strong className="item-title">
             教师复查
           </Typography.Text>
-          <p>{i.review_note}</p>
+          <p className="live-prose">{i.review_note}</p>
         </section>
       )}
       {teacher && i.status === "draft" && (

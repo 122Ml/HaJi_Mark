@@ -76,16 +76,17 @@ export function MaterialAssets({
   revision,
   editable,
   activeFragmentAssetIDs,
+  isVideo = false,
 }: {
   sourceID: string;
   revision: number;
   editable: boolean;
   activeFragmentAssetIDs?: Set<string>;
+  isVideo?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
   const q = useLiveQuery<{ assets: Asset[]; revisions: AssetRevision[] }>(
     `/sources/${sourceID}/assets`,
-    open && !!sourceID,
+    !!sourceID && !isVideo,
   );
   const [id, setID] = useState("");
   const assets = q.data?.assets || [];
@@ -95,12 +96,14 @@ export function MaterialAssets({
   const hasActiveFilter =
     !!activeFragmentAssetIDs && activeFragmentAssetIDs.size > 0;
 
+  if (isVideo) return null;
+  if (!q.error && !assets.length && (!q.isPending || !hasActiveFilter)) {
+    return null;
+  }
+
   return (
     <Collapse
       className="card-panel"
-      onChange={(keys) =>
-        setOpen(Array.isArray(keys) ? keys.length > 0 : Boolean(keys))
-      }
       items={[
         {
           key: "content",
@@ -387,7 +390,16 @@ function AssetEditor({
               label: <>裁剪题图／公式区域</>,
               children: (
                 <div className="live-form">
-                  <div className="live-inline">
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        "repeat(auto-fit, minmax(min(100%, 110px), 1fr))",
+                      gap: 12,
+                      maxWidth: 560,
+                      alignItems: "end",
+                    }}
+                  >
                     {CROP_FIELDS.map(({ key, label, ariaLabel }) => {
                       const maxPercent =
                         key === "width"
@@ -404,6 +416,7 @@ function AssetEditor({
                         >
                           <InputNumber
                             aria-label={ariaLabel}
+                            style={{ width: "100%" }}
                             min={minPercent}
                             max={maxPercent}
                             step={1}
@@ -422,17 +435,21 @@ function AssetEditor({
                         </Field>
                       );
                     })}
-                    <Field className="ui-field" label={<>内容类型</>}>
-                      <Select
-                        aria-label="内容类型"
-                        value={kind}
-                        onChange={setKind}
-                        showSearch
-                        optionFilterProp="label"
-                        options={CROP_KIND_OPTIONS}
-                      />
-                    </Field>
                   </div>
+                  <Field
+                    className="ui-field"
+                    label={<>内容类型</>}
+                    style={{ maxWidth: 260 }}
+                  >
+                    <Select
+                      aria-label="内容类型"
+                      value={kind}
+                      onChange={setKind}
+                      showSearch
+                      optionFilterProp="label"
+                      options={CROP_KIND_OPTIONS}
+                    />
+                  </Field>
                   {natural.w > 0 && natural.h > 0 && (
                     <p className="live-meta">
                       当前裁剪像素：{cropPxW} × {cropPxH} px（原图 {natural.w} ×{" "}

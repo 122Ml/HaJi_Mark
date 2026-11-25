@@ -161,7 +161,7 @@ export function KnowledgeReview({
       </Typography.Text>
       <RichContent text={candidate.body} />
       {candidate.conditions && (
-        <p>
+        <p style={{ overflowWrap: "anywhere" }}>
           <strong>适用条件：</strong>
           {candidate.conditions}
         </p>
@@ -215,20 +215,30 @@ export function KnowledgeReview({
       />
       {comparisons.map((c) => (
         <Card className="card-panel" key={c.knowledge_id}>
-          <Typography.Text strong className="item-title">
-            {known.find((k) => k.id === c.knowledge_id)?.title || "关联知识"} ·{" "}
-            {relations[c.relation] || c.relation || "待判断"}
-          </Typography.Text>
-          <div>
-            <strong>候选原文引用</strong>
-            <blockquote>{c.candidate_quote || "（未提供引用）"}</blockquote>
+          <div className="live-stack" style={{ gap: 10 }}>
+            <Typography.Text strong className="item-title">
+              {known.find((k) => k.id === c.knowledge_id)?.title || "关联知识"} ·{" "}
+              {relations[c.relation] || c.relation || "待判断"}
+            </Typography.Text>
+            <div style={{ minWidth: 0 }}>
+              <strong>候选原文引用</strong>
+              <blockquote style={{ maxWidth: "100%", overflowWrap: "anywhere", marginTop: 6 }}>
+                {c.candidate_quote || "（未提供引用）"}
+              </blockquote>
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <strong>已有知识引用</strong>
+              <blockquote style={{ maxWidth: "100%", overflowWrap: "anywhere", marginTop: 6 }}>
+                {c.existing_quote || "（未提供引用）"}
+              </blockquote>
+            </div>
+            {c.reason && (
+              <p style={{ margin: 0, overflowWrap: "anywhere" }}>{c.reason}</p>
+            )}
+            {c.suggestion && (
+              <p style={{ margin: 0, overflowWrap: "anywhere" }}>{c.suggestion}</p>
+            )}
           </div>
-          <div>
-            <strong>已有知识引用</strong>
-            <blockquote>{c.existing_quote || "（未提供引用）"}</blockquote>
-          </div>
-          {c.reason && <p>{c.reason}</p>}
-          {c.suggestion && <p>{c.suggestion}</p>}
         </Card>
       ))}
       {!!v.related_ids.length && (
@@ -248,7 +258,9 @@ export function KnowledgeReview({
                             {k.title}
                           </Typography.Text>
                           <RichContent text={k.body} />
-                          <p>条件：{k.conditions || "未单列"}</p>
+                          <p style={{ overflowWrap: "anywhere" }}>
+                            条件：{k.conditions || "未单列"}
+                          </p>
                         </article>
                       )
                     );

@@ -303,7 +303,11 @@ export function ContentImpactPage() {
       {selected && draft.ready && (
         <Card
           className="card-panel live-form"
-          title={<>{selected.title} · 引用影响</>}
+          title={
+            <span style={{ overflowWrap: "anywhere" }}>
+              {selected.title} · 引用影响
+            </span>
+          }
         >
           <DraftNotice
             {...draft}

@@ -198,7 +198,7 @@ function ReportHistory({
       value={reports.selected || undefined}
       placeholder="分析历史"
       loading={reports.list.isPending}
-      style={{ minWidth: 260, maxWidth: "100%" }}
+      style={{ width: "min(100%, 260px)", minWidth: 0, maxWidth: "100%" }}
       onChange={reports.setSelected}
       options={(reports.list.data || []).map((r) => {
         const qTitle = r.question_id ? questionLabels?.get(r.question_id) : "";
@@ -398,6 +398,7 @@ export function RecommendationPanel({
                               </>
                             ) : (
                               <Link
+                                style={{ overflowWrap: "anywhere" }}
                                 to={
                                   candidate.kind === "knowledge"
                                     ? `/student/knowledge?knowledge=${encodeURIComponent(candidate.object_id)}`
@@ -503,7 +504,7 @@ export function DiagnosisPanel({
         <Flex gap={8} wrap>
           <Select
             aria-label="分析题目与标准"
-            style={{ width: 400, maxWidth: "100%" }}
+            style={{ width: "min(100%, 400px)", minWidth: 0, maxWidth: "100%" }}
             value={scope || undefined}
             placeholder="选择题目与正式标准"
             options={options}
@@ -612,7 +613,7 @@ function DiagnosisLabels() {
                 <>
                   <Space wrap>
                     {labels.data?.built_in.map((l) => (
-                      <Tag key={l.id}>{l.title}</Tag>
+                      <MetaTag key={l.id}>{l.title}</MetaTag>
                     ))}
                   </Space>
                   <List
@@ -640,8 +641,8 @@ function DiagnosisLabels() {
                           </Button>,
                         ]}
                       >
-                        <Space>
-                          {l.title}
+                        <Space wrap>
+                          <span style={{ overflowWrap: "anywhere" }}>{l.title}</span>
                           <Tag color={l.active ? "success" : "default"}>
                             {l.active ? "启用" : "停用"}
                           </Tag>
@@ -658,6 +659,7 @@ function DiagnosisLabels() {
                       onChange={(e) => setTitle(e.target.value)}
                     />
                     <Button
+                      style={{ flexShrink: 0, whiteSpace: "nowrap" }}
                       disabled={!title.trim() || action.busy}
                       loading={action.busy}
                       onClick={async () => {
@@ -939,7 +941,9 @@ export function DiagnosisReview({
                 </MetaTag>
               </MetaTags>
             )}
-            <Typography.Text>{r.input.prompt}</Typography.Text>
+            <Typography.Text style={{ overflowWrap: "anywhere" }}>
+              {r.input.prompt}
+            </Typography.Text>
           </Space>
           <Space wrap>
             <Tag>本标准正式结果 {r.input.eligible} 人</Tag>
@@ -982,6 +986,12 @@ export function DiagnosisReview({
                 title={
                   <Space wrap>
                     <Tag
+                      className="ui-meta-tag"
+                      style={{
+                        whiteSpace: "normal",
+                        overflowWrap: "anywhere",
+                        maxWidth: "100%",
+                      }}
                       color={
                         isDeactivated
                           ? "error"
@@ -1035,7 +1045,7 @@ export function DiagnosisReview({
                     <Space wrap>
                       <Select
                         aria-label={`问题标签${i + 1}`}
-                        style={{ minWidth: 220, maxWidth: "100%" }}
+                        style={{ width: "min(100%, 260px)", minWidth: 0, maxWidth: "100%" }}
                         value={f.label_id || undefined}
                         placeholder="选择已维护标签"
                         options={selectOptions}
@@ -1115,7 +1125,12 @@ export function DiagnosisReview({
                               }
                             />
                           ) : (
-                            <blockquote>{e.quote}</blockquote>
+                            <blockquote
+                              className="live-prose"
+                              style={{ overflowWrap: "anywhere" }}
+                            >
+                              {e.quote}
+                            </blockquote>
                           )}
                           {ans?.answer && (
                             <Collapse

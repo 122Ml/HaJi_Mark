@@ -446,19 +446,20 @@ export function AssignmentEditor({
         />
       )}
       <Card className="card-panel">
-        <DraftNotice
-          restored={draft.restored}
-          storageError={draft.storageError}
-          onDiscard={() => {
-            draft.reset(initialDraft);
-            setValidationError("");
-          }}
-        />
-        <Form
-          className="live-form"
-          onFinish={() => void save(false)}
-          layout="vertical"
-        >
+        <div className="live-stack">
+          <DraftNotice
+            restored={draft.restored}
+            storageError={draft.storageError}
+            onDiscard={() => {
+              draft.reset(initialDraft);
+              setValidationError("");
+            }}
+          />
+          <Form
+            className="live-form"
+            onFinish={() => void save(false)}
+            layout="vertical"
+          >
           <Field
             className="ui-field"
             label={<>{quiz ? "测验标题" : "作业标题"}</>}
@@ -545,7 +546,7 @@ export function AssignmentEditor({
               key={q.id || `new-${i}`}
               title={<>第 {i + 1} 题</>}
               extra={
-                <Space size="small">
+                <Space wrap size="small">
                   <Button
                     size="small"
                     htmlType="button"
@@ -578,158 +579,160 @@ export function AssignmentEditor({
                 </Space>
               }
             >
-              <Field
-                className="ui-field"
-                label={<>题目要求</>}
-                required={true}
-              >
-                <Input.TextArea
-                  aria-label={questions.length === 1 ? "题目要求" : `第 ${i + 1} 题 题目要求`}
-                  readOnly={!!q.bank_question_version_id}
-                  rows={4}
-                  value={q.prompt}
-                  onChange={(e) =>
-                    setQuestions((v) =>
-                      v.map((x, j) =>
-                        j === i ? { ...x, prompt: e.target.value } : x,
-                      ),
-                    )
-                  }
-                />
-              </Field>
-              {q.prompt.trim() && (
-                <Collapse
-                  items={[
-                    {
-                      key: "preview",
-                      label: <>题干公式与排版预览</>,
-                      children: <RichContent text={q.prompt} />,
-                    },
-                  ]}
-                />
-              )}
-              <Field className="ui-field" label={<>满分</>} required={true}>
-                {q.bank_question_version_id ? (
-                  <InputNumber
-                    aria-label={questions.length === 1 ? "满分" : `第 ${i + 1} 题 满分`}
-                    readOnly
-                    precision={0}
-                    min={1}
-                    max={10000}
-                    value={q.max_score}
-                  />
-                ) : (
-                  <IntegerInput
-                    aria-label={questions.length === 1 ? "满分" : `第 ${i + 1} 题 满分`}
-                    min={1}
-                    max={10000}
-                    value={q.max_score}
-                    disabled={action.busy}
-                    onChange={(val) =>
-                      setQuestions((v) =>
-                        v.map((x, j) =>
-                          j === i ? { ...x, max_score: val } : x,
-                        ),
-                      )
-                    }
-                  />
-                )}
-              </Field>
-              <Field
-                className="ui-field"
-                label={<>评分标准</>}
-                required={true}
-              >
-                <Input.TextArea
-                  aria-label={questions.length === 1 ? "评分标准" : `第 ${i + 1} 题 评分标准`}
-                  readOnly={!!q.bank_question_version_id}
-                  rows={3}
-                  value={q.rubric}
-                  onChange={(e) =>
-                    setQuestions((v) =>
-                      v.map((x, j) =>
-                        j === i ? { ...x, rubric: e.target.value } : x,
-                      ),
-                    )
-                  }
-                />
-              </Field>
-              <Field className="ui-field" label={<>关联知识点</>}>
-                <Select
-                  aria-label={questions.length === 1 ? "关联知识点" : `第 ${i + 1} 题 关联知识点`}
-                  disabled={action.busy || !!q.bank_question_version_id}
-                  value={q.knowledge_point_id}
-                  onChange={(e) =>
-                    setQuestions((v) =>
-                      v.map((x, j) =>
-                        j === i ? { ...x, knowledge_point_id: e } : x,
-                      ),
-                    )
-                  }
-                  showSearch
-                  optionFilterProp="children"
-                >
-                  <Select.Option value="">不关联</Select.Option>
-                  {leafPoints.map((p) => (
-                    <Select.Option key={p.id} value={p.id}>
-                      {p.title}
-                    </Select.Option>
-                  ))}
-                </Select>
-              </Field>
-              <Field className="ui-field" label={<>评分依据资料</>}>
-                <Select
-                  aria-label={questions.length === 1 ? "评分依据资料" : `第 ${i + 1} 题 评分依据资料`}
-                  disabled={action.busy || !!q.bank_question_version_id}
-                  value={q.resource_id}
-                  onChange={(e) =>
-                    setQuestions((v) =>
-                      v.map((x, j) =>
-                        j === i ? { ...x, resource_id: e } : x,
-                      ),
-                    )
-                  }
-                  showSearch
-                  optionFilterProp="children"
-                >
-                  <Select.Option value="">教师手填标准</Select.Option>
-                  {publishedResources.map((r) => {
-                    const loc = formatResourceLocator(r.locator);
-                    return (
-                      <Select.Option key={r.id} value={r.id}>
-                        {r.title}
-                        {loc ? ` · ${loc}` : ""} · v{r.version}
-                      </Select.Option>
-                    );
-                  })}
-                </Select>
-              </Field>
-              {quiz && (
+              <div className="live-stack" style={{ gap: 12 }}>
                 <Field
                   className="ui-field"
-                  label={<>选项与正确答案</>}
+                  label={<>题目要求</>}
                   required={true}
                 >
-                  <QuizOptionsEditor
-                    options={q.options}
-                    correctAnswer={q.correct_answer}
-                    disabled={action.busy || !!q.bank_question_version_id}
-                    onChange={(nextOptions, nextCorrect) =>
+                  <Input.TextArea
+                    aria-label={questions.length === 1 ? "题目要求" : `第 ${i + 1} 题 题目要求`}
+                    readOnly={!!q.bank_question_version_id}
+                    rows={4}
+                    value={q.prompt}
+                    onChange={(e) =>
                       setQuestions((v) =>
                         v.map((x, j) =>
-                          j === i
-                            ? {
-                                ...x,
-                                options: nextOptions,
-                                correct_answer: nextCorrect,
-                              }
-                            : x,
+                          j === i ? { ...x, prompt: e.target.value } : x,
                         ),
                       )
                     }
                   />
                 </Field>
-              )}
+                {q.prompt.trim() && (
+                  <Collapse
+                    items={[
+                      {
+                        key: "preview",
+                        label: <>题干公式与排版预览</>,
+                        children: <RichContent text={q.prompt} />,
+                      },
+                    ]}
+                  />
+                )}
+                <Field className="ui-field" label={<>满分</>} required={true}>
+                  {q.bank_question_version_id ? (
+                    <InputNumber
+                      aria-label={questions.length === 1 ? "满分" : `第 ${i + 1} 题 满分`}
+                      readOnly
+                      precision={0}
+                      min={1}
+                      max={10000}
+                      value={q.max_score}
+                    />
+                  ) : (
+                    <IntegerInput
+                      aria-label={questions.length === 1 ? "满分" : `第 ${i + 1} 题 满分`}
+                      min={1}
+                      max={10000}
+                      value={q.max_score}
+                      disabled={action.busy}
+                      onChange={(val) =>
+                        setQuestions((v) =>
+                          v.map((x, j) =>
+                            j === i ? { ...x, max_score: val } : x,
+                          ),
+                        )
+                      }
+                    />
+                  )}
+                </Field>
+                <Field
+                  className="ui-field"
+                  label={<>评分标准</>}
+                  required={true}
+                >
+                  <Input.TextArea
+                    aria-label={questions.length === 1 ? "评分标准" : `第 ${i + 1} 题 评分标准`}
+                    readOnly={!!q.bank_question_version_id}
+                    rows={3}
+                    value={q.rubric}
+                    onChange={(e) =>
+                      setQuestions((v) =>
+                        v.map((x, j) =>
+                          j === i ? { ...x, rubric: e.target.value } : x,
+                        ),
+                      )
+                    }
+                  />
+                </Field>
+                <Field className="ui-field" label={<>关联知识点</>}>
+                  <Select
+                    aria-label={questions.length === 1 ? "关联知识点" : `第 ${i + 1} 题 关联知识点`}
+                    disabled={action.busy || !!q.bank_question_version_id}
+                    value={q.knowledge_point_id}
+                    onChange={(e) =>
+                      setQuestions((v) =>
+                        v.map((x, j) =>
+                          j === i ? { ...x, knowledge_point_id: e } : x,
+                        ),
+                      )
+                    }
+                    showSearch
+                    optionFilterProp="children"
+                  >
+                    <Select.Option value="">不关联</Select.Option>
+                    {leafPoints.map((p) => (
+                      <Select.Option key={p.id} value={p.id}>
+                        {p.title}
+                      </Select.Option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field className="ui-field" label={<>评分依据资料</>}>
+                  <Select
+                    aria-label={questions.length === 1 ? "评分依据资料" : `第 ${i + 1} 题 评分依据资料`}
+                    disabled={action.busy || !!q.bank_question_version_id}
+                    value={q.resource_id}
+                    onChange={(e) =>
+                      setQuestions((v) =>
+                        v.map((x, j) =>
+                          j === i ? { ...x, resource_id: e } : x,
+                        ),
+                      )
+                    }
+                    showSearch
+                    optionFilterProp="children"
+                  >
+                    <Select.Option value="">教师手填标准</Select.Option>
+                    {publishedResources.map((r) => {
+                      const loc = formatResourceLocator(r.locator);
+                      return (
+                        <Select.Option key={r.id} value={r.id}>
+                          {r.title}
+                          {loc ? ` · ${loc}` : ""} · v{r.version}
+                        </Select.Option>
+                      );
+                    })}
+                  </Select>
+                </Field>
+                {quiz && (
+                  <Field
+                    className="ui-field"
+                    label={<>选项与正确答案</>}
+                    required={true}
+                  >
+                    <QuizOptionsEditor
+                      options={q.options}
+                      correctAnswer={q.correct_answer}
+                      disabled={action.busy || !!q.bank_question_version_id}
+                      onChange={(nextOptions, nextCorrect) =>
+                        setQuestions((v) =>
+                          v.map((x, j) =>
+                            j === i
+                              ? {
+                                  ...x,
+                                  options: nextOptions,
+                                  correct_answer: nextCorrect,
+                                }
+                              : x,
+                          ),
+                        )
+                      }
+                    />
+                  </Field>
+                )}
+              </div>
             </Card>
           ))}
 
@@ -795,6 +798,7 @@ export function AssignmentEditor({
             );
           }}
         />
+        </div>
       </Card>
     </div>
   );
@@ -962,6 +966,7 @@ export function AssignmentDetail() {
                     <article className="live-row" key={s.id}>
                       <div>
                         <Link
+                          style={{ overflowWrap: "anywhere" }}
                           to={`/${teacher ? "teacher" : "student"}/homework/submissions/${s.id}/${teacher ? "grade" : "feedback"}`}
                         >
                           {teacher && s.student_name
@@ -1272,186 +1277,196 @@ function QuestionAnswer({
       title={<>第 {index} 题 · 满分 {q.max_score} 分</>}
     >
       {modalContext}
-      <RichContent text={q.prompt} />
-      {showAssets && <PublishedAssets kind="questions" id={q.id} />}
-      {teacher ? (
-        <>
-          <Typography.Text strong className="item-title">
-            教师评分标准
-          </Typography.Text>
-          <p className="live-prose">{q.rubric}</p>
-          {q.bank_question_version_id ? (
-            <p className="live-meta">
-              <Link
-                to={`/teacher/question-bank?bank_version=${q.bank_question_version_id}`}
-              >
-                查看题库版本
-              </Link>
-            </p>
-          ) : (
-            q.type !== "quiz" && (
-              <RubricManager questionID={q.id} maxScore={q.max_score} />
-            )
-          )}
-        </>
-      ) : (
-        <>
-          {showCountdown && remainingMs !== null && (
-            <Alert
-              type="warning"
-              showIcon
-              message={`距离截止时间还剩 ${formatCountdown(remainingMs)}，请及时保存并提交。`}
-            />
-          )}
-          {closed && (
-            <Alert
-              type="info"
-              showIcon
-              message={`${a.status === "closed" ? "作业已关闭" : "已过截止时间"}，停止接收新提交，可查看原作答与反馈。`}
-            />
-          )}
-          {!closed && q.type === "quiz" && submissions.length > 0 && (
-            <Alert
-              type="info"
-              showIcon
-              message="客观测验默认仅允许作答 1 次；若需重测，需先由教师下发针对本题的补学任务。"
-            />
-          )}
-          <DraftNotice
-            restored={draft.restored}
-            storageError={draft.storageError}
-            onDiscard={() => {
-              draft.reset({
-                answer: remote.data?.answer_text || "",
-                request_id: uuid(),
-              });
-              setError("");
-            }}
-          />
-          <Feedback
-            error={remote.error}
-            message={error || action.message}
-            failed={!!error || action.failed}
-          />
-          {action.error?.code === "request_conflict" && (
-            <Alert
-              type="warning"
-              showIcon
-              message="提交请求号冲突，可重置请求号后重新提交。"
-              action={
-                <Button
-                  size="small"
-                  htmlType="button"
-                  onClick={() => {
-                    draft.change({ answer, request_id: uuid() });
-                    action.setMessage("");
-                  }}
+      <div className="live-stack" style={{ gap: 12 }}>
+        <RichContent text={q.prompt} />
+        {showAssets && <PublishedAssets kind="questions" id={q.id} />}
+        {teacher ? (
+          <>
+            <Typography.Text strong className="item-title" style={{ margin: 0 }}>
+              教师评分标准
+            </Typography.Text>
+            <p className="live-prose" style={{ margin: 0 }}>{q.rubric}</p>
+            {q.bank_question_version_id ? (
+              <p className="live-meta" style={{ margin: 0 }}>
+                <Link
+                  to={`/teacher/question-bank?bank_version=${q.bank_question_version_id}`}
                 >
-                  重置请求号
-                </Button>
-              }
-            />
-          )}
-          {q.type === "quiz" ? (
-            <Radio.Group
-              aria-label="我的作答"
-              name={q.id}
-              value={answer}
-              disabled={!draft.ready || closed}
-              onChange={(e) => updateAnswer(String(e.target.value))}
-            >
-              <Space direction="vertical" className="live-full-width">
-                {q.options.map((o, i) => (
-                  <Radio className="live-option" key={i} value={o}>
-                    {o}
-                  </Radio>
-                ))}
-              </Space>
-            </Radio.Group>
-          ) : (
-            <Field className="ui-field" label={<>我的作答</>}>
-              <Input.TextArea
-                aria-label="我的作答"
-                rows={12}
-                disabled={!draft.ready || closed}
-                value={answer}
-                onChange={(e) => updateAnswer(e.target.value)}
-              />
-            </Field>
-          )}
-          <div className="answer-status" role="status">
-            <span>
-              {saving
-                ? "正在保存…"
-                : error
-                  ? "保存失败，内容已暂存，可重试"
-                  : draft.dirty
-                    ? "尚未保存到平台"
-                    : savedAt
-                      ? `已保存 ${savedAt}`
-                      : remote.data
-                        ? `草稿已读取 · ${when(remote.data.updated_at)}`
-                        : "尚未开始作答"}
-            </span>
-            <span>
-              {answer.length}字
-              {answerBytes > 150000
-                ? `（${answerBytes}/${MAX_ANSWER_BYTES} 字节）`
-                : ""}
-            </span>
-          </div>
-          {answerTooLarge && (
-            <Alert
-              type="error"
-              showIcon
-              role="alert"
-              message={`作答内容超过 ${MAX_ANSWER_BYTES} 字节上限，请精简后再提交。`}
-            />
-          )}
-          {receipt && (
-            <Alert
-              type="success"
-              showIcon
-              message={`已记录第 ${receipt.attempt} 次提交（${when(receipt.submitted_at)}）`}
-              action={
-                <Link to={`/student/homework/submissions/${receipt.id}/feedback`}>
-                  {q.type === "quiz" ? "查看判分结果" : "查看本次提交"}
+                  查看题库版本
                 </Link>
-              }
-            />
-          )}
-          <div className="live-inline">
-            <Button
-              htmlType="button"
-              disabled={saving || !draft.ready || closed || answerTooLarge}
-              onClick={() => void saveDraft()}
-            >
-              保存作答草稿
-            </Button>
-            <Button
-              htmlType="button"
-              disabled={
-                action.busy ||
-                saving ||
-                closed ||
-                !answer.trim() ||
-                !quizSelectionValid ||
-                answerTooLarge ||
-                answerHasNull
-              }
-              onClick={submit}
-              type="primary"
-            >
-              提交本题
-            </Button>
-            {latest && (
-              <Link to={`/student/homework/submissions/${latest.id}/feedback`}>
-                查看第{latest.attempt}次提交与反馈
-              </Link>
+              </p>
+            ) : (
+              q.type !== "quiz" && (
+                <RubricManager questionID={q.id} maxScore={q.max_score} />
+              )
             )}
-          </div>
-        </>
-      )}
+          </>
+        ) : (
+          <>
+            {showCountdown && remainingMs !== null && (
+              <Alert
+                type="warning"
+                showIcon
+                message={`距离截止时间还剩 ${formatCountdown(remainingMs)}，请及时保存并提交。`}
+              />
+            )}
+            {closed && (
+              <Alert
+                type="info"
+                showIcon
+                message={`${a.status === "closed" ? "作业已关闭" : "已过截止时间"}，停止接收新提交，可查看原作答与反馈。`}
+              />
+            )}
+            {!closed && q.type === "quiz" && submissions.length > 0 && (
+              <Alert
+                type="info"
+                showIcon
+                message="客观测验默认仅允许作答 1 次；若需重测，需先由教师下发针对本题的补学任务。"
+              />
+            )}
+            <DraftNotice
+              restored={draft.restored}
+              storageError={draft.storageError}
+              onDiscard={() => {
+                draft.reset({
+                  answer: remote.data?.answer_text || "",
+                  request_id: uuid(),
+                });
+                setError("");
+              }}
+            />
+            <Feedback
+              error={remote.error}
+              message={error || action.message}
+              failed={!!error || action.failed}
+            />
+            {action.error?.code === "request_conflict" && (
+              <Alert
+                type="warning"
+                showIcon
+                message="提交请求号冲突，可重置请求号后重新提交。"
+                action={
+                  <Button
+                    size="small"
+                    htmlType="button"
+                    onClick={() => {
+                      draft.change({ answer, request_id: uuid() });
+                      action.setMessage("");
+                    }}
+                  >
+                    重置请求号
+                  </Button>
+                }
+              />
+            )}
+            {q.type === "quiz" ? (
+              <Radio.Group
+                aria-label="我的作答"
+                name={q.id}
+                value={answer}
+                disabled={!draft.ready || closed}
+                onChange={(e) => updateAnswer(String(e.target.value))}
+                style={{ width: "100%" }}
+              >
+                <Space direction="vertical" className="live-full-width">
+                  {q.options.map((o, i) => (
+                    <Radio
+                      className="live-option"
+                      key={i}
+                      value={o}
+                      style={{ width: "100%", overflowWrap: "anywhere" }}
+                    >
+                      {o}
+                    </Radio>
+                  ))}
+                </Space>
+              </Radio.Group>
+            ) : (
+              <Form layout="vertical" component={false}>
+                <Field className="ui-field" label={<>我的作答</>}>
+                  <Input.TextArea
+                    aria-label="我的作答"
+                    rows={12}
+                    disabled={!draft.ready || closed}
+                    value={answer}
+                    onChange={(e) => updateAnswer(e.target.value)}
+                  />
+                </Field>
+              </Form>
+            )}
+            <div className="answer-status" role="status">
+              <span>
+                {saving
+                  ? "正在保存…"
+                  : error
+                    ? "保存失败，内容已暂存，可重试"
+                    : draft.dirty
+                      ? "尚未保存到平台"
+                      : savedAt
+                        ? `已保存 ${savedAt}`
+                        : remote.data
+                          ? `草稿已读取 · ${when(remote.data.updated_at)}`
+                          : "尚未开始作答"}
+              </span>
+              <span>
+                {answer.length}字
+                {answerBytes > 150000
+                  ? `（${answerBytes}/${MAX_ANSWER_BYTES} 字节）`
+                  : ""}
+              </span>
+            </div>
+            {answerTooLarge && (
+              <Alert
+                type="error"
+                showIcon
+                role="alert"
+                message={`作答内容超过 ${MAX_ANSWER_BYTES} 字节上限，请精简后再提交。`}
+              />
+            )}
+            {receipt && (
+              <Alert
+                type="success"
+                showIcon
+                message={`已记录第 ${receipt.attempt} 次提交（${when(receipt.submitted_at)}）`}
+                action={
+                  <Link to={`/student/homework/submissions/${receipt.id}/feedback`}>
+                    {q.type === "quiz" ? "查看判分结果" : "查看本次提交"}
+                  </Link>
+                }
+              />
+            )}
+            <div className="live-inline">
+              <Button
+                htmlType="button"
+                disabled={saving || !draft.ready || closed || answerTooLarge}
+                onClick={() => void saveDraft()}
+              >
+                保存作答草稿
+              </Button>
+              <Button
+                htmlType="button"
+                disabled={
+                  action.busy ||
+                  saving ||
+                  closed ||
+                  !answer.trim() ||
+                  !quizSelectionValid ||
+                  answerTooLarge ||
+                  answerHasNull
+                }
+                onClick={submit}
+                type="primary"
+              >
+                提交本题
+              </Button>
+              {latest && (
+                <Link to={`/student/homework/submissions/${latest.id}/feedback`}>
+                  查看第{latest.attempt}次提交与反馈
+                </Link>
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </Card>
   );
 }
@@ -1551,7 +1566,10 @@ export function SubmissionList() {
               <>
                 {roster.data?.rows.map((m) => (
                   <div className="live-row" key={m.student_id}>
-                    <Link to={`/teacher/dashboard?student=${m.student_id}`}>
+                    <Link
+                      style={{ overflowWrap: "anywhere" }}
+                      to={`/teacher/dashboard?student=${m.student_id}`}
+                    >
                       {m.display_name}
                     </Link>
                     <MetaTag>
@@ -1597,15 +1615,16 @@ export function SubmissionList() {
               rowKey="id"
               dataSource={q.data?.rows || []}
               pagination={false}
-              scroll={{ x: 720 }}
+              scroll={{ x: 825 }}
               locale={{ emptyText: "当前筛选没有提交" }}
               columns={[
-                { title: "学生", dataIndex: "student_name" },
-                { title: "题目", dataIndex: "prompt", ellipsis: true },
-                { title: "次数", dataIndex: "attempt" },
+                { title: "学生", dataIndex: "student_name", width: 120 },
+                { title: "题目", dataIndex: "prompt", width: 180, ellipsis: true },
+                { title: "次数", dataIndex: "attempt", width: 72 },
                 {
                   title: "来源",
                   dataIndex: "teacher_imported",
+                  width: 100,
                   render: (value: boolean) => (
                     <MetaTag>{value ? "教师导入" : "学生提交"}</MetaTag>
                   ),
@@ -1613,12 +1632,14 @@ export function SubmissionList() {
                 {
                   title: "时间",
                   dataIndex: "submitted_at",
+                  width: 165,
                   onCell: () => ({ style: { whiteSpace: "nowrap" } }),
                   render: (value: string) => when(value),
                 },
                 {
                   title: "状态",
                   dataIndex: "review_state",
+                  width: 96,
                   render: (value: string) => (
                     <StatusTag
                       status={value}
@@ -1629,6 +1650,7 @@ export function SubmissionList() {
                 {
                   title: "操作",
                   key: "actions",
+                  width: 92,
                   render: (_, s) => (
                     <Link
                       to={`/teacher/homework/submissions/${s.id}/grade?${params}`}
@@ -1642,6 +1664,7 @@ export function SubmissionList() {
           </div>
         )}
         <Pagination
+          responsive
           hideOnSinglePage
           current={page}
           pageSize={20}

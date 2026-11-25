@@ -3,6 +3,7 @@ import { Alert, Button, Drawer, Space } from "antd";
 import { useConfirm } from "../shared/confirm";
 import { ErrorState, LoadingState } from "../shared/ui";
 import { useLiveQuery } from "./context";
+import { ContextAgentBoundary } from "./context-agent";
 import { EditorScope } from "./editing";
 import type { IntelligenceDetail } from "./intelligence";
 import type { Assignment, Knowledge, Question } from "./types";
@@ -70,7 +71,12 @@ export function AgentEditor({
       <Drawer
         title={names[target.kind] || "编辑器"}
         open={open}
-        width="min(100vw, 1100px)"
+        width="min(100%, 1100px)"
+        styles={{
+          wrapper: { maxWidth: "100%" },
+          header: { minWidth: 0 },
+          body: { minWidth: 0 },
+        }}
         destroyOnHidden
         maskClosable={false}
         push={false}
@@ -78,7 +84,11 @@ export function AgentEditor({
           void requestClose("尚有未保存编辑。暂时收起并保留浏览器草稿？")
         }
         footer={
-          <Space wrap>
+          <Space
+            wrap
+            style={{ maxWidth: "100%" }}
+            styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
+          >
             <Button
               type="primary"
               loading={submitting}
@@ -111,15 +121,23 @@ export function AgentEditor({
           </Space>
         }
       >
-        <Space direction="vertical" className="live-full-width" size="middle">
+        <Space
+          direction="vertical"
+          className="live-full-width"
+          size="middle"
+          style={{ minWidth: 0, maxWidth: "100%" }}
+          styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
+        >
           {endedNotice && (
             <Alert type="warning" showIcon message={endedNotice} />
           )}
-          <EditorScope isolated onDirtyChange={setDrawerDirty}>
-            <Suspense fallback={<LoadingState />}>
-              <EditorBody target={target} />
-            </Suspense>
-          </EditorScope>
+          <ContextAgentBoundary>
+            <EditorScope isolated onDirtyChange={setDrawerDirty}>
+              <Suspense fallback={<LoadingState />}>
+                <EditorBody target={target} />
+              </Suspense>
+            </EditorScope>
+          </ContextAgentBoundary>
         </Space>
       </Drawer>
     </>

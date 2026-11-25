@@ -82,8 +82,11 @@
 }
 .rag-two-fields {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+}
+.rag-two-fields > * {
+  min-width: 0;
 }
 .rag-ai-tool {
   border: 1px solid var(--mint-line);
@@ -100,7 +103,10 @@
   overflow: auto;
 }
 .rich-content {
+  min-width: 0;
+  max-width: 100%;
   overflow-wrap: anywhere;
+  word-break: break-word;
   white-space: normal;
   line-height: 1.85;
 }
@@ -109,11 +115,14 @@
 .rich-content h1, .rich-content h2, .rich-content h3 { margin: 1em 0 .5em; }
 .rich-content h1 { font-size: 24px; }
 .rich-content h2 { font-size: 20px; }
-.rich-content pre { padding: 16px; border-radius: var(--radius-sm); background: var(--surface); overflow-x: auto; white-space: pre; }
+.rich-content pre { max-width: 100%; padding: 16px; border-radius: var(--radius-sm); background: var(--surface); overflow-x: auto; white-space: pre; }
 .rich-content table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
 .rich-content th, .rich-content td { padding: 8px 12px; border: 1px solid var(--line); }
 .rich-content th { background: var(--surface); }
+.rich-content blockquote { min-width: 0; max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
+.rich-content .katex { max-width: 100%; overflow-x: auto; overflow-y: hidden; vertical-align: bottom; display: inline-block; }
 .rich-content .katex-display { overflow-x: auto; overflow-y: hidden; }
+.rich-content .katex-display > .katex { display: block; }
 .formula-block {
   display: block;
   max-width: 100%;
@@ -172,14 +181,15 @@
 }
 @media (max-width: 760px) {
   .regrade-editor {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
-  .rag-jobs .rag-job {
-    flex-wrap: wrap;
+  .rag-job .ant-progress {
+    width: 100%;
   }
 }
 .rag-job {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 16px;
   border-top: 1px solid var(--line);
@@ -190,8 +200,9 @@
   min-width: 0;
 }
 .rag-job .ui-meta-tags { margin-top: 8px; }
-.rag-job p {
+.rag-job .rag-job-error {
   color: var(--danger);
+  margin: 0;
 }
 .rag-job .ant-progress {
   width: 140px;
@@ -215,16 +226,10 @@
 }
 @media (max-width: 700px) {
   .rag-two-fields {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .rag-toolbar {
     align-items: stretch;
-  }
-  .rag-job {
-    flex-wrap: wrap;
-  }
-  .rag-job .ant-progress {
-    width: 100%;
   }
   .rag-fragment .live-prose {
     max-height: none;
@@ -247,8 +252,8 @@
 .bank-evidence .rag-hit {
   overflow-wrap: anywhere;
 }
-.rag-source.ant-btn { height: auto; min-height: 168px; white-space: normal; padding: 20px; align-items: stretch; justify-content: flex-start; box-shadow: var(--shadow); }
-.rag-source.ant-btn > strong { color: var(--ink); font-size: var(--text-md); line-height: 1.5; }
+.rag-source.ant-btn { display: flex; flex-direction: column; height: auto; min-height: 168px; white-space: normal; padding: 20px; align-items: stretch; justify-content: flex-start; box-shadow: var(--shadow); }
+.rag-source.ant-btn > strong { color: var(--ink); font-size: var(--text-md); line-height: 1.5; overflow-wrap: anywhere; }
 .rag-source.ant-btn > .ui-meta-tags { margin-top: auto; }
 .rag-source.ant-btn:hover { background: var(--panel); box-shadow: var(--shadow-raised); }
 .rag-source.ant-btn > p { color: var(--danger); font-size: var(--text-sm); margin: 0; }
@@ -256,8 +261,10 @@
 .material-task-workspace { display: grid; grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); gap: 16px; align-items: start; }
 .material-object-list { display: grid; gap: var(--space-3); align-content: start; min-width: 0; }
 .material-current-object { min-width: 0; }
-.material-object-list .rag-source-list { display: flex; flex-direction: column; max-height: 60vh; overflow-y: auto; }
-.material-object-list .rag-source.ant-btn { width: 100%; min-height: 100px; padding: 14px; }
+.material-object-list .rag-source-list { display: flex; flex-direction: column; gap: 10px; padding: 2px 4px 4px 2px; max-height: 60dvh; overflow-y: auto; }
+.material-object-list .rag-source.ant-btn { flex: 0 0 auto; display: flex; flex-direction: column; width: 100%; height: auto; min-height: auto; padding: 12px 14px; gap: 8px; overflow: hidden; align-items: stretch; justify-content: flex-start; }
+.material-object-list .rag-source.ant-btn > strong { overflow-wrap: anywhere; width: 100%; }
+.material-object-list .rag-source.ant-btn > .ui-meta-tags { margin-top: 0; width: 100%; }
 .material-object-list .rag-source[aria-pressed="true"] { border-color: var(--teal); background: var(--mint-soft); }
 .job-raw-output { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow: auto; font-size: var(--text-xs); }
 .media-player-card {
@@ -274,7 +281,7 @@
   background: #000;
   display: block;
 }
-@media (max-width: 1050px) {
+@media (max-width: 1023px) {
   .material-task-workspace { grid-template-columns: minmax(0, 1fr); }
   .material-object-list .rag-source-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); max-height: 240px; }
 }

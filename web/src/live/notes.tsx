@@ -195,7 +195,6 @@ export function ResourceNotes({ resourceId }: { resourceId: string }) {
         />
       </Field>
       <Checkbox
-        className="live-option"
         disabled={!draft.ready}
         checked={favorite}
         onChange={(e) => setFavorite(e.target.checked)}

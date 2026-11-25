@@ -1,4 +1,4 @@
-const { choose, selectedText, selectFile } = require('./browser-ui.cjs');
+const { choose, selectedText, selectFile, selectRoot } = require('./browser-ui.cjs');
 // Local browser acceptance; genuine model calls use the shared database budget.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -73,17 +73,25 @@ const pass = message => { if (!report.checks.includes(message)) report.checks.pu
     await upload.getByLabel('资料来源', { exact: true }).fill('本地浏览器验收构造资料');
     await upload.getByLabel('允许从本资料提炼知识候选', { exact: true }).check();
     await upload.getByRole('button', { name: '上传并解析', exact: true }).click();
+    await upload.getByRole('button', { name: '查看此文件处理', exact: true }).click();
     await upload.waitFor({ state: 'hidden' });
     }
     await waitJobs('parse');
     await t.getByRole('button', { name: '刷新', exact: true }).click();
     await t.locator('.rag-source').filter({ hasText: 'boundary.txt' }).click();
-    const sourceDrawer = t.getByRole('dialog');
+    const sourcePanel = t.getByRole('region', { name: '资料核对与发布', exact: true });
+    await sourcePanel.getByRole('tab', { name: '分段与发布', exact: true }).click();
     if (!(await tc('GET', api + '/resources')).length) {
-    await sourceDrawer.locator('.rag-fragment input[type=checkbox]').first().check();
-    await sourceDrawer.getByLabel('发布标题', { exact: true }).fill('边界值分析公开学习资料');
+    await sourcePanel.locator('.ant-segmented-item').filter({ hasText: '手动自选片段发布' }).click();
+    const manualPublish = sourcePanel.locator('.ant-card').filter({ hasText: '手动自选片段发布 · 已选' });
+    await manualPublish.locator('label.rag-check').filter({ hasNotText: /仅看标题与前 60 字预览|发布完整原件/ }).first().getByRole('checkbox').check();
+    await sourcePanel.getByLabel('发布标题', { exact: true }).fill('边界值分析公开学习资料');
     const publication = t.waitForResponse(r => r.url().endsWith('/publish') && r.request().method() === 'POST');
-    await sourceDrawer.getByRole('button', { name: '确认并发布到课程学习', exact: true }).click();
+    await sourcePanel.getByRole('button', { name: '确认并发布到课程学习', exact: true }).click();
+    const confirmModal = t.locator('.ant-modal-confirm');
+    await confirmModal.waitFor();
+    await confirmModal.getByRole('button', { name: '确认', exact: true }).click();
+    await confirmModal.waitFor({ state: 'hidden' });
     const publicationResponse = await publication;
     assert(publicationResponse.status() === 200, 'Publication failed: ' + publicationResponse.status());
     }
@@ -92,16 +100,23 @@ const pass = message => { if (!report.checks.includes(message)) report.checks.pu
     await screenshot('rag-source-desktop');
     pass('Browser upload, parse preview, selection and publication persist through real APIs');
 
+    await sourcePanel.getByRole('tab', { name: '知识候选', exact: true }).click();
     if (!(await tc('GET', api + '/knowledge')).length) {
-      await sourceDrawer.getByRole('button', { name: 'AI提炼知识候选', exact: true }).click();
+      const extractSelect = sourcePanel.getByRole('combobox', { name: '选择提炼片段', exact: true });
+      await selectRoot(extractSelect).click();
+      const extractPopup = t.locator('.ant-select-dropdown:visible');
+      await extractPopup.locator('.ant-select-item-option:not(.ant-select-item-option-disabled)').first().click();
+      await extractSelect.press('Escape');
+      await extractPopup.waitFor({ state: 'hidden' });
+      await sourcePanel.getByRole('button', { name: 'AI提炼知识候选', exact: true }).click();
       await waitJobs('extract');
+      await t.getByRole('button', { name: '刷新', exact: true }).click();
     }
-    await sourceDrawer.getByRole('link', { name: '审核知识候选', exact: true }).click();
-    await t.getByRole('button', { name: '新建知识', exact: true }).waitFor();
+    await sourcePanel.getByRole('button', { name: '新建知识', exact: true }).waitFor();
     const knowledge = await tc('GET', api + '/knowledge');
     const item = knowledge.find(k => k.id === report.knowledge_id) || knowledge.find(k => k.student_visible && k.use_for_grading) || knowledge[0];
     report.knowledge_id = item.id; save();
-    const candidate = t.locator('.rag-knowledge').filter({ has: t.getByText(item.title, { exact: true }) });
+    const candidate = sourcePanel.locator('.rag-knowledge').filter({ has: t.getByText(item.title, { exact: true }) });
     if (item.state === 'draft') {
     await candidate.getByRole('button', { name: '编辑候选', exact: true }).click();
     const editor = t.getByRole('dialog');
@@ -110,7 +125,8 @@ const pass = message => { if (!report.checks.includes(message)) report.checks.pu
     await editor.getByRole('button', { name: '保存待审核版本', exact: true }).click();
     await editor.waitFor({ state: 'hidden' });
     await candidate.getByRole('button', { name: '确认知识', exact: true }).click();
-    await candidate.getByText('已确认 · v1', { exact: true }).waitFor();
+    await candidate.locator('.ui-status-tag').getByText('已确认', { exact: true }).waitFor();
+    await candidate.locator('.ui-meta-tag').getByText('v1', { exact: true }).waitFor();
     }
     const confirmed = (await tc('GET', api + '/knowledge')).find(k => k.id === item.id);
     assert(confirmed.student_visible && confirmed.use_for_grading, 'Knowledge settings lost');
@@ -125,7 +141,7 @@ const pass = message => { if (!report.checks.includes(message)) report.checks.pu
     await t.getByRole('button', { name: '检索依据', exact: true }).click();
     await t.locator('.rag-hit').first().waitFor();
     await t.locator('.rag-hit').filter({ has: t.getByRole('link', { name: '查看原文', exact: true }) }).first().getByRole('link', { name: '查看原文', exact: true }).click();
-    await t.getByRole('dialog').getByText('原文修订', { exact: false }).waitFor();
+    await t.getByRole('region', { name: '资料核对与发布', exact: true }).getByText('原文修订', { exact: false }).waitFor();
     await screenshot('rag-source-reference');
     await s.goto(url('student', 'retrieval'));
     await s.getByLabel('课程问题', { exact: true }).fill('ALPHA_PRIVATE_731');
@@ -209,7 +225,7 @@ const pass = message => { if (!report.checks.includes(message)) report.checks.pu
     await frozen.locator('.rag-hit').first().waitFor();
     await screenshot('rag-frozen-rubric-evidence');
     await frozen.getByRole('link', { name: '查看引用原文', exact: true }).first().click();
-    await t.getByRole('dialog').getByText('原文修订', { exact: false }).waitFor();
+    await t.getByRole('region', { name: '资料核对与发布', exact: true }).getByText('原文修订', { exact: false }).waitFor();
     await t.goto(`${base}/teacher/homework/submissions/${httpReport.submission_id}/grade?course=${httpReport.course_id}`);
     await t.getByRole('button', { name: '基于当前评分修改', exact: true }).click();
     await t.getByRole('button', { name: '载入编辑区', exact: true }).waitFor();
@@ -224,7 +240,7 @@ const pass = message => { if (!report.checks.includes(message)) report.checks.pu
     const original = (await tc('GET', api + '/resources'))[0];
     if (!report.history_checked) {
       await t.goto(url('teacher', 'materials', '&source=' + sourceID));
-      const fragment = t.getByRole('dialog').locator('.rag-fragment').first();
+      const fragment = t.getByRole('region', { name: '资料核对与发布', exact: true }).locator('.rag-fragment').first();
       await fragment.getByRole('button', { name: '校正原文', exact: true }).click();
       const edit = fragment.locator('textarea');
       await edit.fill((await edit.inputValue()) + ' 本次校对保留历史版本。');
@@ -252,13 +268,13 @@ const pass = message => { if (!report.checks.includes(message)) report.checks.pu
     await t.goto(url('teacher', 'materials'));
     await t.locator('.rag-source').first().click();
     await t.waitForFunction(() => {
-      const e = document.querySelector('[role=dialog]');
+      const e = document.querySelector('[aria-label="资料核对与发布"] .source-task-workspace');
       const r = e?.getBoundingClientRect();
       return r && r.width > 300 && r.left >= -1 && r.right <= innerWidth + 1;
     });
     await screenshot('rag-source-mobile');
     assert(errors.length === 0, errors.join('\n'));
-    pass('375px teacher/student pages and source drawer fit; no page errors');
+    pass('375px teacher/student pages and source workspace fit; no page errors');
     report.completed_at = new Date().toISOString();
     delete report.page_errors; delete report.failure_pages;
     save();

@@ -14,11 +14,13 @@ import {
   Button,
   Card,
   Checkbox,
-  Divider,
   Drawer,
+  Dropdown,
   Form,
   Input,
   Pagination,
+  Progress,
+  Segmented,
   Select,
   Space,
   Tabs,
@@ -49,6 +51,7 @@ import {
   Feedback,
   Link,
   useAction,
+  useCourseNavigate,
   useLearning,
   useLiveQuery,
   when,
@@ -76,7 +79,6 @@ import type {
   SourceDetail,
 } from "./types";
 import { hasControlNull, utf8ByteLength } from "./validation";
-import "./knowledge.css";
 
 const LazyCourseWorkspace = lazy(() =>
   import("./course").then((m) => ({ default: m.CourseWorkspace })),
@@ -471,7 +473,7 @@ export function MaterialsPage() {
         title="检索索引与处理任务"
         open={indexDrawerOpen}
         onClose={() => setIndexDrawerOpen(false)}
-        width={540}
+        width="min(100%, 540px)"
       >
         <Space direction="vertical" className="live-full-width" size="middle">
           <div className="live-inline">
@@ -834,6 +836,13 @@ function UploadForm({
   );
 }
 
+const VALID_SOURCE_VIEWS = new Set([
+  "original",
+  "publication",
+  "knowledge",
+  "tasks",
+]);
+
 export function SourceWorkspace({
   id,
   fragmentID = "",
@@ -851,7 +860,12 @@ export function SourceWorkspace({
     setLocalFragmentID(fragmentID);
   }, [fragmentID, id]);
 
-  const tab = embedded ? localTab : params.get("source_view") || "original";
+  const rawView = params.get("source_view");
+  const tab = embedded
+    ? localTab
+    : rawView && VALID_SOURCE_VIEWS.has(rawView)
+      ? rawView
+      : "original";
   const activeFragmentID = embedded ? localFragmentID : fragmentID;
 
   const setTab = useCallback(
@@ -872,84 +886,98 @@ export function SourceWorkspace({
   const detailPath = `/sources/${id}${activeFragmentID ? `?fragment_id=${encodeURIComponent(activeFragmentID)}` : ""}`;
   const query = useLiveQuery<SourceDetail>(detailPath, !!id);
 
+  const clearFragment = useCallback(() => {
+    if (embedded) {
+      setLocalFragmentID("");
+    } else {
+      setParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("fragment");
+        return next;
+      });
+    }
+  }, [embedded, setParams]);
+
+  const selectReplacedSource = useCallback(
+    (newSourceID: string) => {
+      if (embedded) {
+        setLocalTab("tasks");
+        return;
+      }
+      setParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("source", newSourceID);
+        next.set("source_view", "tasks");
+        next.delete("fragment");
+        return next;
+      });
+    },
+    [embedded, setParams],
+  );
+
   return (
     <div className="source-task-workspace">
       <div className="workspace-heading">
         <Typography.Text strong className="item-title">
           {query.data?.source.title || "资料工作区"}
         </Typography.Text>
-        <ContextAgent
-          context={{
-            kind: "source",
-            id,
-            title: query.data?.source.title || "原件",
-          }}
-        />
+        {!embedded && (
+          <ContextAgent
+            context={{
+              kind: "source",
+              id,
+              title: query.data?.source.title || "原件",
+            }}
+          />
+        )}
       </div>
       <Tabs
         activeKey={tab}
         onChange={setTab}
         items={[
           { key: "original", label: "原文核对" },
+          { key: "publication", label: "分段与发布" },
           { key: "knowledge", label: "知识候选" },
-          { key: "tasks", label: "处理记录" },
-          { key: "publication", label: "学习内容与发布" },
+          { key: "tasks", label: "任务与记录" },
         ]}
       />
       {tab === "original" && (
-        <SourceDocument
+        <SourceOriginalTab
           id={id}
           fragmentID={activeFragmentID}
           query={query}
           embedded={embedded}
+          onClearFragment={clearFragment}
+          onSelectReplacedSource={selectReplacedSource}
+        />
+      )}
+      {tab === "publication" && (
+        <SourcePublicationTab
+          id={id}
+          query={query}
+          embedded={embedded}
           onOpenTab={setTab}
-          onClearFragment={() => {
-            if (embedded) {
-              setLocalFragmentID("");
-            } else {
-              setParams((prev) => {
-                const next = new URLSearchParams(prev);
-                next.delete("fragment");
-                return next;
-              });
-            }
-          }}
-          onSelectReplacedSource={(newSourceID) => {
-            if (embedded) {
-              setLocalTab("tasks");
-              return;
-            }
-            setParams((prev) => {
-              const next = new URLSearchParams(prev);
-              next.set("source", newSourceID);
-              next.set("source_view", "tasks");
-              next.delete("fragment");
-              return next;
-            });
-          }}
+          onClearFragment={clearFragment}
         />
       )}
       {tab === "knowledge" && (
-        <Suspense fallback={<LoadingState label="正在加载知识候选…" />}>
-          <LazyKnowledgePage sourceID={id} embedded />
-        </Suspense>
+        <SourceKnowledgeTab id={id} query={query} />
       )}
-      {tab === "tasks" && <JobsPanel sourceID={id} expanded />}
-      {tab === "publication" && (
-        <Suspense fallback={<LoadingState label="正在加载学习内容…" />}>
-          <LazyCourseWorkspace sourceID={id} />
-        </Suspense>
+      {tab === "tasks" && (
+        <div className="live-stack">
+          <JobsPanel sourceID={id} expanded />
+          <DecisionHistory id={id} defaultExpanded />
+        </div>
       )}
     </div>
   );
 }
 
-function SourceDocument({
+function SourceOriginalTab({
   id,
   fragmentID,
   query,
   embedded,
-  onOpenTab,
   onClearFragment,
   onSelectReplacedSource,
 }: {
@@ -957,27 +985,25 @@ function SourceDocument({
   fragmentID: string;
   query: ReturnType<typeof useLiveQuery<SourceDetail>>;
   embedded: boolean;
-  onOpenTab: (tab: string) => void;
   onClearFragment: () => void;
   onSelectReplacedSource: (newSourceID: string) => void;
 }) {
   const confirm = useConfirm();
   const { course } = useLearning();
+  const courseNavigate = useCourseNavigate();
   const action = useAction();
-  const [selected, setSelected] = useState<string[]>([]);
-  const [title, setTitle] = useState("");
-  const [full, setFull] = useState(false);
-  const [model, setModel] = useState("");
+
   const [replacing, setReplacing] = useState(false);
   const [replacementBusy, setReplacementBusy] = useState(false);
-  const [point, setPoint] = useState("");
-  const [publication, setPublication] = useState<Resource | null>(null);
+  const [classifyOpen, setClassifyOpen] = useState(false);
   const [paperOpen, setPaperOpen] = useState(false);
   const [paperDirty, setPaperDirty] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState("");
   const [fragmentSearch, setFragmentSearch] = useState("");
+  const [onlyNeedsReview, setOnlyNeedsReview] = useState(false);
   const [fragmentPage, setFragmentPage] = useState(1);
+
   const [searchParams] = useSearchParams();
   const rawT = searchParams.get("t");
   const initialSeekMs = useMemo(() => {
@@ -993,18 +1019,23 @@ function SourceDocument({
     setSeekState((prev) => ({ ms, nonce: prev.nonce + 1 }));
   }, []);
   const dirtyFragmentsRef = useRef<Set<number>>(new Set());
-  const points = useLiveQuery<{ points: Point[] }>("");
 
   useEffect(() => {
     setSeekState((prev) => ({ ms: initialSeekMs, nonce: prev.nonce + 1 }));
   }, [id, initialSeekMs]);
+
+  useEffect(() => {
+    if (fragmentID) {
+      setOnlyNeedsReview(false);
+      setFragmentSearch("");
+    }
+  }, [fragmentID]);
 
   const source = query.data?.source;
   const fragments = query.data?.fragments || [];
   const displayRevision = query.data?.display_revision ?? 0;
 
   useEffect(() => {
-    setSelected([]);
     dirtyFragmentsRef.current.clear();
   }, [source?.parse_revision, displayRevision]);
 
@@ -1013,13 +1044,24 @@ function SourceDocument({
     [fragments],
   );
 
+  const needsReviewCount = useMemo(
+    () => fragments.filter((f) => f.quality === "needs_review").length,
+    [fragments],
+  );
+
   const filteredFragments = useMemo(() => {
     const needle = fragmentSearch.trim().toLowerCase();
-    if (!needle) return indexedFragments;
-    return indexedFragments.filter(({ fragment }) =>
-      `${fragment.heading} ${fragment.body}`.toLowerCase().includes(needle),
-    );
-  }, [indexedFragments, fragmentSearch]);
+    return indexedFragments.filter(({ fragment }) => {
+      if (onlyNeedsReview && fragment.quality !== "needs_review") return false;
+      if (
+        needle &&
+        !`${fragment.heading} ${fragment.body}`.toLowerCase().includes(needle)
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [indexedFragments, fragmentSearch, onlyNeedsReview]);
 
   useEffect(() => {
     if (!fragmentID || !filteredFragments.length) return;
@@ -1046,17 +1088,6 @@ function SourceDocument({
     return set;
   }, [fragments]);
 
-  const selectedPublishBytes = useMemo(() => {
-    const selectedSet = new Set(selected);
-    let total = 0;
-    for (const f of fragments) {
-      if (selectedSet.has(f.id)) {
-        total += utf8ByteLength(f.heading) + utf8ByteLength(f.body) + 3;
-      }
-    }
-    return total;
-  }, [fragments, selected]);
-
   if (!course) {
     return <EmptyState title="请先选择当前课程" />;
   }
@@ -1075,14 +1106,6 @@ function SourceDocument({
   const videoSource = isVideoSource(source.media_type, source.filename);
   const isParsing =
     source.parse_state === "queued" || source.parse_state === "running";
-  const publishTitle = (title || source.title).trim();
-  const publishTitleTooLong =
-    !publishTitle ||
-    utf8ByteLength(publishTitle) > 500 ||
-    hasControlNull(publishTitle);
-  const fullMismatch = full && selected.length !== fragments.length;
-  const publishTooLarge = selectedPublishBytes > 200000;
-  const extractTooLarge = selectedPublishBytes > 60000;
 
   const totalFragmentPages = Math.max(
     1,
@@ -1131,7 +1154,7 @@ function SourceDocument({
 
   return (
     <div className="live-form">
-      <div className="live-inline">
+      <Space wrap>
         <Button
           htmlType="button"
           disabled={!editable || replacementBusy}
@@ -1139,28 +1162,6 @@ function SourceDocument({
         >
           {replacing ? "取消上传新版本" : "上传原件新版本"}
         </Button>
-        {editable && (
-          <Link
-            className="ghost-btn"
-            to={`/teacher/question-bank?new=1&source_id=${encodeURIComponent(id)}`}
-          >
-            据此出题
-          </Link>
-        )}
-        <MetaTags>
-          {videoSource && <Tag color="purple">视频</Tag>}
-          <StatusTag
-            status={
-              source.state === "archived" ? "archived" : source.parse_state
-            }
-            label={
-              source.state === "archived"
-                ? "已归档"
-                : labelFor(stateLabels, source.parse_state)
-            }
-          />
-          <MetaTag>原文修订 {displayRevision}</MetaTag>
-        </MetaTags>
         <Button
           htmlType="button"
           loading={downloading}
@@ -1199,14 +1200,67 @@ function SourceDocument({
             }
           }}
         >
-          归档
+          {source.state === "archived" ? "已归档" : "归档"}
         </Button>
-      </div>
+        <Button htmlType="button" onClick={() => setClassifyOpen(true)}>
+          归类与标签
+        </Button>
+        {editable && (
+          <Dropdown
+            trigger={["click"]}
+            menu={{
+              items: [
+                {
+                  key: "question",
+                  label: "据此出题",
+                  onClick: () =>
+                    courseNavigate(
+                      `/teacher/question-bank?new=1&source_id=${encodeURIComponent(id)}`,
+                    ),
+                },
+                {
+                  key: "paper",
+                  label:
+                    videoSource || !fragments.length
+                      ? "在此拆分试卷（仅非视频且有片段可用）"
+                      : "在此拆分试卷",
+                  disabled: videoSource || !fragments.length,
+                  onClick: () => setPaperOpen(true),
+                },
+              ],
+            }}
+          >
+            <Button htmlType="button">出题/拆卷</Button>
+          </Dropdown>
+        )}
+      </Space>
+
+      <MetaTags>
+        {videoSource && <Tag color="purple">视频</Tag>}
+        <StatusTag
+          status={source.state === "archived" ? "archived" : source.parse_state}
+          label={
+            source.state === "archived"
+              ? "已归档"
+              : labelFor(stateLabels, source.parse_state)
+          }
+        />
+        <MetaTag>原文修订 {displayRevision}</MetaTag>
+        <MetaTag>{fragments.length} 个片段</MetaTag>
+        {needsReviewCount > 0 && (
+          <StatusTag
+            status="needs_review"
+            label={`${needsReviewCount} 个待人工核对`}
+          />
+        )}
+      </MetaTags>
+
       <Feedback
         error={downloadError ? new Error(downloadError) : undefined}
         message={action.message}
         failed={action.failed}
       />
+
       {action.error?.status === 409 && (
         <Alert
           type="warning"
@@ -1223,6 +1277,7 @@ function SourceDocument({
           }
         />
       )}
+
       {historical && (
         <Alert
           type="info"
@@ -1241,7 +1296,39 @@ function SourceDocument({
           }
         />
       )}
-      <ContentLinks kind="source" id={id} />
+
+      {replacing && editable && (
+        <UploadForm
+          supersedesID={id}
+          onBusyChange={setReplacementBusy}
+          onDone={(jobs) => {
+            setReplacing(false);
+            const nextSource = jobs[0]?.input?.source_id;
+            if (typeof nextSource === "string") {
+              onSelectReplacedSource(nextSource);
+            }
+          }}
+        />
+      )}
+
+      {source.parse_error && (
+        <Alert type="error" showIcon role="alert" message={source.parse_error} />
+      )}
+
+      {!fragments.length && editable && !isParsing && (
+        <Space wrap>
+          <Button
+            htmlType="button"
+            disabled={action.busy}
+            onClick={() =>
+              void action.run("/jobs", { kind: "parse", source_id: id })
+            }
+          >
+            重新解析
+          </Button>
+        </Space>
+      )}
+
       {videoSource && (
         <MediaPlayer
           src={`/api/v1/learning/courses/${encodeURIComponent(course.id)}/sources/${encodeURIComponent(id)}/stream`}
@@ -1250,26 +1337,136 @@ function SourceDocument({
           seekNonce={seekState.nonce}
         />
       )}
-      {editable && <SourceSuggestions id={id} />}
-      {editable && (
-        <SourceSegments
-          id={id}
-          onSeek={videoSource ? handleSeek : undefined}
-          parseRevision={source.parse_revision}
-        />
-      )}
+
       <MaterialAssets
         sourceID={id}
         revision={source.parse_revision}
         editable={editable}
         activeFragmentAssetIDs={activeFragmentAssetIDs}
+        isVideo={videoSource}
       />
-      {editable && !videoSource && fragments.length > 0 && (
-        <Button htmlType="button" onClick={() => setPaperOpen(true)}>
-          在此拆分试卷
-        </Button>
+
+      {fragments.length > 0 && (
+        <Space
+          wrap
+          className="live-full-width"
+          style={{ justifyContent: "space-between", alignItems: "center" }}
+        >
+          <Input.Search
+            aria-label="筛选原文片段"
+            placeholder={`在 ${fragments.length} 个片段中搜索原文`}
+            allowClear
+            value={fragmentSearch}
+            style={{ width: 280, maxWidth: "100%" }}
+            onChange={(e) => {
+              setFragmentSearch(e.target.value);
+              setFragmentPage(1);
+            }}
+          />
+          <Checkbox
+            className="rag-check"
+            checked={onlyNeedsReview}
+            onChange={(e) => {
+              setOnlyNeedsReview(e.target.checked);
+              setFragmentPage(1);
+            }}
+          >
+            仅看「待人工核对」{needsReviewCount > 0 ? `（${needsReviewCount}）` : ""}
+          </Checkbox>
+        </Space>
       )}
-      <DecisionHistory id={id} />
+
+      {fragments.length > 0 && !filteredFragments.length ? (
+        <EmptyState
+          title={
+            onlyNeedsReview
+              ? "当前没有「待人工核对」的片段"
+              : "没有匹配的原文片段"
+          }
+          action={
+            <Button
+              htmlType="button"
+              onClick={() => {
+                setOnlyNeedsReview(false);
+                setFragmentSearch("");
+                setFragmentPage(1);
+              }}
+            >
+              清除筛选
+            </Button>
+          }
+        />
+      ) : (
+        <div className="rag-fragments">
+          {visibleFragments.map(({ fragment: f, index }) => (
+            <FragmentEditor
+              key={`${source.parse_revision}:${index}:${f.id}`}
+              courseID={course.id}
+              sourceID={id}
+              sourceRevision={displayRevision}
+              position={index}
+              fragment={f}
+              editable={editable}
+              highlighted={f.id === fragmentID}
+              onSeek={videoSource ? handleSeek : undefined}
+              onDirtyChange={(dirty) => {
+                if (dirty) dirtyFragmentsRef.current.add(index);
+                else dirtyFragmentsRef.current.delete(index);
+              }}
+              onSave={async (patch) => {
+                const otherDirty = [...dirtyFragmentsRef.current].some(
+                  (pos) => pos !== index,
+                );
+                if (
+                  otherDirty &&
+                  !(await confirm(
+                    "还有其他片段包含未保存的校正。单条保存将生成新修订并重置其他片段的编辑区，确认继续？",
+                  ))
+                ) {
+                  return false;
+                }
+                const next = fragments.map((x) =>
+                  x.id === f.id ? { ...x, ...patch } : x,
+                );
+                const saved = await action.run(
+                  `/sources/${id}/fragments`,
+                  { revision: source.parse_revision, fragments: next },
+                  "PUT",
+                );
+                if (saved) {
+                  dirtyFragmentsRef.current.clear();
+                }
+                return !!saved;
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {filteredFragments.length > FRAGMENTS_PAGE_SIZE && (
+        <Pagination
+          hideOnSinglePage
+          current={safeFragmentPage}
+          pageSize={FRAGMENTS_PAGE_SIZE}
+          total={filteredFragments.length}
+          showSizeChanger={false}
+          onChange={setFragmentPage}
+        />
+      )}
+
+      <Drawer
+        title="归类与标签"
+        open={classifyOpen}
+        width="min(100%, 600px)"
+        destroyOnHidden
+        onClose={() => setClassifyOpen(false)}
+      >
+        <Space direction="vertical" size="middle" className="live-full-width">
+          <ContentLinks kind="source" id={id} defaultExpanded />
+          {editable && <SourceSuggestions id={id} defaultExpanded />}
+        </Space>
+      </Drawer>
+
       <Drawer
         title="当前原件 · 整卷拆题"
         open={paperOpen}
@@ -1296,293 +1493,615 @@ function SourceDocument({
           </EditorScope>
         )}
       </Drawer>
-      {replacing && editable && (
-        <UploadForm
-          supersedesID={id}
-          onBusyChange={setReplacementBusy}
-          onDone={(jobs) => {
-            setReplacing(false);
-            const nextSource = jobs[0]?.input?.source_id;
-            if (typeof nextSource === "string") {
-              onSelectReplacedSource(nextSource);
-            }
-          }}
-        />
-      )}
-      <Checkbox
-        className="rag-check"
-        checked={source.allow_derived}
-        disabled={action.busy || !editable}
-        onChange={(e) =>
-          void action.run(
-            `/sources/${id}/derivation`,
-            { allow_derived: e.target.checked },
-            "PUT",
-            undefined,
-            {
-              invalidatePrefixes: [
-                "sources",
-                "resources",
-                "knowledge",
-                "jobs",
-                "topics",
-                "impact",
-                "",
-              ],
-            },
-          )
-        }
-      >
-        允许知识提炼
-      </Checkbox>
-      {source.parse_error && (
-        <Alert type="error" showIcon role="alert" message={source.parse_error} />
-      )}
-      {!fragments.length && editable && !isParsing && (
-        <Button
-          htmlType="button"
-          disabled={action.busy}
-          onClick={() =>
-            void action.run("/jobs", { kind: "parse", source_id: id })
+    </div>
+  );
+}
+
+function SourcePublicationTab({
+  id,
+  query,
+  embedded,
+  onOpenTab,
+  onClearFragment,
+}: {
+  id: string;
+  query: ReturnType<typeof useLiveQuery<SourceDetail>>;
+  embedded: boolean;
+  onOpenTab: (tab: string) => void;
+  onClearFragment: () => void;
+}) {
+  const confirm = useConfirm();
+  const { course } = useLearning();
+  const action = useAction();
+  const points = useLiveQuery<{ points: Point[] }>("");
+
+  const [mode, setMode] = useState<"ai" | "manual">("ai");
+  const [selected, setSelected] = useState<string[]>([]);
+  const [previewOnly, setPreviewOnly] = useState(true);
+  const [title, setTitle] = useState("");
+  const [point, setPoint] = useState("");
+  const [full, setFull] = useState(false);
+  const [publication, setPublication] = useState<Resource | null>(null);
+  const [seekState, setSeekState] = useState<{
+    ms: number | null;
+    nonce: number;
+  }>({ ms: null, nonce: 0 });
+  const handleSeek = useCallback((ms: number) => {
+    setSeekState((prev) => ({ ms, nonce: prev.nonce + 1 }));
+  }, []);
+
+  const source = query.data?.source;
+  const fragments = query.data?.fragments || [];
+  const displayRevision = query.data?.display_revision ?? 0;
+
+  useEffect(() => {
+    setSelected([]);
+    setPublication(null);
+  }, [source?.parse_revision, displayRevision, id]);
+
+  const selectedPublishBytes = useMemo(() => {
+    const selectedSet = new Set(selected);
+    let total = 0;
+    for (const f of fragments) {
+      if (selectedSet.has(f.id)) {
+        total += utf8ByteLength(f.heading) + utf8ByteLength(f.body) + 3;
+      }
+    }
+    return total;
+  }, [fragments, selected]);
+
+  const needsReviewCount = useMemo(
+    () => fragments.filter((f) => f.quality === "needs_review").length,
+    [fragments],
+  );
+
+  if (!course) {
+    return <EmptyState title="请先选择当前课程" />;
+  }
+  if (query.isPending) return <LoadingState />;
+  if (query.error || !query.data || !source) {
+    return (
+      <ErrorState
+        message={query.error?.message || "资料不存在"}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+
+  const historical = displayRevision !== source.parse_revision;
+  const editable = source.state === "active" && !historical;
+  const videoSource = isVideoSource(source.media_type, source.filename);
+  const publishTitle = (title || source.title).trim();
+  const publishTitleTooLong =
+    !publishTitle ||
+    utf8ByteLength(publishTitle) > 500 ||
+    hasControlNull(publishTitle);
+  const fullMismatch = full && selected.length !== fragments.length;
+  const publishTooLarge = selectedPublishBytes > 200000;
+
+  return (
+    <div className="live-stack">
+      {historical && (
+        <Alert
+          type="info"
+          showIcon
+          message="正在查看引用时的历史修订，切换回当前修订后可进行分段与发布。"
+          action={
+            embedded ? (
+              <Button size="small" htmlType="button" onClick={onClearFragment}>
+                查看当前修订
+              </Button>
+            ) : (
+              <Link to={`/teacher/materials?source=${encodeURIComponent(id)}&source_view=publication`}>
+                查看当前修订
+              </Link>
+            )
           }
-        >
-          重新解析
-        </Button>
-      )}
-      {fragments.length > FRAGMENTS_PAGE_SIZE && (
-        <Input.Search
-          aria-label="筛选原文片段"
-          placeholder={`在 ${fragments.length} 个片段中搜索原文`}
-          allowClear
-          value={fragmentSearch}
-          onChange={(e) => {
-            setFragmentSearch(e.target.value);
-            setFragmentPage(1);
-          }}
         />
       )}
-      <div className="rag-fragments">
-        {visibleFragments.map(({ fragment: f, index }) => (
-          <FragmentEditor
-            key={`${source.parse_revision}:${index}:${f.id}`}
-            courseID={course.id}
-            sourceID={id}
-            sourceRevision={displayRevision}
-            position={index}
-            fragment={f}
-            editable={editable}
-            highlighted={f.id === fragmentID}
-            selected={selected.includes(f.id)}
-            onSeek={videoSource ? handleSeek : undefined}
-            onDirtyChange={(dirty) => {
-              if (dirty) dirtyFragmentsRef.current.add(index);
-              else dirtyFragmentsRef.current.delete(index);
-            }}
-            onSelect={(checked) =>
-              setSelected((prev) =>
-                checked
-                  ? prev.includes(f.id)
-                    ? prev
-                    : [...prev, f.id]
-                  : prev.filter((item) => item !== f.id),
-              )
-            }
-            onSave={async (patch) => {
-              const otherDirty = [...dirtyFragmentsRef.current].some(
-                (pos) => pos !== index,
-              );
-              if (
-                otherDirty &&
-                !(await confirm(
-                  "还有其他片段包含未保存的校正。单条保存将生成新修订并重置其他片段的编辑区，确认继续？",
-                ))
-              ) {
-                return false;
-              }
-              const next = fragments.map((x) =>
-                x.id === f.id ? { ...x, ...patch } : x,
-              );
-              const saved = await action.run(
-                `/sources/${id}/fragments`,
-                { revision: source.parse_revision, fragments: next },
-                "PUT",
-              );
-              if (saved) {
-                setSelected([]);
-                dirtyFragmentsRef.current.clear();
-              }
-              return !!saved;
-            }}
-          />
-        ))}
-      </div>
-      {filteredFragments.length > FRAGMENTS_PAGE_SIZE && (
-        <Pagination
-          hideOnSinglePage
-          current={safeFragmentPage}
-          pageSize={FRAGMENTS_PAGE_SIZE}
-          total={filteredFragments.length}
-          showSizeChanger={false}
-          onChange={setFragmentPage}
+
+      {!editable && !historical && (
+        <Alert
+          type="info"
+          showIcon
+          message="当前原件已归档，仅可查看下方已发布的学习内容。"
         />
       )}
-      {fragments.length > 0 && editable && (
-        <Card
-          className="card-panel"
-          title={
-            <>
-              选中片段 · {selected.length}/ {fragments.length}
-            </>
-          }
-        >
-          <div className="live-inline">
-            <Button
-              htmlType="button"
-              onClick={() =>
-                setSelected(
-                  fragments
-                    .filter((f) => f.quality === "ready")
-                    .map((f) => f.id),
-                )
-              }
-            >
-              选择已核对片段
-            </Button>
-            <Button htmlType="button" onClick={() => setSelected([])}>
-              清除选择
-            </Button>
-          </div>
-          <Field className="ui-field" label={<>发布标题</>}>
-            <Input
-              aria-label="发布标题"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={source.title}
-            />
-          </Field>
-          {publishTitleTooLong && (
-            <Alert
-              type="warning"
-              showIcon
-              message="发布标题不能为空，且不能超过 500 字节。"
-            />
-          )}
-          <Field label="关联知识点">
-            <Select
-              aria-label="发布关联知识点"
-              optionFilterProp="label"
-              showSearch
-              value={point}
-              onChange={setPoint}
+
+      {editable && (
+        <>
+          <Space wrap>
+            <Segmented
+              value={mode}
+              onChange={(v) => setMode(v as "ai" | "manual")}
               options={[
-                { value: "", label: "课程通用资料" },
-                ...(points.data?.points
-                  .filter((p) => p.kind === "point")
-                  .map((p) => ({ value: p.id, label: p.title })) || []),
+                { value: "ai", label: "AI 智能分段发布" },
+                { value: "manual", label: "手动自选片段发布" },
               ]}
             />
-          </Field>
+          </Space>
+
+          {videoSource && seekState.ms !== null && (
+            <MediaPlayer
+              src={`/api/v1/learning/courses/${encodeURIComponent(course.id)}/sources/${encodeURIComponent(id)}/stream`}
+              title={source.title}
+              seekMs={seekState.ms}
+              seekNonce={seekState.nonce}
+            />
+          )}
+
+          {mode === "ai" ? (
+            <SourceSegments
+              id={id}
+              parseRevision={source.parse_revision}
+              fragments={fragments}
+              editable={editable}
+              onSeek={videoSource ? handleSeek : undefined}
+              onGoOriginal={() => onOpenTab("original")}
+            />
+          ) : (
+            <Card
+              className="card-panel"
+              title={
+                <>
+                  手动自选片段发布 · 已选 {selected.length} / {fragments.length}
+                </>
+              }
+            >
+              {!fragments.length ? (
+                <EmptyState title="当前原件暂无可发布的已解析片段" />
+              ) : (
+                <Form layout="vertical" component={false} className="live-stack">
+                  <Space wrap>
+                    <Button
+                      htmlType="button"
+                      onClick={() =>
+                        setSelected(
+                          fragments
+                            .filter((f) => f.quality === "ready")
+                            .map((f) => f.id),
+                        )
+                      }
+                    >
+                      全选已核对
+                    </Button>
+                    <Button htmlType="button" onClick={() => setSelected([])}>
+                      清空
+                    </Button>
+                    <Checkbox
+                      className="rag-check"
+                      checked={previewOnly}
+                      onChange={(e) => setPreviewOnly(e.target.checked)}
+                    >
+                      仅看标题与前 60 字预览
+                    </Checkbox>
+                  </Space>
+
+                  {needsReviewCount > 0 && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      message={`有 ${needsReviewCount} 个片段「待人工核对」，需先在原文核对中确认后才可勾选发布。`}
+                      action={
+                        <Button
+                          size="small"
+                          htmlType="button"
+                          onClick={() => onOpenTab("original")}
+                        >
+                          前往原文核对
+                        </Button>
+                      }
+                    />
+                  )}
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gap: 8,
+                      maxHeight: 340,
+                      overflowY: "auto",
+                      padding: 12,
+                      border: "1px solid var(--line)",
+                      borderRadius: "var(--radius-md)",
+                      background: "var(--surface)",
+                    }}
+                  >
+                    {fragments.map((f, index) => {
+                      const loc = formatLocator(f.locator);
+                      const labelTitle = f.heading || loc || `片段 ${index + 1}`;
+                      const previewText = previewOnly
+                        ? `${f.body.slice(0, 60)}${f.body.length > 60 ? "…" : ""}`
+                        : f.body;
+                      return (
+                        <div
+                          key={f.id}
+                          style={{
+                            paddingBottom: 8,
+                            borderBottom: "1px solid var(--line)",
+                            minWidth: 0,
+                          }}
+                        >
+                          <Checkbox
+                            className="rag-check"
+                            checked={selected.includes(f.id)}
+                            disabled={f.quality !== "ready"}
+                            onChange={(e) =>
+                              setSelected((prev) =>
+                                e.target.checked
+                                  ? prev.includes(f.id)
+                                    ? prev
+                                    : [...prev, f.id]
+                                  : prev.filter((item) => item !== f.id),
+                              )
+                            }
+                          >
+                            <div style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+                              <Space wrap size="small">
+                                <strong>{labelTitle}</strong>
+                                {f.quality === "needs_review" && (
+                                  <StatusTag
+                                    status="needs_review"
+                                    label="待人工核对"
+                                  />
+                                )}
+                              </Space>
+                              <div
+                                className="live-meta"
+                                style={{ overflowWrap: "anywhere", marginTop: 2 }}
+                              >
+                                {previewText}
+                              </div>
+                            </div>
+                          </Checkbox>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <Field className="ui-field" label={<>发布标题</>}>
+                    <Input
+                      aria-label="发布标题"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder={source.title}
+                    />
+                  </Field>
+                  {publishTitleTooLong && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      message="发布标题不能为空，且不能超过 500 字节。"
+                    />
+                  )}
+
+                  <Field className="ui-field" label="关联知识点">
+                    <Select
+                      aria-label="发布关联知识点"
+                      optionFilterProp="label"
+                      showSearch
+                      value={point}
+                      onChange={setPoint}
+                      options={[
+                        { value: "", label: "课程通用资料" },
+                        ...(points.data?.points
+                          .filter((p) => p.kind === "point")
+                          .map((p) => ({ value: p.id, label: p.title })) || []),
+                      ]}
+                    />
+                  </Field>
+
+                  <Checkbox
+                    className="rag-check"
+                    checked={full}
+                    onChange={(e) => setFull(e.target.checked)}
+                  >
+                    发布完整原件（须选中全部片段）
+                  </Checkbox>
+
+                  {fullMismatch && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      message={`发布完整原件须选中全部 ${fragments.length} 个片段（当前已选 ${selected.length} 个）。`}
+                    />
+                  )}
+                  {publishTooLarge && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      message={`所选片段总计 ${selectedPublishBytes} 字节，超过单次发布 200000 字节上限，请分批发布。`}
+                    />
+                  )}
+
+                  <Space wrap>
+                    <Button
+                      htmlType="button"
+                      type="primary"
+                      disabled={
+                        action.busy ||
+                        !selected.length ||
+                        fullMismatch ||
+                        publishTooLarge ||
+                        publishTitleTooLong
+                      }
+                      onClick={async () => {
+                        if (
+                          !(await confirm(
+                            `发布选中的 ${selected.length} 个片段给本课程学生？教师未选原文与私有候选不会开放。`,
+                          ))
+                        ) {
+                          return;
+                        }
+                        const r = await action.run<Resource>(
+                          `/sources/${id}/publish`,
+                          {
+                            title: publishTitle,
+                            fragment_ids: selected,
+                            full_source: full,
+                            knowledge_point_id: point,
+                            parse_revision: source.parse_revision,
+                          },
+                        );
+                        if (r) setPublication(r);
+                      }}
+                    >
+                      确认并发布到课程学习
+                    </Button>
+                  </Space>
+
+                  <Feedback message={action.message} failed={action.failed} />
+
+                  {publication && (
+                    <Alert
+                      showIcon
+                      type="success"
+                      message={`已发布：${publication.title} · v${publication.version}`}
+                      description="已同步更新到下方「本原件已发布的学习内容」。"
+                    />
+                  )}
+                </Form>
+              )}
+            </Card>
+          )}
+        </>
+      )}
+
+      <div className="live-stack" style={{ gap: 12 }}>
+        <Typography.Text strong className="item-title" style={{ margin: 0 }}>
+          本原件已发布的学习内容
+        </Typography.Text>
+        <Suspense fallback={<LoadingState label="正在加载学习内容…" />}>
+          <LazyCourseWorkspace sourceID={id} />
+        </Suspense>
+      </div>
+    </div>
+  );
+}
+
+function SourceKnowledgeTab({
+  id,
+  query,
+}: {
+  id: string;
+  query: ReturnType<typeof useLiveQuery<SourceDetail>>;
+}) {
+  const { course } = useLearning();
+  const action = useAction();
+  const [selected, setSelected] = useState<string[]>([]);
+  const [model, setModel] = useState("");
+  const [extractJobID, setExtractJobID] = useState("");
+  const extractJob = useJob(extractJobID);
+
+  const source = query.data?.source;
+  const fragments = query.data?.fragments || [];
+  const displayRevision = query.data?.display_revision ?? 0;
+
+  useEffect(() => {
+    setSelected([]);
+    setExtractJobID("");
+  }, [source?.parse_revision, displayRevision, id]);
+
+  const readyFragments = useMemo(
+    () => fragments.filter((f) => f.quality === "ready"),
+    [fragments],
+  );
+
+  const selectedBytes = useMemo(() => {
+    const selectedSet = new Set(selected);
+    let total = 0;
+    for (const f of fragments) {
+      if (selectedSet.has(f.id)) {
+        total += utf8ByteLength(f.heading) + utf8ByteLength(f.body) + 3;
+      }
+    }
+    return total;
+  }, [fragments, selected]);
+
+  if (!course) {
+    return <EmptyState title="请先选择当前课程" />;
+  }
+  if (query.isPending) return <LoadingState />;
+  if (query.error || !query.data || !source) {
+    return (
+      <ErrorState
+        message={query.error?.message || "资料不存在"}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+
+  const historical = displayRevision !== source.parse_revision;
+  const editable = source.state === "active" && !historical;
+  const extractTooLarge = selectedBytes > 60000;
+  const extractJobActive =
+    !!extractJob.data &&
+    (extractJob.data.state === "queued" || extractJob.data.state === "running");
+
+  return (
+    <div className="live-stack">
+      <Card className="card-panel" title="原件 → 知识库提炼">
+        <div className="live-stack" style={{ gap: 12 }}>
           <Checkbox
             className="rag-check"
-            checked={full}
-            onChange={(e) => setFull(e.target.checked)}
-          >
-            发布完整原件（须选中全部片段）
-          </Checkbox>
-          {fullMismatch && (
-            <Alert
-              type="warning"
-              showIcon
-              message={`发布完整原件须选中全部 ${fragments.length} 个片段（当前已选 ${selected.length} 个）。`}
-            />
-          )}
-          {publishTooLarge && (
-            <Alert
-              type="warning"
-              showIcon
-              message={`所选片段总计 ${selectedPublishBytes} 字节，超过单次发布 200000 字节上限，请分批发布。`}
-            />
-          )}
-          <Button
-            htmlType="button"
-            disabled={
-              action.busy ||
-              !selected.length ||
-              fullMismatch ||
-              publishTooLarge ||
-              publishTitleTooLong
+            checked={source.allow_derived}
+            disabled={action.busy || !editable}
+            onChange={(e) =>
+              void action.run(
+                `/sources/${id}/derivation`,
+                { allow_derived: e.target.checked },
+                "PUT",
+                undefined,
+                {
+                  invalidatePrefixes: [
+                    "sources",
+                    "resources",
+                    "knowledge",
+                    "jobs",
+                    "topics",
+                    "impact",
+                    "",
+                  ],
+                },
+              )
             }
-            onClick={async () => {
-              if (
-                !(await confirm(
-                  `发布选中的 ${selected.length} 个片段给本课程学生？教师未选原文与私有候选不会开放。`,
-                ))
-              ) {
-                return;
-              }
-              const r = await action.run<Resource>(`/sources/${id}/publish`, {
-                title: publishTitle,
-                fragment_ids: selected,
-                full_source: full,
-                knowledge_point_id: point,
-                parse_revision: source.parse_revision,
-              });
-              if (r) setPublication(r);
-            }}
-            type="primary"
           >
-            确认并发布到课程学习
-          </Button>
-          {publication && (
-            <Alert
-              showIcon
-              type="success"
-              message={`已发布：${publication.title} · v${publication.version}`}
-              description={
-                <Link
-                  to={`/teacher/materials?source=${encodeURIComponent(id)}&source_view=publication&resource=${encodeURIComponent(publication.id)}`}
+            允许从本资料提炼知识候选
+          </Checkbox>
+
+          {!source.allow_derived && (
+            <Typography.Text type="secondary">
+              开启「允许从本资料提炼知识候选」后，可选中已核对片段发起 AI 知识提炼。
+            </Typography.Text>
+          )}
+
+          {editable && fragments.length > 0 && (
+            <>
+              <Space wrap>
+                <Button
+                  size="small"
+                  htmlType="button"
+                  disabled={!source.allow_derived || !readyFragments.length}
+                  onClick={() =>
+                    setSelected(
+                      readyFragments.slice(0, 200).map((f) => f.id),
+                    )
+                  }
                 >
-                  查看已发布学习内容与学生可见文本
-                </Link>
-              }
-            />
+                  全选已核对（{readyFragments.length}）
+                </Button>
+                <Button
+                  size="small"
+                  htmlType="button"
+                  disabled={!selected.length}
+                  onClick={() => setSelected([])}
+                >
+                  清空
+                </Button>
+                <Typography.Text type="secondary">
+                  已选 {selected.length} / {fragments.length} 个片段（约{" "}
+                  {selectedBytes} 字节）
+                </Typography.Text>
+              </Space>
+
+              <Field className="ui-field" label="选择提炼片段">
+                <Select
+                  mode="multiple"
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                  maxTagCount="responsive"
+                  aria-label="选择提炼片段"
+                  disabled={!source.allow_derived}
+                  placeholder="选择已核对片段（最多 200 个）"
+                  value={selected}
+                  onChange={(vals) => setSelected(vals)}
+                  options={fragments.map((f, index) => {
+                    const loc = formatLocator(f.locator);
+                    const head = f.heading || loc || `片段 ${index + 1}`;
+                    return {
+                      value: f.id,
+                      disabled: f.quality !== "ready",
+                      label: `${index + 1}. ${head}${
+                        f.quality === "needs_review" ? "（待人工核对）" : ""
+                      } · ${f.body.slice(0, 36)}`,
+                    };
+                  })}
+                />
+              </Field>
+
+              {extractTooLarge && selected.length > 0 && (
+                <Alert
+                  type="info"
+                  showIcon
+                  message={`当前所选片段约 ${selectedBytes} 字节，单次提炼建议控制在 60000 字节以内。`}
+                />
+              )}
+              {selected.length > 200 && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message="单次提炼最多支持 200 个片段，请适当精简选择。"
+                />
+              )}
+
+              <div className="live-inline">
+                <ModelSelect kind="chat" value={model} onChange={setModel} />
+                <Button
+                  htmlType="button"
+                  type="primary"
+                  loading={extractJobActive}
+                  disabled={
+                    action.busy ||
+                    extractJobActive ||
+                    !selected.length ||
+                    selected.length > 200 ||
+                    !source.allow_derived
+                  }
+                  onClick={async () => {
+                    const j = await action.run<Job>("/jobs", {
+                      kind: "extract",
+                      source_id: id,
+                      fragment_ids: selected,
+                      profile_id: model,
+                    });
+                    if (j) setExtractJobID(j.id);
+                  }}
+                >
+                  AI提炼知识候选
+                </Button>
+              </div>
+            </>
           )}
-          <Divider style={{ margin: "4px 0" }} />
-          {extractTooLarge && selected.length > 0 && (
-            <Alert
-              type="info"
-              showIcon
-              message={`当前所选片段约 ${selectedPublishBytes} 字节，单次提炼建议控制在 60000 字节以内。`}
-            />
+
+          {extractJob.data && (
+            <div className="live-stack" style={{ gap: 8 }}>
+              <MetaTags>
+                <StatusTag
+                  status={extractJob.data.state}
+                  label={`提炼任务：${labelFor(stateLabels, extractJob.data.state)}`}
+                />
+              </MetaTags>
+              {extractJobActive && (
+                <Progress percent={extractJob.data.progress} size="small" />
+              )}
+              {extractJob.data.state === "failed" && extractJob.data.error && (
+                <Alert
+                  type="error"
+                  showIcon
+                  role="alert"
+                  message={extractJob.data.error}
+                />
+              )}
+            </div>
           )}
-          <div className="live-inline">
-            <ModelSelect kind="chat" value={model} onChange={setModel} />
-            <Button
-              htmlType="button"
-              disabled={
-                action.busy || !selected.length || !source.allow_derived
-              }
-              onClick={() =>
-                void action.run("/jobs", {
-                  kind: "extract",
-                  source_id: id,
-                  fragment_ids: selected,
-                  profile_id: model,
-                })
-              }
-            >
-              AI提炼知识候选
-            </Button>
-            <Button
-              htmlType="button"
-              onClick={() => onOpenTab("knowledge")}
-            >
-              审核当前来源候选
-            </Button>
-          </div>
+
           <Feedback message={action.message} failed={action.failed} />
-        </Card>
-      )}
+        </div>
+      </Card>
+
+      <Suspense fallback={<LoadingState label="正在加载知识候选…" />}>
+        <LazyKnowledgePage sourceID={id} embedded />
+      </Suspense>
     </div>
   );
 }
@@ -1595,10 +2114,8 @@ function FragmentEditor({
   fragment: f,
   editable,
   highlighted,
-  selected,
   onSeek,
   onDirtyChange,
-  onSelect,
   onSave,
 }: {
   courseID: string;
@@ -1608,10 +2125,8 @@ function FragmentEditor({
   fragment: Fragment;
   editable: boolean;
   highlighted: boolean;
-  selected: boolean;
   onSeek?: (ms: number) => void;
   onDirtyChange: (dirty: boolean) => void;
-  onSelect: (v: boolean) => void;
   onSave: (p: Partial<Fragment>) => Promise<boolean>;
 }) {
   const [editing, setEditing] = useState(false);
@@ -1669,14 +2184,9 @@ function FragmentEditor({
         }}
       />
       <div className="live-inline">
-        <Checkbox
-          className="rag-check"
-          checked={selected}
-          disabled={!editable || f.quality !== "ready"}
-          onChange={(e) => onSelect(e.target.checked)}
-        >
+        <Typography.Text strong style={{ overflowWrap: "anywhere" }}>
           {displayHeading || loc || `片段 ${position + 1}`}
-        </Checkbox>
+        </Typography.Text>
         <MetaTags>
           <StatusTag
             status={f.quality === "needs_review" ? "needs_review" : "ready"}

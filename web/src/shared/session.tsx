@@ -237,7 +237,7 @@ export function RequireSession({
             无权访问
           </div>
           <p>当前账号角色无法访问此工作台页面。</p>
-          <Space>
+          <Space wrap>
             <Button
               type="primary"
               onClick={() => navigate(homeFor(session.user), { replace: true })}

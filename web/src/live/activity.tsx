@@ -81,7 +81,7 @@ export function ActivityTimeline({
               setVerbFilter(value);
               setPage(1);
             }}
-            style={{ minWidth: 140 }}
+            style={{ width: "min(100%, 180px)", minWidth: 0, maxWidth: "100%" }}
             options={[
               { value: "", label: "全部类型" },
               { value: "submission.submitted", label: "提交作答" },
@@ -165,13 +165,21 @@ export function ActivityTimeline({
                       <>
                         <p>
                           事件：
-                          <Typography.Text code copyable>
+                          <Typography.Text
+                            code
+                            copyable
+                            style={{ overflowWrap: "anywhere" }}
+                          >
                             {event.id}
                           </Typography.Text>
                         </p>
                         <p>
                           对象：
-                          <Typography.Text code copyable>
+                          <Typography.Text
+                            code
+                            copyable
+                            style={{ overflowWrap: "anywhere" }}
+                          >
                             {event.submission_id || event.resource_id || "无"}
                           </Typography.Text>
                         </p>
@@ -183,6 +191,7 @@ export function ActivityTimeline({
             </div>
             {(event.submission_id || event.resource_id) && (
               <Link
+                style={{ flexShrink: 0, whiteSpace: "nowrap" }}
                 to={
                   event.submission_id
                     ? `/${teacher ? "teacher" : "student"}/homework/submissions/${event.submission_id}/${teacher ? "grade" : "feedback"}`

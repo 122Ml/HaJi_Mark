@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Button, Drawer, Input, Select, Space, Steps, Table, Tag, Tooltip, Typography } from "antd";
+import { Alert, Button, Drawer, Form, Input, Select, Space, Steps, Table, Tag, Tooltip, Typography } from "antd";
 import { Field } from "../shared/Field";
 import { FileUpload } from "../shared/FileUpload";
 import { Feedback, Link, useAction, useLearning, useLiveQuery, uuid, when } from "./context";
@@ -114,7 +114,8 @@ function SubmissionImportBody({
   }
 
   return (
-    <Space direction="vertical" size="middle" className="live-full-width">
+    <Form layout="vertical" component={false}>
+      <Space direction="vertical" size="middle" className="live-full-width">
       {!course && (
         <Alert type="error" showIcon message="未选择当前课程，无法执行作答导入。" />
       )}
@@ -158,7 +159,7 @@ function SubmissionImportBody({
               message="本作业没有可导入文本的主观题或代码题。"
             />
           )}
-          <Field label="导入到题目" required>
+          <Field className="ui-field" label="导入到题目" required>
             <Select
               aria-label="导入到题目"
               value={question || undefined}
@@ -215,6 +216,7 @@ function SubmissionImportBody({
             </Button>
           </Space>
           <Field
+            className="ui-field"
             label={`CSV 内容（${Math.ceil(csvBytes / 1024)} / 512 KiB）`}
             required
           >
@@ -348,9 +350,27 @@ function SubmissionImportBody({
                     width: 200,
                     render: (_, r) =>
                       r.error ? (
-                        <Tag color="error">{r.error}</Tag>
+                        <Tag
+                          className="ui-meta-tag"
+                          color="error"
+                          style={{
+                            whiteSpace: "normal",
+                            overflowWrap: "anywhere",
+                            maxWidth: "100%",
+                          }}
+                        >
+                          {r.error}
+                        </Tag>
                       ) : (
-                        <Tag color={r.next_attempt > 1 ? "warning" : "success"}>
+                        <Tag
+                          className="ui-meta-tag"
+                          color={r.next_attempt > 1 ? "warning" : "success"}
+                          style={{
+                            whiteSpace: "normal",
+                            overflowWrap: "anywhere",
+                            maxWidth: "100%",
+                          }}
+                        >
                           追加第 {r.next_attempt} 次作答
                         </Tag>
                       ),
@@ -417,11 +437,18 @@ function SubmissionImportBody({
         rowKey="id"
         loading={batches.isPending}
         dataSource={batches.data || []}
+        scroll={{ x: 640 }}
         locale={{ emptyText: "尚无导入记录" }}
         pagination={{ pageSize: 5, showSizeChanger: false }}
         columns={[
-          { title: "导入时间", dataIndex: "created_at", render: when },
-          { title: "份数", dataIndex: "answer_count" },
+          {
+            title: "导入时间",
+            dataIndex: "created_at",
+            width: 165,
+            onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+            render: when,
+          },
+          { title: "份数", dataIndex: "answer_count", width: 72 },
           {
             title: "题目",
             dataIndex: "question_id",
@@ -441,7 +468,8 @@ function SubmissionImportBody({
           }
         />
       )}
-    </Space>
+      </Space>
+    </Form>
   );
 }
 
@@ -479,7 +507,7 @@ export function SubmissionImport({
       <Drawer
         title="批量导入文本作答"
         open={open}
-        width={960}
+        width="min(100%, 960px)"
         destroyOnHidden
         onClose={() => {
           if (!locked) setOpen(false);

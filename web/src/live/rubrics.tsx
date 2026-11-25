@@ -333,7 +333,7 @@ export function RubricManager({
                     </p>
                   ))}
                   <FrozenEvidence sources={r.evidence_refs} />
-                  <Space wrap size="small">
+                  <Space wrap size="small" style={{ marginTop: 12 }}>
                     {r.state === "draft" && (
                       <Button
                         disabled={action.busy}
@@ -397,7 +397,7 @@ export function RubricManager({
                                 </p>
                               ))}
                               <FrozenEvidence sources={r.evidence_refs} />
-                              <Space wrap size="small">
+                              <Space wrap size="small" style={{ marginTop: 12 }}>
                                 <Button
                                   disabled={action.busy}
                                   onClick={() =>
@@ -727,76 +727,79 @@ export function PointGradeForm({
               </>
             }
           >
-            <Collapse
-              items={[
-                {
-                  key: "content",
-                  label: <>给分规则</>,
-                  children: (
-                    <>
-                      <p>{p.rule}</p>
-                      {p.requirement && <p>考查要求：{p.requirement}</p>}
-                      {p.partial_credit && <p>部分分：{p.partial_credit}</p>}
-                      {p.acceptable_answers && (
-                        <p>可接受表达：{p.acceptable_answers}</p>
-                      )}
-                      {p.error_conditions && (
-                        <p>错误条件：{p.error_conditions}</p>
-                      )}
-                    </>
-                  ),
-                },
-              ]}
-            />
-            <Field
-              className="ui-field"
-              label={<>{p.id}得分</>}
-              required={true}
-            >
-              <IntegerInput
-                aria-label={`${p.id} 得分`}
-                min={0}
-                max={p.max_score}
-                value={entry.score}
-                onChange={(val) => updateCriterion(p.id, { score: val })}
-                disabled={action.busy}
+            <div className="live-stack" style={{ gap: 12 }}>
+              <Collapse
+                items={[
+                  {
+                    key: "content",
+                    label: <>给分规则</>,
+                    children: (
+                      <>
+                        <p>{p.rule}</p>
+                        {p.requirement && <p>考查要求：{p.requirement}</p>}
+                        {p.partial_credit && <p>部分分：{p.partial_credit}</p>}
+                        {p.acceptable_answers && (
+                          <p>可接受表达：{p.acceptable_answers}</p>
+                        )}
+                        {p.error_conditions && (
+                          <p>错误条件：{p.error_conditions}</p>
+                        )}
+                      </>
+                    ),
+                  },
+                ]}
               />
-            </Field>
-            <Field
-              className="ui-field"
-              label={<>{p.id}评语</>}
-              required={true}
-            >
-              <Input.TextArea
-                rows={2}
-                aria-label={`${p.id} 评语`}
-                value={entry.feedback}
-                onChange={(e) =>
-                  updateCriterion(p.id, { feedback: e.target.value })
-                }
-                disabled={action.busy}
-              />
-            </Field>
-            <Field className="ui-field" label={<>{p.id}原文引用（可选）</>}>
-              <Input.TextArea
-                rows={2}
-                aria-label={`${p.id} 原文引用`}
-                value={entry.quote}
-                onChange={(e) =>
-                  updateCriterion(p.id, { quote: e.target.value })
-                }
-                disabled={action.busy}
-              />
-            </Field>
-            {entry.quote && (
-              <Button
-                onClick={() => onLocate?.(entry.quote)}
-                htmlType="button"
-                disabled={action.busy}
+              <Field
+                className="ui-field"
+                label={<>{p.id}得分</>}
+                required={true}
               >
-                定位这段原文
-              </Button>
-            )}
+                <IntegerInput
+                  aria-label={`${p.id} 得分`}
+                  min={0}
+                  max={p.max_score}
+                  value={entry.score}
+                  onChange={(val) => updateCriterion(p.id, { score: val })}
+                  disabled={action.busy}
+                />
+              </Field>
+              <Field
+                className="ui-field"
+                label={<>{p.id}评语</>}
+                required={true}
+              >
+                <Input.TextArea
+                  rows={2}
+                  aria-label={`${p.id} 评语`}
+                  value={entry.feedback}
+                  onChange={(e) =>
+                    updateCriterion(p.id, { feedback: e.target.value })
+                  }
+                  disabled={action.busy}
+                />
+              </Field>
+              <Field className="ui-field" label={<>{p.id}原文引用（可选）</>}>
+                <Input.TextArea
+                  rows={2}
+                  aria-label={`${p.id} 原文引用`}
+                  value={entry.quote}
+                  onChange={(e) =>
+                    updateCriterion(p.id, { quote: e.target.value })
+                  }
+                  disabled={action.busy}
+                />
+              </Field>
+              {entry.quote && (
+                <Button
+                  onClick={() => onLocate?.(entry.quote)}
+                  htmlType="button"
+                  disabled={action.busy}
+                  style={{ justifySelf: "start" }}
+                >
+                  定位这段原文
+                </Button>
+              )}
+            </div>
           </Card>
         );
       })}

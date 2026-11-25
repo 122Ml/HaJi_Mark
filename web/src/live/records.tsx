@@ -10,7 +10,7 @@ import {
   Tag,
   Typography,
 } from "antd";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Feedback,
   useAction,
@@ -60,6 +60,7 @@ export function RecordsPage({ industry = false }: { industry?: boolean }) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [validationError, setValidationError] = useState("");
+  const composerRef = useRef<HTMLDivElement>(null);
 
   // Reset edit mode when switching between research and industry views.
   useEffect(() => {
@@ -232,7 +233,7 @@ export function RecordsPage({ industry = false }: { industry?: boolean }) {
             <Card
               className="card-panel"
               key={r.id}
-              title={r.title}
+              title={<span style={{ overflowWrap: "anywhere" }}>{r.title}</span>}
               extra={editing === r.id ? <Tag color="processing">编辑中</Tag> : undefined}
             >
               <p className="live-meta">{when(r.created_at)}</p>
@@ -241,7 +242,10 @@ export function RecordsPage({ industry = false }: { industry?: boolean }) {
                 <Button
                   onClick={async () => {
                     if (editing === r.id) {
-                      window.scrollTo({ top: 0, behavior: "smooth" });
+                      composerRef.current?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      });
                       return;
                     }
                     if (
@@ -254,7 +258,10 @@ export function RecordsPage({ industry = false }: { industry?: boolean }) {
                     }
                     setValidationError("");
                     setEditing(r.id);
-                    window.scrollTo({ top: 0, behavior: "smooth" });
+                    composerRef.current?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    });
                   }}
                 >
                   编辑
@@ -319,7 +326,8 @@ export function RecordsPage({ industry = false }: { industry?: boolean }) {
           />
         </div>
 
-        <Card className="card-panel interaction-composer" title={cardTitle}>
+        <div ref={composerRef} className="interaction-composer">
+          <Card className="card-panel" title={cardTitle}>
           <Form
             className="live-form"
             onFinish={() => {
@@ -399,6 +407,7 @@ export function RecordsPage({ industry = false }: { industry?: boolean }) {
             </div>
           </Form>
         </Card>
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useSearchParams } from "react-router-dom";
 import {
   keepPreviousData,
   useInfiniteQuery,
@@ -21,12 +21,13 @@ import {
   Radio,
   Select,
   Space,
+  Switch,
   Tag,
   Tooltip,
   Typography,
   Upload,
 } from "antd";
-import { Paperclip, Plus, Send } from "lucide-react";
+import { Check, Compass, Link2, Paperclip, Plus, Send } from "lucide-react";
 import { APIError, requestJSON } from "../shared/api";
 import { PageHeader } from "../shared/PageHeader";
 import { useSession } from "../shared/session";
@@ -37,8 +38,8 @@ import { Link, useLearning, uuid } from "./context";
 import type { BusinessContext } from "./context-agent";
 import { jobKindLabels, labelFor } from "./domain-meta";
 import { DraftNotice, useEditorDraft } from "./editing";
+import { captureLivePageContext, type LivePageContext } from "./page-context";
 import { utf8ByteLength } from "./validation";
-import "./agent.css";
 
 type Conversation = {
   id: string;
@@ -481,12 +482,28 @@ function RequestCard({
     <Card
       size="small"
       className="agent-request"
+      style={{ minWidth: 0 }}
       title={
-        <Space wrap>
-          <Tag color={request.kind === "input" ? "blue" : "orange"}>
+        <Space
+          wrap
+          style={{ minWidth: 0, maxWidth: "100%" }}
+          styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
+        >
+          <Tag
+            color={request.kind === "input" ? "blue" : "orange"}
+            style={{ marginInlineEnd: 0 }}
+          >
             {request.kind === "input" ? "需要补充" : "操作确认"}
           </Tag>
-          <span>{request.prompt}</span>
+          <span
+            style={{
+              minWidth: 0,
+              maxWidth: "100%",
+              overflowWrap: "anywhere",
+            }}
+          >
+            {request.prompt}
+          </span>
         </Space>
       }
       extra={
@@ -496,13 +513,30 @@ function RequestCard({
       }
     >
       {request.snapshot.editor ? (
-        <Space direction="vertical">
-          <Tag>
+        <Space
+          direction="vertical"
+          className="agent-full-width"
+          style={{ minWidth: 0, maxWidth: "100%" }}
+          styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
+        >
+          <Tag
+            className="ui-meta-tag"
+            style={{
+              marginInlineEnd: 0,
+              maxWidth: "100%",
+              whiteSpace: "normal",
+              overflowWrap: "anywhere",
+            }}
+          >
             {request.snapshot.editor.kind === "question"
               ? "题目与标准"
               : "业务工作台"}
           </Tag>
-          <Space wrap>
+          <Space
+            wrap
+            style={{ minWidth: 0, maxWidth: "100%" }}
+            styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
+          >
             <AgentEditor
               target={request.snapshot.editor}
               disabled={disabled || submitting}
@@ -519,8 +553,12 @@ function RequestCard({
             )}
           </Space>
           {savedPath && (
-            <Space wrap>
-              <Typography.Text>
+            <Space
+              wrap
+              style={{ minWidth: 0, maxWidth: "100%" }}
+              styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
+            >
+              <Typography.Text style={{ overflowWrap: "anywhere" }}>
                 {request.response.changed
                   ? "服务端已重新读取保存结果"
                   : "未检测到服务端对象变化"}
@@ -541,7 +579,11 @@ function RequestCard({
             <Form.Item
               key={f.key}
               name={f.key}
-              label={f.label}
+              label={
+                <span style={{ whiteSpace: "normal", overflowWrap: "anywhere" }}>
+                  {f.label}
+                </span>
+              }
               rules={[
                 ...(f.required
                   ? [
@@ -575,7 +617,12 @@ function RequestCard({
                 />
               ) : f.kind === "select" ? (
                 <Radio.Group
-                  options={f.options?.map((x) => ({ label: x, value: x }))}
+                  options={f.options?.map((x) => ({
+                    label: (
+                      <span style={{ overflowWrap: "anywhere" }}>{x}</span>
+                    ),
+                    value: x,
+                  }))}
                 />
               ) : (
                 <Select
@@ -586,7 +633,7 @@ function RequestCard({
             </Form.Item>
           ))}
           {pending && (
-            <Space>
+            <Space wrap>
               <Button
                 type="primary"
                 htmlType="submit"
@@ -780,12 +827,37 @@ function ResultCards({ steps }: { steps: Step[] }) {
     assigned: "已下发",
   };
   return (
-    <div className="agent-result-cards" aria-label="业务处理回执">
+    <div
+      className="agent-result-cards"
+      aria-label="业务处理回执"
+      style={{ minWidth: 0 }}
+    >
       {cards.map((card) => (
-        <Card key={card.key} size="small">
-          <Space wrap>
-            <Typography.Text strong>{card.title}</Typography.Text>
-            <Tag>
+        <Card key={card.key} size="small" style={{ minWidth: 0 }}>
+          <Space
+            wrap
+            style={{ minWidth: 0, maxWidth: "100%" }}
+            styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
+          >
+            <Typography.Text
+              strong
+              style={{
+                minWidth: 0,
+                maxWidth: "100%",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {card.title}
+            </Typography.Text>
+            <Tag
+              className="ui-meta-tag"
+              style={{
+                marginInlineEnd: 0,
+                maxWidth: "100%",
+                whiteSpace: "normal",
+                overflowWrap: "anywhere",
+              }}
+            >
               {receiptStateLabels[card.state] ||
                 states[card.state]?.[0] ||
                 card.state}
@@ -865,26 +937,61 @@ function RunPanel({
   );
 
   return (
-    <div className="agent-run" data-run-id={run.id}>
+    <div className="agent-run" data-run-id={run.id} style={{ minWidth: 0 }}>
       <ResultCards steps={steps} />
       {progressHint && !streamText && (
-        <Space wrap role="status">
-          <Tag color="processing">{progressHint}</Tag>
+        <Space
+          wrap
+          role="status"
+          style={{ minWidth: 0, maxWidth: "100%" }}
+          styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
+        >
+          <Tag
+            color="processing"
+            style={{
+              marginInlineEnd: 0,
+              maxWidth: "100%",
+              whiteSpace: "normal",
+              overflowWrap: "anywhere",
+            }}
+          >
+            {progressHint}
+          </Tag>
         </Space>
       )}
       {!!streamText && (
         <Card
           size="small"
           className="agent-stream"
+          style={{ minWidth: 0 }}
           title={
-            <Space wrap>
-              <Tag color={run.state === "running" ? "processing" : "warning"}>
+            <Space
+              wrap
+              style={{ minWidth: 0, maxWidth: "100%" }}
+              styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
+            >
+              <Tag
+                color={run.state === "running" ? "processing" : "warning"}
+                style={{
+                  marginInlineEnd: 0,
+                  maxWidth: "100%",
+                  whiteSpace: "normal",
+                  overflowWrap: "anywhere",
+                }}
+              >
                 {run.state === "running"
                   ? "正在生成"
                   : "生成中断 · 以下为未完成内容"}
               </Tag>
               {progressHint && (
-                <Typography.Text type="secondary">
+                <Typography.Text
+                  type="secondary"
+                  style={{
+                    minWidth: 0,
+                    maxWidth: "100%",
+                    overflowWrap: "anywhere",
+                  }}
+                >
                   {progressHint}
                 </Typography.Text>
               )}
@@ -896,11 +1003,16 @@ function RunPanel({
       )}
       <Collapse
         size="small"
+        style={{ minWidth: 0 }}
         items={[
           {
             key: run.id,
             label: (
-              <Space wrap>
+              <Space
+                wrap
+                style={{ minWidth: 0, maxWidth: "100%" }}
+                styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
+              >
                 <StateTag state={run.state} />
                 <span>执行记录</span>
                 <Typography.Text type="secondary">
@@ -909,18 +1021,44 @@ function RunPanel({
               </Space>
             ),
             children: (
-              <Space direction="vertical" className="agent-full-width">
+              <Space
+                direction="vertical"
+                className="agent-full-width"
+                style={{ minWidth: 0, maxWidth: "100%" }}
+                styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
+              >
                 {steps.map((step) => (
                   <Collapse
                     key={step.id}
                     size="small"
+                    style={{ minWidth: 0, maxWidth: "100%" }}
                     items={[
                       {
                         key: step.id,
                         label: (
-                          <Space wrap>
-                            <Tag>{domains[step.agent] || step.agent}</Tag>
-                            <span>
+                          <Space
+                            wrap
+                            style={{ minWidth: 0, maxWidth: "100%" }}
+                            styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
+                          >
+                            <Tag
+                              className="ui-meta-tag"
+                              style={{
+                                marginInlineEnd: 0,
+                                maxWidth: "100%",
+                                whiteSpace: "normal",
+                                overflowWrap: "anywhere",
+                              }}
+                            >
+                              {domains[step.agent] || step.agent}
+                            </Tag>
+                            <span
+                              style={{
+                                minWidth: 0,
+                                maxWidth: "100%",
+                                overflowWrap: "anywhere",
+                              }}
+                            >
                               {toolLabels.get(step.tool) || step.tool}
                             </span>
                             <StateTag state={step.state} />
@@ -953,6 +1091,7 @@ function RunPanel({
         <Alert
           showIcon
           type={run.state === "unknown" ? "warning" : "error"}
+          style={{ minWidth: 0, overflowWrap: "anywhere" }}
           message={run.error}
         />
       )}
@@ -976,12 +1115,18 @@ function RunPanel({
       {!!completed.length && (
         <Collapse
           size="small"
+          style={{ minWidth: 0 }}
           items={[
             {
               key: "completed",
               label: `已处理的确认与补充（${completed.length}）`,
               children: (
-                <Space direction="vertical" className="agent-full-width">
+                <Space
+                  direction="vertical"
+                  className="agent-full-width"
+                  style={{ minWidth: 0, maxWidth: "100%" }}
+                  styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
+                >
                   {completed.map(card)}
                 </Space>
               ),
@@ -993,19 +1138,30 @@ function RunPanel({
   );
 }
 
+const LEARNER_TAINTING_CONTEXT_KINDS = new Set<BusinessContext["kind"]>([
+  "submission",
+  "diagnosis",
+  "intervention",
+]);
+
 export function AgentPage({
   embedded = false,
   context,
+  pageContext,
+  autoContext,
   onDirtyChange,
 }: {
   embedded?: boolean;
   context?: BusinessContext;
+  pageContext?: LivePageContext;
+  autoContext?: BusinessContext;
   onDirtyChange?: (dirty: boolean) => void;
 } = {}) {
   const { course } = useLearning();
   const { session, refresh } = useSession();
   const cache = useQueryClient();
   const { message } = App.useApp();
+  const location = useLocation();
   const [params, setParams] = useSearchParams();
 
   const courseID = course?.id || "";
@@ -1020,6 +1176,37 @@ export function AgentPage({
       return "";
     }
   });
+  useEffect(() => {
+    if (!embedded) return;
+    try {
+      setLocalConversation(sessionStorage.getItem(associationKey) || "");
+    } catch {
+      setLocalConversation("");
+    }
+  }, [embedded, associationKey]);
+
+  const [attachPageContext, setAttachPageContext] = useState(true);
+  const pageContextSwitchID = useId();
+  const autoContextSig = autoContext
+    ? `${autoContext.kind}:${autoContext.id}`
+    : "";
+  const autoContextIsTainting = autoContext
+    ? LEARNER_TAINTING_CONTEXT_KINDS.has(autoContext.kind)
+    : false;
+  const [attachAutoContext, setAttachAutoContext] = useState(() =>
+    autoContext ? !LEARNER_TAINTING_CONTEXT_KINDS.has(autoContext.kind) : false,
+  );
+  useEffect(() => {
+    if (!autoContextSig) {
+      setAttachAutoContext(false);
+      return;
+    }
+    setAttachAutoContext(!autoContextIsTainting);
+  }, [autoContextSig, autoContextIsTainting]);
+
+  const effectiveContext =
+    context || (autoContext && attachAutoContext ? autoContext : undefined);
+
   const conversationID = embedded
     ? localConversation
     : params.get("conversation") || "";
@@ -1448,11 +1635,27 @@ export function AgentPage({
         createdNow = true;
       }
       try {
+        const livePageContextToSend =
+          pageContext && attachPageContext
+            ? location.pathname === pageContext.path
+              ? captureLivePageContext(
+                  location.pathname,
+                  location.search,
+                  isTeacher,
+                  course,
+                )
+              : pageContext
+            : undefined;
         await write(`/conversations/${id}/messages`, {
           content: pendingText,
           attachment_ids: pendingAttachments.map((a) => a.id),
           request_id: requestID,
-          context: context ? { kind: context.kind, id: context.id } : undefined,
+          context: effectiveContext
+            ? { kind: effectiveContext.kind, id: effectiveContext.id }
+            : undefined,
+          ...(livePageContextToSend
+            ? { page_context: livePageContextToSend }
+            : {}),
         });
       } catch (err) {
         // If conversation was created before POST /messages failed, select it so retry reuses the exact conversation & request_id.
@@ -1901,7 +2104,7 @@ export function AgentPage({
                     block
                     onClick={() => selectConversation(c.id)}
                   >
-                    <span>{c.title}</span>
+                    <span style={{ overflowWrap: "anywhere" }}>{c.title}</span>
                     {isTeacher && c.learner_context && <Tag>含学情</Tag>}
                     {hasDraft ? <Tag>草稿</Tag> : null}
                   </Button>
@@ -1923,16 +2126,45 @@ export function AgentPage({
       <section className="agent-main" aria-label="课程助理对话">
         <div className="agent-toolbar">
           {embedded && (
-            <Space wrap>
-              <Tag>当前：{context?.title}</Tag>
-              <Button
-                disabled={busy || !!active || !configured || !drafts.ready}
-                onClick={() =>
-                  void runAction(() => createConversationRecord(false))
-                }
-              >
-                为此对象新建对话
-              </Button>
+            <Space
+              wrap
+              style={{ minWidth: 0, maxWidth: "100%" }}
+              styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
+            >
+              {context ? (
+                <>
+                  <Tag
+                    className="ui-meta-tag"
+                    style={{
+                      marginInlineEnd: 0,
+                      maxWidth: "100%",
+                      whiteSpace: "normal",
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    当前：{context.title}
+                  </Tag>
+                  <Button
+                    disabled={busy || !!active || !configured || !drafts.ready}
+                    onClick={() =>
+                      void runAction(() => createConversationRecord(false))
+                    }
+                  >
+                    为此对象新建对话
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="small"
+                  icon={<Plus size={13} aria-hidden="true" />}
+                  disabled={busy || !!active || !configured || !drafts.ready}
+                  onClick={() =>
+                    void runAction(() => createConversationRecord(false))
+                  }
+                >
+                  新对话
+                </Button>
+              )}
               {conversationID && (
                 <Link
                   to={`/${isTeacher ? "teacher" : "student"}/assistant?conversation=${encodeURIComponent(conversationID)}`}
@@ -1942,7 +2174,11 @@ export function AgentPage({
               )}
             </Space>
           )}
-          <Space wrap>
+          <Space
+            wrap
+            style={{ minWidth: 0, maxWidth: "100%" }}
+            styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
+          >
             <Select
               aria-label="对话模型"
               placeholder="选择模型"
@@ -1993,9 +2229,16 @@ export function AgentPage({
               </span>
             )}
             {conversationID && (
-              <Space size={4}>
+              <Space
+                size={4}
+                wrap
+                style={{ minWidth: 0, maxWidth: "100%" }}
+                styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
+              >
                 {!configured ? (
-                  <Tag className="ui-meta-tag">未配置模型</Tag>
+                  <Tag className="ui-meta-tag" style={{ marginInlineEnd: 0 }}>
+                    未配置模型
+                  </Tag>
                 ) : (
                   <Tag
                     color={
@@ -2006,6 +2249,7 @@ export function AgentPage({
                           ? "error"
                           : "default"
                     }
+                    style={{ marginInlineEnd: 0 }}
                   >
                     {streamState}
                   </Tag>
@@ -2034,11 +2278,83 @@ export function AgentPage({
             </Popconfirm>
           )}
         </div>
+        {pageContext && (
+          <div
+            className={`agent-page-context-bar${attachPageContext ? "" : " is-off"}`}
+          >
+            <div className="agent-page-context-info">
+              <Compass
+                size={13}
+                aria-hidden="true"
+                className="agent-page-context-icon"
+              />
+              <Typography.Text className="agent-page-context-location">
+                当前界面：{pageContext.page_title || pageContext.path}
+                {pageContext.sub_page ? ` · ${pageContext.sub_page}` : ""}
+                {pageContext.active_tab &&
+                pageContext.active_tab !== pageContext.sub_page &&
+                !pageContext.sub_page?.endsWith(pageContext.active_tab)
+                  ? `（${pageContext.active_tab}）`
+                  : ""}
+              </Typography.Text>
+            </div>
+            <Space
+              size={8}
+              wrap
+              className="agent-page-context-actions"
+              styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
+            >
+              {!context && autoContext && (
+                <Tooltip
+                  title={
+                    autoContextIsTainting
+                      ? attachAutoContext
+                        ? "已关联当前学情/作答对象（发送后会标记本会话含学情并限制出题）；点击可取消关联"
+                        : "当前为学情/作答对象，默认不自动关联以免限制出题；点击可按需关联"
+                      : attachAutoContext
+                        ? "已自动关联当前业务对象，点击可取消关联"
+                        : "点击关联当前业务对象"
+                  }
+                >
+                  <Button
+                    size="small"
+                    htmlType="button"
+                    aria-pressed={attachAutoContext}
+                    className={`agent-auto-ctx-btn${attachAutoContext ? " is-attached" : ""}`}
+                    icon={
+                      attachAutoContext ? (
+                        <Check size={12} aria-hidden="true" />
+                      ) : (
+                        <Link2 size={12} aria-hidden="true" />
+                      )
+                    }
+                    onClick={() => setAttachAutoContext((prev) => !prev)}
+                  >
+                    关联：{autoContext.title}
+                  </Button>
+                </Tooltip>
+              )}
+              <Space size={6} align="center" wrap className="agent-page-context-switch">
+                <Switch
+                  id={pageContextSwitchID}
+                  size="small"
+                  title="感知当前页"
+                  checked={attachPageContext}
+                  onChange={setAttachPageContext}
+                />
+                <label htmlFor={pageContextSwitchID}>
+                  <Typography.Text type="secondary">感知当前页</Typography.Text>
+                </label>
+              </Space>
+            </Space>
+          </div>
+        )}
         {activeError && (
           <Alert
             showIcon
             type="error"
             role="alert"
+            style={{ minWidth: 0, overflowWrap: "anywhere" }}
             message={activeError.message}
             action={
               <Space wrap>
@@ -2154,23 +2470,52 @@ export function AgentPage({
                                 : "服务端已核验访问权限"
                             }
                           >
-                            <Tag color="cyan">
+                            <Tag
+                              color="cyan"
+                              style={{
+                                marginInlineEnd: 0,
+                                maxWidth: "100%",
+                                whiteSpace: "normal",
+                                overflowWrap: "anywhere",
+                              }}
+                            >
                               上下文：{parsed.chip.kindLabel}
                             </Tag>
                           </Tooltip>
                         </div>
                       )}
                       {!!m.attachment_ids?.length && (
-                        <Space wrap>
+                        <Space
+                          wrap
+                          style={{
+                            display: "flex",
+                            marginTop: 8,
+                            maxWidth: "100%",
+                          }}
+                          styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
+                        >
                           {m.attachment_ids.map((id) => {
                             const filename =
                               allAttachments.find((a) => a.id === id)
                                 ?.filename || "下载附件";
                             const url = fileURL(id);
                             return (
-                              <Tag key={id}>
+                              <Tag
+                                key={id}
+                                className="ui-meta-tag"
+                                style={{
+                                  marginInlineEnd: 0,
+                                  maxWidth: "100%",
+                                  whiteSpace: "normal",
+                                  overflowWrap: "anywhere",
+                                }}
+                              >
                                 <Typography.Link
                                   href={url}
+                                  style={{
+                                    whiteSpace: "normal",
+                                    overflowWrap: "anywhere",
+                                  }}
                                   onClick={(e) => {
                                     e.preventDefault();
                                     void downloadFromURL(url, filename);
@@ -2280,10 +2625,21 @@ export function AgentPage({
             />
           )}
           {!!composer.attachments.length && (
-            <Space wrap>
+            <Space
+              wrap
+              style={{ maxWidth: "100%" }}
+              styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
+            >
               {composer.attachments.map((a) => (
                 <Tag
                   key={a.id}
+                  className="ui-meta-tag"
+                  style={{
+                    marginInlineEnd: 0,
+                    maxWidth: "100%",
+                    whiteSpace: "normal",
+                    overflowWrap: "anywhere",
+                  }}
                   closable={!busy}
                   onClose={() =>
                     updateComposer({
@@ -2333,7 +2689,11 @@ export function AgentPage({
             </Typography.Text>
           )}
           <div className="agent-compose-actions">
-            <Space wrap>
+            <Space
+              wrap
+              style={{ minWidth: 0, maxWidth: "100%" }}
+              styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
+            >
               <Upload
                 accept=".pdf,.docx,.pptx,.txt,.md,.html,.htm,.csv"
                 showUploadList={false}
@@ -2424,7 +2784,18 @@ export function AgentPage({
                   menu={{
                     items: reusable.map((a) => ({
                       key: a.id,
-                      label: a.filename,
+                      label: (
+                        <span
+                          style={{
+                            display: "inline-block",
+                            maxWidth: "min(360px, 80vw)",
+                            whiteSpace: "normal",
+                            overflowWrap: "anywhere",
+                          }}
+                        >
+                          {a.filename}
+                        </span>
+                      ),
                     })),
                     onClick: ({ key: attachmentKey }) => {
                       const found = reusable.find(
@@ -2448,7 +2819,15 @@ export function AgentPage({
               )}
             </Space>
             <div className="agent-compose-right">
-              <span className="agent-byte-count">{bytes} / 12000 字节</span>
+              <span
+                className={
+                  bytes > 12000
+                    ? "agent-byte-count is-over"
+                    : "agent-byte-count"
+                }
+              >
+                {bytes} / 12000 字节
+              </span>
               <Button
                 htmlType="submit"
                 type="primary"

@@ -39,10 +39,9 @@ import { useSession } from "../shared/session";
 import { useConfirm } from "../shared/confirm";
 import { EditingProvider, useEditingControls, useUnsavedChanges } from "../live/editing";
 import { LearningProvider, CourseSelector, useLearning } from "../live/context";
+import { FloatingAssistant } from "../live/floating-assistant";
 import { LiveRoutes } from "../live/routes";
 import { ErrorBoundary } from "../shared/ErrorBoundary";
-import "../live/styles.css";
-import "../live/workspace.css";
 
 import { prefetchRoute } from "./route-preload";
 
@@ -133,7 +132,11 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setPaletteOpen((prev) => !prev);
+        setPaletteOpen((prev) => {
+          const next = !prev;
+          if (next) setNavOpen(false);
+          return next;
+        });
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -248,7 +251,10 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
               htmlType="button"
               size="small"
               className="lab-cmd-btn"
-              onClick={() => setPaletteOpen(true)}
+              onClick={() => {
+                setNavOpen(false);
+                setPaletteOpen(true);
+              }}
               aria-label="打开快捷命令栏"
             >
               ⌘K
@@ -386,27 +392,29 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
           <div
             className={`workspace-topbar${current && current.links.length > 1 ? "" : " is-single-page"}`}
           >
-            {current && current.links.length > 1 ? (
-              <nav className="workspace-subnav" aria-label={`${current.label}功能`}>
-                {current.links.map(([path, label]) => (
-                  <NavLink key={path} to={withCourse(`${root}/${path}`)}>
-                    {label}
-                  </NavLink>
-                ))}
-              </nav>
-            ) : (
-              <span className="workspace-topbar-crumb">
-                <span>{roleLabel}</span>
-                <span aria-hidden="true">/</span>
-                <strong>{current ? current.label : pageTitle}</strong>
-              </span>
-            )}
-            {course && (
-              <div className="workspace-topbar-course" title={course.title}>
-                <span className="workspace-topbar-course-dot" aria-hidden="true" />
-                <span className="workspace-topbar-course-title">{course.title}</span>
-              </div>
-            )}
+            <div className="workspace-topbar-inner">
+              {current && current.links.length > 1 ? (
+                <nav className="workspace-subnav" aria-label={`${current.label}功能`}>
+                  {current.links.map(([path, label]) => (
+                    <NavLink key={path} to={withCourse(`${root}/${path}`)}>
+                      {label}
+                    </NavLink>
+                  ))}
+                </nav>
+              ) : (
+                <span className="workspace-topbar-crumb">
+                  <span>{roleLabel}</span>
+                  <span aria-hidden="true">/</span>
+                  <strong>{current ? current.label : pageTitle}</strong>
+                </span>
+              )}
+              {course && (
+                <div className="workspace-topbar-course" title={course.title}>
+                  <span className="workspace-topbar-course-dot" aria-hidden="true" />
+                  <span className="workspace-topbar-course-title">{course.title}</span>
+                </div>
+              )}
+            </div>
           </div>
           <main
             ref={main}
@@ -437,6 +445,7 @@ function Shell({ teacher = false }: { teacher?: boolean }) {
         groups={groups}
         withCourse={withCourse}
       />
+      <FloatingAssistant teacher={teacher} />
     </div>
   );
 }

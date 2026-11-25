@@ -455,7 +455,7 @@ export function GradePage() {
 
   if (query.isPending) {
     return (
-      <div className="live-page grading-page is-wide-workspace">
+      <div className="live-page is-wide-workspace">
         <PageHeader title={teacher ? "批阅作答" : "作答反馈"} />
         <LoadingState />
       </div>
@@ -463,7 +463,7 @@ export function GradePage() {
   }
   if (query.error || !data) {
     return (
-      <div className="live-page grading-page is-wide-workspace">
+      <div className="live-page is-wide-workspace">
         <PageHeader title={teacher ? "批阅作答" : "作答反馈"} />
         <ErrorState
           message={query.error?.message || "作答不存在"}
@@ -503,7 +503,7 @@ export function GradePage() {
 
   return (
     <div
-      className={`live-page is-wide-workspace ${teacher ? "grading-workspace" : "feedback-workspace"}`}
+      className={`live-page is-wide-workspace${teacher ? " grading-workspace" : ""}`}
     >
       <PageHeader
         backTo={`/${teacher ? "teacher" : "student"}/homework/${data.submission.assignment_id}${teacher ? `/submissions?${params}` : ""}`}
@@ -632,7 +632,9 @@ export function GradePage() {
               />
             ) : (
               <>
-                <MetaTag>共 {queueTotal} 份</MetaTag>
+                <div style={{ marginBottom: 8 }}>
+                  <MetaTag>共 {queueTotal} 份</MetaTag>
+                </div>
                 {queueRows.map((r) => (
                   <Button
                     key={r.id}
@@ -699,12 +701,21 @@ export function GradePage() {
           {data.question.type === "quiz" && data.question.options?.length > 0 && (
             <Space direction="vertical" size="small" className="live-full-width">
               {data.question.options.map((opt, idx) => (
-                <div key={idx} className="live-inline">
-                  <Tag color={opt === answerText ? "processing" : "default"}>
+                <div
+                  key={idx}
+                  className="live-inline"
+                  style={{ flexWrap: "nowrap", alignItems: "flex-start" }}
+                >
+                  <Tag
+                    color={opt === answerText ? "processing" : "default"}
+                    style={{ flexShrink: 0, marginTop: 3 }}
+                  >
                     {String.fromCharCode(65 + idx)}
                     {opt === answerText ? "（已选）" : ""}
                   </Tag>
-                  <RichContent text={opt} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <RichContent text={opt} />
+                  </div>
                 </div>
               ))}
             </Space>
@@ -716,7 +727,11 @@ export function GradePage() {
               <Segmented
                 size="small"
                 value={answerView}
-                onChange={(v) => setAnswerView(v as "raw" | "rich")}
+                onChange={(v) => {
+                  const next = v as "raw" | "rich";
+                  setAnswerView(next);
+                  if (next === "rich") setSelection("");
+                }}
                 options={[
                   { value: "raw", label: "作答原文" },
                   { value: "rich", label: "排版预览" },
@@ -725,20 +740,8 @@ export function GradePage() {
             </div>
           )}
 
-          {answerView === "rich" && data.question.type !== "quiz" ? (
-            <RichContent text={answerText} />
-          ) : (
-            <article
-              ref={original}
-              className="live-prose original-answer"
-              onMouseUp={captureSelection}
-            >
-              {renderHighlightedOriginal()}
-            </article>
-          )}
-
           {highlight && (
-            <Space wrap size="small">
+            <Space wrap size="small" style={{ marginBottom: 12 }}>
               <MetaTag>
                 {matchRanges.length
                   ? `原文高亮：找到 ${matchRanges.length} 处匹配`
@@ -754,109 +757,125 @@ export function GradePage() {
             </Space>
           )}
 
+          {answerView === "rich" && data.question.type !== "quiz" ? (
+            <RichContent text={answerText} />
+          ) : (
+            <article
+              ref={original}
+              className="live-prose original-answer"
+              onMouseUp={captureSelection}
+            >
+              {renderHighlightedOriginal()}
+            </article>
+          )}
+
           {showEditor && rubric && (
-            <div className="quote-toolbar">
-              <Field className="ui-field" label={<>引用到评分点</>}>
-                <Select
-                  aria-label="引用到评分点"
-                  value={criterion || rubric.criteria[0]?.id}
-                  onChange={(e) => setCriterion(e)}
-                  showSearch
-                  optionFilterProp="children"
+            <Form layout="vertical" component={false}>
+              <div className="quote-toolbar">
+                <Field className="ui-field" label={<>引用到评分点</>}>
+                  <Select
+                    aria-label="引用到评分点"
+                    value={criterion || rubric.criteria[0]?.id}
+                    onChange={(e) => setCriterion(e)}
+                    showSearch
+                    optionFilterProp="children"
+                  >
+                    {rubric.criteria.map((p) => (
+                      <Select.Option key={p.id} value={p.id}>
+                        {p.id} · {p.title}
+                      </Select.Option>
+                    ))}
+                  </Select>
+                </Field>
+                {selection && (
+                  <Typography.Text type="secondary" style={{ overflowWrap: "anywhere" }}>
+                    已选中：{selection.length > 60 ? `${selection.slice(0, 60)}…` : selection}
+                  </Typography.Text>
+                )}
+                <Button
+                  htmlType="button"
+                  disabled={!selection || !selectionMatchRanges.length}
+                  onClick={() => {
+                    const exactText = answerText.includes(selection)
+                      ? selection
+                      : selectionMatchRanges.length
+                        ? answerText.slice(
+                            selectionMatchRanges[0][0],
+                            selectionMatchRanges[0][1],
+                          )
+                        : selection;
+                    setQuoteRequest({
+                      id: criterion || rubric.criteria[0].id,
+                      text: exactText,
+                      seq: Date.now(),
+                    });
+                    setSelection("");
+                  }}
                 >
-                  {rubric.criteria.map((p) => (
-                    <Select.Option key={p.id} value={p.id}>
-                      {p.id} · {p.title}
-                    </Select.Option>
-                  ))}
-                </Select>
-              </Field>
-              {selection && (
-                <Typography.Text type="secondary">
-                  已选中：{selection.length > 60 ? `${selection.slice(0, 60)}…` : selection}
-                </Typography.Text>
-              )}
-              <Button
-                htmlType="button"
-                disabled={!selection || !selectionMatchRanges.length}
-                onClick={() => {
-                  const exactText = answerText.includes(selection)
-                    ? selection
-                    : selectionMatchRanges.length
-                      ? answerText.slice(
-                          selectionMatchRanges[0][0],
-                          selectionMatchRanges[0][1],
-                        )
-                      : selection;
-                  setQuoteRequest({
-                    id: criterion || rubric.criteria[0].id,
-                    text: exactText,
-                    seq: Date.now(),
-                  });
-                  setSelection("");
-                }}
-              >
-                引用选中文本
-              </Button>
-            </div>
+                  引用选中文本
+                </Button>
+              </div>
+            </Form>
           )}
 
-          {teacher && data.question.rubric && (
-            <Collapse
-              items={[
-                {
-                  key: "content",
-                  label: <>题目评分说明</>,
-                  children: <p className="live-prose">{data.question.rubric}</p>,
-                },
-              ]}
-            />
-          )}
+          <div className="live-stack" style={{ gap: 12 }}>
+            {teacher && data.question.rubric && (
+              <Collapse
+                items={[
+                  {
+                    key: "content",
+                    label: <>题目评分说明</>,
+                    children: <p className="live-prose">{data.question.rubric}</p>,
+                  },
+                ]}
+              />
+            )}
 
-          {resources.error && (
-            <Alert
-              type="warning"
-              showIcon
-              message={`评分依据资料读取失败：${resources.error.message}`}
-            />
-          )}
+            {resources.error && (
+              <Alert
+                type="warning"
+                showIcon
+                message={`评分依据资料读取失败：${resources.error.message}`}
+              />
+            )}
 
-          {source && (
-            <Collapse
-              items={[
-                {
-                  key: "content",
-                  label: (
-                    <>
-                      评分依据：{source.title}
-                      {formatResourceLocator(source.locator)
-                        ? ` · ${formatResourceLocator(source.locator)}`
-                        : ""}{" "}
-                      · v{source.version}
-                    </>
-                  ),
-                  children: (
-                    <>
-                      <RichContent text={source.content} />
-                      <p>{source.source_note || source.source_url}</p>
-                    </>
-                  ),
-                },
-              ]}
-            />
-          )}
+            {source && (
+              <Collapse
+                items={[
+                  {
+                    key: "content",
+                    label: (
+                      <>
+                        评分依据：{source.title}
+                        {formatResourceLocator(source.locator)
+                          ? ` · ${formatResourceLocator(source.locator)}`
+                          : ""}{" "}
+                        · v{source.version}
+                      </>
+                    ),
+                    children: (
+                      <>
+                        <RichContent text={source.content} />
+                        <p>{source.source_note || source.source_url}</p>
+                      </>
+                    ),
+                  },
+                ]}
+              />
+            )}
 
-          {data.submission.answer_sha256 && (
-            <Collapse
-              items={[
-                {
-                  key: "content",
-                  label: <>原文校验信息</>,
-                  children: <p className="live-id">{data.submission.answer_sha256}</p>,
-                },
-              ]}
-            />
-          )}
+            {data.submission.answer_sha256 && (
+              <Collapse
+                items={[
+                  {
+                    key: "content",
+                    label: <>原文校验信息</>,
+                    children: <p className="live-id">{data.submission.answer_sha256}</p>,
+                  },
+                ]}
+              />
+            )}
+          </div>
         </Card>
 
         <Card
@@ -877,31 +896,33 @@ export function GradePage() {
                   onRetry={() => void rubrics.refetch()}
                 />
               ) : rubric ? (
-                <>
-                  <Field className="ui-field" label={<>使用标准版本</>}>
-                    <Select
-                      aria-label="使用标准版本"
-                      value={rubric.id}
-                      onChange={async (e) => {
-                        if (
-                          !formDirty ||
-                          (await confirm(
-                            "切换标准后使用该版本的独立草稿？当前编辑已暂存。",
-                          ))
-                        ) {
-                          setRubricID(e);
-                        }
-                      }}
-                      showSearch
-                      optionFilterProp="children"
-                    >
-                      {confirmed.map((r) => (
-                        <Select.Option key={r.id} value={r.id}>
-                          v{r.version} · 已确认
-                        </Select.Option>
-                      ))}
-                    </Select>
-                  </Field>
+                <div className="live-stack">
+                  <Form layout="vertical" component={false}>
+                    <Field className="ui-field" label={<>使用标准版本</>}>
+                      <Select
+                        aria-label="使用标准版本"
+                        value={rubric.id}
+                        onChange={async (e) => {
+                          if (
+                            !formDirty ||
+                            (await confirm(
+                              "切换标准后使用该版本的独立草稿？当前编辑已暂存。",
+                            ))
+                          ) {
+                            setRubricID(e);
+                          }
+                        }}
+                        showSearch
+                        optionFilterProp="children"
+                      >
+                        {confirmed.map((r) => (
+                          <Select.Option key={r.id} value={r.id}>
+                            v{r.version} · 已确认
+                          </Select.Option>
+                        ))}
+                      </Select>
+                    </Field>
+                  </Form>
                   <PointGradeForm
                     key={`${submissionId}/${rubric.id}/${latest?.id || "new"}`}
                     rubric={rubric}
@@ -913,7 +934,7 @@ export function GradePage() {
                     onDirtyChange={setFormDirty}
                     saveRef={saveFormRef}
                   />
-                </>
+                </div>
               ) : (
                 <>
                   <p>
@@ -1052,7 +1073,7 @@ export function GradePage() {
         title="评分历史"
         open={history}
         onClose={() => setHistory(false)}
-        width={560}
+        width="min(100%, 560px)"
       >
         {data.revisions.map((r) => (
           <article className="live-revision" key={r.id}>

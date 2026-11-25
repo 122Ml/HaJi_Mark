@@ -289,6 +289,7 @@ export function AssignmentList({ quiz = false }: { quiz?: boolean }) {
             );
           })}
           <Pagination
+            responsive
             hideOnSinglePage
             current={page}
             pageSize={12}

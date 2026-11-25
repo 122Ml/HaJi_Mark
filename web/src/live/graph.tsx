@@ -33,11 +33,12 @@ interface NodePos {
 }
 
 const NODE_W = 192;
-const NODE_H = 58;
+const NODE_H = 68;
 const COL_GAP = 84;
-const ROW_GAP = 22;
-const PAD_X = 24;
-const PAD_Y = 24;
+const ROW_GAP = 26;
+const PAD_X = 28;
+const PAD_Y = 28;
+const LAYER_STEP = NODE_W + COL_GAP;
 
 function computeLayeredLayout(nodes: Point[], edges: Edge[]) {
   const byID = new Map(nodes.map((n) => [n.id, n]));
@@ -197,6 +198,90 @@ function reachableSet(startID: string, adjacency: Map<string, string[]>): Set<st
   return visited;
 }
 
+function cubicBezierExtrema(
+  p0: number,
+  p1: number,
+  p2: number,
+  p3: number,
+): [number, number] {
+  let min = Math.min(p0, p3);
+  let max = Math.max(p0, p3);
+  const a = -p0 + 3 * p1 - 3 * p2 + p3;
+  const b = 2 * (p0 - 2 * p1 + p2);
+  const c = p1 - p0;
+  const evalAt = (t: number) => {
+    if (t <= 0 || t >= 1) return;
+    const mt = 1 - t;
+    const val =
+      mt * mt * mt * p0 +
+      3 * mt * mt * t * p1 +
+      3 * mt * t * t * p2 +
+      t * t * t * p3;
+    if (val < min) min = val;
+    if (val > max) max = val;
+  };
+  if (Math.abs(a) < 1e-6) {
+    if (Math.abs(b) > 1e-6) evalAt(-c / b);
+  } else {
+    const disc = b * b - 4 * a * c;
+    if (disc >= 0) {
+      const sq = Math.sqrt(disc);
+      evalAt((-b + sq) / (2 * a));
+      evalAt((-b - sq) / (2 * a));
+    }
+  }
+  return [min, max];
+}
+
+function evalCubic(p0: number, p1: number, p2: number, p3: number, t: number): number {
+  const mt = 1 - t;
+  return (
+    mt * mt * mt * p0 +
+    3 * mt * mt * t * p1 +
+    3 * mt * t * t * p2 +
+    t * t * t * p3
+  );
+}
+
+function pickForwardArcOffset(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  dx: number,
+  startCol: number,
+  endCol: number,
+  arcMag: number,
+  positions: Map<string, NodePos>,
+  layoutHeight: number,
+): number {
+  const intermediates = [...positions.values()].filter(
+    (p) => p.col > startCol && p.col < endCol,
+  );
+  const scoreOffset = (offset: number) => {
+    let hits = 0;
+    for (const t of [0.25, 0.5, 0.75]) {
+      const bx = evalCubic(x1, x1 + dx, x2 - dx, x2, t);
+      const by = evalCubic(y1, y1 + offset, y2 + offset, y2, t);
+      for (const node of intermediates) {
+        if (
+          bx >= node.x - 8 &&
+          bx <= node.x + NODE_W + 8 &&
+          by >= node.y - 10 &&
+          by <= node.y + NODE_H + 10
+        ) {
+          hits += 1;
+        }
+      }
+    }
+    return hits;
+  };
+  const upHits = scoreOffset(-arcMag);
+  const downHits = scoreOffset(arcMag);
+  if (upHits !== downHits) return upHits < downHits ? -arcMag : arcMag;
+  return (y1 + y2) / 2 <= layoutHeight / 2 ? -arcMag : arcMag;
+}
+
 export function KnowledgeGraph() {
   const confirm = useConfirm();
   const { course } = useLearning();
@@ -307,6 +392,117 @@ export function KnowledgeGraph() {
     [visibleNodes, visibleEdges],
   );
 
+  const { routedEdges, svgBounds } = useMemo(() => {
+    const sorted = [...visibleEdges].sort((a, b) => {
+      const aActive =
+        !!selectedID && (a.from_id === selectedID || a.to_id === selectedID) ? 1 : 0;
+      const bActive =
+        !!selectedID && (b.from_id === selectedID || b.to_id === selectedID) ? 1 : 0;
+      return aActive - bActive;
+    });
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const pos of layout.positions.values()) {
+      minX = Math.min(minX, pos.x);
+      minY = Math.min(minY, pos.y);
+      maxX = Math.max(maxX, pos.x + NODE_W);
+      maxY = Math.max(maxY, pos.y + NODE_H);
+    }
+    if (!Number.isFinite(minX)) {
+      minX = PAD_X;
+      minY = PAD_Y;
+      maxX = layout.width - PAD_X;
+      maxY = layout.height - PAD_Y;
+    }
+
+    const routed: Array<{ edge: Edge; d: string; isActive: boolean }> = [];
+    for (const edge of sorted) {
+      const start = layout.positions.get(edge.from_id);
+      const end = layout.positions.get(edge.to_id);
+      if (!start || !end) continue;
+
+      const x1 = start.x + NODE_W;
+      const y1 = start.y + NODE_H / 2;
+      const x2 = end.x - 4;
+      const y2 = end.y + NODE_H / 2;
+
+      let cx1: number;
+      let cy1: number;
+      let cx2: number;
+      let cy2: number;
+
+      if (x1 >= x2) {
+        // Backward or same-column cycle edge: arc clearly around node rows.
+        const loopDx = Math.min(84, Math.max(44, Math.abs(x1 - x2) * 0.22));
+        const arcY = (y1 + y2) / 2 <= layout.height / 2 ? -(NODE_H + 24) : NODE_H + 24;
+        cx1 = x1 + loopDx;
+        cy1 = y1 + arcY;
+        cx2 = x2 - loopDx;
+        cy2 = y2 + arcY;
+      } else if (x2 - x1 > LAYER_STEP) {
+        // Multi-layer span: bow smoothly above or below intermediate-layer nodes.
+        const dx = Math.max(40, (x2 - x1) * 0.42);
+        const spanCols = Math.max(2, end.col - start.col);
+        const arcMag = 84 + Math.min(2, spanCols - 2) * 18;
+        const arcOffset = pickForwardArcOffset(
+          x1,
+          y1,
+          x2,
+          y2,
+          dx,
+          start.col,
+          end.col,
+          arcMag,
+          layout.positions,
+          layout.height,
+        );
+        cx1 = x1 + dx;
+        cy1 = y1 + arcOffset;
+        cx2 = x2 - dx;
+        cy2 = y2 + arcOffset;
+      } else {
+        const dx = Math.max(36, Math.abs(x2 - x1) * 0.45);
+        cx1 = x1 + dx;
+        cy1 = y1;
+        cx2 = x2 - dx;
+        cy2 = y2;
+      }
+
+      const [eMinX, eMaxX] = cubicBezierExtrema(x1, cx1, cx2, x2);
+      const [eMinY, eMaxY] = cubicBezierExtrema(y1, cy1, cy2, y2);
+      minX = Math.min(minX, eMinX - 8);
+      maxX = Math.max(maxX, eMaxX + 8);
+      minY = Math.min(minY, eMinY - 8);
+      maxY = Math.max(maxY, eMaxY + 8);
+
+      const isActive =
+        !!selectedID && (edge.from_id === selectedID || edge.to_id === selectedID);
+      routed.push({
+        edge,
+        d: `M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`,
+        isActive,
+      });
+    }
+
+    const viewMinX = Math.min(0, Math.floor(minX - PAD_X));
+    const viewMinY = Math.min(0, Math.floor(minY - PAD_Y));
+    const viewMaxX = Math.max(layout.width, Math.ceil(maxX + PAD_X));
+    const viewMaxY = Math.max(layout.height, Math.ceil(maxY + PAD_Y));
+
+    return {
+      routedEdges: routed,
+      svgBounds: {
+        minX: viewMinX,
+        minY: viewMinY,
+        width: Math.max(560, viewMaxX - viewMinX),
+        height: Math.max(120, viewMaxY - viewMinY),
+      },
+    };
+  }, [visibleEdges, layout, selectedID]);
+
   const selectedNode = selectedID ? nodeMap.get(selectedID) || null : null;
   const selectedPrereqs = useMemo(
     () => new Set(selectedNode ? inMap.get(selectedNode.id) || [] : []),
@@ -413,14 +609,6 @@ export function KnowledgeGraph() {
     );
   }
 
-  const orderedEdges = [...visibleEdges].sort((a, b) => {
-    const aActive =
-      !!selectedID && (a.from_id === selectedID || a.to_id === selectedID) ? 1 : 0;
-    const bActive =
-      !!selectedID && (b.from_id === selectedID || b.to_id === selectedID) ? 1 : 0;
-    return aActive - bActive;
-  });
-
   return (
     <div className="live-page">
       {!allNodes.length ? (
@@ -481,9 +669,9 @@ export function KnowledgeGraph() {
               <div className="dag-canvas">
               <svg
                 className="dag-svg"
-                width={layout.width}
-                height={layout.height}
-                viewBox={`0 0 ${layout.width} ${layout.height}`}
+                width={svgBounds.width}
+                height={svgBounds.height}
+                viewBox={`${svgBounds.minX} ${svgBounds.minY} ${svgBounds.width} ${svgBounds.height}`}
                 role="img"
                 aria-label="课程知识点先修依赖关系图"
               >
@@ -512,32 +700,18 @@ export function KnowledgeGraph() {
                   </marker>
                 </defs>
                 <g>
-                  {orderedEdges.map((edge) => {
-                    const start = layout.positions.get(edge.from_id);
-                    const end = layout.positions.get(edge.to_id);
-                    if (!start || !end) return null;
-                    const x1 = start.x + NODE_W;
-                    const y1 = start.y + NODE_H / 2;
-                    const x2 = end.x - 4;
-                    const y2 = end.y + NODE_H / 2;
-                    const dx = Math.max(36, Math.abs(x2 - x1) * 0.45);
-                    const d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
-                    const isActive =
-                      !!selectedID &&
-                      (edge.from_id === selectedID || edge.to_id === selectedID);
-                    return (
-                      <path
-                        key={`${edge.from_id}->${edge.to_id}`}
-                        className={`dag-edge-line${isActive ? " is-active" : ""}`}
-                        d={d}
-                        markerEnd={
-                          isActive
-                            ? "url(#dag-arrow-active)"
-                            : "url(#dag-arrow)"
-                        }
-                      />
-                    );
-                  })}
+                  {routedEdges.map(({ edge, d, isActive }) => (
+                    <path
+                      key={`${edge.from_id}->${edge.to_id}`}
+                      className={`dag-edge-line${isActive ? " is-active" : ""}`}
+                      d={d}
+                      markerEnd={
+                        isActive
+                          ? "url(#dag-arrow-active)"
+                          : "url(#dag-arrow)"
+                      }
+                    />
+                  ))}
                 </g>
                 <g>
                   {visibleNodes.map((node) => {
@@ -591,7 +765,11 @@ export function KnowledgeGraph() {
             <Card
               size="small"
               className="card-panel"
-              title={`节点详情：${selectedNode.title}`}
+              title={
+                <span style={{ overflowWrap: "anywhere" }}>
+                  节点详情：{selectedNode.title}
+                </span>
+              }
               extra={
                 <Button size="small" onClick={() => setSelectedID("")}>
                   取消选中
@@ -642,6 +820,7 @@ export function KnowledgeGraph() {
                             <Button
                               size="small"
                               type="link"
+                              className="table-text-action"
                               onClick={() => setSelectedID(preID)}
                             >
                               {pre.title}
@@ -692,6 +871,7 @@ export function KnowledgeGraph() {
                             <Button
                               size="small"
                               type="link"
+                              className="table-text-action"
                               onClick={() => setSelectedID(depID)}
                             >
                               {dep.title}
@@ -746,9 +926,11 @@ export function KnowledgeGraph() {
                       }
                     >
                       <Space wrap size="small">
-                        <Tag>前置：{fromNode.title}</Tag>
+                        <MetaTag>前置：{fromNode.title}</MetaTag>
                         <span aria-hidden="true">→</span>
-                        <Tag color="processing">{toNode.title}</Tag>
+                        <Tag className="ui-meta-tag" color="processing">
+                          {toNode.title}
+                        </Tag>
                       </Space>
                     </List.Item>
                   );

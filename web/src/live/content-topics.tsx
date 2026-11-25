@@ -143,16 +143,26 @@ export function TopicManager() {
                     />
                   )}
                   {!topics.length ? (
-                    <p className="live-meta">暂无专题，可在下方新建课程专题。</p>
+                    <p className="live-meta" style={{ overflowWrap: "anywhere" }}>
+                      暂无专题，可在下方新建课程专题。
+                    </p>
                   ) : !visibleTopics.length ? (
-                    <p className="live-meta">没有匹配的专题。</p>
+                    <p className="live-meta" style={{ overflowWrap: "anywhere" }}>
+                      没有匹配的专题。
+                    </p>
                   ) : (
-                    <div className="live-inline">
+                    <Space wrap size="small" style={{ maxWidth: "100%" }}>
                       {visibleTopics.map((t) => (
                         <Button
                           key={t.id}
                           htmlType="button"
                           type={editing?.id === t.id ? "primary" : "default"}
+                          style={{
+                            maxWidth: "100%",
+                            height: "auto",
+                            whiteSpace: "normal",
+                            textAlign: "left",
+                          }}
                           onClick={() => {
                             setEditing(t);
                             setTitle(t.title);
@@ -160,13 +170,13 @@ export function TopicManager() {
                             setFormError("");
                           }}
                         >
-                          {t.title}
+                          <span style={{ overflowWrap: "anywhere" }}>{t.title}</span>
                           {!t.active && (
                             <StatusTag status="archived" label="已停用" />
                           )}
                         </Button>
                       ))}
-                    </div>
+                    </Space>
                   )}
                 </>
               )}
@@ -307,11 +317,13 @@ export function TopicManager() {
 export function ContentLinks({
   kind,
   id,
+  defaultExpanded = false,
 }: {
   kind: "source" | "knowledge" | "question";
   id: string;
+  defaultExpanded?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultExpanded);
   const q = useLiveQuery<TopicData>("/topics", open && !!id);
   const action = useAction();
   const [ids, setIds] = useState<string[]>([]);
@@ -386,6 +398,7 @@ export function ContentLinks({
 
   return (
     <Collapse
+      defaultActiveKey={defaultExpanded ? ["content"] : []}
       onChange={(keys) =>
         setOpen(Array.isArray(keys) ? keys.length > 0 : Boolean(keys))
       }
@@ -575,8 +588,14 @@ const decisionNames: Record<string, string> = {
   impact_regrade: "安排整组重评",
 };
 
-export function DecisionHistory({ id }: { id: string }) {
-  const [open, setOpen] = useState(false);
+export function DecisionHistory({
+  id,
+  defaultExpanded = false,
+}: {
+  id: string;
+  defaultExpanded?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultExpanded);
   const q = useLiveQuery<
     {
       id: string;
@@ -588,6 +607,7 @@ export function DecisionHistory({ id }: { id: string }) {
 
   return (
     <Collapse
+      defaultActiveKey={defaultExpanded ? ["content"] : []}
       onChange={(keys) =>
         setOpen(Array.isArray(keys) ? keys.length > 0 : Boolean(keys))
       }
@@ -603,9 +623,17 @@ export function DecisionHistory({ id }: { id: string }) {
               ) : q.data?.length ? (
                 q.data.map((d) => (
                   <article className="rag-hit" key={d.id}>
-                    <strong>{decisionNames[d.kind] || "内容处理"}</strong>
-                    {d.reason && <p>{d.reason}</p>}
-                    <small>{when(d.created_at)}</small>
+                    <strong style={{ overflowWrap: "anywhere" }}>
+                      {decisionNames[d.kind] || "内容处理"}
+                    </strong>
+                    {d.reason && (
+                      <p style={{ overflowWrap: "anywhere", maxWidth: "100%" }}>
+                        {d.reason}
+                      </p>
+                    )}
+                    <small style={{ overflowWrap: "anywhere" }}>
+                      {when(d.created_at)}
+                    </small>
                   </article>
                 ))
               ) : (

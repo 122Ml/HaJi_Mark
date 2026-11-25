@@ -11,6 +11,10 @@ import { ThemeModeProvider, useThemeMode } from './app/theme-mode';
 import { APIError, requestJSON } from './shared/api';
 import { primeInitialSession } from './shared/session';
 import './styles.css';
+import './live/styles.css';
+import './live/workspace.css';
+import './live/knowledge.css';
+import './live/agent.css';
 import './styles/kit.css';
 
 const router = createBrowserRouter([{ path: '*', element: <App /> }]);

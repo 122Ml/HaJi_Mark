@@ -70,8 +70,15 @@ function buildCurriculumTree(
     return {
       key: node.id,
       title: (
-        <Space size={6} wrap>
-          <span>{node.title}</span>
+        <Space
+          size={6}
+          wrap
+          style={{ minWidth: 0, maxWidth: "100%" }}
+          styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
+        >
+          <span style={{ overflowWrap: "anywhere", minWidth: 0 }}>
+            {node.title}
+          </span>
           <MetaTag>{labelFor(pointKindLabels, node.kind, node.kind)}</MetaTag>
           <Button
             size="small"
@@ -449,9 +456,11 @@ export function CurriculumPage() {
       <Modal
         open={!!editingPoint}
         title={
-          editingPoint
-            ? `编辑${labelFor(pointKindLabels, editingPoint.kind, "节点")} · ${editingPoint.title}`
-            : "编辑目录节点"
+          <span style={{ overflowWrap: "anywhere" }}>
+            {editingPoint
+              ? `编辑${labelFor(pointKindLabels, editingPoint.kind, "节点")} · ${editingPoint.title}`
+              : "编辑目录节点"}
+          </span>
         }
         onCancel={() => {
           setEditingPoint(null);

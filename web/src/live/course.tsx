@@ -553,6 +553,9 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
                           resource: "",
                         });
                       }}
+                      titleRender={(n) => (
+                        <span style={{ overflowWrap: "anywhere" }}>{n.title}</span>
+                      )}
                       treeData={treeData}
                     />
                   ) : (
@@ -566,7 +569,11 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
                 <div className="section-head">
                   {view && (
                     <>
-                      <Typography.Text strong className="item-title">
+                      <Typography.Text
+                        strong
+                        className="item-title"
+                        style={{ margin: 0, minWidth: 0 }}
+                      >
                         {view.title}
                       </Typography.Text>
                       <ContextAgent
@@ -635,7 +642,14 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
               )}
 
               {view ? (
-                <div style={{ display: "grid", gap: 14 }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "minmax(0, 1fr)",
+                    gap: 14,
+                    minWidth: 0,
+                  }}
+                >
                   <MetaTags>
                     <StatusTag
                       status={view.status}
@@ -735,6 +749,10 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
                             href={view.source_url}
                             target="_blank"
                             rel="noreferrer"
+                            style={{
+                              overflowWrap: "anywhere",
+                              wordBreak: "break-all",
+                            }}
                           >
                             {view.source_url}
                           </Typography.Link>
@@ -824,8 +842,12 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
                         const superseded = supersededIDs.has(r.id);
                         const loc = formatResourceLocator(r.locator);
                         return (
-                          <article className="live-row" key={r.id}>
-                            <div>
+                          <article
+                            className="live-row"
+                            key={r.id}
+                            style={{ flexWrap: "wrap" }}
+                          >
+                            <div style={{ minWidth: "min(100%, 220px)" }}>
                               <Typography.Text strong className="item-title">
                                 {r.title}
                               </Typography.Text>
@@ -852,7 +874,10 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
                                 />
                               )}
                             </div>
-                            <div className="live-inline">
+                            <div
+                              className="live-inline"
+                              style={{ maxWidth: "100%" }}
+                            >
                               <Button onClick={() => openResource(r)}>
                                 打开资料
                               </Button>
@@ -935,7 +960,7 @@ export function CourseWorkspace({ sourceID = "" }: { sourceID?: string } = {}) {
                     : "添加资料草稿"
               }
               open={editorOpen}
-              width={680}
+              width="min(100%, 680px)"
               onClose={async () => {
                 if (
                   !resourceDraft.dirty ||

@@ -22,12 +22,15 @@ export function GroundedAnswer({ answer }: { answer: AssistAnswer }) {
           (/^R\d+$/.test(c.id) ? sources[Number(c.id.slice(1)) - 1] : undefined);
         const loc = formatLocator(hit?.locator);
         return (
-          <blockquote key={`${c.id}:${i}`}>
-            <div>
+          <blockquote
+            key={`${c.id}:${i}`}
+            style={{ maxWidth: "100%", overflowWrap: "anywhere" }}
+          >
+            <div style={{ overflowWrap: "anywhere" }}>
               <Tag className="ui-meta-tag">[{refTag}]</Tag> {c.quote}
             </div>
             {(hit?.title || loc) && (
-              <small>
+              <small style={{ overflowWrap: "anywhere" }}>
                 {hit?.title}
                 {loc ? ` · ${loc}` : ""}
               </small>

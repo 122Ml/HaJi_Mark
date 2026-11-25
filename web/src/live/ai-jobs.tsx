@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Collapse, Progress, Select } from "antd";
+import { Alert, Button, Collapse, Progress, Select, Space, Typography } from "antd";
 import { requestJSON } from "../shared/api";
 import { FeatureNotice, isFeatureDisabledError, MetaTags, StatusTag } from "../shared/ui";
 import { Feedback, Link, useAction, useLearning, useLiveQuery, when } from "./context";
@@ -12,10 +12,12 @@ import type { Hit, Job, ModelInfo } from "./types";
 const ACTIVE_STATES = new Set(["queued", "running"]);
 
 export function ModelSelect({
+  id,
   kind,
   value,
   onChange,
 }: {
+  id?: string;
   kind: string;
   value: string;
   onChange: (value: string) => void;
@@ -27,6 +29,7 @@ export function ModelSelect({
       .map((p) => ({ value: p.id, label: p.label, disabled: !p.available })) || [];
   return (
     <Select
+      id={id}
       aria-label={kind === "embedding" ? "向量模型" : "生成模型"}
       value={value || undefined}
       placeholder="默认模型"
@@ -267,7 +270,11 @@ export function AIJobRunner({
         failed={action.failed}
       />
       {q.data && (
-        <div role="status">
+        <div
+          role="status"
+          className="live-stack"
+          style={{ marginTop: 12, gap: 10 }}
+        >
           <MetaTags>
             <StatusTag status={q.data.state} label={labelFor(stateLabels, q.data.state)} />
             {q.data.created_at && <span className="live-meta">{when(q.data.created_at)}</span>}
@@ -276,7 +283,13 @@ export function AIJobRunner({
           {q.data.state === "failed" && (
             <>
               {q.data.error && (
-                <Alert type="error" showIcon role="alert" message={q.data.error} />
+                <Alert
+                  className="rag-job-error"
+                  type="error"
+                  showIcon
+                  role="alert"
+                  message={q.data.error}
+                />
               )}
               {typeof q.data.output?.raw_response === "string" && (
                 <Collapse
@@ -289,17 +302,23 @@ export function AIJobRunner({
                   ]}
                 />
               )}
-              <Button
-                size="small"
-                disabled={action.busy}
-                onClick={() => void action.run(`/jobs/${q.data!.id}/retry`)}
-                htmlType="button"
-              >
-                重试
-              </Button>
+              <Space wrap>
+                <Button
+                  size="small"
+                  disabled={action.busy}
+                  onClick={() => void action.run(`/jobs/${q.data!.id}/retry`)}
+                  htmlType="button"
+                >
+                  重试
+                </Button>
+              </Space>
             </>
           )}
-          {q.data.state === "canceled" && <p className="live-meta">任务已取消。</p>}
+          {q.data.state === "canceled" && (
+            <Typography.Text type="secondary" className="live-meta">
+              任务已取消。
+            </Typography.Text>
+          )}
           {q.data.state === "succeeded" && (
             <>
               {showPreview && !isWorkflow && (
@@ -313,16 +332,20 @@ export function AIJobRunner({
                   ]}
                 />
               )}
-              <Button
-                type={isWorkflow ? "primary" : "default"}
-                disabled={busy || stale}
-                onClick={() => onAdopt(q.data!.output, q.data!.id)}
-                htmlType="button"
-              >
-                {adoptLabel || (isWorkflow ? "载入候选" : "载入编辑区")}
-              </Button>
+              <Space wrap>
+                <Button
+                  type={isWorkflow ? "primary" : "default"}
+                  disabled={busy || stale}
+                  onClick={() => onAdopt(q.data!.output, q.data!.id)}
+                  htmlType="button"
+                >
+                  {adoptLabel || (isWorkflow ? "载入候选" : "载入编辑区")}
+                </Button>
+              </Space>
               {stale && (
-                <p className="live-meta">当前要求或依据已变化，请按当前条件重新生成。</p>
+                <Typography.Text type="secondary" className="live-meta">
+                  当前要求或依据已变化，请按当前条件重新生成。
+                </Typography.Text>
               )}
             </>
           )}
@@ -435,25 +458,42 @@ export function JobsPanel({
                       <StatusTag status={j.state} label={labelFor(stateLabels, j.state)} />
                       <span className="live-meta">{when(j.created_at)}</span>
                     </MetaTags>
-                    {typeof j.input?.source_id === "string" && !sourceID && (
-                      <Link to={`/teacher/materials?source=${j.input.source_id}&source_view=tasks`}>
-                        打开来源与本次处理
-                      </Link>
-                    )}
-                    {j.state === "succeeded" && j.kind === "extract" && (
-                      <Link
-                        to={`/teacher/materials?source=${String(j.input?.source_id || "")}&source_view=knowledge&job=${j.id}`}
-                      >
-                        核对本次知识候选
-                      </Link>
+                    {((typeof j.input?.source_id === "string" && !sourceID) ||
+                      (j.state === "succeeded" && j.kind === "extract")) && (
+                      <Space wrap size="middle" style={{ marginTop: 6 }}>
+                        {typeof j.input?.source_id === "string" && !sourceID && (
+                          <Link
+                            to={`/teacher/materials?source=${j.input.source_id}&source_view=tasks`}
+                          >
+                            打开来源与本次处理
+                          </Link>
+                        )}
+                        {j.state === "succeeded" && j.kind === "extract" && (
+                          <Link
+                            to={`/teacher/materials?source=${String(j.input?.source_id || "")}&source_view=knowledge&job=${j.id}`}
+                          >
+                            核对本次知识候选
+                          </Link>
+                        )}
+                      </Space>
                     )}
                     {j.state === "succeeded" && j.kind === "parse" && (
-                      <p className="live-meta">
+                      <Typography.Text
+                        type="secondary"
+                        className="live-meta"
+                        style={{ display: "block", marginTop: 6 }}
+                      >
                         原文已落库，尚需核对、发布和确认知识。索引状态独立查看。
-                      </p>
+                      </Typography.Text>
                     )}
                     {j.error && (
-                      <Alert type="error" showIcon role="alert" message={j.error} />
+                      <p
+                        className="rag-job-error"
+                        role="alert"
+                        style={{ margin: "6px 0 0", overflowWrap: "anywhere" }}
+                      >
+                        {j.error}
+                      </p>
                     )}
                   </div>
                   {j.state === "running" && (

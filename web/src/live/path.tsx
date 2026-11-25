@@ -1,4 +1,4 @@
-import { Button, Card, Collapse, List, Tag } from "antd";
+import { Button, Card, Collapse, List, Space, Tag } from "antd";
 import { useMemo } from "react";
 import { PageHeader } from "../shared/PageHeader";
 import {
@@ -185,7 +185,11 @@ export function StudyPath() {
               <Card
                 className="card-panel"
                 key={p.knowledge_point_id}
-                title={`${i + 1}. ${p.title}`}
+                title={
+                  <span style={{ overflowWrap: "anywhere" }}>
+                    {`${i + 1}. ${p.title}`}
+                  </span>
+                }
                 extra={<Tag color="processing">先修顺序 #{i + 1}</Tag>}
               >
                 <p>{p.reason}</p>
@@ -205,26 +209,43 @@ export function StudyPath() {
                               size: "small",
                               hideOnSinglePage: true,
                               showSizeChanger: false,
+                              responsive: true,
                             }}
                             renderItem={(k) => (
                               <List.Item
-                                actions={[
-                                  <Link
-                                    key="read"
-                                    to={`/student/knowledge?knowledge=${encodeURIComponent(k.id)}`}
-                                  >
-                                    阅读知识
-                                  </Link>,
-                                ]}
+                                style={{
+                                  display: "flex",
+                                  flexWrap: "wrap",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  gap: "8px 16px",
+                                }}
                               >
                                 <List.Item.Meta
+                                  style={{ flex: "1 1 200px", minWidth: 0 }}
                                   title={
-                                    <>
-                                      {k.title} <Tag>v{k.version}</Tag>
-                                    </>
+                                    <Space size={6} wrap>
+                                      <span style={{ overflowWrap: "anywhere" }}>
+                                        {k.title}
+                                      </span>
+                                      <MetaTag>v{k.version}</MetaTag>
+                                    </Space>
                                   }
-                                  description={k.conditions || undefined}
+                                  description={
+                                    k.conditions ? (
+                                      <span style={{ overflowWrap: "anywhere" }}>
+                                        {k.conditions}
+                                      </span>
+                                    ) : undefined
+                                  }
                                 />
+                                <Link
+                                  key="read"
+                                  style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+                                  to={`/student/knowledge?knowledge=${encodeURIComponent(k.id)}`}
+                                >
+                                  阅读知识
+                                </Link>
                               </List.Item>
                             )}
                           />
@@ -243,6 +264,12 @@ export function StudyPath() {
                       <div className="live-row" key={r.id}>
                         <div>
                           <Link
+                            style={{
+                              display: "inline-block",
+                              maxWidth: "100%",
+                              marginBottom: 6,
+                              overflowWrap: "anywhere",
+                            }}
                             to={`/student/course-content?node=${encodedPoint}&resource=${encodeURIComponent(r.id)}`}
                           >
                             {r.title}

@@ -76,9 +76,9 @@ export const darkPalette = {
   successLine: "#1f4d31",
   evidence: "#3a2e0b",
   evidenceInk: "#fcd34d",
-  ai: "#818cf8",
+  ai: "#8f8ff5",
   aiAlt: "#38bdf8",
-  aiSoft: "#1c1d3b",
+  aiSoft: "#1a1a33",
   verdict: "#4ade80",
 } as const satisfies Palette;
 
@@ -259,5 +259,6 @@ export const darkTheme: ThemeConfig = {
 export const comfortableToken: NonNullable<ThemeConfig["token"]> = {
   fontSize: 14,
   controlHeight: 36,
+  controlHeightSM: 28,
   controlHeightLG: 40,
 };

@@ -165,6 +165,13 @@ function ScoreHistogramCard({ rows }: { rows: ReleasedEvidence[] }) {
         <Space direction="vertical" className="live-full-width" size="small">
           <svg
             className="score-histogram-svg"
+            style={{
+              width: "100%",
+              height: "auto",
+              maxHeight: 220,
+              aspectRatio: "440 / 196",
+              display: "block",
+            }}
             viewBox="0 0 440 196"
             role="img"
             aria-label="成绩分布直方图"
@@ -191,7 +198,7 @@ function ScoreHistogramCard({ rows }: { rows: ReleasedEvidence[] }) {
               const slotWidth = 80;
               const barWidth = 44;
               const x = 20 + idx * slotWidth + (slotWidth - barWidth) / 2;
-              const maxBarHeight = 116;
+              const maxBarHeight = 110;
               const barHeight =
                 count > 0 ? Math.max(8, Math.round((count / maxCount) * maxBarHeight)) : 0;
               const y = 154 - barHeight;
@@ -268,15 +275,16 @@ function MasteryBarsCard({ items }: { items: KnowledgeMasteryItem[] }) {
                 <div className="mastery-bar-row" key={item.id}>
                   <Tooltip
                     title={`${item.title}：${rate}%（${item.count} 条有效结果）`}
+                    trigger={["hover", "focus"]}
                   >
-                    <span className="mastery-bar-label">
+                    <span className="mastery-bar-label" tabIndex={0}>
                       {item.title}（{item.count}条）
                     </span>
                   </Tooltip>
                   <div className="mastery-bar-track" aria-hidden="true">
                     <div
                       className={`mastery-bar-fill ${tone}`}
-                      style={{ width: `${rate}%` }}
+                      style={{ width: `${Math.min(100, Math.max(0, rate))}%` }}
                     />
                   </div>
                   <span className="mastery-bar-val">{rate}%</span>
@@ -586,7 +594,18 @@ export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
           formatter={
             max
               ? undefined
-              : () => <StatusTag status="pending" label="证据不足" />
+              : () => (
+                  <span
+                    className="ui-meta-tags"
+                    style={{
+                      display: "inline-flex",
+                      lineHeight: 1,
+                      verticalAlign: "middle",
+                    }}
+                  >
+                    <StatusTag status="pending" label="证据不足" />
+                  </span>
+                )
           }
         />
       </Card>
@@ -614,7 +633,7 @@ export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
         <div className="live-performance">
           {knowledgeMastery.map((p) => (
             <article key={p.id}>
-              <strong>{p.title}</strong>
+              <strong style={{ overflowWrap: "anywhere" }}>{p.title}</strong>
               <MetaTags>
                 {p.rate !== null ? (
                   <>
@@ -625,10 +644,10 @@ export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
                   <StatusTag status="pending" label="证据不足" />
                 )}
               </MetaTags>
-              {p.rate !== null && (
+              {p.rate !== null ? (
                 <Progress
                   aria-label={`${p.title}表现`}
-                  percent={p.rate}
+                  percent={Math.min(100, Math.max(0, p.rate))}
                   status={
                     p.rate < 60
                       ? "exception"
@@ -639,6 +658,8 @@ export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
                   showInfo={false}
                   size="small"
                 />
+              ) : (
+                <span className="live-meta">暂无有效评分证据</span>
               )}
             </article>
           ))}
@@ -688,6 +709,7 @@ export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
                   )}
                 </div>
                 <Link
+                  style={{ flexShrink: 0, whiteSpace: "nowrap" }}
                   to={`/${teacher ? "teacher" : "student"}/homework/submissions/${r.submission_id}/${teacher ? "grade" : "feedback"}`}
                 >
                   查看原始证据
@@ -703,6 +725,7 @@ export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
         onChange={setEvidencePage}
         showSizeChanger={false}
         hideOnSinglePage
+        responsive
       />
     </Card>
   );
@@ -764,6 +787,12 @@ export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
                 <article className="live-row" key={r.id}>
                   <div>
                     <Link
+                      style={{
+                        display: "inline-block",
+                        maxWidth: "100%",
+                        marginBottom: 6,
+                        overflowWrap: "anywhere",
+                      }}
                       to={`/student/course-content?resource=${encodeURIComponent(r.id)}`}
                     >
                       {r.title}
@@ -799,7 +828,7 @@ export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
             <>
               <Select
                 aria-label="学生范围"
-                style={{ minWidth: 140, maxWidth: "100%" }}
+                style={{ width: "min(100%, 220px)", minWidth: 0, maxWidth: "100%" }}
                 value={validStudentFilter}
                 onChange={(v) => setStudentFilter(v || "")}
                 showSearch
@@ -853,7 +882,9 @@ export function OverviewPage({ analysis = false }: { analysis?: boolean }) {
       )}
       {validStudentFilter && view !== "gaps" && (
         <div className="context-banner">
-          <strong>{matchedStudent?.display_name}的学习详情</strong>
+          <strong style={{ overflowWrap: "anywhere" }}>
+            {matchedStudent?.display_name}的学习详情
+          </strong>
           <Link
             className="primary-link"
             to={`/teacher/intervention?new=1&student=${encodeURIComponent(validStudentFilter)}`}

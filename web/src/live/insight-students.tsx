@@ -83,11 +83,12 @@ export function InsightStudents({
         )}
         <Table<StudentRiskRow>
           rowKey="id"
-          scroll={{ x: 760 }}
+          scroll={{ x: 920 }}
           pagination={{
             pageSize: 10,
             showSizeChanger: false,
             hideOnSinglePage: true,
+            responsive: true,
           }}
           dataSource={studentRiskRows}
           locale={{ emptyText: "暂无匹配的学生数据" }}
@@ -95,6 +96,7 @@ export function InsightStudents({
             {
               title: "学生",
               key: "student",
+              width: 200,
               sorter: (a, b) =>
                 a.display_name.localeCompare(b.display_name, "zh-CN"),
               render: (_, s) => (
@@ -118,11 +120,13 @@ export function InsightStudents({
             {
               title: "正式结果数",
               dataIndex: "releasedCount",
+              width: 104,
               sorter: (a, b) => a.releasedCount - b.releasedCount,
             },
             {
               title: "平均得分率",
               dataIndex: "avgPct",
+              width: 108,
               sorter: (a, b) => (a.avgPct ?? -1) - (b.avgPct ?? -1),
               render: (v: number | null) =>
                 v !== null ? (
@@ -136,6 +140,7 @@ export function InsightStudents({
             {
               title: "最低得分率",
               dataIndex: "minPct",
+              width: 104,
               sorter: (a, b) => (a.minPct ?? -1) - (b.minPct ?? -1),
               render: (v: number | null) =>
                 v !== null ? (
@@ -147,25 +152,30 @@ export function InsightStudents({
             {
               title: "已提交作业",
               dataIndex: "submitted_assignments",
+              width: 104,
               sorter: (a, b) =>
                 a.submitted_assignments - b.submitted_assignments,
             },
             {
               title: "完成学习",
               dataIndex: "completed_events",
+              width: 92,
               sorter: (a, b) => a.completed_events - b.completed_events,
             },
             {
               title: "待执行任务",
               dataIndex: "pending_interventions",
+              width: 104,
               sorter: (a, b) =>
                 a.pending_interventions - b.pending_interventions,
             },
             {
               title: "操作",
               key: "actions",
+              width: 112,
               render: (_, s) => (
                 <Link
+                  style={{ whiteSpace: "nowrap" }}
                   to={`/teacher/intervention?new=1&student=${encodeURIComponent(s.id)}`}
                 >
                   创建补学任务

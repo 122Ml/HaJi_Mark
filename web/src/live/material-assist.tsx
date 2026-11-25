@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Alert,
   Button,
@@ -8,20 +9,28 @@ import {
   Form,
   Input,
   InputNumber,
+  Popconfirm,
+  Progress,
   Select,
   Space,
+  Steps,
   Tag,
+  Tooltip,
+  Typography,
 } from "antd";
+import { requestJSON } from "../shared/api";
 import { Field } from "../shared/Field";
 import { useConfirm } from "../shared/confirm";
-import { EmptyState, MetaTag, MetaTags } from "../shared/ui";
+import { useSession } from "../shared/session";
+import { EmptyState, LoadingState, MetaTag, MetaTags, StatusTag } from "../shared/ui";
+import { ModelSelect, useJob } from "./ai-jobs";
 import { Feedback, Link, useAction, useLearning, useLiveQuery } from "./context";
 import { RichContent } from "./content-render";
 import { type TopicData } from "./content-topics";
-import { ASSET_KIND_LABELS, formatTimeRangeMs } from "./domain-meta";
+import { ASSET_KIND_LABELS, formatTimeRangeMs, labelFor, stateLabels } from "./domain-meta";
 import { DraftNotice, useEditorDraft } from "./editing";
 import { IntegerInput } from "./shared-editors";
-import type { ContentSection, Job, Point } from "./types";
+import type { ContentSection, Fragment, Job, Point, Resource } from "./types";
 import { cleanTags, dedupeStrings, hasControlNull, isValidHTTPUrl, utf8ByteLength } from "./validation";
 import { WorkflowJob } from "./workflow-job";
 
@@ -236,8 +245,14 @@ function parseSuggestions(raw: Record<string, unknown>): Suggestions {
   };
 }
 
-export function SourceSuggestions({ id }: { id: string }) {
-  const [open, setOpen] = useState(false);
+export function SourceSuggestions({
+  id,
+  defaultExpanded = false,
+}: {
+  id: string;
+  defaultExpanded?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultExpanded);
   const action = useAction();
   const topics = useLiveQuery<TopicData>("/topics", open && !!id);
   const known = useLiveQuery<{ id: string; title: string }[]>(
@@ -270,6 +285,7 @@ export function SourceSuggestions({ id }: { id: string }) {
   return (
     <Collapse
       className="card-panel"
+      defaultActiveKey={defaultExpanded ? ["content"] : []}
       onChange={(keys) =>
         setOpen(Array.isArray(keys) ? keys.length > 0 : Boolean(keys))
       }
@@ -335,28 +351,32 @@ export function SourceSuggestions({ id }: { id: string }) {
                   )}
                   {candidate.outline.length > 0 && (
                     <Card size="small" title={<>追加目录</>}>
-                      {candidate.outline.map((s, i) => (
-                        <Checkbox
-                          key={`${i}:${s.title}`}
-                          className="rag-check"
-                          checked={outlineIdx.includes(i)}
-                          onChange={(e) =>
-                            setOutlineIdx(
-                              e.target.checked
-                                ? [...outlineIdx, i].sort((a, b) => a - b)
-                                : outlineIdx.filter((v) => v !== i),
-                            )
-                          }
-                        >
-                          {s.title}
-                          {s.fragment_ids.length > 0 && (
-                            <span className="live-meta">
-                              {" "}
-                              （关联 {s.fragment_ids.length} 个片段）
+                      <Space direction="vertical" className="live-full-width" size="small">
+                        {candidate.outline.map((s, i) => (
+                          <Checkbox
+                            key={`${i}:${s.title}`}
+                            className="rag-check"
+                            checked={outlineIdx.includes(i)}
+                            onChange={(e) =>
+                              setOutlineIdx(
+                                e.target.checked
+                                  ? [...outlineIdx, i].sort((a, b) => a - b)
+                                  : outlineIdx.filter((v) => v !== i),
+                              )
+                            }
+                          >
+                            <span style={{ overflowWrap: "anywhere" }}>
+                              {s.title}
                             </span>
-                          )}
-                        </Checkbox>
-                      ))}
+                            {s.fragment_ids.length > 0 && (
+                              <span className="live-meta">
+                                {" "}
+                                （关联 {s.fragment_ids.length} 个片段）
+                              </span>
+                            )}
+                          </Checkbox>
+                        ))}
+                      </Space>
                     </Card>
                   )}
                   <Field className="ui-field" label={<>专题</>}>
@@ -374,22 +394,24 @@ export function SourceSuggestions({ id }: { id: string }) {
                   </Field>
                   {candidate.new_topic_names.length > 0 && (
                     <Card size="small" title={<>新增专题</>}>
-                      {candidate.new_topic_names.map((n, i) => (
-                        <Checkbox
-                          key={`${i}:${n}`}
-                          className="rag-check"
-                          checked={newTopics.includes(n)}
-                          onChange={(e) =>
-                            setNewTopics(
-                              e.target.checked
-                                ? cleanTags([...newTopics, n])
-                                : newTopics.filter((v) => v !== n),
-                            )
-                          }
-                        >
-                          {n}
-                        </Checkbox>
-                      ))}
+                      <Space direction="vertical" className="live-full-width" size="small">
+                        {candidate.new_topic_names.map((n, i) => (
+                          <Checkbox
+                            key={`${i}:${n}`}
+                            className="rag-check"
+                            checked={newTopics.includes(n)}
+                            onChange={(e) =>
+                              setNewTopics(
+                                e.target.checked
+                                  ? cleanTags([...newTopics, n])
+                                  : newTopics.filter((v) => v !== n),
+                              )
+                            }
+                          >
+                            <span style={{ overflowWrap: "anywhere" }}>{n}</span>
+                          </Checkbox>
+                        ))}
+                      </Space>
                     </Card>
                   )}
                   <Field className="ui-field" label={<>标签</>}>
@@ -508,18 +530,18 @@ export function SourceSuggestions({ id }: { id: string }) {
                     />
                   </Field>
                   {candidate.similar_knowledge_ids.length > 0 && (
-                    <div>
-                      相似知识：
+                    <Space wrap size="small">
+                      <span>相似知识：</span>
                       {candidate.similar_knowledge_ids.map((k) => (
                         <Link
                           key={k}
                           to={`/teacher/knowledge?knowledge=${encodeURIComponent(k)}`}
                         >
                           {known.data?.find((v) => v.id === k)?.title ||
-                            "查看知识"}{" "}
+                            "查看知识"}
                         </Link>
                       ))}
-                    </div>
+                    </Space>
                   )}
                   <Button
                     htmlType="button"
@@ -1421,52 +1443,71 @@ export function PaperImport({
                         key: "content",
                         label: <>公共说明／排除片段 · {p.excluded.length}</>,
                         children: p.excluded.length ? (
-                          <>
+                          <Space
+                            direction="vertical"
+                            className="live-full-width"
+                            size="middle"
+                          >
                             {p.excluded.map((x, i) => (
-                              <Field
-                                className="ui-field"
+                              <div
                                 key={x.fragment_id}
-                                label={
-                                  <Space wrap>
-                                    <span>
-                                      {fragments
-                                        .find((f) => f.id === x.fragment_id)
-                                        ?.body.slice(0, 130) || x.fragment_id}
-                                    </span>
-                                    <Button
-                                      htmlType="button"
-                                      size="small"
-                                      onClick={() =>
-                                        draft.change({
-                                          ...p,
-                                          excluded: p.excluded.filter(
-                                            (_, j) => j !== i,
-                                          ),
-                                        })
-                                      }
-                                    >
-                                      恢复待分配
-                                    </Button>
-                                  </Space>
-                                }
+                                className="live-stack"
+                                style={{ gap: 8 }}
                               >
-                                <Input
-                                  aria-label="排除原因"
-                                  value={x.reason}
-                                  onChange={(e) =>
-                                    draft.change({
-                                      ...p,
-                                      excluded: p.excluded.map((v, j) =>
-                                        i === j
-                                          ? { ...v, reason: e.target.value }
-                                          : v,
-                                      ),
-                                    })
-                                  }
-                                />
-                              </Field>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "flex-start",
+                                    gap: 8,
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+                                  <Typography.Text
+                                    style={{
+                                      flex: "1 1 200px",
+                                      minWidth: 0,
+                                      overflowWrap: "anywhere",
+                                    }}
+                                  >
+                                    {fragments
+                                      .find((f) => f.id === x.fragment_id)
+                                      ?.body.slice(0, 130) || x.fragment_id}
+                                  </Typography.Text>
+                                  <Button
+                                    htmlType="button"
+                                    size="small"
+                                    onClick={() =>
+                                      draft.change({
+                                        ...p,
+                                        excluded: p.excluded.filter(
+                                          (_, j) => j !== i,
+                                        ),
+                                      })
+                                    }
+                                  >
+                                    恢复待分配
+                                  </Button>
+                                </div>
+                                <Field className="ui-field" label="排除原因">
+                                  <Input
+                                    aria-label="排除原因"
+                                    value={x.reason}
+                                    onChange={(e) =>
+                                      draft.change({
+                                        ...p,
+                                        excluded: p.excluded.map((v, j) =>
+                                          i === j
+                                            ? { ...v, reason: e.target.value }
+                                            : v,
+                                        ),
+                                      })
+                                    }
+                                  />
+                                </Field>
+                              </div>
                             ))}
-                          </>
+                          </Space>
                         ) : (
                           <p className="live-meta">暂无排除片段。</p>
                         ),
@@ -1474,11 +1515,13 @@ export function PaperImport({
                     ]}
                   />
                   {missing.length > 0 && (
-                    <div role="alert">
+                    <div role="alert" className="live-stack" style={{ gap: 10 }}>
                       <strong>{missing.length}个片段未归题</strong>
                       {missing.map((f) => (
-                        <div key={f.id}>
-                          <p>{f.body.slice(0, 150)}</p>
+                        <div key={f.id} className="live-stack" style={{ gap: 8 }}>
+                          <p style={{ margin: 0, overflowWrap: "anywhere" }}>
+                            {f.body.slice(0, 150)}
+                          </p>
                           <Space wrap size="small">
                             <Button
                               htmlType="button"
@@ -1609,18 +1652,6 @@ export function PaperImport({
   );
 }
 
-const sectionStateLabel: Record<string, string> = {
-  proposed: "待教师确认",
-  accepted: "已接受",
-  rejected: "已驳回",
-};
-
-const sectionStateColor: Record<string, string> = {
-  proposed: "blue",
-  accepted: "green",
-  rejected: "red",
-};
-
 type SectionDraft = {
   title: string;
   relation: string;
@@ -1630,35 +1661,114 @@ type SectionDraft = {
   reason: string;
 };
 
+type AdoptErrorState = {
+  jobID: string;
+  message: string;
+  output: Record<string, unknown>;
+};
+
+function sameStringList(a: string[] = [], b: string[] = []): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
 export function SourceSegments({
   id,
   onSeek,
   parseRevision,
+  fragments,
+  editable = true,
+  onPublished,
+  onGoOriginal,
 }: {
   id: string;
   onSeek?: (ms: number) => void;
   parseRevision?: number;
+  fragments?: Fragment[];
+  editable?: boolean;
+  onPublished?: () => void;
+  onGoOriginal?: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const { course } = useLearning();
+  const { session } = useSession();
+  const queryClient = useQueryClient();
   const action = useAction();
   const confirm = useConfirm();
-  const points = useLiveQuery<{ points: Point[] }>("", open && !!id);
+
+  const points = useLiveQuery<{ points: Point[] }>("", !!id);
+  const saved = useLiveQuery<ContentSection[]>(`/sources/${id}/sections`, !!id);
+  const resourcesQuery = useLiveQuery<Resource[]>("/resources", !!id);
+  const segmentJobs = useLiveQuery<Job[]>(
+    `/jobs?kind=source_segment&source_id=${encodeURIComponent(id)}`,
+    !!id,
+  );
+
+  const [model, setModel] = useState("");
+  const [selectedJobID, setSelectedJobID] = useState("");
   const [rows, setRows] = useState<ContentSection[] | null>(null);
+  const [resegmentMode, setResegmentMode] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<SectionDraft | null>(null);
   const [editError, setEditError] = useState("");
-  const saved = useLiveQuery<ContentSection[]>(
-    `/sources/${id}/sections`,
-    open && !!id,
-  );
-  const shown = rows ?? saved.data ?? [];
+  const [adoptBusy, setAdoptBusy] = useState(false);
+  const [adoptError, setAdoptError] = useState<AdoptErrorState | null>(null);
+  const [batchPublished, setBatchPublished] = useState(false);
+
+  const autoAdoptedRef = useRef<Set<string>>(new Set());
+  const dismissedJobIDsRef = useRef<Set<string>>(new Set());
+  const triggeredJobIDRef = useRef<string>("");
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     setRows(null);
+    setSelectedJobID("");
+    setResegmentMode(false);
     setEditingId(null);
     setDraft(null);
     setEditError("");
+    setAdoptError(null);
+    setBatchPublished(false);
+    triggeredJobIDRef.current = "";
   }, [id, parseRevision]);
+
+  const shown = rows ?? saved.data ?? [];
+  const latestJobID = selectedJobID || segmentJobs.data?.[0]?.id || "";
+  const jobQuery = useJob(latestJobID);
+  const rawJob = jobQuery.data || segmentJobs.data?.[0];
+  const currentJob =
+    rawJob &&
+    rawJob.input?.source_id === id &&
+    (parseRevision === undefined ||
+      rawJob.input?.parse_revision === undefined ||
+      rawJob.input.parse_revision === parseRevision)
+      ? rawJob
+      : undefined;
+
+  const jobActive =
+    !!currentJob &&
+    (currentJob.state === "queued" || currentJob.state === "running");
+
+  const hasAccepted = shown.some((r) => r.state === "accepted");
+  const hasProposedOrRejected = shown.some(
+    (r) => r.state === "proposed" || r.state === "rejected",
+  );
+
+  const stepIndex =
+    !resegmentMode && hasAccepted
+      ? 2
+      : !resegmentMode && hasProposedOrRejected
+        ? 1
+        : 0;
 
   const pointOptions = useMemo(
     () =>
@@ -1667,6 +1777,127 @@ export function SourceSegments({
         .map((p) => ({ value: p.id, label: p.title })),
     [points.data?.points],
   );
+
+  const fragmentCount = fragments?.length ?? 0;
+  const needsReviewCount = useMemo(
+    () => (fragments || []).filter((f) => f.quality === "needs_review").length,
+    [fragments],
+  );
+  const tooManyFragments = fragmentCount > 120;
+  const noFragments = fragments !== undefined && fragmentCount === 0;
+
+  const sourcePublishedResources = useMemo(
+    () =>
+      (resourcesQuery.data || []).filter(
+        (res) => res.source_id === id && res.status === "published",
+      ),
+    [resourcesQuery.data, id],
+  );
+
+  function isSectionPublished(sec: ContentSection): boolean {
+    return sourcePublishedResources.some(
+      (res) =>
+        res.title === sec.title &&
+        sameStringList(res.fragment_ids || [], sec.fragment_ids),
+    );
+  }
+
+  const acceptedSections = shown.filter((r) => r.state === "accepted");
+  const linkedPointCount = acceptedSections.filter(
+    (r) => r.relation === "point" && r.knowledge_point_id,
+  ).length;
+  const allPublished =
+    batchPublished ||
+    (acceptedSections.length > 0 &&
+      acceptedSections.every((sec) => isSectionPublished(sec)));
+
+  async function invalidateSectionRelatedQueries() {
+    if (!course?.id) return;
+    const roots = new Set(["sources", "sections", "resources", "topics", "jobs", ""]);
+    const filters = {
+      predicate: (entry: { queryKey: readonly unknown[] }) =>
+        entry.queryKey[0] === "live" &&
+        entry.queryKey[1] === course.id &&
+        roots.has(
+          String(entry.queryKey[2] || "")
+            .split("/")[1]
+            ?.split("?")[0] || "",
+        ),
+    };
+    await queryClient.cancelQueries(filters);
+    await queryClient.invalidateQueries(filters);
+  }
+
+  async function adoptJob(
+    jobID: string,
+    jobOutput: Record<string, unknown>,
+  ): Promise<void> {
+    if (!course) return;
+    setAdoptBusy(true);
+    setAdoptError(null);
+    try {
+      const response = await requestJSON<{ data: ContentSection[] }>(
+        `/learning/courses/${course.id}/sources/${id}/sections/adopt`,
+        {
+          method: "POST",
+          body: JSON.stringify({ job_id: jobID }),
+        },
+        session?.csrf_token,
+      );
+      if (!mountedRef.current) return;
+      const adoptedRows = response.data || [];
+      setRows(adoptedRows);
+      setResegmentMode(false);
+      setEditingId(null);
+      setDraft(null);
+      setEditError("");
+      setBatchPublished(false);
+      triggeredJobIDRef.current = "";
+      await invalidateSectionRelatedQueries();
+    } catch (err) {
+      if (!mountedRef.current) return;
+      setAdoptError({
+        jobID,
+        message: err instanceof Error ? err.message : "载入切分方案失败",
+        output: jobOutput || {},
+      });
+    } finally {
+      if (mountedRef.current) {
+        setAdoptBusy(false);
+      }
+    }
+  }
+
+  const adoptJobRef = useRef(adoptJob);
+  adoptJobRef.current = adoptJob;
+
+  useEffect(() => {
+    if (
+      !editable ||
+      !currentJob ||
+      currentJob.state !== "succeeded" ||
+      hasAccepted ||
+      adoptBusy ||
+      saved.isPending ||
+      autoAdoptedRef.current.has(currentJob.id) ||
+      dismissedJobIDsRef.current.has(currentJob.id)
+    ) {
+      return;
+    }
+    const triggered = triggeredJobIDRef.current === currentJob.id;
+    const initialEmpty = !resegmentMode && shown.length === 0;
+    if (!triggered && !initialEmpty) return;
+    autoAdoptedRef.current.add(currentJob.id);
+    void adoptJobRef.current(currentJob.id, currentJob.output || {});
+  }, [
+    editable,
+    currentJob,
+    hasAccepted,
+    adoptBusy,
+    saved.isPending,
+    resegmentMode,
+    shown.length,
+  ]);
 
   function toggleEdit(r: ContentSection) {
     if (editingId === r.id) {
@@ -1741,7 +1972,7 @@ export function SourceSegments({
       },
       "PUT",
       "已保存切分修改",
-      { invalidatePrefixes: ["sources"] },
+      { invalidatePrefixes: ["sources", "sections"] },
     );
     if (updated) {
       if (Array.isArray(updated)) {
@@ -1758,415 +1989,791 @@ export function SourceSegments({
     }
   }
 
+  function renderSectionHeaderTags(
+    r: ContentSection,
+    statusBadge: ReactNode,
+    extraActions?: ReactNode,
+  ) {
+    const timeLabel = formatTimeRangeMs(r.time_start_ms, r.time_end_ms);
+    return (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        <Typography.Text
+          strong
+          style={{
+            flex: "1 1 200px",
+            minWidth: 0,
+            overflowWrap: "anywhere",
+          }}
+        >
+          {r.position + 1}. {r.title}
+        </Typography.Text>
+        <Space wrap size="small">
+          {statusBadge}
+          {r.split_quotes && r.split_quotes.length > 0 && (
+            <Tooltip
+              title={`切点引文：「${r.split_quotes[0]}」 · 字符偏移 ${r.start_char ?? 0}${
+                r.end_char ? `–${r.end_char}` : "+"
+              }`}
+            >
+              <Tag color="orange">同页续段</Tag>
+            </Tooltip>
+          )}
+          {timeLabel && <Tag color="purple">{timeLabel}</Tag>}
+          {onSeek && r.time_end_ms > r.time_start_ms && (
+            <Button
+              size="small"
+              htmlType="button"
+              onClick={() => onSeek(r.time_start_ms)}
+            >
+              跳转播放
+            </Button>
+          )}
+          {extraActions}
+        </Space>
+      </div>
+    );
+  }
+
+  function renderSectionMeta(r: ContentSection) {
+    const pointTitle = r.knowledge_point_id
+      ? points.data?.points.find((p) => p.id === r.knowledge_point_id)?.title ||
+        r.knowledge_point_id
+      : "";
+    return (
+      <>
+        <div
+          className="live-meta"
+          style={{ marginTop: 6, overflowWrap: "anywhere" }}
+        >
+          {r.relation === "point"
+            ? `对应知识点：${pointTitle}`
+            : "仅顺序切分"}
+          {" · "}
+          {r.fragment_ids.length} 个片段
+          {((r.start_char ?? 0) > 0 ||
+            (r.split_quotes && r.split_quotes.length > 0)) &&
+            ` · 切点偏移 ${r.start_char ?? 0}${r.end_char ? `–${r.end_char}` : "+"}`}
+        </div>
+        {!!r.reason && (
+          <Typography.Paragraph
+            type="secondary"
+            ellipsis={{ rows: 2, tooltip: r.reason }}
+            style={{ margin: "4px 0 0", overflowWrap: "anywhere" }}
+          >
+            {r.reason}
+          </Typography.Paragraph>
+        )}
+      </>
+    );
+  }
+
+  const showStep1JobStatus =
+    !!currentJob &&
+    (!resegmentMode || currentJob.id === triggeredJobIDRef.current);
+
   return (
-    <Collapse
-      className="card-panel"
-      onChange={(keys) =>
-        setOpen(Array.isArray(keys) ? keys.length > 0 : Boolean(keys))
-      }
-      items={[
-        {
-          key: "sections",
-          label: <>内容切分（按章节或知识点）</>,
-          children: (
-            <>
-              <WorkflowJob
-                kind="source_segment"
-                target={{ source_id: id }}
-                onAdopt={async (_o, j) => {
-                  const v = await action.run<ContentSection[]>(
-                    `/sources/${id}/sections/adopt`,
-                    { job_id: j },
-                    "POST",
-                    "已保存 AI 内容切分方案（待教师确认）",
-                    { invalidatePrefixes: ["sources"] },
-                  );
-                  if (v) {
-                    setRows(v);
-                    setEditingId(null);
-                    setDraft(null);
+    <Card className="card-panel">
+      <div className="live-stack">
+        <Steps
+          size="small"
+          current={stepIndex}
+          items={[
+            { title: "发起切分" },
+            { title: "确认方案" },
+            { title: "发布学习资料" },
+          ]}
+        />
+
+        {saved.isPending ? (
+          <LoadingState label="正在读取切分方案…" />
+        ) : stepIndex === 0 ? (
+          <div className="live-stack" style={{ gap: 12 }}>
+            <Typography.Text type="secondary">
+              由 AI 按课程知识点或章节顺序切分原文为独立学习分段，确认后即可一键发布。
+            </Typography.Text>
+
+            {needsReviewCount > 0 && (
+              <Alert
+                type="warning"
+                showIcon
+                message={`当前原件尚有 ${needsReviewCount} 个「待人工核对」片段，发布学习资料前需在原文核对中确认。`}
+                action={
+                  onGoOriginal ? (
+                    <Button size="small" htmlType="button" onClick={onGoOriginal}>
+                      前往原文核对
+                    </Button>
+                  ) : undefined
+                }
+              />
+            )}
+
+            {tooManyFragments && (
+              <Alert
+                type="error"
+                showIcon
+                message={`当前原件共 ${fragmentCount} 个片段，超过智能切分单次 120 片段上限，请改用「手动自选片段发布」。`}
+              />
+            )}
+
+            {noFragments && (
+              <Alert
+                type="info"
+                showIcon
+                message="当前原件暂无已解析片段，请等待解析完成后再发起智能切分。"
+              />
+            )}
+
+            {!points.isPending && pointOptions.length === 0 && (
+              <Alert
+                type="info"
+                showIcon
+                message="当前课程暂无知识点，将按内容顺序切分，确认前可随时调整"
+              />
+            )}
+
+            <Space wrap>
+              <ModelSelect kind="chat" value={model} onChange={setModel} />
+              <Button
+                type="primary"
+                htmlType="button"
+                disabled={
+                  !editable ||
+                  jobActive ||
+                  adoptBusy ||
+                  action.busy ||
+                  tooManyFragments ||
+                  noFragments ||
+                  segmentJobs.isPending
+                }
+                loading={jobActive || adoptBusy}
+                onClick={async () => {
+                  setAdoptError(null);
+                  action.clearError();
+                  const j = await action.run<Job>("/jobs", {
+                    kind: "source_segment",
+                    profile_id: model,
+                    source_id: id,
+                  });
+                  if (j) {
+                    triggeredJobIDRef.current = j.id;
+                    dismissedJobIDsRef.current.delete(j.id);
+                    setSelectedJobID(j.id);
                   }
                 }}
-              />
-              {shown.length > 0 && (
-                <div className="live-form" style={{ marginTop: 12 }}>
-                  {shown.map((r) => {
-                    const pointTitle = r.knowledge_point_id
-                      ? points.data?.points.find(
-                          (p) => p.id === r.knowledge_point_id,
-                        )?.title || r.knowledge_point_id
-                      : "";
-                    const timeLabel = formatTimeRangeMs(
-                      r.time_start_ms,
-                      r.time_end_ms,
-                    );
-                    const canEdit =
-                      r.state === "proposed" || r.state === "rejected";
-                    const isEditing = editingId === r.id && draft !== null;
-                    const showTimeControls =
-                      Boolean(onSeek) ||
-                      r.time_end_ms > 0 ||
-                      r.time_start_ms > 0;
-                    return (
-                      <Card key={r.id} size="small">
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            gap: 8,
-                            flexWrap: "wrap",
+              >
+                {jobActive
+                  ? "切分中…"
+                  : adoptBusy
+                    ? "正在载入方案…"
+                    : "发起智能切分"}
+              </Button>
+              {jobActive && currentJob && (
+                <Button
+                  htmlType="button"
+                  disabled={action.busy}
+                  onClick={() =>
+                    void action.run(`/jobs/${currentJob.id}/cancel`)
+                  }
+                >
+                  取消任务
+                </Button>
+              )}
+              {resegmentMode && hasProposedOrRejected && (
+                <Button
+                  htmlType="button"
+                  disabled={jobActive || adoptBusy}
+                  onClick={() => {
+                    setResegmentMode(false);
+                    setAdoptError(null);
+                  }}
+                >
+                  返回当前方案
+                </Button>
+              )}
+            </Space>
+
+            {showStep1JobStatus && currentJob && (
+              <>
+                {jobActive && (
+                  <div className="live-stack" style={{ gap: 8 }}>
+                    <MetaTags>
+                      <StatusTag
+                        status={currentJob.state}
+                        label={labelFor(stateLabels, currentJob.state)}
+                      />
+                      <span className="live-meta">
+                        正在生成 AI 切分方案，完成后将自动进入确认步骤…
+                      </span>
+                    </MetaTags>
+                    <Progress percent={currentJob.progress} size="small" />
+                  </div>
+                )}
+                {currentJob.state === "failed" && (
+                  <div className="live-stack" style={{ gap: 8 }}>
+                    <Alert
+                      type="error"
+                      showIcon
+                      role="alert"
+                      message={currentJob.error || "智能切分任务执行失败"}
+                      action={
+                        <Button
+                          size="small"
+                          htmlType="button"
+                          disabled={action.busy}
+                          onClick={async () => {
+                            const retried = await action.run<Job>(
+                              `/jobs/${currentJob.id}/retry`,
+                            );
+                            if (retried) {
+                              triggeredJobIDRef.current = retried.id;
+                              autoAdoptedRef.current.delete(retried.id);
+                              dismissedJobIDsRef.current.delete(retried.id);
+                              setSelectedJobID(retried.id);
+                            }
                           }}
                         >
-                          <strong>
-                            {r.position + 1}. {r.title}
-                          </strong>
-                          <Space wrap size="small">
-                            {timeLabel && <Tag color="purple">{timeLabel}</Tag>}
-                            <Tag color={sectionStateColor[r.state] || "default"}>
-                              {sectionStateLabel[r.state] || r.state}
-                            </Tag>
-                            {r.split_quotes && r.split_quotes.length > 0 && (
-                              <Tag color="orange" title={r.split_quotes[0]}>
-                                同页续段
-                              </Tag>
-                            )}
-                            {onSeek && r.time_end_ms > r.time_start_ms && (
-                              <Button
-                                size="small"
-                                htmlType="button"
-                                onClick={() => onSeek(r.time_start_ms)}
-                              >
-                                跳转播放
-                              </Button>
-                            )}
-                            {canEdit && (
-                              <Button
-                                size="small"
-                                htmlType="button"
-                                disabled={action.busy}
-                                onClick={() => toggleEdit(r)}
-                              >
-                                {isEditing ? "取消编辑" : "编辑"}
-                              </Button>
-                            )}
-                            {r.state === "accepted" && (
-                              <Button
-                                size="small"
-                                htmlType="button"
-                                disabled={action.busy}
-                                onClick={async () => {
-                                  if (
-                                    !(await confirm(
-                                      `确认将分段「${r.title}」（含 ${r.fragment_ids.length} 个片段）发布为学习资料？`,
-                                    ))
-                                  ) {
-                                    return;
-                                  }
-                                  await action.run(
-                                    `/sources/${id}/publish`,
-                                    {
-                                      title: r.title,
-                                      fragment_ids: r.fragment_ids,
-                                      knowledge_point_id:
-                                        r.knowledge_point_id || "",
-                                      full_source: false,
-                                      ...(parseRevision !== undefined
-                                        ? { parse_revision: parseRevision }
-                                        : {}),
-                                    },
-                                    "POST",
-                                    `已将「${r.title}」发布为学习资料并排队索引`,
-                                    {
-                                      invalidatePrefixes: [
-                                        "resources",
-                                        "sources",
-                                        "jobs",
-                                      ],
-                                    },
-                                  );
-                                }}
-                              >
-                                发布为学习资料
-                              </Button>
-                            )}
-                          </Space>
-                        </div>
-                        <div className="live-meta" style={{ marginTop: 4 }}>
-                          {r.relation === "point"
-                            ? `对应知识点：${pointTitle}`
-                            : "仅顺序切分，不挂知识点"}
-                          {" · "}
-                          {r.fragment_ids.length} 个片段
-                          {((r.start_char ?? 0) > 0 ||
-                            (r.split_quotes && r.split_quotes.length > 0)) &&
-                            ` · 切点偏移 ${r.start_char ?? 0}${
-                              r.end_char ? `–${r.end_char}` : "+"
-                            }`}
-                        </div>
-                        {!!r.reason && (
-                          <div style={{ marginTop: 4 }}>{r.reason}</div>
+                          重试
+                        </Button>
+                      }
+                    />
+                    {typeof currentJob.output?.raw_response === "string" && (
+                      <Collapse
+                        items={[
+                          {
+                            key: "raw",
+                            label: <>查看模型原始输出</>,
+                            children: (
+                              <pre className="job-raw-output">
+                                {currentJob.output.raw_response}
+                              </pre>
+                            ),
+                          },
+                        ]}
+                      />
+                    )}
+                  </div>
+                )}
+                {currentJob.state === "canceled" && (
+                  <Typography.Text type="secondary">
+                    切分任务已取消，可重新发起。
+                  </Typography.Text>
+                )}
+              </>
+            )}
+
+            {adoptBusy && (
+              <LoadingState label="切分完成，正在载入方案进入确认…" />
+            )}
+
+            {adoptError && (
+              <div className="live-stack" style={{ gap: 8 }}>
+                <Alert
+                  type="error"
+                  showIcon
+                  role="alert"
+                  message={`载入切分方案失败：${adoptError.message}`}
+                  action={
+                    <Space wrap size="small">
+                      <Button
+                        size="small"
+                        htmlType="button"
+                        disabled={adoptBusy}
+                        onClick={() =>
+                          void adoptJob(adoptError.jobID, adoptError.output)
+                        }
+                      >
+                        重试载入
+                      </Button>
+                      <Button
+                        size="small"
+                        htmlType="button"
+                        disabled={adoptBusy}
+                        onClick={() => {
+                          dismissedJobIDsRef.current.add(adoptError.jobID);
+                          setAdoptError(null);
+                        }}
+                      >
+                        重新切分
+                      </Button>
+                    </Space>
+                  }
+                />
+                {Object.keys(adoptError.output || {}).length > 0 && (
+                  <Collapse
+                    items={[
+                      {
+                        key: "raw",
+                        label: <>查看模型原始输出</>,
+                        children: (
+                          <pre className="job-raw-output">
+                            {JSON.stringify(adoptError.output, null, 2)}
+                          </pre>
+                        ),
+                      },
+                    ]}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        ) : stepIndex === 1 ? (
+          <div className="live-stack" style={{ gap: 12 }}>
+            {shown.some((r) => r.state === "rejected") && (
+              <Alert
+                type="info"
+                showIcon
+                message="当前方案已退回修改，可编辑分段标题、关联知识点或起止时间后重新确认，或点击「重新切分」。"
+              />
+            )}
+            <div className="live-stack" style={{ gap: 10 }}>
+              {shown.map((r) => {
+                const isEditing = editingId === r.id && draft !== null;
+                const showTimeControls =
+                  Boolean(onSeek) || r.time_end_ms > 0 || r.time_start_ms > 0;
+                return (
+                  <Card key={r.id} size="small">
+                    {renderSectionHeaderTags(
+                      r,
+                      r.state === "rejected" ? (
+                        <Tag color="red">已退回</Tag>
+                      ) : (
+                        <Tag color="blue">待确认</Tag>
+                      ),
+                      editable ? (
+                        <Button
+                          size="small"
+                          htmlType="button"
+                          disabled={action.busy}
+                          onClick={() => toggleEdit(r)}
+                        >
+                          {isEditing ? "取消编辑" : "编辑"}
+                        </Button>
+                      ) : undefined,
+                    )}
+                    {renderSectionMeta(r)}
+                    {isEditing && draft && (
+                      <div className="live-form" style={{ marginTop: 12 }}>
+                        {editError && (
+                          <Alert
+                            type="error"
+                            showIcon
+                            role="alert"
+                            message={editError}
+                          />
                         )}
-                        {isEditing && draft && (
-                          <div className="live-form" style={{ marginTop: 12 }}>
-                            {editError && (
-                              <Alert
-                                type="error"
-                                showIcon
-                                role="alert"
-                                message={editError}
-                              />
-                            )}
+                        <Field
+                          className="ui-field"
+                          label={<>分段标题</>}
+                          required
+                        >
+                          <Input
+                            aria-label="分段标题"
+                            disabled={action.busy}
+                            value={draft.title}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setDraft((d) =>
+                                d ? { ...d, title: val } : d,
+                              );
+                              if (editError) setEditError("");
+                            }}
+                          />
+                        </Field>
+                        <Field className="ui-field" label={<>关联方式</>}>
+                          <Select
+                            aria-label="分段关联方式"
+                            disabled={action.busy}
+                            value={draft.relation}
+                            onChange={(val) => {
+                              setDraft((d) =>
+                                d
+                                  ? {
+                                      ...d,
+                                      relation: val,
+                                      knowledge_point_id:
+                                        val === "point"
+                                          ? d.knowledge_point_id
+                                          : "",
+                                    }
+                                  : d,
+                              );
+                              if (editError) setEditError("");
+                            }}
+                            options={[
+                              {
+                                value: "sequence",
+                                label: "仅顺序切分，不挂知识点",
+                              },
+                              { value: "point", label: "关联课程知识点" },
+                            ]}
+                          />
+                        </Field>
+                        {draft.relation === "point" && (
+                          <Field
+                            className="ui-field"
+                            label={<>关联知识点</>}
+                            required
+                          >
+                            <Select
+                              aria-label="分段关联知识点"
+                              disabled={action.busy}
+                              showSearch
+                              optionFilterProp="label"
+                              placeholder="请选择知识点"
+                              value={draft.knowledge_point_id || undefined}
+                              onChange={(val) => {
+                                setDraft((d) =>
+                                  d
+                                    ? {
+                                        ...d,
+                                        knowledge_point_id: val || "",
+                                      }
+                                    : d,
+                                );
+                                if (editError) setEditError("");
+                              }}
+                              options={pointOptions}
+                            />
+                          </Field>
+                        )}
+                        {showTimeControls && (
+                          <div className="live-inline">
                             <Field
                               className="ui-field"
-                              label={<>分段标题</>}
-                              required
+                              label={<>开始(秒)</>}
                             >
-                              <Input
-                                aria-label="分段标题"
+                              <InputNumber
+                                aria-label="开始(秒)"
                                 disabled={action.busy}
-                                value={draft.title}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setDraft((d) =>
-                                    d ? { ...d, title: val } : d,
-                                  );
-                                  if (editError) setEditError("");
-                                }}
-                              />
-                            </Field>
-                            <Field className="ui-field" label={<>关联方式</>}>
-                              <Select
-                                aria-label="分段关联方式"
-                                disabled={action.busy}
-                                value={draft.relation}
+                                min={0}
+                                step={1}
+                                value={draft.startSec}
                                 onChange={(val) => {
                                   setDraft((d) =>
                                     d
                                       ? {
                                           ...d,
-                                          relation: val,
-                                          knowledge_point_id:
-                                            val === "point"
-                                              ? d.knowledge_point_id
-                                              : "",
+                                          startSec:
+                                            typeof val === "number" &&
+                                            Number.isFinite(val)
+                                              ? Math.max(0, val)
+                                              : 0,
                                         }
                                       : d,
                                   );
                                   if (editError) setEditError("");
                                 }}
-                                options={[
-                                  {
-                                    value: "sequence",
-                                    label: "仅顺序切分，不挂知识点",
-                                  },
-                                  { value: "point", label: "关联课程知识点" },
-                                ]}
                               />
                             </Field>
-                            {draft.relation === "point" && (
-                              <Field
-                                className="ui-field"
-                                label={<>关联知识点</>}
-                                required
-                              >
-                                <Select
-                                  aria-label="分段关联知识点"
-                                  disabled={action.busy}
-                                  showSearch
-                                  optionFilterProp="label"
-                                  placeholder="请选择知识点"
-                                  value={draft.knowledge_point_id || undefined}
-                                  onChange={(val) => {
-                                    setDraft((d) =>
-                                      d
-                                        ? {
-                                            ...d,
-                                            knowledge_point_id: val || "",
-                                          }
-                                        : d,
-                                    );
-                                    if (editError) setEditError("");
-                                  }}
-                                  options={pointOptions}
-                                />
-                              </Field>
-                            )}
-                            {showTimeControls && (
-                              <div className="live-inline">
-                                <Field
-                                  className="ui-field"
-                                  label={<>开始(秒)</>}
-                                >
-                                  <InputNumber
-                                    aria-label="开始(秒)"
-                                    disabled={action.busy}
-                                    min={0}
-                                    step={1}
-                                    value={draft.startSec}
-                                    onChange={(val) => {
-                                      setDraft((d) =>
-                                        d
-                                          ? {
-                                              ...d,
-                                              startSec:
-                                                typeof val === "number" &&
-                                                Number.isFinite(val)
-                                                  ? Math.max(0, val)
-                                                  : 0,
-                                            }
-                                          : d,
-                                      );
-                                      if (editError) setEditError("");
-                                    }}
-                                  />
-                                </Field>
-                                <Field
-                                  className="ui-field"
-                                  label={<>结束(秒)</>}
-                                >
-                                  <InputNumber
-                                    aria-label="结束(秒)"
-                                    disabled={action.busy}
-                                    min={0}
-                                    step={1}
-                                    value={draft.endSec}
-                                    onChange={(val) => {
-                                      setDraft((d) =>
-                                        d
-                                          ? {
-                                              ...d,
-                                              endSec:
-                                                typeof val === "number" &&
-                                                Number.isFinite(val)
-                                                  ? Math.max(0, val)
-                                                  : 0,
-                                            }
-                                          : d,
-                                      );
-                                      if (editError) setEditError("");
-                                    }}
-                                  />
-                                </Field>
-                              </div>
-                            )}
-                            <Field className="ui-field" label={<>切分说明</>}>
-                              <Input.TextArea
-                                aria-label="切分说明"
+                            <Field
+                              className="ui-field"
+                              label={<>结束(秒)</>}
+                            >
+                              <InputNumber
+                                aria-label="结束(秒)"
                                 disabled={action.busy}
-                                rows={2}
-                                value={draft.reason}
-                                onChange={(e) => {
-                                  const val = e.target.value;
+                                min={0}
+                                step={1}
+                                value={draft.endSec}
+                                onChange={(val) => {
                                   setDraft((d) =>
-                                    d ? { ...d, reason: val } : d,
+                                    d
+                                      ? {
+                                          ...d,
+                                          endSec:
+                                            typeof val === "number" &&
+                                            Number.isFinite(val)
+                                              ? Math.max(0, val)
+                                              : 0,
+                                        }
+                                      : d,
                                   );
                                   if (editError) setEditError("");
                                 }}
                               />
                             </Field>
-                            <Space wrap size="small">
-                              <Button
-                                size="small"
-                                type="primary"
-                                htmlType="button"
-                                disabled={action.busy}
-                                onClick={() => void saveEdit(r)}
-                              >
-                                保存分段修改
-                              </Button>
-                              <Button
-                                size="small"
-                                htmlType="button"
-                                disabled={action.busy}
-                                onClick={() => toggleEdit(r)}
-                              >
-                                取消
-                              </Button>
-                            </Space>
                           </div>
                         )}
-                      </Card>
-                    );
-                  })}
-                  <Space wrap>
-                    <Button
-                      htmlType="button"
-                      disabled={action.busy}
-                      onClick={async () => {
-                        const v = await action.run<ContentSection[]>(
-                          `/sources/${id}/sections/state`,
-                          { state: "accepted" },
-                          "POST",
-                          "已接受全部切分方案",
-                          { invalidatePrefixes: ["sources"] },
-                        );
-                        if (v) {
-                          setRows(v);
-                          setEditingId(null);
-                          setDraft(null);
-                        }
-                      }}
-                      type="primary"
-                    >
-                      接受全部切分
-                    </Button>
-                    {shown.some((r) => r.state === "accepted") && (
-                      <Button
-                        htmlType="button"
-                        disabled={action.busy}
-                        onClick={async () => {
-                          if (
-                            !(await confirm(
-                              "按已接受切分批量发布为学习资料？每个切分段将生成一条已发布资料。",
-                            ))
-                          ) {
-                            return;
-                          }
-                          await action.run(
-                            `/sources/${id}/sections/publish`,
-                            {},
-                            "POST",
-                            "已按切分方案批量发布学习资料",
-                            { invalidatePrefixes: ["sources", "resources", "topics", "jobs"] },
-                          );
-                        }}
-                      >
-                        按已接受切分发布资料
-                      </Button>
+                        <Field className="ui-field" label={<>切分说明</>}>
+                          <Input.TextArea
+                            aria-label="切分说明"
+                            disabled={action.busy}
+                            rows={2}
+                            value={draft.reason}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setDraft((d) =>
+                                d ? { ...d, reason: val } : d,
+                              );
+                              if (editError) setEditError("");
+                            }}
+                          />
+                        </Field>
+                        <Space wrap size="small">
+                          <Button
+                            size="small"
+                            type="primary"
+                            htmlType="button"
+                            disabled={action.busy}
+                            onClick={() => void saveEdit(r)}
+                          >
+                            保存分段修改
+                          </Button>
+                          <Button
+                            size="small"
+                            htmlType="button"
+                            disabled={action.busy}
+                            onClick={() => toggleEdit(r)}
+                          >
+                            取消
+                          </Button>
+                        </Space>
+                      </div>
                     )}
-                    <Button
-                      htmlType="button"
-                      disabled={action.busy}
-                      onClick={async () => {
-                        const v = await action.run<ContentSection[]>(
-                          `/sources/${id}/sections/state`,
-                          { state: "rejected" },
-                          "POST",
-                          "已驳回当前切分，可重新生成并采纳替换",
-                          { invalidatePrefixes: ["sources"] },
-                        );
-                        if (v) {
-                          setRows(v);
-                          setEditingId(null);
-                          setDraft(null);
-                        }
-                      }}
-                    >
-                      驳回全部
+                  </Card>
+                );
+              })}
+            </div>
+            <Space wrap>
+              <Button
+                type="primary"
+                htmlType="button"
+                disabled={!editable || action.busy}
+                onClick={async () => {
+                  const v = await action.run<ContentSection[]>(
+                    `/sources/${id}/sections/state`,
+                    { state: "accepted" },
+                    "POST",
+                    "切分方案已确认，可发布为学习资料",
+                    { invalidatePrefixes: ["sources", "sections"] },
+                  );
+                  if (v) {
+                    setRows(v);
+                    setEditingId(null);
+                    setDraft(null);
+                    setEditError("");
+                    setBatchPublished(false);
+                  }
+                }}
+              >
+                确认切分方案
+              </Button>
+              <Button
+                htmlType="button"
+                disabled={!editable || action.busy}
+                onClick={() => {
+                  if (currentJob?.id) {
+                    dismissedJobIDsRef.current.add(currentJob.id);
+                  }
+                  setEditingId(null);
+                  setDraft(null);
+                  setEditError("");
+                  setAdoptError(null);
+                  setResegmentMode(true);
+                }}
+              >
+                重新切分
+              </Button>
+            </Space>
+          </div>
+        ) : (
+          <div className="live-stack" style={{ gap: 12 }}>
+            <Alert
+              type={allPublished ? "success" : "info"}
+              showIcon
+              message={
+                allPublished
+                  ? `已发布 ${acceptedSections.length} 个学习分段（其中 ${linkedPointCount} 个已关联课程知识点）`
+                  : `已确认 ${acceptedSections.length} 个分段（其中 ${linkedPointCount} 个已关联课程知识点）`
+              }
+              description={
+                allPublished
+                  ? "分段学习资料已开放给课程学生，可在下方「本原件已发布的学习内容」中查看或调整。局部发布不会开放完整原件下载权限。"
+                  : "按分段局部发布仅开放对应片段给学生，不会开放完整原件下载权限。"
+              }
+              action={
+                editable ? (
+                  <Button
+                    size="small"
+                    htmlType="button"
+                    disabled={action.busy}
+                    onClick={async () => {
+                      const v = await action.run<ContentSection[]>(
+                        `/sources/${id}/sections/state`,
+                        { state: "rejected" },
+                        "POST",
+                        "已退回修改，调整后可重新确认",
+                        { invalidatePrefixes: ["sources", "sections"] },
+                      );
+                      if (v) {
+                        setRows(v);
+                        setBatchPublished(false);
+                        setEditingId(null);
+                        setDraft(null);
+                      }
+                    }}
+                  >
+                    退回修改
+                  </Button>
+                ) : undefined
+              }
+            />
+
+            {needsReviewCount > 0 && (
+              <Alert
+                type="warning"
+                showIcon
+                message={`当前原件尚有 ${needsReviewCount} 个「待人工核对」片段，发布前须先在原文核对中确认。`}
+                action={
+                  onGoOriginal ? (
+                    <Button size="small" htmlType="button" onClick={onGoOriginal}>
+                      前往原文核对
                     </Button>
-                  </Space>
-                </div>
-              )}
-              <Feedback
-                error={saved.error || points.error}
-                message={action.message}
-                failed={action.failed}
+                  ) : undefined
+                }
               />
-            </>
-          ),
-        },
-      ]}
-    />
+            )}
+
+            <div className="live-stack" style={{ gap: 10 }}>
+              {acceptedSections.map((r) => {
+                const sectionPublished = isSectionPublished(r);
+                return (
+                  <Card key={r.id} size="small">
+                    {renderSectionHeaderTags(
+                      r,
+                      sectionPublished ? (
+                        <Tag color="green">已发布</Tag>
+                      ) : (
+                        <Tag color="cyan">已确认</Tag>
+                      ),
+                      editable ? (
+                        <Button
+                          size="small"
+                          htmlType="button"
+                          disabled={action.busy || needsReviewCount > 0}
+                          onClick={async () => {
+                            if (
+                              !(await confirm(
+                                `确认将分段「${r.title}」（含 ${r.fragment_ids.length} 个片段）单独发布为学习资料？`,
+                              ))
+                            ) {
+                              return;
+                            }
+                            const res = await action.run<Resource>(
+                              `/sources/${id}/publish`,
+                              {
+                                title: r.title,
+                                fragment_ids: r.fragment_ids,
+                                knowledge_point_id: r.knowledge_point_id || "",
+                                full_source: false,
+                                ...(parseRevision !== undefined
+                                  ? { parse_revision: parseRevision }
+                                  : {}),
+                              },
+                              "POST",
+                              `已将「${r.title}」发布为学习资料并排队索引`,
+                              {
+                                invalidatePrefixes: [
+                                  "resources",
+                                  "sources",
+                                  "jobs",
+                                ],
+                              },
+                            );
+                            if (res) {
+                              onPublished?.();
+                            }
+                          }}
+                        >
+                          单独发布此段
+                        </Button>
+                      ) : undefined,
+                    )}
+                    {renderSectionMeta(r)}
+                  </Card>
+                );
+              })}
+            </div>
+
+            <Space wrap>
+              <Popconfirm
+                title={`确认将已确认的 ${acceptedSections.length} 个分段批量发布为学习资料？`}
+                description="每个分段将生成一条已发布学习资料并排队更新检索索引；局部发布不会开放完整原件下载。"
+                okText="确认发布"
+                cancelText="取消"
+                disabled={
+                  !editable ||
+                  action.busy ||
+                  allPublished ||
+                  needsReviewCount > 0
+                }
+                onConfirm={async () => {
+                  const res = await action.run<Resource[]>(
+                    `/sources/${id}/sections/publish`,
+                    {},
+                    "POST",
+                    "已按切分方案批量发布学习资料",
+                    {
+                      invalidatePrefixes: [
+                        "sources",
+                        "sections",
+                        "resources",
+                        "topics",
+                        "jobs",
+                      ],
+                    },
+                  );
+                  if (res) {
+                    setBatchPublished(true);
+                    onPublished?.();
+                  }
+                }}
+              >
+                <Button
+                  type="primary"
+                  htmlType="button"
+                  disabled={
+                    !editable ||
+                    action.busy ||
+                    allPublished ||
+                    needsReviewCount > 0
+                  }
+                  loading={action.busy}
+                >
+                  {allPublished ? "已发布全部分段" : "发布全部分段"}
+                </Button>
+              </Popconfirm>
+            </Space>
+          </div>
+        )}
+
+        <Feedback
+          error={saved.error || points.error || segmentJobs.error}
+          message={
+            action.failed && action.error?.status === 409
+              ? undefined
+              : action.message
+          }
+          failed={action.failed && action.error?.status !== 409}
+        />
+        {action.failed && action.error?.status === 409 && (
+          <Alert
+            type={
+              action.error.message.includes("已发布") ? "success" : "warning"
+            }
+            showIcon
+            message={action.error.message}
+          />
+        )}
+      </div>
+    </Card>
   );
 }

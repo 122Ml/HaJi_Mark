@@ -340,6 +340,7 @@ func (s *Service) send(c *gin.Context) {
 		Attachments []string         `json:"attachment_ids"`
 		RequestID   string           `json:"request_id"`
 		Context     *businessContext `json:"context"`
+		PageContext *pageContext     `json:"page_context"`
 	}
 	if !bind(c, &in) {
 		return
@@ -472,7 +473,7 @@ func (s *Service) send(c *gin.Context) {
 		}
 		messages = append(messages, rag.AgentMessage{Role: m.Role, Content: content})
 	}
-	content := in.Content + contextNote
+	content := in.Content + contextNote + formatPageContext(in.PageContext)
 	if len(meta) > 0 {
 		content += "\n本次对话附件（服务端登记元数据）：" + string(raw(meta))
 	}

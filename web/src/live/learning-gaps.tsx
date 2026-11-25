@@ -181,8 +181,13 @@ export function LearningGaps({
       <Table<Gap>
         rowKey="key"
         dataSource={visibleGroups}
-        scroll={{ x: 640 }}
-        pagination={{ pageSize: 8, showSizeChanger: false, hideOnSinglePage: true }}
+        scroll={{ x: 680 }}
+        pagination={{
+          pageSize: 8,
+          showSizeChanger: false,
+          hideOnSinglePage: true,
+          responsive: true,
+        }}
         locale={{
           emptyText: (
             <EmptyState
@@ -202,26 +207,34 @@ export function LearningGaps({
           {
             title: "题目",
             key: "prompt",
-            ellipsis: true,
+            width: 280,
             render: (_, g) => (
-              <Space direction="vertical" size={0} className="live-full-width">
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "minmax(0, 1fr)",
+                  gap: 2,
+                  minWidth: 0,
+                }}
+              >
                 {g.assignmentTitle && (
-                  <Typography.Text type="secondary">
+                  <Typography.Text type="secondary" ellipsis={{ tooltip: true }}>
                     {g.assignmentTitle}
                   </Typography.Text>
                 )}
                 <Tooltip title={g.prompt}>
                   <Typography.Text ellipsis>{g.prompt}</Typography.Text>
                 </Tooltip>
-              </Space>
+              </div>
             ),
           },
           {
             title: "评分点",
             key: "criterion",
+            width: 200,
             render: (_, g) => (
-              <Space direction="vertical" size={0}>
-                <span>{g.title}</span>
+              <Space direction="vertical" size={0} style={{ minWidth: 0 }}>
+                <span style={{ overflowWrap: "anywhere" }}>{g.title}</span>
                 <Typography.Text type="secondary">{g.rubric}</Typography.Text>
               </Space>
             ),
@@ -236,6 +249,7 @@ export function LearningGaps({
               </Tooltip>
             ),
             key: "affected",
+            width: 200,
             render: (_, g) => (
               <Space wrap>
                 <Tag color={g.affected.length ? "warning" : "success"}>
@@ -268,7 +282,9 @@ export function LearningGaps({
                 {detail.assignmentTitle}
               </Typography.Text>
             )}
-            <Typography.Paragraph strong>{detail.prompt}</Typography.Paragraph>
+            <Typography.Paragraph strong style={{ overflowWrap: "anywhere" }}>
+              {detail.prompt}
+            </Typography.Paragraph>
             <Space wrap>
               <Tag>{detail.rubric}</Tag>
               <Tag>同标准有效人数 {detail.compared}</Tag>
@@ -286,11 +302,13 @@ export function LearningGaps({
                 pageSize: 8,
                 showSizeChanger: false,
                 hideOnSinglePage: true,
+                responsive: true,
               }}
               columns={[
                 {
                   title: "学生",
                   key: "student",
+                  width: 120,
                   render: (_, r) =>
                     r.evidence.student_name ||
                     names.get(r.evidence.student_id) ||
@@ -299,6 +317,7 @@ export function LearningGaps({
                 {
                   title: "得分",
                   key: "score",
+                  width: 80,
                   render: (_, r) => `${r.point.score}/${r.point.max_score}`,
                 },
                 {
@@ -306,7 +325,7 @@ export function LearningGaps({
                   key: "feedback",
                   render: (_, r) => (
                     <>
-                      <Typography.Paragraph>
+                      <Typography.Paragraph style={{ overflowWrap: "anywhere" }}>
                         {r.point.feedback || "未填写逐点评语"}
                       </Typography.Paragraph>
                       {r.point.quote && (
@@ -320,6 +339,7 @@ export function LearningGaps({
                 {
                   title: "操作",
                   key: "actions",
+                  width: 140,
                   render: (_, r) => (
                     <Space direction="vertical">
                       <Link

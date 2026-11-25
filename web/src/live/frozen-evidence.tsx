@@ -57,8 +57,8 @@ export function FrozenEvidence({ sources }: { sources?: Hit[] }) {
                 const loc = formatLocator(hit.locator);
                 return (
                   <article className="rag-hit" key={hit.id}>
-                    <strong>{hit.title}</strong>
-                    {loc && <small> · {loc}</small>}
+                    <strong style={{ overflowWrap: "anywhere" }}>{hit.title}</strong>
+                    {loc && <small style={{ overflowWrap: "anywhere" }}> · {loc}</small>}
                     <p className="live-prose">{hit.body}</p>
                     <Space wrap size="small">
                       {teacher && hit.source_id && (

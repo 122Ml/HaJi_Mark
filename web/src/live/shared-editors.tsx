@@ -1,4 +1,4 @@
-import { Alert, Button, Input, InputNumber, Radio, Space } from "antd";
+import { Alert, Button, Form, Input, InputNumber, Radio, Space } from "antd";
 import { Field } from "../shared/Field";
 import type { Criterion } from "./types";
 
@@ -79,103 +79,106 @@ export function CriteriaEditor({
   }
 
   return (
-    <div className="live-form">
-      {criteria.map((item, index) => (
-        <fieldset key={item.id} className="live-point-fields">
-          <legend>
-            评分点 {item.id}（第 {index + 1} 项）
-          </legend>
-          <div className="live-inline">
-            <Field label="名称" required>
-              <Input
-                disabled={disabled}
-                value={item.title}
-                onChange={(e) => update(index, { title: e.target.value })}
-                placeholder="例如：概念完整性、核心推导步骤"
-              />
-            </Field>
-            <Field label="分值" required>
-              <IntegerInput
-                disabled={disabled}
-                min={1}
-                max={maxScore}
-                value={item.max_score}
-                onChange={(v) => update(index, { max_score: v })}
-              />
-            </Field>
-          </div>
-          <Field label="评分规则" required>
-            <Input.TextArea
-              rows={2}
-              disabled={disabled}
-              value={item.rule}
-              onChange={(e) => update(index, { rule: e.target.value })}
-              placeholder="明确得分条件、关键要点与扣分边界"
-            />
-          </Field>
-          {extended && (
-            <>
-              <Field label="作答要求">
-                <Input
+    <Form layout="vertical" component={false}>
+      <div className="live-form">
+        {criteria.map((item, index) => (
+          <fieldset key={item.id} className="live-point-fields">
+            <legend>
+              评分点 {item.id}（第 {index + 1} 项）
+            </legend>
+            <div className="live-stack" style={{ gap: 12 }}>
+              <div className="live-inline">
+                <Field className="ui-field" label="名称" required>
+                  <Input
+                    disabled={disabled}
+                    value={item.title}
+                    onChange={(e) => update(index, { title: e.target.value })}
+                    placeholder="例如：概念完整性、核心推导步骤"
+                  />
+                </Field>
+                <Field className="ui-field" label="分值" required>
+                  <IntegerInput
+                    disabled={disabled}
+                    min={1}
+                    max={maxScore}
+                    value={item.max_score}
+                    onChange={(v) => update(index, { max_score: v })}
+                  />
+                </Field>
+              </div>
+              <Field className="ui-field" label="评分规则" required>
+                <Input.TextArea
+                  rows={2}
                   disabled={disabled}
-                  value={item.requirement || ""}
-                  onChange={(e) => update(index, { requirement: e.target.value })}
+                  value={item.rule}
+                  onChange={(e) => update(index, { rule: e.target.value })}
+                  placeholder="明确得分条件、关键要点与扣分边界"
                 />
               </Field>
-              <Field label="部分给分说明">
-                <Input
-                  disabled={disabled}
-                  value={item.partial_credit || ""}
-                  onChange={(e) => update(index, { partial_credit: e.target.value })}
-                />
-              </Field>
-              <Field label="可接受等价表述">
-                <Input
-                  disabled={disabled}
-                  value={item.acceptable_answers || ""}
-                  onChange={(e) => update(index, { acceptable_answers: e.target.value })}
-                />
-              </Field>
-              <Field label="典型错误与扣分条件">
-                <Input
-                  disabled={disabled}
-                  value={item.error_conditions || ""}
-                  onChange={(e) => update(index, { error_conditions: e.target.value })}
-                />
-              </Field>
-            </>
-          )}
-          <Space wrap size="small">
-            <Button
-              size="small"
-              disabled={disabled || index === 0}
-              onClick={() => move(index, -1)}
-              htmlType="button"
-            >
-              上移
-            </Button>
-            <Button
-              size="small"
-              disabled={disabled || index === criteria.length - 1}
-              onClick={() => move(index, 1)}
-              htmlType="button"
-            >
-              下移
-            </Button>
-            {criteria.length > 1 && (
-              <Button
-                size="small"
-                danger
-                disabled={disabled}
-                onClick={() => remove(index)}
-                htmlType="button"
-              >
-                删除评分点
-              </Button>
-            )}
-          </Space>
-        </fieldset>
-      ))}
+              {extended && (
+                <>
+                  <Field className="ui-field" label="作答要求">
+                    <Input
+                      disabled={disabled}
+                      value={item.requirement || ""}
+                      onChange={(e) => update(index, { requirement: e.target.value })}
+                    />
+                  </Field>
+                  <Field className="ui-field" label="部分给分说明">
+                    <Input
+                      disabled={disabled}
+                      value={item.partial_credit || ""}
+                      onChange={(e) => update(index, { partial_credit: e.target.value })}
+                    />
+                  </Field>
+                  <Field className="ui-field" label="可接受等价表述">
+                    <Input
+                      disabled={disabled}
+                      value={item.acceptable_answers || ""}
+                      onChange={(e) => update(index, { acceptable_answers: e.target.value })}
+                    />
+                  </Field>
+                  <Field className="ui-field" label="典型错误与扣分条件">
+                    <Input
+                      disabled={disabled}
+                      value={item.error_conditions || ""}
+                      onChange={(e) => update(index, { error_conditions: e.target.value })}
+                    />
+                  </Field>
+                </>
+              )}
+              <Space wrap size="small">
+                <Button
+                  size="small"
+                  disabled={disabled || index === 0}
+                  onClick={() => move(index, -1)}
+                  htmlType="button"
+                >
+                  上移
+                </Button>
+                <Button
+                  size="small"
+                  disabled={disabled || index === criteria.length - 1}
+                  onClick={() => move(index, 1)}
+                  htmlType="button"
+                >
+                  下移
+                </Button>
+                {criteria.length > 1 && (
+                  <Button
+                    size="small"
+                    danger
+                    disabled={disabled}
+                    onClick={() => remove(index)}
+                    htmlType="button"
+                  >
+                    删除评分点
+                  </Button>
+                )}
+              </Space>
+            </div>
+          </fieldset>
+        ))}
       <Space wrap align="center">
         <Button
           disabled={disabled}
@@ -205,7 +208,8 @@ export function CriteriaEditor({
           message={`评分点合计 ${total} 分与题目满分 ${maxScore} 分不一致，请调整后再保存。`}
         />
       )}
-    </div>
+      </div>
+    </Form>
   );
 }
 
@@ -242,11 +246,20 @@ export function QuizOptionsEditor({
         disabled={disabled}
         value={correctAnswer}
         onChange={(e) => onChange(safeOptions, String(e.target.value))}
+        style={{ width: "100%" }}
       >
         <Space direction="vertical" className="live-full-width">
           {safeOptions.map((opt, idx) => (
-            <div className="live-inline" key={idx}>
-              <Radio value={opt} disabled={disabled || !opt.trim()}>
+            <div
+              className="live-inline"
+              key={idx}
+              style={{ flexWrap: "nowrap", alignItems: "center" }}
+            >
+              <Radio
+                value={opt}
+                disabled={disabled || !opt.trim()}
+                style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+              >
                 设为正确答案
               </Radio>
               <Input
@@ -255,6 +268,7 @@ export function QuizOptionsEditor({
                 placeholder={`选项 ${String.fromCharCode(65 + idx)}`}
                 value={opt}
                 onChange={(e) => updateOption(idx, e.target.value)}
+                style={{ flex: 1, minWidth: 0, width: "auto" }}
               />
               {safeOptions.length > 2 && (
                 <Button
@@ -263,6 +277,7 @@ export function QuizOptionsEditor({
                   disabled={disabled}
                   onClick={() => removeOption(idx)}
                   htmlType="button"
+                  style={{ flexShrink: 0 }}
                 >
                   移除
                 </Button>

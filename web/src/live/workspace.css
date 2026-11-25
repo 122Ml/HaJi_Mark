@@ -41,11 +41,16 @@
   background: var(--panel-2);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
+  overflow-wrap: anywhere;
+}
+.context-banner > div {
+  min-width: 0;
 }
 .answer-status {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
   padding: 10px 0;
   color: var(--muted);
   font-size: var(--text-sm);
@@ -67,7 +72,7 @@
 }
 .grading-columns {
   display: grid;
-  grid-template-columns: 232px minmax(300px, 1.08fr) minmax(360px, 420px);
+  grid-template-columns: 232px minmax(0, 1.08fr) minmax(340px, 420px);
   gap: var(--space-3);
   align-items: stretch;
 }
@@ -75,14 +80,14 @@
   min-width: 0;
   margin: 0;
   padding: 0;
-  height: calc(100dvh - 208px);
-  min-height: 460px;
-  max-height: calc(100dvh - 208px);
+  height: calc(100dvh - 224px);
+  min-height: 360px;
+  max-height: calc(100dvh - 224px);
   overflow: auto;
   overscroll-behavior: contain;
 }
 .grading-columns.student-feedback {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .grading-queue .ant-select {
   width: 100%;
@@ -127,10 +132,6 @@
   gap: 10px;
   margin: 14px 0;
 }
-.quote-toolbar label {
-  display: grid;
-  gap: 6px;
-}
 .grading-editor .live-point-fields {
   padding: 0;
   margin: 0;
@@ -138,13 +139,9 @@
 .grading-editor textarea {
   min-height: 64px;
 }
-.grading-editor label {
-  display: grid;
-  gap: 5px;
-}
 .grading-actions {
   position: sticky;
-  bottom: calc(-1 * var(--card-pad));
+  bottom: 0;
   background: var(--panel);
   padding: 10px 0;
   display: flex;
@@ -153,7 +150,7 @@
   justify-content: space-between;
   align-items: center;
   border-top: 1px solid var(--line);
-  z-index: 2;
+  z-index: 5;
 }
 .queue-navigation {
   display: flex;
@@ -179,19 +176,24 @@
   margin-top: 6px;
 }
 .ant-drawer-content-wrapper {
-  max-width: 100vw;
+  max-width: 100%;
 }
-.ant-drawer-body .live-form {
+.ant-drawer-body .live-form,
+.ant-modal-body .live-form {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
-.ant-drawer-body .live-inline {
+.ant-drawer-body .live-inline,
+.ant-modal-body .live-inline {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
 }
 .ant-drawer-body .primary-link,
-.ant-drawer-body .ghost-btn {
+.ant-drawer-body .ghost-btn,
+.ant-modal-body .primary-link,
+.ant-modal-body .ghost-btn {
   min-height: var(--control-h);
 }
 .course-content-grid {
@@ -199,8 +201,8 @@
 }
 .course-content-grid > aside {
   position: sticky;
-  top: 88px;
-  max-height: 75dvh;
+  top: 60px;
+  max-height: calc(100dvh - 80px);
   overflow: auto;
 }
 .evidence-checklist {
@@ -222,26 +224,35 @@
   margin-top: 16px;
 }
 .grading-columns > .ant-card > .ant-card-body { padding: var(--card-pad); }
-.queue-item.ant-btn { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; white-space: normal; height: auto; padding: 6px 10px; border-color: transparent; box-shadow: none; }
+.queue-item.ant-btn { display: flex; flex: 0 0 auto; flex-direction: column; align-items: stretch; justify-content: flex-start; width: 100%; min-width: 0; white-space: normal; height: auto; padding: 6px 10px; border-color: transparent; box-shadow: none; }
+.queue-item strong { overflow-wrap: anywhere; }
 .queue-item.ant-btn:hover { background: var(--hover); }
 .queue-item.ant-btn.active { background: var(--mint); border-color: transparent; box-shadow: inset 2px 0 var(--teal); }
 .grading-original .ui-meta-tags { margin-bottom: var(--space-4); }
 
 @media (min-width: 1600px) {
   .grading-columns {
-    grid-template-columns: 256px minmax(420px, 1.15fr) minmax(420px, 460px);
+    grid-template-columns: 256px minmax(0, 1.15fr) minmax(380px, 460px);
   }
 }
 @media (max-width: 1320px) {
   .grading-columns {
-    grid-template-columns: 204px minmax(260px, 1fr) minmax(320px, 380px);
+    grid-template-columns: 204px minmax(0, 1fr) minmax(300px, 360px);
     gap: 10px;
   }
 }
-@media (max-width: 1100px) {
-  .grading-columns {
-    grid-template-columns: 180px minmax(220px, 1fr) minmax(280px, 1fr);
-    gap: 10px;
+@media (max-width: 1160px) {
+  .grading-columns:not(.student-feedback) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .grading-columns:not(.student-feedback) > .card-panel {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+  }
+  .grading-columns:not(.student-feedback) .grading-actions {
+    position: static;
   }
 }
 @media (max-width: 1023px) {
@@ -249,23 +260,33 @@
     position: static;
     max-height: 280px;
   }
-}
-@media (max-width: 800px) {
   .grading-columns,
   .grading-columns.student-feedback {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .grading-columns > .card-panel {
     height: auto;
     min-height: 0;
     max-height: none;
+    overflow: visible;
   }
-  .grading-columns > .grading-queue {
-    max-height: 220px;
+  .grading-actions {
+    position: static;
   }
-  .grading-columns > .grading-original {
-    max-height: 45dvh;
-    position: relative;
+}
+@media (max-width: 800px) {
+  .grading-columns,
+  .grading-columns.student-feedback {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .grading-columns > .card-panel {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+  }
+  .grading-actions {
+    position: static;
   }
   .list-toolbar > * {
     flex: 1 1 140px;

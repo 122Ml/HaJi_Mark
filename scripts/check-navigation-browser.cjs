@@ -156,7 +156,8 @@ const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeo
       const paper = ids.sources['paper.pdf'].source;
       await t.goto(`${base}/teacher/materials?course=${ids.course_id}&source=${paper.id}`);
       const sourceRegion = t.getByRole('region', { name: '资料核对与发布', exact: true });
-      await sourceRegion.getByRole('button', { name: '在此拆分试卷', exact: true }).click();
+      await sourceRegion.getByRole('button', { name: '出题/拆卷', exact: true }).click();
+      await t.getByRole('menuitem', { name: '在此拆分试卷', exact: true }).click();
       await t.locator('.ant-drawer-title').getByText('当前原件 · 整卷拆题', { exact: true }).waitFor();
       await t.goto(`${base}/teacher/question-bank?course=${ids.course_id}&paper_source=${paper.id}`);
       const paperDrawer = t.getByRole('dialog', { name: '整卷导入', exact: true });

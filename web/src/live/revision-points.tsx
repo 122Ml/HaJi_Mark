@@ -14,16 +14,18 @@ export function RevisionPoints({
       {points.map((p) => (
         <li key={p.criterion_id}>
           <strong>
-            {p.title}：{p.score}/ {p.max_score}
+            {p.title}：{p.score} / {p.max_score}
           </strong>
-          <p>{p.feedback}</p>
+          <p className="live-prose">{p.feedback}</p>
           {p.quote && (
             <blockquote className="live-prose">
               {p.quote}
               {onLocate && (
-                <Button htmlType="button" onClick={() => onLocate(p.quote)}>
-                  定位原文
-                </Button>
+                <div style={{ marginTop: 6 }}>
+                  <Button htmlType="button" onClick={() => onLocate(p.quote)}>
+                    定位原文
+                  </Button>
+                </div>
               )}
             </blockquote>
           )}

@@ -20,7 +20,6 @@ import { resourceHref, sourceHref } from "./frozen-evidence";
 import { RetrievalHistory } from "./retrieval-history";
 import type { AssistAnswer, Hit, Resource } from "./types";
 import { hasControlNull, utf8ByteLength } from "./validation";
-import "./knowledge.css";
 
 interface RetrievalReadiness {
   configured: boolean;
@@ -341,7 +340,9 @@ export function RetrievalPage({
                 />
               </Field>
             )}
-            <ModelSelect kind="chat" value={model} onChange={setModel} />
+            <Field className="ui-field" label="回答模型">
+              <ModelSelect kind="chat" value={model} onChange={setModel} />
+            </Field>
           </div>
         )}
         <div className="live-inline">
@@ -406,11 +407,17 @@ export function RetrievalPage({
             const loc = formatHitLocator(h.locator);
             return (
               <article key={h.id} className="rag-hit">
-                <Typography.Text strong className="item-title">
-                  {h.title}
-                  {h.heading ? ` · ${h.heading}` : ""}
-                </Typography.Text>
-                {loc && <small> · {loc}</small>}
+                <div style={{ marginBottom: 8, overflowWrap: "anywhere" }}>
+                  <Typography.Text strong>
+                    {h.title}
+                    {h.heading ? ` · ${h.heading}` : ""}
+                  </Typography.Text>
+                  {loc && (
+                    <Typography.Text type="secondary">
+                      {` · ${loc}`}
+                    </Typography.Text>
+                  )}
+                </div>
                 <p className="live-prose">{h.body}</p>
                 <Space wrap size="small">
                   {teacher && h.source_id && (

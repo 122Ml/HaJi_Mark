@@ -254,8 +254,12 @@ export function RetrievalHistory({
             direction="vertical"
             size="middle"
             className="live-full-width"
+            styles={{ item: { maxWidth: "100%", minWidth: 0 } }}
           >
-            <Typography.Paragraph strong>
+            <Typography.Paragraph
+              strong
+              style={{ maxWidth: "100%", overflowWrap: "anywhere", marginBottom: 0 }}
+            >
               {parsedDetail.question}
             </Typography.Paragraph>
             <Space wrap>

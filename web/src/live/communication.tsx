@@ -271,12 +271,18 @@ export function InteractionPage() {
               <Card
                 className="card-panel"
                 key={p.id}
-                title={p.title || KIND_TITLES[p.kind] || "课程互动"}
+                title={
+                  <span style={{ overflowWrap: "anywhere" }}>
+                    {p.title || KIND_TITLES[p.kind] || "课程互动"}
+                  </span>
+                }
               >
                 <MetaTags>
                   <MetaTag>{KIND_TAGS[p.kind] || p.kind}</MetaTag>
                   {p.author_role === "teacher" && <Tag color="cyan">教师</Tag>}
-                  <span className="live-meta">{p.author_name}</span>
+                  <span className="live-meta" style={{ overflowWrap: "anywhere" }}>
+                    {p.author_name}
+                  </span>
                   <span className="live-meta">{when(p.created_at)}</span>
                 </MetaTags>
                 <p className="live-prose">{p.content}</p>
@@ -285,7 +291,9 @@ export function InteractionPage() {
                 )}
                 {replies.map((r) => (
                   <blockquote key={r.id}>
-                    <strong>{r.author_name}</strong>{" "}
+                    <strong style={{ overflowWrap: "anywhere" }}>
+                      {r.author_name}
+                    </strong>{" "}
                     {r.author_role === "teacher" && <Tag color="cyan">教师</Tag>}
                     <span className="live-meta"> · {when(r.created_at)}</span>
                     <p className="live-prose">{r.content}</p>
@@ -493,7 +501,11 @@ function InlineReply({ post }: { post: Post }) {
           )}
           <Field
             className="ui-field"
-            label={`回复：${post.title || KIND_TITLES[post.kind] || "课程互动"}`}
+            label={
+              <span style={{ overflowWrap: "anywhere" }}>
+                回复：{post.title || KIND_TITLES[post.kind] || "课程互动"}
+              </span>
+            }
             required
           >
             <Input.TextArea

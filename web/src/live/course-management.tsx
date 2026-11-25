@@ -10,7 +10,6 @@ import {
   List,
   Pagination,
   Popconfirm,
-  Space,
   Tabs,
   Typography,
 } from "antd";
@@ -138,7 +137,7 @@ export function CourseManagement() {
       </Form>
       {error && <Alert type="error" showIcon role="alert" message={error} />}
       <Card className="card-panel" title="课程列表">
-        <Space direction="vertical" className="live-full-width" size="middle">
+        <div className="live-stack">
           <Input.Search
             aria-label="搜索课程"
             placeholder="搜索课程名称"
@@ -149,29 +148,37 @@ export function CourseManagement() {
             }}
             allowClear
           />
-          {filtered.slice((page - 1) * 8, page * 8).map((c) => (
-            <article className="live-row" key={c.id}>
-              <div>
-                <Typography.Text strong className="item-title">
-                  {c.title}
-                </Typography.Text>
-                <MetaTags>
-                  {course?.id === c.id && (
-                    <StatusTag status="active" label="当前使用中" />
-                  )}
-                  <StatusTag
-                    status={c.status}
-                    label={labelFor(stateLabels, c.status, names[c.status] || c.status)}
-                  />
-                  <MetaTag>{c.knowledge_point_count} 个知识点</MetaTag>
-                </MetaTags>
-              </div>
-              <Button onClick={() => select(c.id)}>
-                {course?.id === c.id ? "当前课程" : "管理课程"}
-              </Button>
-            </article>
-          ))}
-        </Space>
+          {filtered.length > 0 && (
+            <div>
+              {filtered.slice((page - 1) * 8, page * 8).map((c) => (
+                <article className="live-row" key={c.id}>
+                  <div>
+                    <Typography.Text strong className="item-title">
+                      {c.title}
+                    </Typography.Text>
+                    <MetaTags>
+                      {course?.id === c.id && (
+                        <StatusTag status="active" label="当前使用中" />
+                      )}
+                      <StatusTag
+                        status={c.status}
+                        label={labelFor(
+                          stateLabels,
+                          c.status,
+                          names[c.status] || c.status,
+                        )}
+                      />
+                      <MetaTag>{c.knowledge_point_count} 个知识点</MetaTag>
+                    </MetaTags>
+                  </div>
+                  <Button onClick={() => select(c.id)}>
+                    {course?.id === c.id ? "当前课程" : "管理课程"}
+                  </Button>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
         {!courses.length && (
           <EmptyState title="还没有课程">
             新建课程后，可以维护目录、资料和作业。
@@ -191,7 +198,10 @@ export function CourseManagement() {
         />
       </Card>
       {course && (
-        <Card className="card-panel" title={course.title}>
+        <Card
+          className="card-panel"
+          title={<span style={{ overflowWrap: "anywhere" }}>{course.title}</span>}
+        >
           <Tabs
             activeKey={tab}
             onChange={(value) => {
@@ -523,6 +533,7 @@ function Members() {
         renderItem={(m) => (
           <List.Item
             key={m.id}
+            style={{ flexWrap: "wrap", gap: 8 }}
             actions={[
               <Popconfirm
                 key="remove"
@@ -542,10 +553,13 @@ function Members() {
               </Popconfirm>,
             ]}
           >
-            <Link to={`/teacher/dashboard?student=${m.id}`}>
+            <Link
+              style={{ overflowWrap: "anywhere" }}
+              to={`/teacher/dashboard?student=${m.id}`}
+            >
               {m.display_name}
             </Link>
-            <span>{m.username || ""}</span>
+            <span style={{ overflowWrap: "anywhere" }}>{m.username || ""}</span>
           </List.Item>
         )}
       />

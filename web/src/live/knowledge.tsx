@@ -62,7 +62,6 @@ import type {
   SourceDetail,
 } from "./types";
 import { dedupeStrings, hasControlNull, utf8ByteLength } from "./validation";
-import "./knowledge.css";
 
 export {
   MaterialsPage,
@@ -960,7 +959,7 @@ export function KnowledgeEditor({
           message="保存期间编辑区有新的改动，已保留您的最新草稿；请核对后再次保存或关闭抽屉。"
         />
       )}
-      <Field label="内容来源">
+      <Field className="ui-field" label="内容来源">
         <Select
           aria-label="内容来源"
           disabled={!!initial}
@@ -1061,129 +1060,145 @@ export function KnowledgeEditor({
       </Field>
       {v.origin !== "teacher_example" && (
         <Card size="small" title={<>原文依据（{v.evidence.length}）</>}>
-          <p className="live-meta">
-            引用文本须为对应原文片段的连续逐字子串；若勾选「学生可见」，所引用片段须已发布为学生学习内容。
-          </p>
-          {v.evidence.map((ev, i) => (
-            <div key={`${ev.source_id}:${ev.fragment_id}:${i}`}>
-              <MetaTags>
-                <MetaTag>
-                  来源：{sourceTitleByID.get(ev.source_id) || "原始资料"}
-                </MetaTag>
-                <MetaTag>片段 {ev.fragment_id.slice(0, 8)}</MetaTag>
-              </MetaTags>
-              <Field
-                className="ui-field"
-                label={<>逐字引用</>}
-                required={true}
+          <div className="live-stack">
+            <p className="live-meta" style={{ margin: 0 }}>
+              引用文本须为对应原文片段的连续逐字子串；若勾选「学生可见」，所引用片段须已发布为学生学习内容。
+            </p>
+            {v.evidence.map((ev, i) => (
+              <div
+                key={`${ev.source_id}:${ev.fragment_id}:${i}`}
+                style={{
+                  display: "grid",
+                  gap: 10,
+                  paddingBottom: 12,
+                  borderBottom: "1px solid var(--line)",
+                }}
               >
-                <Input.TextArea
-                  aria-label="逐字引用"
-                  required
-                  value={ev.quote}
-                  onChange={(e) =>
-                    change({
-                      evidence: v.evidence.map((old, n) =>
-                        n === i ? { ...old, quote: e.target.value } : old,
-                      ),
-                    })
-                  }
-                />
-              </Field>
-              <Button
-                onClick={() =>
-                  change({ evidence: v.evidence.filter((_, n) => n !== i) })
-                }
-                htmlType="button"
-              >
-                移除这条依据
-              </Button>
-            </div>
-          ))}
-          <Field className="ui-field" label={<>来源文件</>}>
-            <Select
-              aria-label="来源文件"
-              showSearch
-              optionFilterProp="label"
-              value={sourceID || undefined}
-              onChange={(nextID) => {
-                setSourceID(nextID);
-                setFragmentSearch("");
-                setFragmentPage(1);
-              }}
-              options={sources.data
-                ?.filter((s) => s.state === "active" && s.allow_derived)
-                .map((s) => ({ value: s.id, label: s.title }))}
-            />
-          </Field>
-          <Feedback error={source.error} />
-          {(source.data?.fragments?.length || 0) >
-            EVIDENCE_FRAGMENT_PAGE_SIZE && (
-            <Input.Search
-              aria-label="筛选来源片段"
-              placeholder="按关键词筛选来源片段"
-              allowClear
-              value={fragmentSearch}
-              onChange={(e) => {
-                setFragmentSearch(e.target.value);
-                setFragmentPage(1);
-              }}
-            />
-          )}
-          {pagedReadyFragments.map((f) => {
-            const alreadyCited = v.evidence.some(
-              (ev) => ev.source_id === sourceID && ev.fragment_id === f.id,
-            );
-            return (
-              <Collapse
-                key={f.id}
-                items={[
-                  {
-                    key: "content",
-                    label: (
-                      <Space wrap size="small">
-                        <span>{f.heading || formatLocator(f.locator) || "原文片段"}</span>
-                        {alreadyCited && <MetaTag>已引用</MetaTag>}
-                      </Space>
-                    ),
-                    children: (
-                      <>
-                        <p className="live-prose">{f.body}</p>
-                        <Button
-                          disabled={alreadyCited}
-                          onClick={() =>
-                            change({
-                              evidence: [
-                                ...v.evidence,
-                                {
-                                  source_id: sourceID,
-                                  fragment_id: f.id,
-                                  quote: f.body,
-                                },
-                              ],
-                            })
-                          }
-                          htmlType="button"
-                        >
-                          {alreadyCited ? "已引用此片段" : "引用此片段"}
-                        </Button>
-                      </>
-                    ),
-                  },
-                ]}
+                <MetaTags>
+                  <MetaTag>
+                    来源：{sourceTitleByID.get(ev.source_id) || "原始资料"}
+                  </MetaTag>
+                  <MetaTag>片段 {ev.fragment_id.slice(0, 8)}</MetaTag>
+                </MetaTags>
+                <Field
+                  className="ui-field"
+                  label={<>逐字引用</>}
+                  required={true}
+                >
+                  <Input.TextArea
+                    aria-label="逐字引用"
+                    required
+                    value={ev.quote}
+                    onChange={(e) =>
+                      change({
+                        evidence: v.evidence.map((old, n) =>
+                          n === i ? { ...old, quote: e.target.value } : old,
+                        ),
+                      })
+                    }
+                  />
+                </Field>
+                <Space wrap>
+                  <Button
+                    onClick={() =>
+                      change({ evidence: v.evidence.filter((_, n) => n !== i) })
+                    }
+                    htmlType="button"
+                  >
+                    移除这条依据
+                  </Button>
+                </Space>
+              </div>
+            ))}
+            <Field className="ui-field" label={<>来源文件</>}>
+              <Select
+                aria-label="来源文件"
+                showSearch
+                optionFilterProp="label"
+                value={sourceID || undefined}
+                onChange={(nextID) => {
+                  setSourceID(nextID);
+                  setFragmentSearch("");
+                  setFragmentPage(1);
+                }}
+                options={sources.data
+                  ?.filter((s) => s.state === "active" && s.allow_derived)
+                  .map((s) => ({ value: s.id, label: s.title }))}
               />
-            );
-          })}
-          {readyFragments.length > EVIDENCE_FRAGMENT_PAGE_SIZE && (
-            <Pagination
-              hideOnSinglePage
-              current={safeFragPage}
-              pageSize={EVIDENCE_FRAGMENT_PAGE_SIZE}
-              total={readyFragments.length}
-              showSizeChanger={false}
-              onChange={setFragmentPage}
-            />
-          )}
+            </Field>
+            <Feedback error={source.error} />
+            {(source.data?.fragments?.length || 0) >
+              EVIDENCE_FRAGMENT_PAGE_SIZE && (
+              <Input.Search
+                aria-label="筛选来源片段"
+                placeholder="按关键词筛选来源片段"
+                allowClear
+                value={fragmentSearch}
+                onChange={(e) => {
+                  setFragmentSearch(e.target.value);
+                  setFragmentPage(1);
+                }}
+              />
+            )}
+            {pagedReadyFragments.map((f) => {
+              const alreadyCited = v.evidence.some(
+                (ev) => ev.source_id === sourceID && ev.fragment_id === f.id,
+              );
+              return (
+                <Collapse
+                  key={f.id}
+                  items={[
+                    {
+                      key: "content",
+                      label: (
+                        <Space wrap size="small">
+                          <span>{f.heading || formatLocator(f.locator) || "原文片段"}</span>
+                          {alreadyCited && <MetaTag>已引用</MetaTag>}
+                        </Space>
+                      ),
+                      children: (
+                        <div className="live-stack" style={{ gap: 10 }}>
+                          <p className="live-prose" style={{ margin: 0 }}>
+                            {f.body}
+                          </p>
+                          <Space wrap>
+                            <Button
+                              disabled={alreadyCited}
+                              onClick={() =>
+                                change({
+                                  evidence: [
+                                    ...v.evidence,
+                                    {
+                                      source_id: sourceID,
+                                      fragment_id: f.id,
+                                      quote: f.body,
+                                    },
+                                  ],
+                                })
+                              }
+                              htmlType="button"
+                            >
+                              {alreadyCited ? "已引用此片段" : "引用此片段"}
+                            </Button>
+                          </Space>
+                        </div>
+                      ),
+                    },
+                  ]}
+                />
+              );
+            })}
+            {readyFragments.length > EVIDENCE_FRAGMENT_PAGE_SIZE && (
+              <Pagination
+                hideOnSinglePage
+                current={safeFragPage}
+                pageSize={EVIDENCE_FRAGMENT_PAGE_SIZE}
+                total={readyFragments.length}
+                showSizeChanger={false}
+                onChange={setFragmentPage}
+              />
+            )}
+          </div>
         </Card>
       )}
       <div className="rag-checks">

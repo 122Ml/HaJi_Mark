@@ -67,7 +67,7 @@ export class ErrorBoundary extends Component<
             ? "系统版本更新后部分静态资源需要刷新获取，请点击“刷新页面”。"
             : "当前视图出现未预期异常，可以尝试重新加载该区域或刷新整个页面。"}
         </p>
-        <Space>
+        <Space wrap>
           {!this.state.chunkError && (
             <Button
               type="primary"

@@ -169,7 +169,7 @@ export function labelFor(map: Record<string, string>, key?: string | null, fallb
 export function formatLocator(locator?: Record<string, unknown> | null): string {
   if (!locator || typeof locator !== "object") return "";
   const parts = Object.entries(locator)
-    .filter(([k, v]) => k in locatorKeyLabels && v !== null && v !== undefined && String(v).trim() !== "")
+    .filter(([k, v]) => k !== "method" && k in locatorKeyLabels && v !== null && v !== undefined && String(v).trim() !== "")
     .map(([k, v]) => `${locatorKeyLabels[k]} ${String(v)}`);
   const range = extractTimeRangeMs(locator);
   if (range) {

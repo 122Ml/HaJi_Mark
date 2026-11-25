@@ -437,6 +437,19 @@ func (h *Handler) confirmBankPart(c *gin.Context, reference bool) {
 		invalid(c, "没有参考解答可确认")
 		return
 	}
+	if !reference && v.Type == "quiz" {
+		validOpt := false
+		for _, opt := range v.Options {
+			if opt == v.CorrectAnswer && strings.TrimSpace(v.CorrectAnswer) != "" {
+				validOpt = true
+				break
+			}
+		}
+		if len(v.Options) < 2 || len(v.Options) > 8 || !validOpt {
+			invalid(c, "确认客观题前请先补全至少2个选项及正确答案")
+			return
+		}
+	}
 	ctx := c.Request.Context()
 	tx, e := h.db.Begin(ctx)
 	if e != nil {

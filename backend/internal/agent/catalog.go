@@ -34,8 +34,11 @@ func integer(desc string) Schema {
 func integerMax(desc string, max int) Schema {
 	return Schema{"type": "integer", "description": desc, "minimum": 0, "maximum": max}
 }
-func boolean(desc string) Schema   { return Schema{"type": "boolean", "description": desc} }
-func array(item Schema) Schema     { return Schema{"type": "array", "items": item, "maxItems": 50} }
+func boolean(desc string) Schema { return Schema{"type": "boolean", "description": desc} }
+func array(item Schema) Schema   { return Schema{"type": "array", "items": item, "maxItems": 50} }
+func arrayMax(item Schema, maxItems int) Schema {
+	return Schema{"type": "array", "items": item, "maxItems": maxItems}
+}
 func enum(values ...string) Schema { return Schema{"type": "string", "enum": values} }
 func object(props map[string]any, required ...string) Schema {
 	if required == nil {
@@ -106,7 +109,8 @@ func buildCatalog() []Tool {
 	add("course_answer", "根据可见资料回答并校验引用", "learning", "read", "POST", "/assist", "", true, false, object(props("topic", str("问题"), "profile_id", str("可选生成profile")), "topic"))
 	read("answer_history", "查看本人检索问答历史", "learning", "/assist/history", true, true, object(props("page", integer("页码，从1开始"), "size", integer("每页1到100条"))))
 	read("answer_history_read", "查看本人历史回答与引用快照", "learning", "/assist/history/{id}", true, true, withID)
-	add("source_import", "将对话附件导入为原件并解析（可传supersedes_id上传已有原件的新版本）", "materials", "create", "UPLOAD", "/sources", "", false, false, object(props("attachment_id", id, "source_note", str("教师确认的来源说明，不能编造"), "allow_derived", boolean("是否明确允许知识提炼，未授权取false"), "title", str("可选标题"), "supersedes_id", str("可选；被替换的已有原件ID，传入后上传为该原件的新版本")), "attachment_id", "source_note", "allow_derived"))
+	add("attachment_read", "直接读取本对话上传的文档附件文本内容（支持PDF/DOCX/PPTX/MD/TXT/HTML/CSV）", "control", "read", "ATTACHMENT_READ", "", "", true, false, object(props("attachment_id", id, "offset", integerMax("起始字符偏移，默认0", 500000), "limit", integerMax("返回字符上限，默认16000，最大32000", 32000)), "attachment_id"))
+	add("source_import", "将对话附件导入为原件并解析（可传supersedes_id上传已有原件的新版本；未提供source_note或allow_derived时使用默认说明且不启用提炼）", "materials", "create", "UPLOAD", "/sources", "", false, false, object(props("attachment_id", id, "source_note", str("可选来源说明，留空则自动登记为教师通过助理上传"), "allow_derived", boolean("是否明确允许知识提炼，未授权取false"), "title", str("可选标题"), "supersedes_id", str("可选；被替换的已有原件ID，传入后上传为该原件的新版本")), "attachment_id"))
 	read("source_sections_read", "查看原件当前版本的智能分段方案", "materials", "/sources/{id}/sections", false, false, withID)
 	add("source_sections_adopt", "采纳AI智能分段结果为待确认方案", "materials", "approval", "POST", "/sources/{id}/sections/adopt", "/sources/{id}/sections", false, false, object(props("id", id, "job_id", id), "id", "job_id"))
 	add("source_section_update", "编辑单个待确认切分段", "materials", "approval", "PUT", "/sources/{id}/sections/{section_id}", "/sources/{id}/sections", false, false, object(props("id", id, "section_id", id, "title", str("切分段标题"), "relation", enum("point", "sequence"), "knowledge_point_id", id, "time_start_ms", integerMax("视频起始毫秒", 2147483647), "time_end_ms", integerMax("视频结束毫秒", 2147483647), "reason", str("切分依据"), "edit_version", integer("当前编辑版本")), "id", "section_id", "title", "relation", "edit_version"))
@@ -182,6 +186,9 @@ func buildCatalog() []Tool {
 	add("answer_draft_save", "保存本人作答草稿", "assessment", "approval", "PUT", "/assignments/{id}/questions/{question_id}/draft", "/assignments/{id}", true, true, object(props("id", id, "question_id", id, "answer_text", str("本人作答")), "id", "question_id", "answer_text"))
 	add("answer_submit", "学生确认正式提交本人答案", "assessment", "human", "POST", "/assignments/{id}/submissions", "/assignments/{id}", true, true, object(props("id", id, "question_id", id, "answer_text", str("正式提交的本人原文")), "id", "question_id", "answer_text"))
 	add("curriculum_point_create", "新增章节小节或知识点", "materials", "create", "POST", "/points", "/graph", false, false, object(props("title", str("名称"), "kind", enum("chapter", "section", "point"), "parent_id", id, "position", integer("排序"), "description", str("说明")), "title", "kind", "position"))
+	batchNode := object(props("key", str("本批次内唯一短标识，供子节点的parent_key或edges引用"), "title", str("节点名称"), "kind", enum("chapter", "section", "point"), "parent_key", str("引用同批次父节点的key（与parent_id二选一）"), "parent_id", id, "position", integer("同级排序位置"), "description", str("说明")), "title", "kind", "position")
+	batchEdge := object(props("from_key", str("前置知识点key"), "to_key", str("后继知识点key"), "from_id", id, "to_id", id))
+	add("curriculum_batch_create", "一次性批量新建课程目录树与先修依赖", "materials", "approval", "POST", "/points/batch", "/graph", false, false, object(props("nodes", arrayMax(batchNode, 120), "edges", arrayMax(batchEdge, 200)), "nodes"))
 	add("curriculum_edge_create", "维护知识点前置依赖", "materials", "approval", "POST", "/edges", "/graph", false, false, object(props("from_id", id, "to_id", id), "from_id", "to_id"))
 	for _, ed := range []struct {
 		name, label, domain, path, snapshot string

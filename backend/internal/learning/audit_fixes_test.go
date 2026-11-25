@@ -267,4 +267,79 @@ func TestAuditSecurityAndIntegrityFixes(t *testing.T) {
 		t.Fatalf("trimmed student create failed: %d %s", w.Code, w.Body.String())
 	}
 	login("trimmed_stu")
+
+	// 5. adoptPaper saves quiz drafts with missing answer, while confirmBankPart requires options + answer.
+	if _, err = db.Exec(ctx, `
+		INSERT INTO material_sources(id,course_id,created_by,title,filename,media_type,storage_path,source_note,sha256,parse_state,parse_revision)
+		VALUES('paper-src','course','teacher','样卷','paper.md','text/markdown','paper-src.md','样卷','sha-paper','ready',1);
+		INSERT INTO material_fragments(id,source_id,revision,position,heading,body,locator,quality)
+		VALUES('pf-1','paper-src',1,0,'第1题','1. 选择题\nA.1\nB.2','{"page":1}','ready');
+		INSERT INTO processing_jobs(id,course_id,created_by,kind,state,input,output)
+		VALUES('paper-job','course','teacher','paper_split','succeeded','{"source_id":"paper-src","parse_revision":1}',
+		       '{"questions":[{"title":"第1题","prompt":"1. 选择题","type":"quiz","max_score":5,"options":["A.1","B.2"],"correct_answer":"","reference_answer":"","answer_origin":"missing","source_fragment_ids":["pf-1"],"asset_ids":[],"uncertain":[]}],"excluded":[],"review_status":"pending_teacher_review"}');
+	`); err != nil {
+		t.Fatalf("seed paper fixture failed: %v", err)
+	}
+	w = request(teacher, http.MethodPost, "/learning/courses/course/sources/paper-src/paper/adopt", map[string]any{
+		"job_id":        "paper-job",
+		"review_status": "pending_teacher_review",
+		"excluded":      []any{},
+		"questions": []map[string]any{
+			{
+				"title":               "第1题",
+				"prompt":              "1. 选择题",
+				"type":                "quiz",
+				"max_score":           5,
+				"options":             []string{"A.1", "B.2"},
+				"correct_answer":      "",
+				"reference_answer":    "",
+				"answer_origin":       "missing",
+				"source_fragment_ids": []string{"pf-1"},
+				"asset_ids":           []string{},
+				"uncertain":           []string{},
+			},
+		},
+	})
+	if w.Code != http.StatusOK {
+		t.Fatalf("adoptPaper blank quiz draft expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var adoptResp struct {
+		Data struct {
+			Versions []struct {
+				ID     string `json:"id"`
+				BankID string `json:"bank_id"`
+			} `json:"versions"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &adoptResp)
+	if len(adoptResp.Data.Versions) != 1 {
+		t.Fatalf("expected 1 adopted version, got %s", w.Body.String())
+	}
+	draftBankID := adoptResp.Data.Versions[0].BankID
+	draftVerID := adoptResp.Data.Versions[0].ID
+	w = request(teacher, http.MethodPost, "/learning/courses/course/question-bank/versions/"+draftVerID+"/confirm", nil)
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("confirm incomplete quiz expected 422, got %d: %s", w.Code, w.Body.String())
+	}
+	w = request(teacher, http.MethodPost, "/learning/courses/course/question-bank/"+draftBankID+"/versions", map[string]any{
+		"title":          "第1题",
+		"prompt":         "1. 选择题",
+		"type":           "quiz",
+		"max_score":      5,
+		"options":        []string{"A.1", "B.2"},
+		"correct_answer": "B.2",
+	})
+	if w.Code != http.StatusOK {
+		t.Fatalf("create completed quiz version failed: %d %s", w.Code, w.Body.String())
+	}
+	var fixedVer struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &fixedVer)
+	w = request(teacher, http.MethodPost, "/learning/courses/course/question-bank/versions/"+fixedVer.Data.ID+"/confirm", nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("confirm completed quiz expected 200, got %d: %s", w.Code, w.Body.String())
+	}
 }

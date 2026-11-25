@@ -56,6 +56,7 @@ func RegisterWithModels(api *gin.RouterGroup, db *pgxpool.Pool, auth *identity.H
 	g.PUT("", identity.RequireRole("teacher"), auth.RequireCSRF(), h.renameCourse)
 	g.POST("/curriculum", identity.RequireRole("teacher"), auth.RequireCSRF(), h.importCurriculum)
 	g.POST("/points", identity.RequireRole("teacher"), auth.RequireCSRF(), h.createPoint)
+	g.POST("/points/batch", identity.RequireRole("teacher"), auth.RequireCSRF(), h.createPointsBatch)
 	g.PUT("/points/:pointID", identity.RequireRole("teacher"), auth.RequireCSRF(), h.updatePoint)
 	g.DELETE("/points/:pointID", identity.RequireRole("teacher"), auth.RequireCSRF(), h.deletePoint)
 	g.GET("/graph", h.graph)

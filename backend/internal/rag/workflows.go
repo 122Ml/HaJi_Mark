@@ -32,6 +32,115 @@ type PaperOutput struct {
 	ReviewStatus string `json:"review_status"`
 }
 
+func normalizePaperQuestionType(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "quiz", "single_choice", "single-choice", "single choice", "choice", "mcq", "select", "单选", "单选题", "选择题":
+		return "quiz"
+	case "subjective", "short_answer", "short-answer", "short answer", "essay", "open", "open_ended", "qa", "主观", "主观题", "简答", "简答题", "论述", "论述题", "分析题":
+		return "subjective"
+	case "code", "coding", "programming", "program", "code_text", "代码", "代码题", "编程", "编程题":
+		return "code"
+	default:
+		return strings.TrimSpace(raw)
+	}
+}
+
+func stripQuizOptionPrefix(opt string) (string, string) {
+	s := strings.TrimSpace(opt)
+	if len(s) == 0 {
+		return "", ""
+	}
+	ch := s[0]
+	if ch >= 'a' && ch <= 'z' {
+		ch = ch - 'a' + 'A'
+	}
+	if ch < 'A' || ch > 'H' {
+		return "", s
+	}
+	rest := strings.TrimSpace(s[1:])
+	if rest == "" {
+		return string(ch), ""
+	}
+	for _, sep := range []string{".", "．", "、", ")", "）", ":", "："} {
+		if strings.HasPrefix(rest, sep) {
+			return string(ch), strings.TrimSpace(strings.TrimPrefix(rest, sep))
+		}
+	}
+	if len(s) > 1 && s[1] == ' ' {
+		return string(ch), rest
+	}
+	return "", s
+}
+
+func resolveQuizCorrectAnswer(raw string, options []string) string {
+	ans := strings.TrimSpace(raw)
+	if ans == "" || len(options) == 0 {
+		return ans
+	}
+	for _, opt := range options {
+		if opt == ans {
+			return opt
+		}
+	}
+	letter, body := stripQuizOptionPrefix(ans)
+	for _, opt := range options {
+		optLetter, optBody := stripQuizOptionPrefix(opt)
+		if letter != "" && optLetter == letter && (body == "" || body == optBody) {
+			return opt
+		}
+		if optBody != "" && (optBody == ans || (body != "" && optBody == body)) {
+			return opt
+		}
+	}
+	return ans
+}
+
+func NormalizePaperOutput(out *PaperOutput) {
+	out.ReviewStatus = strings.TrimSpace(out.ReviewStatus)
+	for i := range out.Questions {
+		q := &out.Questions[i]
+		q.Title = strings.TrimSpace(q.Title)
+		q.Prompt = strings.TrimSpace(q.Prompt)
+		q.Type = normalizePaperQuestionType(q.Type)
+		q.ReferenceAnswer = strings.TrimSpace(q.ReferenceAnswer)
+		q.CorrectAnswer = strings.TrimSpace(q.CorrectAnswer)
+		q.AnswerOrigin = strings.ToLower(strings.TrimSpace(q.AnswerOrigin))
+		if q.AnswerOrigin == "" || q.AnswerOrigin == "none" {
+			if q.ReferenceAnswer == "" && q.CorrectAnswer == "" {
+				q.AnswerOrigin = "missing"
+			} else {
+				q.AnswerOrigin = "extracted"
+			}
+		}
+		opts := make([]string, 0, len(q.Options))
+		for _, o := range q.Options {
+			if t := strings.TrimSpace(o); t != "" {
+				opts = append(opts, t)
+			}
+		}
+		q.Options = opts
+		if q.Type == "quiz" {
+			q.CorrectAnswer = resolveQuizCorrectAnswer(q.CorrectAnswer, q.Options)
+		}
+		if q.MaxScore < 1 {
+			q.MaxScore = 1
+			q.Uncertain = append(q.Uncertain, "分值缺失已暂设为1分，请确认")
+		}
+	}
+}
+
+func paperContainsText(normBody, compactBody, raw string) bool {
+	if strings.TrimSpace(raw) == "" {
+		return false
+	}
+	norm := strings.ReplaceAll(strings.ReplaceAll(raw, "\r\n", "\n"), "\r", "\n")
+	if strings.Contains(normBody, norm) {
+		return true
+	}
+	compact := strings.Join(strings.Fields(norm), " ")
+	return compact != "" && strings.Contains(compactBody, compact)
+}
+
 func ValidatePaper(out PaperOutput, fs []store.MaterialFragment, assets []store.MaterialAsset) error {
 	if len(out.Questions) == 0 || len(out.Questions) > 100 || out.ReviewStatus != "pending_teacher_review" {
 		return errors.New("拆题数量或审核状态无效")
@@ -73,16 +182,15 @@ func ValidatePaper(out PaperOutput, fs []store.MaterialFragment, assets []store.
 			return errors.New("未提供解答时不能补造原卷答案")
 		}
 		normBody := strings.ReplaceAll(strings.ReplaceAll(body, "\r\n", "\n"), "\r", "\n")
-		normRef := strings.ReplaceAll(strings.ReplaceAll(q.ReferenceAnswer, "\r\n", "\n"), "\r", "\n")
-		normCorr := strings.ReplaceAll(strings.ReplaceAll(q.CorrectAnswer, "\r\n", "\n"), "\r", "\n")
+		compactBody := strings.Join(strings.Fields(normBody), " ")
 		if q.AnswerOrigin == "extracted" {
 			if strings.TrimSpace(q.ReferenceAnswer) == "" && strings.TrimSpace(q.CorrectAnswer) == "" {
 				return errors.New("提取答案须非空且能逐字定位原卷")
 			}
-			if q.ReferenceAnswer != "" && (strings.TrimSpace(q.ReferenceAnswer) == "" || !strings.Contains(normBody, normRef)) {
+			if q.ReferenceAnswer != "" && !paperContainsText(normBody, compactBody, q.ReferenceAnswer) {
 				return errors.New("提取解答须非空且能逐字定位原卷")
 			}
-			if q.CorrectAnswer != "" && (strings.TrimSpace(q.CorrectAnswer) == "" || !strings.Contains(normBody, normCorr)) {
+			if q.CorrectAnswer != "" && !paperContainsText(normBody, compactBody, q.CorrectAnswer) {
 				return errors.New("提取答案须非空且能逐字定位原卷")
 			}
 		}
@@ -247,7 +355,7 @@ func (s *Service) WorkflowDraft(ctx context.Context, j store.ProcessingJob, in J
 			instruction = `把输入片段按内容切成若干连续段，默认每个片段归属一段，按输入顺序覆盖全部片段（不得遗漏或乱序）。course_points只用于判断关联，不用于改写原文。返回 {"segments":[{"title":"本段主题","relation":"point|sequence","fragment_ids":[],"split_quotes":[],"knowledge_point_id":"","time_start_ms":0,"time_end_ms":0,"reason":"切分依据"}],"review_status":"pending_teacher_review"}。`
 			instruction += `relation=point表示本段内容明确对应某个已有知识点，此时knowledge_point_id只能取course_points中kind=point的id；relation=sequence表示只是前后顺序不同、没有明确对应知识点，此时knowledge_point_id必须为空字符串。若输入片段含视频时间码，time_start_ms和time_end_ms对应首尾片段时间范围，非视频资料均填0。段数不超过50，标题不超过200字节。不得遗漏片段，不得无切点重复片段，不得将同一片段拆成三段及以上，不得引用未提供的片段或知识点。若某个非视频片段内部包含两个主题、单靠片段边界无法分段，可让本段与上一段共用这个片段：该段 fragment_ids 的首项必须与上一段末项相同，并在 split_quotes 中给出恰好 1 条切点引文——必须是该片段正文里逐字出现、唯一且不在开头的一句（不超过 200 字节），表示本段从这句话开始；不共用片段时 split_quotes 必须为空数组；视频片段不允许使用切点。`
 		} else if j.Kind == "paper_split" {
-			instruction = `将原卷拆为单选quiz、主观subjective、代码文本code候选，跨页题必须合并，不执行代码。每个fragment必须归题或excluded说明。保留公式、图片资产id。原卷无答案则reference_answer/correct_answer留空、answer_origin=missing；有则逐字提取reference_answer且answer_origin=extracted，不自行解题。缺失分值暂用1并在uncertain要求教师确认。返回 {"questions":[{"title":"题号与名称","prompt":"完整题干","type":"subjective","max_score":1,"options":[],"correct_answer":"","reference_answer":"","answer_origin":"missing","source_fragment_ids":[],"asset_ids":[],"uncertain":[]}],"excluded":[{"fragment_id":"","reason":"公共说明/原卷答案/页预览等"}],"review_status":"pending_teacher_review"}。`
+			instruction = `将原卷拆为单选quiz、主观subjective、代码文本code候选（type只能是quiz/subjective/code，禁止输出single_choice等别名），跨页题必须合并，不执行代码。每个fragment必须归题或excluded说明。保留公式、图片资产id。原卷无答案则reference_answer/correct_answer留空、answer_origin=missing；有则逐字提取reference_answer且answer_origin=extracted，不自行解题。缺失分值暂用1并在uncertain要求教师确认。返回 {"questions":[{"title":"题号与名称","prompt":"完整题干","type":"subjective","max_score":1,"options":[],"correct_answer":"","reference_answer":"","answer_origin":"missing","source_fragment_ids":[],"asset_ids":[],"uncertain":[]}],"excluded":[{"fragment_id":"","reason":"公共说明/原卷答案/页预览等"}],"review_status":"pending_teacher_review"}。`
 		} else {
 			return nil, errors.New("不支持的处理类型")
 		}
@@ -285,6 +393,7 @@ func (s *Service) WorkflowDraft(ctx context.Context, j store.ProcessingJob, in J
 		if json.Unmarshal([]byte(response), &p) != nil {
 			return failed, errors.New("拆题结果结构无效")
 		}
+		NormalizePaperOutput(&p)
 		for _, q := range p.Questions {
 			if q.AnswerOrigin == "teacher" {
 				return failed, errors.New("模型不能冒充教师补录解答")
@@ -292,6 +401,9 @@ func (s *Service) WorkflowDraft(ctx context.Context, j store.ProcessingJob, in J
 		}
 		if e = ValidatePaper(p, srcFragments, srcAssets); e != nil {
 			return failed, e
+		}
+		if normBytes, marshalErr := json.Marshal(p); marshalErr == nil {
+			_ = json.Unmarshal(normBytes, &out)
 		}
 	}
 	if j.Kind == "knowledge_compare" {

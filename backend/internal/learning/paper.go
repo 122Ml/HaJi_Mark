@@ -127,19 +127,24 @@ func (h *Handler) adoptPaper(c *gin.Context) {
 			seen := map[string]bool{}
 			found := false
 			for _, o := range v.Options {
-				if !validText(o, 1000) || seen[o] {
+				trimmed := strings.TrimSpace(o)
+				if !validText(trimmed, 1000) || seen[trimmed] {
 					invalid(c, "单选题选项为空或重复")
 					return
 				}
-				seen[o] = true
-				found = found || o == v.CorrectAnswer
+				seen[trimmed] = true
+				options = append(options, trimmed)
+				found = found || trimmed == strings.TrimSpace(v.CorrectAnswer)
 			}
-			if len(v.Options) < 2 || len(v.Options) > 8 || !found {
-				invalid(c, "请先补全单选题选项及正确答案，并将补录来源标为教师")
+			if len(options) > 8 {
+				invalid(c, "单选题选项不能超过8项")
 				return
 			}
-			options = v.Options
-			correctAnswer = v.CorrectAnswer
+			correctAnswer = strings.TrimSpace(v.CorrectAnswer)
+			if correctAnswer != "" && !found {
+				invalid(c, "正确答案必须与单选题选项之一完全一致")
+				return
+			}
 		}
 		b, e := q.CreateQuestionBank(ctx, store.CreateQuestionBankParams{ID: uuid.NewString(), CourseID: j.CourseID, CreatedBy: identity.Current(c).ID})
 		if e != nil {

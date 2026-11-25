@@ -179,12 +179,16 @@ export function AIJobRunner({
   onAdopt,
   adoptLabel,
   showPreview = true,
+  autoAdopt = false,
+  disabled = false,
 }: {
   kind: AIJobKind;
   target: Record<string, unknown>;
   onAdopt: (output: Record<string, unknown>, id: string) => void;
   adoptLabel?: string;
   showPreview?: boolean;
+  autoAdopt?: boolean;
+  disabled?: boolean;
 }) {
   const action = useAction();
   const [model, setModel] = useState("");
@@ -231,6 +235,22 @@ export function AIJobRunner({
       ? "处理中…"
       : "生成中…"
     : ACTION_BUTTON_LABELS[kind] || labelFor(jobKindLabels, kind);
+  const autoAdoptedRef = useRef("");
+  const onAdoptRef = useRef(onAdopt);
+  onAdoptRef.current = onAdopt;
+
+  useEffect(() => {
+    if (
+      autoAdopt &&
+      q.data?.state === "succeeded" &&
+      !stale &&
+      q.data.id &&
+      autoAdoptedRef.current !== q.data.id
+    ) {
+      autoAdoptedRef.current = q.data.id;
+      void onAdoptRef.current(q.data.output, q.data.id);
+    }
+  }, [autoAdopt, q.data?.id, q.data?.state, q.data?.output, stale]);
 
   return (
     <section className="rag-ai-tool">
@@ -241,7 +261,7 @@ export function AIJobRunner({
           onChange={setModel}
         />
         <Button
-          disabled={busy || jobs.isPending || !!jobs.error}
+          disabled={disabled || busy || jobs.isPending || !!jobs.error}
           onClick={async () => {
             const j = await action.run<Job>(isBank ? "/question-bank/jobs" : "/jobs", {
               kind,
@@ -266,7 +286,7 @@ export function AIJobRunner({
       </div>
       <Feedback
         error={jobs.error || q.error}
-        message={action.message}
+        message={q.data && !active && !action.failed ? "" : action.message}
         failed={action.failed}
       />
       {q.data && (
@@ -359,12 +379,24 @@ export function AIDraft({
   kind,
   target,
   onAdopt,
+  autoAdopt = false,
+  disabled = false,
 }: {
   kind: "rubric" | "grade" | "question_generate" | "question_analyze" | "bank_rubric";
   target: Record<string, unknown>;
   onAdopt: (output: Record<string, unknown>, id: string) => void;
+  autoAdopt?: boolean;
+  disabled?: boolean;
 }) {
-  return <AIJobRunner kind={kind} target={target} onAdopt={onAdopt} />;
+  return (
+    <AIJobRunner
+      kind={kind}
+      target={target}
+      onAdopt={onAdopt}
+      autoAdopt={autoAdopt}
+      disabled={disabled}
+    />
+  );
 }
 
 export function JobsPanel({

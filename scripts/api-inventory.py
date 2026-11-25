@@ -16,7 +16,7 @@ DESCRIPTIONS = {
     'courseContext':'角色路由下读取课程上下文', 'createCourse':'创建课程草稿', 'profile':'修改本人资料',
     'password':'修改本人密码', 'context':'读取当前课程及成员上下文', 'publishCourse':'发布课程',
     'courseState':'转换课程状态（草稿/发布/归档）',
-    'renameCourse':'修改课程名称', 'importCurriculum':'导入课程目录', 'createPoint':'创建目录节点/知识点',
+    'renameCourse':'修改课程名称', 'importCurriculum':'导入课程目录', 'createPoint':'创建目录节点/知识点', 'createPointsBatch':'事务性批量创建课程目录与知识点前置依赖',
     'updatePoint':'修改目录节点/知识点名称与说明', 'deletePoint':'删除无业务引用的目录节点/知识点',
     'graph':'读取目录与知识点依赖图', 'edge':'维护知识点依赖', 'deleteEdge':'删除知识点前置依赖关系', 'path':'读取本人学习路径',
     'planPath':'按已发布证据与前置关系生成规则学习路径（非模型调用）', 'members':'查询选课成员',

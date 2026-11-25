@@ -12,11 +12,13 @@ export function WorkflowJob({
   target,
   onAdopt,
   adoptLabel,
+  autoAdopt = false,
 }: {
   kind: WorkflowJobKind;
   target: Record<string, unknown>;
   onAdopt: (output: Record<string, unknown>, id: string) => void;
   adoptLabel?: string;
+  autoAdopt?: boolean;
 }) {
   return (
     <AIJobRunner
@@ -25,6 +27,7 @@ export function WorkflowJob({
       onAdopt={onAdopt}
       adoptLabel={adoptLabel}
       showPreview={false}
+      autoAdopt={autoAdopt}
     />
   );
 }

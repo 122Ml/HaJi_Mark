@@ -1,8 +1,8 @@
 # 当前 API 全量清单
 
-盘点日期：2026-11-23；注册入口内容 SHA256：`ca542aea5d2222b0eb46f49eef791c3e68d6ef3487d3c95d8d2965fc3c22096e`。
+盘点日期：2026-11-26；注册入口内容 SHA256：`ceb0bff8d205028d21f18fd84f18bdf2aeba93e814a6796df1d10bbc61db0caa`。
 
-共 **170 个 method + path**，方法统计：`{"GET": 70, "POST": 72, "DELETE": 7, "PUT": 20, "PATCH": 1}`。
+共 **171 个 method + path**，方法统计：`{"GET": 70, "POST": 73, "DELETE": 7, "PUT": 20, "PATCH": 1}`。
 
 依据 server.New 实际调用的注册入口展开角色循环；这是源码入口清单，不是线上调用量、生产启用证明或安全审计结论。
 
@@ -57,68 +57,69 @@ Agent审批和业务状态转换分别执行；审批通过后仍走原业务路
 | PUT | `/api/v1/learning/courses/:courseID` | 修改课程名称 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [renameCourse:56](../backend/internal/learning/http.go) |
 | POST | `/api/v1/learning/courses/:courseID/curriculum` | 导入课程目录 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [importCurriculum:57](../backend/internal/learning/http.go) |
 | POST | `/api/v1/learning/courses/:courseID/points` | 创建目录节点/知识点 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createPoint:58](../backend/internal/learning/http.go) |
-| PUT | `/api/v1/learning/courses/:courseID/points/:pointID` | 修改目录节点/知识点名称与说明 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [updatePoint:59](../backend/internal/learning/http.go) |
-| DELETE | `/api/v1/learning/courses/:courseID/points/:pointID` | 删除无业务引用的目录节点/知识点 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [deletePoint:60](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/graph` | 读取目录与知识点依赖图 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [graph:61](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/edges` | 维护知识点依赖 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [edge:62](../backend/internal/learning/http.go) |
-| DELETE | `/api/v1/learning/courses/:courseID/edges` | 删除知识点前置依赖关系 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [deleteEdge:63](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/path` | 读取本人学习路径 | 学生；本人/本课程 | HTTP JSON；同步读取 | — | [path:64](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/path` | 按已发布证据与前置关系生成规则学习路径（非模型调用） | 学生；本人/本课程 | HTTP JSON；同步业务处理 | 是 | [planPath:65](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/members` | 查询选课成员 | 教师；本课程 | HTTP JSON；同步读取 | — | [members:66](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/members` | 添加选课关系 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [enroll:67](../backend/internal/learning/http.go) |
-| DELETE | `/api/v1/learning/courses/:courseID/members/:studentID` | 将指定学生移出当前课程 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [removeMember:68](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/students` | 创建学生并加入课程 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createStudent:69](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/resources` | 读取可见学习资料 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [resources:70](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/resources` | 创建学习资料/新增资料修订 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createResource:71](../backend/internal/learning/http.go) |
-| PUT | `/api/v1/learning/courses/:courseID/resources/:id` | 修改草稿学习资料内容与定位 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [updateDraftResource:72](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/resources/:id/revisions` | 创建学习资料/新增资料修订 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createResource:73](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/resources/:id/publish` | 发布学习资料版本 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [publishResource:74](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/resources/:id/archive` | 归档学习资料版本 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [archiveResource:75](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/resources/:id/events` | 记录本人的资料学习事件 | 学生；本人/本课程 | HTTP JSON；同步业务处理 | 是 | [event:76](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/events` | 读取可授权学习事件 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [events:77](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/activity` | 读取学习活动时间线 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [activity:78](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/notes` | 读取本人笔记 | 学生；本人/本课程 | HTTP JSON；同步读取 | — | [notes:79](../backend/internal/learning/http.go) |
-| PUT | `/api/v1/learning/courses/:courseID/resources/:id/note` | 保存本人资料笔记 | 学生；本人/本课程 | HTTP JSON；同步业务处理 | 是 | [note:80](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/assignments` | 读取可见作业 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [assignments:81](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/assignment-worklist` | 读取作业工作清单 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [assignmentWorklist:82](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/assignments/:id/worklist` | 分页查询教师批阅队列 | 教师；本课程 | HTTP JSON；同步读取 | — | [submissionWorklist:83](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/interventions/:id/evidence` | 读取补学补练任务的完成证据 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [interventionEvidence:84](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/assignments` | 创建/修改未发布作业 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createAssignment:85](../backend/internal/learning/http.go) |
-| PUT | `/api/v1/learning/courses/:courseID/assignments/:id` | 创建/修改未发布作业 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createAssignment:86](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/assignments/:id` | 读取授权作业详情 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [assignment:87](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/assignments/:id/state` | 发布/关闭等作业状态转换 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [assignmentState:88](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/assignments/:id/submissions` | 读取授权范围内的作答 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [submissions:89](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/assignments/:id/roster` | 查询作业提交名单及未交情况 | 教师；本课程 | HTTP JSON；同步读取 | — | [roster:90](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/assignments/:id/submissions` | 提交本人答案；客观题可按教师答案规则判分 | 学生；本人/本课程 | HTTP JSON；同步业务处理 | 是 | [submit:91](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/assignments/:id/imports` | 查询本作业教师导入审计 | 教师；本课程 | HTTP JSON；同步读取 | — | [submissionImports:92](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/assignments/:id/import/:operation` | 预览核对或原子确认导入文本作答；保留来源与新attempt | 教师；本课程 | HTTP JSON；CSV预览哈希 → 显式确认 → 幂等整批事务 | 是 | [importSubmissions:93](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/assignments/:id/questions/:questionID/draft` | 读取本人逐题草稿 | 学生；本人/本课程 | HTTP JSON；同步读取 | — | [draft:94](../backend/internal/learning/http.go) |
-| PUT | `/api/v1/learning/courses/:courseID/assignments/:id/questions/:questionID/draft` | 保存本人逐题草稿 | 学生；本人/本课程 | HTTP JSON；同步业务处理 | 是 | [saveDraft:95](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/submissions/:id` | 读取授权作答详情与可见评阅结果 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [submission:96](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/questions/:id/rubrics` | 读取作业题目的评分标准版本 | 教师；本课程 | HTTP JSON；同步读取 | — | [rubrics:97](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/questions/:id/rubrics` | 保存作业题目标准草稿/采纳AI草稿 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createRubric:98](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/rubrics/:id/confirm` | 确认评分标准版本 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [confirmRubric:99](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/submissions/:id/revisions` | 保存评分修订/采纳AI评分草稿 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [grade:100](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/revisions/:id/state` | 确认或发布评分修订 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [gradeState:101](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/interventions` | 读取授权补学补练任务 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [interventions:102](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/interventions` | 创建补学补练任务草稿 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createIntervention:103](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/interventions/:id/state` | 按角色下发、提交完成、复核任务 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步业务处理 | 是 | [interventionState:104](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/interactions` | 读取课程答疑互动 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [interactions:105](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/interactions` | 按角色提交问题/回复 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步业务处理 | 是 | [createInteraction:106](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/overview` | 查询班级学情汇总 | 教师；本课程 | HTTP JSON；同步读取 | — | [overview:107](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/evidence` | 读取授权评分表现及证据 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [evidence:108](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/assist` | 查询助教是否配置 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [assistStatus:109](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/assist` | 幂等课程RAG问答；核对引用并保存本人历史 | 师生；本课程；按对象/可见性过滤 | HTTP同步；RAG＋非流式Chat；返回JSON | 是 | [assist:110](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/assist/history` | 分页读取本人课程问答历史 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [assistHistory:111](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/assist/history/:id` | 读取本人问答、引用快照及生成状态 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [assistTurn:112](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/research` | 读取教研记录 | 教师；本课程 | HTTP JSON；同步读取 | — | [research:113](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/research` | 新增/修改人工教研记录 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createResearch:114](../backend/internal/learning/http.go) |
-| PUT | `/api/v1/learning/courses/:courseID/research/:id` | 新增/修改人工教研记录 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createResearch:115](../backend/internal/learning/http.go) |
-| DELETE | `/api/v1/learning/courses/:courseID/research/:id` | 删除教研记录 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [deleteResearch:116](../backend/internal/learning/http.go) |
-| GET | `/api/v1/learning/courses/:courseID/industry` | 读取行业案例 | 教师；本课程 | HTTP JSON；同步读取 | — | [industry:117](../backend/internal/learning/http.go) |
-| POST | `/api/v1/learning/courses/:courseID/industry` | 新增/修改人工行业案例 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createIndustry:118](../backend/internal/learning/http.go) |
-| PUT | `/api/v1/learning/courses/:courseID/industry/:id` | 新增/修改人工行业案例 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createIndustry:119](../backend/internal/learning/http.go) |
-| DELETE | `/api/v1/learning/courses/:courseID/industry/:id` | 删除行业案例 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [deleteIndustry:120](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/points/batch` | 事务性批量创建课程目录与知识点前置依赖 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createPointsBatch:59](../backend/internal/learning/http.go) |
+| PUT | `/api/v1/learning/courses/:courseID/points/:pointID` | 修改目录节点/知识点名称与说明 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [updatePoint:60](../backend/internal/learning/http.go) |
+| DELETE | `/api/v1/learning/courses/:courseID/points/:pointID` | 删除无业务引用的目录节点/知识点 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [deletePoint:61](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/graph` | 读取目录与知识点依赖图 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [graph:62](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/edges` | 维护知识点依赖 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [edge:63](../backend/internal/learning/http.go) |
+| DELETE | `/api/v1/learning/courses/:courseID/edges` | 删除知识点前置依赖关系 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [deleteEdge:64](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/path` | 读取本人学习路径 | 学生；本人/本课程 | HTTP JSON；同步读取 | — | [path:65](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/path` | 按已发布证据与前置关系生成规则学习路径（非模型调用） | 学生；本人/本课程 | HTTP JSON；同步业务处理 | 是 | [planPath:66](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/members` | 查询选课成员 | 教师；本课程 | HTTP JSON；同步读取 | — | [members:67](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/members` | 添加选课关系 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [enroll:68](../backend/internal/learning/http.go) |
+| DELETE | `/api/v1/learning/courses/:courseID/members/:studentID` | 将指定学生移出当前课程 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [removeMember:69](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/students` | 创建学生并加入课程 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createStudent:70](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/resources` | 读取可见学习资料 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [resources:71](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/resources` | 创建学习资料/新增资料修订 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createResource:72](../backend/internal/learning/http.go) |
+| PUT | `/api/v1/learning/courses/:courseID/resources/:id` | 修改草稿学习资料内容与定位 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [updateDraftResource:73](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/resources/:id/revisions` | 创建学习资料/新增资料修订 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createResource:74](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/resources/:id/publish` | 发布学习资料版本 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [publishResource:75](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/resources/:id/archive` | 归档学习资料版本 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [archiveResource:76](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/resources/:id/events` | 记录本人的资料学习事件 | 学生；本人/本课程 | HTTP JSON；同步业务处理 | 是 | [event:77](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/events` | 读取可授权学习事件 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [events:78](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/activity` | 读取学习活动时间线 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [activity:79](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/notes` | 读取本人笔记 | 学生；本人/本课程 | HTTP JSON；同步读取 | — | [notes:80](../backend/internal/learning/http.go) |
+| PUT | `/api/v1/learning/courses/:courseID/resources/:id/note` | 保存本人资料笔记 | 学生；本人/本课程 | HTTP JSON；同步业务处理 | 是 | [note:81](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/assignments` | 读取可见作业 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [assignments:82](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/assignment-worklist` | 读取作业工作清单 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [assignmentWorklist:83](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/assignments/:id/worklist` | 分页查询教师批阅队列 | 教师；本课程 | HTTP JSON；同步读取 | — | [submissionWorklist:84](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/interventions/:id/evidence` | 读取补学补练任务的完成证据 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [interventionEvidence:85](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/assignments` | 创建/修改未发布作业 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createAssignment:86](../backend/internal/learning/http.go) |
+| PUT | `/api/v1/learning/courses/:courseID/assignments/:id` | 创建/修改未发布作业 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createAssignment:87](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/assignments/:id` | 读取授权作业详情 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [assignment:88](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/assignments/:id/state` | 发布/关闭等作业状态转换 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [assignmentState:89](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/assignments/:id/submissions` | 读取授权范围内的作答 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [submissions:90](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/assignments/:id/roster` | 查询作业提交名单及未交情况 | 教师；本课程 | HTTP JSON；同步读取 | — | [roster:91](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/assignments/:id/submissions` | 提交本人答案；客观题可按教师答案规则判分 | 学生；本人/本课程 | HTTP JSON；同步业务处理 | 是 | [submit:92](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/assignments/:id/imports` | 查询本作业教师导入审计 | 教师；本课程 | HTTP JSON；同步读取 | — | [submissionImports:93](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/assignments/:id/import/:operation` | 预览核对或原子确认导入文本作答；保留来源与新attempt | 教师；本课程 | HTTP JSON；CSV预览哈希 → 显式确认 → 幂等整批事务 | 是 | [importSubmissions:94](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/assignments/:id/questions/:questionID/draft` | 读取本人逐题草稿 | 学生；本人/本课程 | HTTP JSON；同步读取 | — | [draft:95](../backend/internal/learning/http.go) |
+| PUT | `/api/v1/learning/courses/:courseID/assignments/:id/questions/:questionID/draft` | 保存本人逐题草稿 | 学生；本人/本课程 | HTTP JSON；同步业务处理 | 是 | [saveDraft:96](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/submissions/:id` | 读取授权作答详情与可见评阅结果 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [submission:97](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/questions/:id/rubrics` | 读取作业题目的评分标准版本 | 教师；本课程 | HTTP JSON；同步读取 | — | [rubrics:98](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/questions/:id/rubrics` | 保存作业题目标准草稿/采纳AI草稿 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createRubric:99](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/rubrics/:id/confirm` | 确认评分标准版本 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [confirmRubric:100](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/submissions/:id/revisions` | 保存评分修订/采纳AI评分草稿 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [grade:101](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/revisions/:id/state` | 确认或发布评分修订 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [gradeState:102](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/interventions` | 读取授权补学补练任务 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [interventions:103](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/interventions` | 创建补学补练任务草稿 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createIntervention:104](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/interventions/:id/state` | 按角色下发、提交完成、复核任务 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步业务处理 | 是 | [interventionState:105](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/interactions` | 读取课程答疑互动 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [interactions:106](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/interactions` | 按角色提交问题/回复 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步业务处理 | 是 | [createInteraction:107](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/overview` | 查询班级学情汇总 | 教师；本课程 | HTTP JSON；同步读取 | — | [overview:108](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/evidence` | 读取授权评分表现及证据 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [evidence:109](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/assist` | 查询助教是否配置 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [assistStatus:110](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/assist` | 幂等课程RAG问答；核对引用并保存本人历史 | 师生；本课程；按对象/可见性过滤 | HTTP同步；RAG＋非流式Chat；返回JSON | 是 | [assist:111](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/assist/history` | 分页读取本人课程问答历史 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [assistHistory:112](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/assist/history/:id` | 读取本人问答、引用快照及生成状态 | 师生；本课程；按对象/可见性过滤 | HTTP JSON；同步读取 | — | [assistTurn:113](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/research` | 读取教研记录 | 教师；本课程 | HTTP JSON；同步读取 | — | [research:114](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/research` | 新增/修改人工教研记录 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createResearch:115](../backend/internal/learning/http.go) |
+| PUT | `/api/v1/learning/courses/:courseID/research/:id` | 新增/修改人工教研记录 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createResearch:116](../backend/internal/learning/http.go) |
+| DELETE | `/api/v1/learning/courses/:courseID/research/:id` | 删除教研记录 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [deleteResearch:117](../backend/internal/learning/http.go) |
+| GET | `/api/v1/learning/courses/:courseID/industry` | 读取行业案例 | 教师；本课程 | HTTP JSON；同步读取 | — | [industry:118](../backend/internal/learning/http.go) |
+| POST | `/api/v1/learning/courses/:courseID/industry` | 新增/修改人工行业案例 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createIndustry:119](../backend/internal/learning/http.go) |
+| PUT | `/api/v1/learning/courses/:courseID/industry/:id` | 新增/修改人工行业案例 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [createIndustry:120](../backend/internal/learning/http.go) |
+| DELETE | `/api/v1/learning/courses/:courseID/industry/:id` | 删除行业案例 | 教师；本课程 | HTTP JSON；同步业务处理 | 是 | [deleteIndustry:121](../backend/internal/learning/http.go) |
 
 ## learning/materials.go
 

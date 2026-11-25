@@ -8,6 +8,12 @@ import type { AssistAnswer } from "./types";
 
 export { FrozenEvidence } from "./frozen-evidence";
 
+export function displayCitationTitle(title: string | undefined, teacher: boolean): string {
+  const raw = (title || "").trim();
+  if (!raw || teacher) return raw;
+  return raw.replace(/\.(md|markdown|pdf|txt|docx?|pptx?|csv|html?)$/i, "");
+}
+
 export function GroundedAnswer({ answer }: { answer: AssistAnswer }) {
   const { session } = useSession();
   const teacher = session?.user.role === "teacher";
@@ -21,6 +27,7 @@ export function GroundedAnswer({ answer }: { answer: AssistAnswer }) {
           sources.find((h) => h.id === c.id) ||
           (/^R\d+$/.test(c.id) ? sources[Number(c.id.slice(1)) - 1] : undefined);
         const loc = formatLocator(hit?.locator);
+        const titleText = displayCitationTitle(hit?.title, teacher);
         return (
           <blockquote
             key={`${c.id}:${i}`}
@@ -29,9 +36,9 @@ export function GroundedAnswer({ answer }: { answer: AssistAnswer }) {
             <div style={{ overflowWrap: "anywhere" }}>
               <Tag className="ui-meta-tag">[{refTag}]</Tag> {c.quote}
             </div>
-            {(hit?.title || loc) && (
-              <small style={{ overflowWrap: "anywhere" }}>
-                {hit?.title}
+            {(titleText || loc) && (
+              <small style={{ display: "block", marginBottom: 4, overflowWrap: "anywhere" }}>
+                {titleText}
                 {loc ? ` · ${loc}` : ""}
               </small>
             )}

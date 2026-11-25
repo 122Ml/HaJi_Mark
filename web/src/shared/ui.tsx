@@ -1,6 +1,6 @@
 import { Alert, Button, Empty, Spin, Tag } from "antd";
 import { Sparkles } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { APIError } from "./api";
 
 export function isFeatureDisabledError(err: unknown): boolean {
@@ -55,4 +55,68 @@ export function MetaTag({ children }: { children: ReactNode }) {
 }
 export function MetaTags({ children }: { children: ReactNode }) {
   return <div className="ui-meta-tags">{children}</div>;
+}
+
+export function ActionToolbar({
+  left,
+  right,
+}: {
+  left?: ReactNode;
+  right?: ReactNode;
+}) {
+  return (
+    <div className="ui-action-toolbar">
+      <div className="ui-action-toolbar-left">{left}</div>
+      {right && <div className="ui-action-toolbar-right">{right}</div>}
+    </div>
+  );
+}
+
+export function SectionSummaryBar({
+  left,
+  right,
+}: {
+  left?: ReactNode;
+  right?: ReactNode;
+}) {
+  return (
+    <div className="ui-summary-bar">
+      <div className="ui-summary-bar-left">{left}</div>
+      {right && <div className="ui-summary-bar-right">{right}</div>}
+    </div>
+  );
+}
+
+export function CollapsibleProse({
+  text,
+  maxChars = 220,
+  className = "live-prose",
+}: {
+  text: string;
+  maxChars?: number;
+  className?: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const trimmed = text.trim();
+  const long = trimmed.length > maxChars;
+  const visible =
+    long && !expanded ? `${trimmed.slice(0, maxChars).trimEnd()}…` : text;
+  return (
+    <div className="ui-collapsible-prose">
+      <p className={className} style={{ margin: 0 }}>
+        {visible}
+      </p>
+      {long && (
+        <Button
+          type="link"
+          size="small"
+          htmlType="button"
+          style={{ paddingInline: 0, height: "auto" }}
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? "收起全文" : "展开全文"}
+        </Button>
+      )}
+    </div>
+  );
 }

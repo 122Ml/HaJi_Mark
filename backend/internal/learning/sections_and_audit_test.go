@@ -833,4 +833,64 @@ func TestSectionsCrudAndHardeningAudit(t *testing.T) {
 	if len(clipsResp.Data) != 0 {
 		t.Fatalf("expected archived source clips to be excluded, got %+v", clipsResp.Data)
 	}
+
+	// Batch curriculum tree + DAG edges endpoint.
+	if w := request(student, http.MethodPost, base+"/points/batch", map[string]any{
+		"nodes": []map[string]any{{"key": "c1", "kind": "chapter", "title": "无权限章", "position": 1}},
+	}); w.Code != http.StatusForbidden {
+		t.Fatalf("student points/batch expected 403, got %d", w.Code)
+	}
+	if w := request(teacher, http.MethodPost, base+"/points/batch", map[string]any{
+		"nodes": []map[string]any{
+			{"key": "ch_b", "kind": "chapter", "title": "批量章", "position": 10},
+			{"key": "pt_p", "kind": "point", "title": "父级知识点", "parent_key": "ch_b", "position": 1},
+			{"key": "pt_bad", "kind": "point", "title": "嵌套在知识点下的子节点", "parent_key": "pt_p", "position": 1},
+		},
+	}); w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("invalid hierarchy in points/batch expected 422, got %d: %s", w.Code, w.Body.String())
+	}
+	if w := request(teacher, http.MethodPost, base+"/points/batch", map[string]any{
+		"nodes": []map[string]any{
+			{"key": "ch_cyc", "kind": "chapter", "title": "回滚章", "position": 11},
+			{"key": "sec_cyc", "kind": "section", "title": "回滚节", "parent_key": "ch_cyc", "position": 1},
+			{"key": "p1", "kind": "point", "title": "回滚点1", "parent_key": "sec_cyc", "position": 1},
+			{"key": "p2", "kind": "point", "title": "回滚点2", "parent_key": "sec_cyc", "position": 2},
+		},
+		"edges": []map[string]any{
+			{"from_key": "p1", "to_key": "p2"},
+			{"from_key": "p2", "to_key": "p1"},
+		},
+	}); w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("cycle in points/batch expected 422, got %d: %s", w.Code, w.Body.String())
+	}
+	w = request(teacher, http.MethodPost, base+"/points/batch", map[string]any{
+		"nodes": []map[string]any{
+			{"key": "ch1", "kind": "chapter", "title": "第1章 智能软工概论", "position": 20},
+			{"key": "sec1", "kind": "section", "title": "1.1 生命周期与需求", "parent_key": "ch1", "position": 1},
+			{"key": "kp1", "kind": "point", "title": "AI4SE 全景", "parent_key": "sec1", "position": 1, "description": "掌握基本阶段"},
+			{"key": "kp2", "kind": "point", "title": "可验证需求约束", "parent_key": "sec1", "position": 2},
+		},
+		"edges": []map[string]any{
+			{"from_key": "kp1", "to_key": "kp2"},
+		},
+	})
+	if w.Code != http.StatusOK {
+		t.Fatalf("valid points/batch failed: %d %s", w.Code, w.Body.String())
+	}
+	var batchResp struct {
+		Data struct {
+			CreatedNodes int `json:"created_nodes"`
+			CreatedEdges int `json:"created_edges"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &batchResp); err != nil {
+		t.Fatalf("unmarshal batchResp failed: %v", err)
+	}
+	if batchResp.Data.CreatedNodes != 4 || batchResp.Data.CreatedEdges != 1 {
+		t.Fatalf("unexpected batch counts: %+v", batchResp.Data)
+	}
+	w = request(teacher, http.MethodGet, base+"/graph", nil)
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "AI4SE 全景") || strings.Contains(w.Body.String(), "回滚章") {
+		t.Fatalf("graph state mismatch after batch/rollback: %d %s", w.Code, w.Body.String())
+	}
 }

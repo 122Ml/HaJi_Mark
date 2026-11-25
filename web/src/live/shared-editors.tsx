@@ -229,7 +229,10 @@ export function QuizOptionsEditor({
   function updateOption(index: number, nextValue: string) {
     const oldVal = safeOptions[index];
     const next = safeOptions.map((item, i) => (i === index ? nextValue : item));
-    const nextCorrect = correctAnswer === oldVal ? nextValue : correctAnswer;
+    const nextCorrect =
+      correctAnswer !== "" && correctAnswer === oldVal
+        ? nextValue
+        : correctAnswer;
     onChange(next, nextCorrect);
   }
 

@@ -289,3 +289,55 @@ func TestValidateSegmentsTimecodesAndNormalization(t *testing.T) {
 		t.Fatal("expected invalid (1000,0) on non-video segment to fail")
 	}
 }
+
+func TestPaperNormalizationAndValidation(t *testing.T) {
+	fs := []store.MaterialFragment{
+		{
+			ID:   "f1",
+			Body: "1. 某黑盒测试题共有四个选项：\nA.12\nB.18\nC.24\nD.30\n正确答案：B\n2. 请简述等价类划分的基本步骤。\n参考答案：等价类划分把输入域分为有效等价类和\n无效等价类。",
+		},
+	}
+	out := PaperOutput{
+		Questions: []PaperQuestion{
+			{
+				Title:         "第1题 单选题",
+				Prompt:        "某黑盒测试题共有四个选项",
+				Type:          "single_choice",
+				MaxScore:      0,
+				Options:       []string{" A.12 ", "B.18", "C.24", "D.30"},
+				CorrectAnswer: "B",
+				AnswerOrigin:  "",
+				FragmentIDs:   []string{"f1"},
+			},
+			{
+				Title:           "第2题 简答题",
+				Prompt:          "请简述等价类划分的基本步骤。",
+				Type:            "short_answer",
+				MaxScore:        5,
+				ReferenceAnswer: "等价类划分把输入域分为有效等价类和 无效等价类。",
+				AnswerOrigin:    "extracted",
+				FragmentIDs:     []string{"f1"},
+			},
+		},
+		ReviewStatus: "pending_teacher_review",
+	}
+	NormalizePaperOutput(&out)
+	if out.Questions[0].Type != "quiz" {
+		t.Fatalf("expected single_choice normalized to quiz, got %q", out.Questions[0].Type)
+	}
+	if out.Questions[0].MaxScore != 1 || len(out.Questions[0].Uncertain) == 0 {
+		t.Fatalf("expected missing max_score clamped to 1 with uncertain note, got %d %v", out.Questions[0].MaxScore, out.Questions[0].Uncertain)
+	}
+	if out.Questions[0].CorrectAnswer != "B.18" {
+		t.Fatalf("expected letter-only B resolved to B.18, got %q", out.Questions[0].CorrectAnswer)
+	}
+	if out.Questions[0].AnswerOrigin != "extracted" {
+		t.Fatalf("expected non-empty blank origin normalized to extracted, got %q", out.Questions[0].AnswerOrigin)
+	}
+	if out.Questions[1].Type != "subjective" {
+		t.Fatalf("expected short_answer normalized to subjective, got %q", out.Questions[1].Type)
+	}
+	if err := ValidatePaper(out, fs, nil); err != nil {
+		t.Fatalf("expected normalized paper output to pass ValidatePaper, got %v", err)
+	}
+}

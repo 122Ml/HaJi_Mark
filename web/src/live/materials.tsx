@@ -35,6 +35,8 @@ import { FileUpload } from "../shared/FileUpload";
 import { PageHeader } from "../shared/PageHeader";
 import { useSession } from "../shared/session";
 import {
+  ActionToolbar,
+  CollapsibleProse,
   EmptyState,
   ErrorState,
   FeatureNotice,
@@ -42,6 +44,7 @@ import {
   LoadingState,
   MetaTag,
   MetaTags,
+  SectionSummaryBar,
   StatusTag,
 } from "../shared/ui";
 import { JobsPanel, ModelSelect, useJob } from "./ai-jobs";
@@ -101,7 +104,12 @@ const ALLOWED_EXTENSIONS = new Set([
 const MAX_FILE_BYTES = 30 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 512 * 1024 * 1024;
 const MAX_BATCH_FILES = 10;
-const FRAGMENTS_PAGE_SIZE = 20;
+const FRAGMENTS_PAGE_SIZE = 12;
+
+function isAssetStub(f: Fragment): boolean {
+  const trimmed = f.body.trim();
+  return trimmed === "[图文资产待核对]" || trimmed.startsWith("[图文资产");
+}
 const SOURCES_PAGE_SIZE = 10;
 
 function fileExtension(filename: string): string {
@@ -1001,7 +1009,9 @@ function SourceOriginalTab({
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState("");
   const [fragmentSearch, setFragmentSearch] = useState("");
-  const [onlyNeedsReview, setOnlyNeedsReview] = useState(false);
+  const [fragmentFilter, setFragmentFilter] = useState<
+    "auto" | "text" | "review" | "all"
+  >("auto");
   const [fragmentPage, setFragmentPage] = useState(1);
 
   const [searchParams] = useSearchParams();
@@ -1026,7 +1036,7 @@ function SourceOriginalTab({
 
   useEffect(() => {
     if (fragmentID) {
-      setOnlyNeedsReview(false);
+      setFragmentFilter("all");
       setFragmentSearch("");
     }
   }, [fragmentID]);
@@ -1049,10 +1059,25 @@ function SourceOriginalTab({
     [fragments],
   );
 
+  const assetStubCount = useMemo(
+    () => fragments.filter(isAssetStub).length,
+    [fragments],
+  );
+  const textFragmentCount = fragments.length - assetStubCount;
+  const effectiveFilter: "text" | "review" | "all" =
+    fragmentFilter === "auto"
+      ? assetStubCount > 0 && textFragmentCount > 0
+        ? "text"
+        : "all"
+      : fragmentFilter;
+
   const filteredFragments = useMemo(() => {
     const needle = fragmentSearch.trim().toLowerCase();
     return indexedFragments.filter(({ fragment }) => {
-      if (onlyNeedsReview && fragment.quality !== "needs_review") return false;
+      if (effectiveFilter === "text" && isAssetStub(fragment)) return false;
+      if (effectiveFilter === "review" && fragment.quality !== "needs_review") {
+        return false;
+      }
       if (
         needle &&
         !`${fragment.heading} ${fragment.body}`.toLowerCase().includes(needle)
@@ -1061,7 +1086,7 @@ function SourceOriginalTab({
       }
       return true;
     });
-  }, [indexedFragments, fragmentSearch, onlyNeedsReview]);
+  }, [indexedFragments, fragmentSearch, effectiveFilter]);
 
   useEffect(() => {
     if (!fragmentID || !filteredFragments.length) return;
@@ -1152,108 +1177,166 @@ function SourceOriginalTab({
     }
   }
 
+  async function confirmAllNeedsReview() {
+    if (!needsReviewCount || !source) return;
+    const nonStubCount = fragments.filter(
+      (f) => f.quality === "needs_review" && !isAssetStub(f),
+    ).length;
+    const msg =
+      assetStubCount > 0
+        ? `确认将本原件全部 ${needsReviewCount} 个待核对片段（含 ${nonStubCount} 个正文片段）直接标记为「可使用」？`
+        : `确认将本原件全部 ${needsReviewCount} 个待核对片段标记为「可使用」？`;
+    if (!(await confirm(msg))) return;
+    const next = fragments.map((x) =>
+      x.quality === "needs_review" ? { ...x, quality: "ready" as const } : x,
+    );
+    const saved = await action.run(
+      `/sources/${id}/fragments`,
+      { revision: source.parse_revision, fragments: next },
+      "PUT",
+      "已批量确认全部待核对片段",
+    );
+    if (saved) {
+      dirtyFragmentsRef.current.clear();
+      if (effectiveFilter === "review") setFragmentFilter("text");
+    }
+  }
+
   return (
     <div className="live-form">
-      <Space wrap>
-        <Button
-          htmlType="button"
-          disabled={!editable || replacementBusy}
-          onClick={() => setReplacing(!replacing)}
-        >
-          {replacing ? "取消上传新版本" : "上传原件新版本"}
-        </Button>
-        <Button
-          htmlType="button"
-          loading={downloading}
-          onClick={() => void handleDownload()}
-        >
-          下载完整原件
-        </Button>
-        <Button
-          htmlType="button"
-          danger
-          disabled={action.busy || source.state === "archived"}
-          onClick={async () => {
-            if (
-              await confirm(
-                "归档后原件及关联知识将停止参与检索，历史依据仍保留。继续？",
-                { danger: true },
-              )
-            ) {
-              void action.run(
-                `/sources/${id}/archive`,
-                undefined,
-                "POST",
-                undefined,
-                {
-                  invalidatePrefixes: [
-                    "sources",
-                    "resources",
-                    "knowledge",
-                    "jobs",
-                    "topics",
-                    "impact",
-                    "",
+      <ActionToolbar
+        left={
+          <>
+            <Button
+              htmlType="button"
+              type="primary"
+              disabled={!editable || replacementBusy}
+              onClick={() => setReplacing(!replacing)}
+            >
+              {replacing ? "取消上传新版本" : "上传原件新版本"}
+            </Button>
+            {editable && (
+              <Dropdown
+                trigger={["click"]}
+                menu={{
+                  items: [
+                    {
+                      key: "question",
+                      label: "据此出题",
+                      onClick: () =>
+                        courseNavigate(
+                          `/teacher/question-bank?new=1&source_id=${encodeURIComponent(id)}`,
+                        ),
+                    },
+                    {
+                      key: "paper",
+                      label:
+                        videoSource || !fragments.length
+                          ? "在此拆分试卷（仅非视频且有片段可用）"
+                          : "在此拆分试卷",
+                      disabled: videoSource || !fragments.length,
+                      onClick: () => setPaperOpen(true),
+                    },
                   ],
-                },
-              );
-            }
-          }}
-        >
-          {source.state === "archived" ? "已归档" : "归档"}
-        </Button>
-        <Button htmlType="button" onClick={() => setClassifyOpen(true)}>
-          归类与标签
-        </Button>
-        {editable && (
+                }}
+              >
+                <Button htmlType="button">出题 / 拆卷</Button>
+              </Dropdown>
+            )}
+          </>
+        }
+        right={
           <Dropdown
             trigger={["click"]}
             menu={{
               items: [
                 {
-                  key: "question",
-                  label: "据此出题",
-                  onClick: () =>
-                    courseNavigate(
-                      `/teacher/question-bank?new=1&source_id=${encodeURIComponent(id)}`,
-                    ),
+                  key: "download",
+                  label: downloading ? "下载中…" : "下载完整原件",
+                  disabled: downloading,
+                  onClick: () => void handleDownload(),
                 },
                 {
-                  key: "paper",
-                  label:
-                    videoSource || !fragments.length
-                      ? "在此拆分试卷（仅非视频且有片段可用）"
-                      : "在此拆分试卷",
-                  disabled: videoSource || !fragments.length,
-                  onClick: () => setPaperOpen(true),
+                  key: "classify",
+                  label: "归类与标签",
+                  onClick: () => setClassifyOpen(true),
+                },
+                {
+                  key: "archive",
+                  label: source.state === "archived" ? "已归档" : "归档原件",
+                  danger: true,
+                  disabled: action.busy || source.state === "archived",
+                  onClick: async () => {
+                    if (
+                      await confirm(
+                        "归档后原件及关联知识将停止参与检索，历史依据仍保留。继续？",
+                        { danger: true },
+                      )
+                    ) {
+                      void action.run(
+                        `/sources/${id}/archive`,
+                        undefined,
+                        "POST",
+                        undefined,
+                        {
+                          invalidatePrefixes: [
+                            "sources",
+                            "resources",
+                            "knowledge",
+                            "jobs",
+                            "topics",
+                            "impact",
+                            "",
+                          ],
+                        },
+                      );
+                    }
+                  },
                 },
               ],
             }}
           >
-            <Button htmlType="button">出题/拆卷</Button>
+            <Button htmlType="button">更多操作</Button>
           </Dropdown>
-        )}
-      </Space>
+        }
+      />
 
-      <MetaTags>
-        {videoSource && <Tag color="purple">视频</Tag>}
-        <StatusTag
-          status={source.state === "archived" ? "archived" : source.parse_state}
-          label={
-            source.state === "archived"
-              ? "已归档"
-              : labelFor(stateLabels, source.parse_state)
-          }
-        />
-        <MetaTag>原文修订 {displayRevision}</MetaTag>
-        <MetaTag>{fragments.length} 个片段</MetaTag>
-        {needsReviewCount > 0 && (
-          <StatusTag
-            status="needs_review"
-            label={`${needsReviewCount} 个待人工核对`}
-          />
-        )}
-      </MetaTags>
+      <SectionSummaryBar
+        left={
+          <MetaTags>
+            {videoSource && <Tag color="purple">视频</Tag>}
+            <StatusTag
+              status={source.state === "archived" ? "archived" : source.parse_state}
+              label={
+                source.state === "archived"
+                  ? "已归档"
+                  : labelFor(stateLabels, source.parse_state)
+              }
+            />
+            <MetaTag>修订 {displayRevision}</MetaTag>
+            <MetaTag>{fragments.length} 片段</MetaTag>
+            {needsReviewCount > 0 && (
+              <StatusTag
+                status="needs_review"
+                label={`${needsReviewCount} 待核对`}
+              />
+            )}
+          </MetaTags>
+        }
+        right={
+          editable && needsReviewCount > 0 ? (
+            <Button
+              size="small"
+              type="primary"
+              htmlType="button"
+              disabled={action.busy}
+              onClick={() => void confirmAllNeedsReview()}
+            >
+              一键确认全部待核对（{needsReviewCount}）
+            </Button>
+          ) : undefined
+        }
+      />
 
       <Feedback
         error={downloadError ? new Error(downloadError) : undefined}
@@ -1347,52 +1430,62 @@ function SourceOriginalTab({
       />
 
       {fragments.length > 0 && (
-        <Space
-          wrap
-          className="live-full-width"
-          style={{ justifyContent: "space-between", alignItems: "center" }}
-        >
-          <Input.Search
-            aria-label="筛选原文片段"
-            placeholder={`在 ${fragments.length} 个片段中搜索原文`}
-            allowClear
-            value={fragmentSearch}
-            style={{ width: 280, maxWidth: "100%" }}
-            onChange={(e) => {
-              setFragmentSearch(e.target.value);
-              setFragmentPage(1);
-            }}
-          />
-          <Checkbox
-            className="rag-check"
-            checked={onlyNeedsReview}
-            onChange={(e) => {
-              setOnlyNeedsReview(e.target.checked);
-              setFragmentPage(1);
-            }}
-          >
-            仅看「待人工核对」{needsReviewCount > 0 ? `（${needsReviewCount}）` : ""}
-          </Checkbox>
-        </Space>
+        <ActionToolbar
+          left={
+            <>
+              <Input.Search
+                aria-label="筛选原文片段"
+                placeholder={`搜索 ${fragments.length} 个片段`}
+                allowClear
+                value={fragmentSearch}
+                style={{ width: 220, maxWidth: "100%" }}
+                onChange={(e) => {
+                  setFragmentSearch(e.target.value);
+                  setFragmentPage(1);
+                }}
+              />
+              <Segmented
+                size="small"
+                value={effectiveFilter}
+                onChange={(val) => {
+                  setFragmentFilter(val as "text" | "review" | "all");
+                  setFragmentPage(1);
+                }}
+                options={[
+                  { value: "text", label: `仅正文 (${textFragmentCount})` },
+                  { value: "review", label: `待核对 (${needsReviewCount})` },
+                  { value: "all", label: `全部 (${fragments.length})` },
+                ]}
+              />
+            </>
+          }
+          right={
+            assetStubCount > 0 && effectiveFilter === "text" ? (
+              <MetaTag>已折叠 {assetStubCount} 条图文占位</MetaTag>
+            ) : undefined
+          }
+        />
       )}
 
       {fragments.length > 0 && !filteredFragments.length ? (
         <EmptyState
           title={
-            onlyNeedsReview
+            effectiveFilter === "review"
               ? "当前没有「待人工核对」的片段"
-              : "没有匹配的原文片段"
+              : effectiveFilter === "text"
+                ? "当前仅包含图文资产占位片段"
+                : "没有匹配的原文片段"
           }
           action={
             <Button
               htmlType="button"
               onClick={() => {
-                setOnlyNeedsReview(false);
+                setFragmentFilter("all");
                 setFragmentSearch("");
                 setFragmentPage(1);
               }}
             >
-              清除筛选
+              查看全部片段
             </Button>
           }
         />
@@ -2162,19 +2255,46 @@ function FragmentEditor({
   const displayHeading = draft.dirty ? heading : f.heading;
   const displayBody = draft.dirty ? body : f.body;
 
-  return (
-    <article
-      id={`fragment-${f.id}`}
-      className="rag-fragment"
-      style={
-        highlighted
-          ? {
-              borderLeft: "4px solid var(--teal)",
-              paddingLeft: 12,
-              background: "var(--mint-soft)",
-            }
-          : undefined
+  async function saveFragmentRevision(markReady: boolean) {
+    if (!body.trim()) {
+      setValidationError("片段正文不能为空");
+      setEditing(true);
+      return;
+    }
+    if (hasControlNull(body) || utf8ByteLength(body) > 500000) {
+      setValidationError("片段正文不能超过 500000 字节或包含非法字符");
+      setEditing(true);
+      return;
+    }
+    if (hasControlNull(heading) || utf8ByteLength(heading) > 500) {
+      setValidationError("片段标题不能超过 500 字节或包含非法字符");
+      setEditing(true);
+      return;
+    }
+    setValidationError("");
+    setBusy(true);
+    const snapshot = draft.value;
+    try {
+      if (
+        await onSave({
+          heading: snapshot.heading,
+          body: snapshot.body,
+          quality: markReady ? "ready" : f.quality,
+        })
+      ) {
+        draft.saved(snapshot);
+        setEditing(false);
       }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card
+      size="small"
+      id={`fragment-${f.id}`}
+      className={highlighted ? "rag-fragment-card is-highlighted" : "rag-fragment-card"}
     >
       <DraftNotice
         {...draft}
@@ -2183,117 +2303,116 @@ function FragmentEditor({
           setValidationError("");
         }}
       />
-      <div className="live-inline">
-        <Typography.Text strong style={{ overflowWrap: "anywhere" }}>
-          {displayHeading || loc || `片段 ${position + 1}`}
-        </Typography.Text>
-        <MetaTags>
+      <div className="rag-fragment-head">
+        <div className="rag-fragment-title">
+          <MetaTag>#{position + 1}</MetaTag>
+          <Typography.Text strong style={{ overflowWrap: "anywhere" }}>
+            {displayHeading || loc || `片段 ${position + 1}`}
+          </Typography.Text>
+          {displayHeading && loc && (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {loc}
+            </Typography.Text>
+          )}
           <StatusTag
             status={f.quality === "needs_review" ? "needs_review" : "ready"}
             label={f.quality === "needs_review" ? "待人工核对" : "可使用"}
           />
-          {highlighted && (
-            <StatusTag status="processing" label="当前引用片段" />
-          )}
+          {highlighted && <StatusTag status="processing" label="当前引用" />}
           {draft.dirty && !editing && (
             <StatusTag status="warning" label="有未保存编辑" />
           )}
-        </MetaTags>
-        {onSeek && timeRange && (
-          <Button
-            type="link"
-            size="small"
-            htmlType="button"
-            onClick={() => onSeek(timeRange.startMs)}
-          >
-            {`跳转 ${formatTimeRangeMs(timeRange.startMs, timeRange.endMs)}`}
-          </Button>
-        )}
-      </div>
-      {displayHeading && loc && <small>{loc}</small>}
-      {editing ? (
-        <>
-          <Field className="ui-field" label={<>片段标题</>}>
-            <Input
-              aria-label="片段标题"
-              value={heading}
-              onChange={(e) => {
-                draft.change((v) => ({ ...v, heading: e.target.value }));
-                if (validationError) setValidationError("");
-              }}
-            />
-          </Field>
-          <Field className="ui-field" label={<>原文校正</>} required>
-            <Input.TextArea
-              aria-label="原文校正"
-              value={body}
-              onChange={(e) => {
-                draft.change((v) => ({ ...v, body: e.target.value }));
-                if (validationError) setValidationError("");
-              }}
-              rows={8}
-            />
-          </Field>
-          {validationError && (
-            <Alert type="error" showIcon role="alert" message={validationError} />
-          )}
-        </>
-      ) : (
-        <p className="live-prose">{displayBody}</p>
-      )}
-      {editable && (
-        <div className="live-inline">
-          <Button
-            htmlType="button"
-            disabled={busy}
-            onClick={() => setEditing(!editing)}
-          >
-            {editing ? "收起编辑" : "校正原文"}
-          </Button>
-          {(editing || draft.dirty || f.quality === "needs_review") && (
+          {onSeek && timeRange && (
             <Button
+              type="link"
+              size="small"
               htmlType="button"
-              disabled={busy}
-              onClick={async () => {
-                if (!body.trim()) {
-                  setValidationError("片段正文不能为空");
-                  setEditing(true);
-                  return;
-                }
-                if (hasControlNull(body) || utf8ByteLength(body) > 500000) {
-                  setValidationError("片段正文不能超过 500000 字节或包含非法字符");
-                  setEditing(true);
-                  return;
-                }
-                if (hasControlNull(heading) || utf8ByteLength(heading) > 500) {
-                  setValidationError("片段标题不能超过 500 字节或包含非法字符");
-                  setEditing(true);
-                  return;
-                }
-                setValidationError("");
-                setBusy(true);
-                const snapshot = draft.value;
-                try {
-                  if (
-                    await onSave({
-                      heading: snapshot.heading,
-                      body: snapshot.body,
-                      quality: "ready",
-                    })
-                  ) {
-                    draft.saved(snapshot);
-                    setEditing(false);
-                  }
-                } finally {
-                  setBusy(false);
-                }
-              }}
+              onClick={() => onSeek(timeRange.startMs)}
             >
-              保存新修订并确认原文
+              {`跳转 ${formatTimeRangeMs(timeRange.startMs, timeRange.endMs)}`}
             </Button>
           )}
         </div>
-      )}
-    </article>
+        {editable && (
+          <div className="rag-fragment-actions">
+            {!editing && (f.quality === "needs_review" || draft.dirty) && (
+              <Button
+                size="small"
+                type="primary"
+                htmlType="button"
+                disabled={busy}
+                onClick={() => void saveFragmentRevision(true)}
+              >
+                确认可用
+              </Button>
+            )}
+            <Button
+              size="small"
+              htmlType="button"
+              disabled={busy}
+              onClick={() => setEditing(!editing)}
+            >
+              {editing ? "收起" : "编辑"}
+            </Button>
+          </div>
+        )}
+      </div>
+      <div style={{ marginTop: 8 }}>
+        {editing ? (
+          <div className="live-stack" style={{ gap: 10 }}>
+            <Field className="ui-field" label={<>片段标题</>}>
+              <Input
+                aria-label="片段标题"
+                value={heading}
+                onChange={(e) => {
+                  draft.change((v) => ({ ...v, heading: e.target.value }));
+                  if (validationError) setValidationError("");
+                }}
+              />
+            </Field>
+            <Field className="ui-field" label={<>原文校正</>} required>
+              <Input.TextArea
+                aria-label="原文校正"
+                value={body}
+                onChange={(e) => {
+                  draft.change((v) => ({ ...v, body: e.target.value }));
+                  if (validationError) setValidationError("");
+                }}
+                rows={6}
+              />
+            </Field>
+            {validationError && (
+              <Alert
+                type="error"
+                showIcon
+                role="alert"
+                message={validationError}
+              />
+            )}
+            <div className="live-inline">
+              <Button
+                size="small"
+                type="primary"
+                htmlType="button"
+                disabled={busy}
+                onClick={() => void saveFragmentRevision(true)}
+              >
+                保存修订并确认原文
+              </Button>
+              <Button
+                size="small"
+                htmlType="button"
+                disabled={busy}
+                onClick={() => setEditing(false)}
+              >
+                取消
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <CollapsibleProse text={displayBody} maxChars={220} />
+        )}
+      </div>
+    </Card>
   );
 }

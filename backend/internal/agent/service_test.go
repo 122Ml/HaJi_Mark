@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/png"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -79,6 +81,8 @@ func TestPoliciesAndSchemas(t *testing.T) {
 		{"source_import", "coordinator", "teacher", false, false}, {"delegate", "coordinator", "teacher", false, true}, {"path_plan", "learning", "teacher", false, false},
 		{"question_editor", "questions", "teacher", true, false}, {"knowledge_editor", "materials", "student", false, false}, {"answer_submit", "assessment", "teacher", false, false},
 		{"paper_editor", "materials", "teacher", true, false}, {"paper_split", "materials", "teacher", true, false},
+		{"attachment_read", "coordinator", "teacher", false, true}, {"attachment_read", "coordinator", "student", false, true},
+		{"attachment_read", "materials", "teacher", false, true}, {"attachment_read", "learning", "student", false, true},
 		{"source_segment", "materials", "teacher", false, true}, {"source_segment", "materials", "student", false, false},
 		{"source_sections_read", "materials", "teacher", false, true}, {"source_sections_read", "materials", "student", false, false},
 		{"source_sections_adopt", "materials", "teacher", false, true}, {"source_sections_adopt", "materials", "student", false, false},
@@ -180,12 +184,12 @@ func TestPoliciesAndSchemas(t *testing.T) {
 	if len(f.PendingJobs) != 1 || f.PendingJobs[0] != "job" {
 		t.Fatal("receipt recovery must retain one pending job", f.PendingJobs)
 	}
-	in := delegatedInput([]rag.AgentMessage{{Role: "user", Content: "旧轮要求"}, {Role: "tool", Content: "其他专家私有回执"}, {Role: "user", Content: "D3只能2分或0分；不可给1分"}, {Role: "assistant", Content: "摘要"}}, "修改D3")
-	if !strings.Contains(in, "D3只能2分或0分；不可给1分") || !strings.Contains(in, "修改D3") || strings.Contains(in, "旧轮要求") || strings.Contains(in, "私有回执") {
-		t.Fatal("delegation must preserve exact current requirements without inheriting tool transcripts", in)
+	delegatedMsg := delegatedUserMessage([]rag.AgentMessage{{Role: "user", Content: "旧轮要求"}, {Role: "tool", Content: "其他专家私有回执"}, {Role: "user", Content: "D3只能2分或0分；不可给1分", ImageAttachmentIDs: []string{"img-1"}}, {Role: "assistant", Content: "摘要"}}, "修改D3")
+	if !strings.Contains(delegatedMsg.Content, "D3只能2分或0分；不可给1分") || !strings.Contains(delegatedMsg.Content, "修改D3") || strings.Contains(delegatedMsg.Content, "旧轮要求") || strings.Contains(delegatedMsg.Content, "私有回执") || len(delegatedMsg.ImageAttachmentIDs) != 1 || delegatedMsg.ImageAttachmentIDs[0] != "img-1" {
+		t.Fatal("delegation must preserve exact current requirements and image attachments without inheriting tool transcripts", delegatedMsg)
 	}
 	ask := tool("request_input", map[string]any{})
-	in = delegatedInput([]rag.AgentMessage{{Role: "user", Content: "先询问资料名称再导入"}, ask, {Role: "tool", ToolCallID: ask.ToolCalls[0].ID, Content: `{"title":"已回答的资料名称"}`}, {Role: "tool", ToolCallID: "other", Content: "其他专家私有内容"}}, "导入资料")
+	in := delegatedUserMessage([]rag.AgentMessage{{Role: "user", Content: "先询问资料名称再导入"}, ask, {Role: "tool", ToolCallID: ask.ToolCalls[0].ID, Content: `{"title":"已回答的资料名称"}`}, {Role: "tool", ToolCallID: "other", Content: "其他专家私有内容"}}, "导入资料").Content
 	if !strings.Contains(in, `{"title":"已回答的资料名称"}`) || strings.Contains(in, "私有内容") {
 		t.Fatal("delegation lost a validated user answer or copied unrelated tool data", in)
 	}
@@ -1179,6 +1183,202 @@ func TestHarnessBusinessLoop(t *testing.T) {
 		if readCount("agent_steps", "run_id=$1", rid) != 0 {
 			t.Fatal("canceled generation executed a tool")
 		}
+	})
+	t.Run("image_attachments_and_curriculum_batch", func(t *testing.T) {
+		cid := conversation("teacher", "auto-review")
+		uploadFile := func(user, filename string, payload []byte, wantStatus int) json.RawMessage {
+			t.Helper()
+			var body bytes.Buffer
+			mw := multipart.NewWriter(&body)
+			part, err := mw.CreateFormFile("file", filename)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := part.Write(payload); err != nil {
+				t.Fatal(err)
+			}
+			if err := mw.Close(); err != nil {
+				t.Fatal(err)
+			}
+			req := httptest.NewRequest(http.MethodPost, "http://localhost"+base+"/conversations/"+cid+"/attachments", &body)
+			req.Header.Set("Content-Type", mw.FormDataContentType())
+			req.Header.Set("X-CSRF-Token", rag.Hash("haji-csrf:"+tokens[user]))
+			req.AddCookie(&http.Cookie{Name: identity.CookieName, Value: tokens[user]})
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			if w.Code != wantStatus {
+				t.Fatalf("upload %s got %d want %d: %s", filename, w.Code, wantStatus, w.Body.String())
+			}
+			var v struct {
+				Data json.RawMessage `json:"data"`
+			}
+			_ = json.Unmarshal(w.Body.Bytes(), &v)
+			return v.Data
+		}
+
+		// Fake PNG magic bytes are rejected.
+		uploadFile("teacher", "fake.png", []byte("not-a-real-png"), 422)
+
+		// Valid PNG is accepted and can be fetched inline.
+		var pngBuf bytes.Buffer
+		if err := png.Encode(&pngBuf, image.NewRGBA(image.Rect(0, 0, 2, 2))); err != nil {
+			t.Fatal(err)
+		}
+		pngBytes := pngBuf.Bytes()
+		attID := objectID(uploadFile("teacher", "syllabus.png", pngBytes, 200))
+
+		inlineReq := httptest.NewRequest(http.MethodGet, "http://localhost"+base+"/conversations/"+cid+"/attachments/"+attID+"/file?inline=1", nil)
+		inlineReq.AddCookie(&http.Cookie{Name: identity.CookieName, Value: tokens["teacher"]})
+		inlineW := httptest.NewRecorder()
+		router.ServeHTTP(inlineW, inlineReq)
+		if inlineW.Code != 200 || inlineW.Header().Get("Content-Type") != "image/png" || !strings.HasPrefix(inlineW.Header().Get("Content-Disposition"), "inline;") || !bytes.Equal(inlineW.Body.Bytes(), pngBytes) {
+			t.Fatalf("inline image download failed: code=%d ct=%q cd=%q", inlineW.Code, inlineW.Header().Get("Content-Type"), inlineW.Header().Get("Content-Disposition"))
+		}
+
+		// Send message with image attachment -> coordinator & delegated specialist both receive Images ->
+		// source_import rejects images -> curriculum_batch_create creates tree after teacher approval.
+		calls := 0
+		s.Model = modelFunc(func(msgs []rag.AgentMessage, _ []any) (rag.AgentMessage, error) {
+			calls++
+			switch calls {
+			case 1:
+				last := msgs[len(msgs)-1]
+				if last.Role != "user" || len(last.Images) != 1 || !strings.HasPrefix(last.Images[0].DataURL, "data:image/png;base64,") {
+					t.Fatalf("coordinator missing hydrated image: %+v", last)
+				}
+				return tool("delegate", map[string]any{"domain": "materials", "goal": "按课程截图建目录"}), nil
+			case 2:
+				last := msgs[len(msgs)-1]
+				if last.Role != "user" || len(last.Images) != 1 || !strings.HasPrefix(last.Images[0].DataURL, "data:image/png;base64,") {
+					t.Fatalf("delegated worker missing hydrated image: %+v", last)
+				}
+				return tool("source_import", map[string]any{"attachment_id": attID, "source_note": "教师提供的截图", "allow_derived": false, "title": "不应导入图片"}), nil
+			case 3:
+				last := msgs[len(msgs)-1]
+				if !strings.Contains(last.Content, "不能作为文档原件导入") {
+					t.Fatalf("expected source_import to reject image attachment, got: %s", last.Content)
+				}
+				return tool("curriculum_batch_create", map[string]any{
+					"nodes": []map[string]any{
+						{"key": "ch_ai", "kind": "chapter", "title": "第1章 图片导图", "position": 1},
+						{"key": "sec_ai", "kind": "section", "title": "1.1 核心概念", "parent_key": "ch_ai", "position": 1},
+						{"key": "kp_ai1", "kind": "point", "title": "大模型需求建模", "parent_key": "sec_ai", "position": 1},
+						{"key": "kp_ai2", "kind": "point", "title": "大模型测试用例生成", "parent_key": "sec_ai", "position": 2},
+					},
+					"edges": []map[string]any{
+						{"from_key": "kp_ai1", "to_key": "kp_ai2"},
+					},
+				}), nil
+			default:
+				return final(), nil
+			}
+		})
+
+		rid := objectID(request("teacher", "POST", base+"/conversations/"+cid+"/messages", map[string]any{
+			"content":        "按截图创建目录",
+			"attachment_ids": []string{attID},
+			"request_id":     uuid.NewString(),
+		}, 200))
+		drive(rid, "waiting_approval")
+		req := pending(cid)
+		if req.Kind != "approval" || readCount("agent_steps", "run_id=$1 AND tool='curriculum_batch_create'", rid) != 1 {
+			t.Fatalf("expected curriculum_batch_create approval, got kind=%s snapshot=%s", req.Kind, string(req.Snapshot))
+		}
+		request("teacher", "POST", base+"/requests/"+req.ID+"/respond", map[string]any{"decision": "approve"}, 200)
+		drive(rid, "succeeded")
+
+		graphRaw := request("teacher", "GET", "/api/v1/learning/courses/course/graph", nil, 200)
+		if !strings.Contains(string(graphRaw), "大模型需求建模") || !strings.Contains(string(graphRaw), "大模型测试用例生成") {
+			t.Fatalf("batch curriculum nodes missing from graph: %s", string(graphRaw))
+		}
+	})
+	t.Run("attachment_read_and_frictionless_import", func(t *testing.T) {
+		uploadDoc := func(user, cid, filename string, content []byte) string {
+			t.Helper()
+			var body bytes.Buffer
+			mw := multipart.NewWriter(&body)
+			part, err := mw.CreateFormFile("file", filename)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := part.Write(content); err != nil {
+				t.Fatal(err)
+			}
+			_ = mw.Close()
+			req := httptest.NewRequest(http.MethodPost, "http://localhost"+base+"/conversations/"+cid+"/attachments", &body)
+			req.Header.Set("Content-Type", mw.FormDataContentType())
+			req.Header.Set("X-CSRF-Token", rag.Hash("haji-csrf:"+tokens[user]))
+			req.AddCookie(&http.Cookie{Name: identity.CookieName, Value: tokens[user]})
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			if w.Code != 200 {
+				t.Fatalf("upload %s failed: %d %s", filename, w.Code, w.Body.String())
+			}
+			var v struct {
+				Data struct {
+					ID string `json:"id"`
+				} `json:"data"`
+			}
+			_ = json.Unmarshal(w.Body.Bytes(), &v)
+			return v.Data.ID
+		}
+
+		// 1. Teacher uploads .md syllabus -> coordinator uses attachment_read directly -> source_import works without source_note/allow_derived.
+		cid := conversation("teacher", "full-access")
+		mdID := uploadDoc("teacher", cid, "syllabus.md", []byte("# 智能软件工程\n\n## 第一章 导论\n覆盖AI4SE全流程"))
+		calls := 0
+		s.Model = modelFunc(func(msgs []rag.AgentMessage, _ []any) (rag.AgentMessage, error) {
+			calls++
+			switch calls {
+			case 1:
+				return tool("attachment_read", map[string]any{"attachment_id": mdID, "offset": 0, "limit": 100}), nil
+			case 2:
+				last := msgs[len(msgs)-1]
+				if !strings.Contains(last.Content, "覆盖AI4SE全流程") || !strings.Contains(last.Content, `"filename":"syllabus.md"`) {
+					t.Fatalf("attachment_read output unexpected: %s", last.Content)
+				}
+				return tool("delegate", map[string]any{"domain": "materials", "goal": "把附件导入课程原件库"}), nil
+			case 3:
+				return tool("source_import", map[string]any{"attachment_id": mdID}), nil
+			default:
+				return final(), nil
+			}
+		})
+		rid := objectID(request("teacher", "POST", base+"/conversations/"+cid+"/messages", map[string]any{
+			"content":        "总结并导入这份大纲",
+			"attachment_ids": []string{mdID},
+			"request_id":     uuid.NewString(),
+		}, 200))
+		drive(rid, "waiting_job")
+		must("UPDATE processing_jobs SET state='succeeded',output='{}' WHERE kind='parse'")
+		drive(rid, "succeeded")
+		var note string
+		var allow bool
+		if err := db.QueryRow(ctx, "SELECT source_note, allow_derived FROM material_sources WHERE course_id='course' AND filename='syllabus.md'").Scan(&note, &allow); err != nil || note != "教师通过课程助理上传：syllabus.md" || allow {
+			t.Fatalf("frictionless source_import mismatch: note=%q allow=%v err=%v", note, allow, err)
+		}
+
+		// 2. Student uploads .txt note -> student session can read it via attachment_read.
+		scid := conversation("student", "auto-review")
+		txtID := uploadDoc("student", scid, "note.txt", []byte("学生笔记：等价类划分与边界值"))
+		scalls := 0
+		s.Model = modelFunc(func(msgs []rag.AgentMessage, _ []any) (rag.AgentMessage, error) {
+			scalls++
+			if scalls == 1 {
+				return tool("attachment_read", map[string]any{"attachment_id": txtID}), nil
+			}
+			last := msgs[len(msgs)-1]
+			if !strings.Contains(last.Content, "等价类划分与边界值") {
+				t.Fatalf("student attachment_read failed: %s", last.Content)
+			}
+			return final(), nil
+		})
+		srid := objectID(request("student", "POST", base+"/conversations/"+scid+"/messages", map[string]any{
+			"content":        "帮我梳理笔记重点",
+			"attachment_ids": []string{txtID},
+			"request_id":     uuid.NewString(),
+		}, 200))
+		drive(srid, "succeeded")
 	})
 	t.Run("expired_session_prevents_background_work", func(t *testing.T) {
 		cid := conversation("teacher", "auto-review")

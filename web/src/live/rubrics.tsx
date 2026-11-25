@@ -654,6 +654,7 @@ export function PointGradeForm({
       <FrozenEvidence sources={rubric.evidence_refs} />
       <AIDraft
         kind="grade"
+        autoAdopt={!draft.dirty}
         target={{ submission_id: submissionID, rubric_id: rubric.id }}
         onAdopt={async (output, id) => {
           if (draft.dirty && !(await confirm("用 AI 草稿替换当前编辑内容？"))) {

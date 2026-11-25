@@ -5,7 +5,7 @@ import { Alert, Button, Card, Form, Input, Select, Space, Typography } from "ant
 import { Field } from "../shared/Field";
 import { PageHeader } from "../shared/PageHeader";
 import { useSession } from "../shared/session";
-import { GroundedAnswer } from "./citations";
+import { displayCitationTitle, GroundedAnswer } from "./citations";
 import { ModelSelect } from "./ai-jobs";
 import {
   Feedback,
@@ -405,12 +405,14 @@ export function RetrievalPage({
           {!result.hits.length && <p>没有找到当前可见的依据。</p>}
           {result.hits.map((h) => {
             const loc = formatHitLocator(h.locator);
+            const hitTitle = displayCitationTitle(h.title, teacher);
+            const hitHeading = displayCitationTitle(h.heading, teacher);
             return (
               <article key={h.id} className="rag-hit">
                 <div style={{ marginBottom: 8, overflowWrap: "anywhere" }}>
                   <Typography.Text strong>
-                    {h.title}
-                    {h.heading ? ` · ${h.heading}` : ""}
+                    {hitTitle}
+                    {hitHeading && hitHeading !== hitTitle ? ` · ${hitHeading}` : ""}
                   </Typography.Text>
                   {loc && (
                     <Typography.Text type="secondary">

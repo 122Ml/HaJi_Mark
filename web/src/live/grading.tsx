@@ -82,8 +82,8 @@ export interface QueueItem {
 
 export const reviewNames: Record<string, string> = {
   pending: "待批阅",
-  draft: "待确认",
-  confirmed: "待发布",
+  draft: "评分草稿",
+  confirmed: "已确认待发布",
   released: "已发布",
 };
 
@@ -514,7 +514,11 @@ export function GradePage() {
           <>
             <StatusTag
               status={latest?.state || "pending"}
-              label={latest ? labelFor(stateLabels, latest.state) : "待批阅"}
+              label={
+                latest
+                  ? reviewNames[latest.state] || labelFor(stateLabels, latest.state)
+                  : "待批阅"
+              }
             />
             <MetaTag>{data.import_origin ? "教师导入" : "学生提交"}</MetaTag>
             {teacher && queueTotal > 0 && index >= 0 && (
@@ -996,34 +1000,74 @@ export function GradePage() {
                   基于当前评分修改
                 </Button>
               )}
-              {teacher && latest.state !== "released" && (
-                <div className="grading-actions">
-                  <Button
-                    htmlType="button"
-                    disabled={action.busy}
-                    onClick={async () => {
-                      const nextState =
-                        latest.state === "draft" ? "confirmed" : "released";
-                      if (
-                        nextState === "released" &&
-                        !(await confirm(
-                          "发布后学生将立即看到本次得分与评语，确认发布？",
-                        ))
-                      ) {
-                        return;
-                      }
-                      await action.run(`/revisions/${latest.id}/state`, {
-                        state: nextState,
-                      });
-                    }}
-                    type="primary"
-                  >
-                    {action.busy
-                      ? "处理中…"
-                      : latest.state === "draft"
-                        ? "确认评分"
-                        : "发布正式反馈"}
-                  </Button>
+              {teacher && (
+                <div className="grading-sticky-footer">
+                  {latest.state !== "released" && (
+                    <Space wrap className="grading-actions">
+                      <Button
+                        htmlType="button"
+                        disabled={action.busy}
+                        onClick={async () => {
+                          if (
+                            !(await confirm(
+                              "确认本次评分并正式发布给学生？发布后学生将立即看到本次得分与评语。",
+                            ))
+                          ) {
+                            return;
+                          }
+                          if (latest.state === "draft") {
+                            const ok = await action.run(
+                              `/revisions/${latest.id}/state`,
+                              { state: "confirmed" },
+                            );
+                            if (!ok) return;
+                          }
+                          await action.run(
+                            `/revisions/${latest.id}/state`,
+                            { state: "released" },
+                            "POST",
+                            "已确认评分并发布给学生",
+                          );
+                        }}
+                        type="primary"
+                      >
+                        {action.busy ? "处理中…" : "确认并发布反馈"}
+                      </Button>
+                      {latest.state === "draft" && (
+                        <Button
+                          htmlType="button"
+                          disabled={action.busy}
+                          onClick={() =>
+                            void action.run(
+                              `/revisions/${latest.id}/state`,
+                              { state: "confirmed" },
+                              "POST",
+                              "已确认评分（暂不发布给学生）",
+                            )
+                          }
+                        >
+                          仅确认不发布
+                        </Button>
+                      )}
+                    </Space>
+                  )}
+                  <Feedback error={queueError ? new Error(queueError) : null} />
+                  <div className="queue-navigation">
+                    <Button
+                      htmlType="button"
+                      disabled={!canPrev}
+                      onClick={() => void move(-1)}
+                    >
+                      上一份
+                    </Button>
+                    <Button
+                      htmlType="button"
+                      disabled={!canNext}
+                      onClick={() => void move(1)}
+                    >
+                      下一份
+                    </Button>
+                  </div>
                 </div>
               )}
             </>
@@ -1045,8 +1089,8 @@ export function GradePage() {
             </div>
           )}
 
-          {teacher && (
-            <>
+          {teacher && (!latest || showEditor) && (
+            <div className="grading-sticky-footer">
               <Feedback error={queueError ? new Error(queueError) : null} />
               <div className="queue-navigation">
                 <Button
@@ -1064,7 +1108,7 @@ export function GradePage() {
                   下一份
                 </Button>
               </div>
-            </>
+            </div>
           )}
         </Card>
       </div>

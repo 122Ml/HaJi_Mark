@@ -403,51 +403,65 @@ export function TaskCreator({
           const overdue = isAssignmentOverdue(a);
           return {
             value: a.id,
-            label: overdue ? `${a.title}（已截止，学生无法补交）` : a.title,
+            label: `${a.type === "quiz" ? "[测验]" : "[作业]"} ${a.title}${overdue ? "（已截止，学生无法补交）" : ""}`,
             disabled: overdue,
           };
         }),
     [assignments.data],
   );
 
+  async function submitIntervention(assignNow: boolean) {
+    const v = draft.value;
+    const cleanTitle = v.title.trim();
+    const cleanDesc = v.description.trim();
+    if (!cleanTitle || utf8Bytes(cleanTitle) > 500) {
+      setValidationError("请填写非空任务标题（不超过 500 字节）。");
+      return;
+    }
+    if (!cleanDesc || utf8Bytes(cleanDesc) > 30000) {
+      setValidationError("请填写非空执行要求（不超过 30000 字节）。");
+      return;
+    }
+    if (!studentID || !studentEnrolled) {
+      setValidationError("请选择当前课程内的学生。");
+      return;
+    }
+    if (assignmentBlocked) {
+      setValidationError("所选补练作业已截止或已关闭，请更换作业或清空关联。");
+      return;
+    }
+    setValidationError("");
+    const result = await action.run<Intervention>(
+      "/interventions",
+      {
+        ...v,
+        title: cleanTitle,
+        description: cleanDesc,
+        student_id: studentID,
+        source_submission_id: activeSource,
+        diagnosis_report_id: diagnosis?.reportID || "",
+        diagnosis_label_id: diagnosis?.labelID || "",
+      },
+      "POST",
+      assignNow ? undefined : "补学补练任务草稿已保存",
+    );
+    if (!result) return;
+    if (assignNow) {
+      await action.run(
+        `/interventions/${result.id}/state`,
+        { state: "assigned" },
+        "POST",
+        "补学补练任务已保存并下发",
+      );
+    }
+    draft.saved(v);
+    onCreated(result.id);
+  }
+
   return (
     <Form
       className="live-form"
-      onFinish={async () => {
-        const v = draft.value;
-        const cleanTitle = v.title.trim();
-        const cleanDesc = v.description.trim();
-        if (!cleanTitle || utf8Bytes(cleanTitle) > 500) {
-          setValidationError("请填写非空任务标题（不超过 500 字节）。");
-          return;
-        }
-        if (!cleanDesc || utf8Bytes(cleanDesc) > 30000) {
-          setValidationError("请填写非空执行要求（不超过 30000 字节）。");
-          return;
-        }
-        if (!studentID || !studentEnrolled) {
-          setValidationError("请选择当前课程内的学生。");
-          return;
-        }
-        if (assignmentBlocked) {
-          setValidationError("所选补练作业已截止或已关闭，请更换作业或清空关联。");
-          return;
-        }
-        setValidationError("");
-        const result = await action.run<Intervention>("/interventions", {
-          ...v,
-          title: cleanTitle,
-          description: cleanDesc,
-          student_id: studentID,
-          source_submission_id: activeSource,
-          diagnosis_report_id: diagnosis?.reportID || "",
-          diagnosis_label_id: diagnosis?.labelID || "",
-        });
-        if (result) {
-          draft.saved(v);
-          onCreated(result.id);
-        }
-      }}
+      onFinish={() => void submitIntervention(true)}
       layout="vertical"
     >
       <DraftNotice {...draft} onDiscard={() => draft.reset(initialForm)} />
@@ -583,21 +597,37 @@ export function TaskCreator({
           options={assignmentOptions}
         />
       </Field>
-      <Button
-        disabled={
-          action.busy ||
-          !studentID ||
-          !studentEnrolled ||
-          assignmentBlocked ||
-          !!origin.error ||
-          (!!activeSource && origin.isPending)
-        }
-        loading={action.busy}
-        htmlType="submit"
-        type="primary"
-      >
-        保存任务草稿
-      </Button>
+      <div className="live-inline">
+        <Button
+          disabled={
+            action.busy ||
+            !studentID ||
+            !studentEnrolled ||
+            assignmentBlocked ||
+            !!origin.error ||
+            (!!activeSource && origin.isPending)
+          }
+          loading={action.busy}
+          htmlType="submit"
+          type="primary"
+        >
+          保存并立即下发
+        </Button>
+        <Button
+          disabled={
+            action.busy ||
+            !studentID ||
+            !studentEnrolled ||
+            assignmentBlocked ||
+            !!origin.error ||
+            (!!activeSource && origin.isPending)
+          }
+          htmlType="button"
+          onClick={() => void submitIntervention(false)}
+        >
+          仅存草稿
+        </Button>
+      </div>
     </Form>
   );
 }

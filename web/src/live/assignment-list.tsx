@@ -216,7 +216,7 @@ export function AssignmentList({ quiz = false }: { quiz?: boolean }) {
                 <div className="live-inline">
                   <Link
                     className="ghost-btn"
-                    to={`/${root}/homework/${a.id}?from=${encodeURIComponent(returnTo)}`}
+                    to={`/${root}/${quiz ? "quiz" : "homework"}/${a.id}?from=${encodeURIComponent(returnTo)}`}
                   >
                     {teacher
                       ? "查看题目"
@@ -229,14 +229,14 @@ export function AssignmentList({ quiz = false }: { quiz?: boolean }) {
                       {a.status === "draft" && (
                         <Link
                           className="ghost-btn"
-                          to={`/teacher/homework/${a.id}/edit?from=${encodeURIComponent(returnTo)}`}
+                          to={`/teacher/${quiz ? "quiz" : "homework"}/${a.id}/edit?from=${encodeURIComponent(returnTo)}`}
                         >
                           编辑草稿
                         </Link>
                       )}
                       <Link
                         className="ghost-btn"
-                        to={`/teacher/homework/${a.id}/submissions?from=${encodeURIComponent(returnTo)}`}
+                        to={`/teacher/${quiz ? "quiz" : "homework"}/${a.id}/submissions?from=${encodeURIComponent(returnTo)}`}
                       >
                         查看提交
                       </Link>

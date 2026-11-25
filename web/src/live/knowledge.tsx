@@ -76,8 +76,37 @@ export {
 };
 export type { Hit, Job, Knowledge, AssistAnswer };
 
-const KNOWLEDGE_PAGE_SIZE = 15;
+const KNOWLEDGE_PAGE_SIZE = 10;
 const EVIDENCE_FRAGMENT_PAGE_SIZE = 10;
+
+function CollapsibleRichBody({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const long = text.trim().length > 360;
+  return (
+    <div>
+      <div
+        style={
+          long && !expanded
+            ? { maxHeight: 150, overflow: "hidden", position: "relative" }
+            : undefined
+        }
+      >
+        <RichContent text={text} />
+      </div>
+      {long && (
+        <Button
+          type="link"
+          size="small"
+          htmlType="button"
+          style={{ paddingInline: 0, height: "auto", marginTop: 4 }}
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? "收起详情" : "展开全部内容"}
+        </Button>
+      )}
+    </div>
+  );
+}
 
 export function KnowledgePage({
   sourceID = "",
@@ -465,7 +494,7 @@ export function KnowledgePage({
                     </>
                   )}
                 </MetaTags>
-                <RichContent text={k.body} />
+                <CollapsibleRichBody text={k.body} />
                 {k.conditions && (
                   <p>
                     <strong>适用条件：</strong>
@@ -540,32 +569,95 @@ export function KnowledgePage({
                       {k.state === "draft" ? "编辑候选" : "建立新版本"}
                     </Button>
                     {k.state === "draft" && (
-                      <Button
-                        htmlType="button"
-                        disabled={action.busy}
-                        onClick={() =>
-                          void action.run(
-                            `/knowledge/${k.id}/state`,
-                            {
-                              state: "confirmed",
-                              edit_version: k.edit_version,
-                            },
-                            "POST",
-                            undefined,
-                            {
-                              invalidatePrefixes: [
-                                "knowledge",
-                                "jobs",
-                                "topics",
-                                "impact",
-                              ],
-                            },
-                          )
-                        }
-                        type="primary"
-                      >
-                        确认知识
-                      </Button>
+                      <>
+                        {!k.student_visible && (
+                          <Button
+                            htmlType="button"
+                            disabled={action.busy}
+                            type="primary"
+                            onClick={async () => {
+                              const saved = await action.run<{
+                                edit_version?: number;
+                              }>(
+                                `/knowledge/${k.id}`,
+                                {
+                                  origin: k.origin || "source",
+                                  title: k.title,
+                                  body: k.body,
+                                  category: k.category,
+                                  content_kind: k.content_kind,
+                                  conditions: k.conditions,
+                                  evidence: (k.evidence || []).map((ev) => ({
+                                    source_id: ev.source_id,
+                                    fragment_id: ev.fragment_id,
+                                    quote: ev.quote,
+                                  })),
+                                  student_visible: true,
+                                  use_for_learning: k.use_for_learning,
+                                  use_for_grading:
+                                    k.origin === "teacher_example"
+                                      ? false
+                                      : k.use_for_grading,
+                                  knowledge_point_ids:
+                                    k.knowledge_point_ids || [],
+                                  related_ids: k.related_ids || [],
+                                  edit_version: k.edit_version,
+                                },
+                                "PUT",
+                                undefined,
+                                { invalidate: false },
+                              );
+                              if (!saved) return;
+                              await action.run(
+                                `/knowledge/${k.id}/state`,
+                                {
+                                  state: "confirmed",
+                                  edit_version:
+                                    saved.edit_version ?? k.edit_version + 1,
+                                },
+                                "POST",
+                                "已确认并开放学生学习",
+                                {
+                                  invalidatePrefixes: [
+                                    "knowledge",
+                                    "jobs",
+                                    "topics",
+                                    "impact",
+                                  ],
+                                },
+                              );
+                            }}
+                          >
+                            确认并开放学生学习
+                          </Button>
+                        )}
+                        <Button
+                          htmlType="button"
+                          disabled={action.busy}
+                          onClick={() =>
+                            void action.run(
+                              `/knowledge/${k.id}/state`,
+                              {
+                                state: "confirmed",
+                                edit_version: k.edit_version,
+                              },
+                              "POST",
+                              undefined,
+                              {
+                                invalidatePrefixes: [
+                                  "knowledge",
+                                  "jobs",
+                                  "topics",
+                                  "impact",
+                                ],
+                              },
+                            )
+                          }
+                          type={k.student_visible ? "primary" : "default"}
+                        >
+                          确认知识
+                        </Button>
+                      </>
                     )}
                     {k.state !== "archived" && (
                       <Button

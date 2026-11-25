@@ -466,6 +466,7 @@ export function AssignmentEditor({
             required={true}
           >
             <Input
+              aria-label={quiz ? "测验标题" : "作业标题"}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={action.busy}
@@ -694,7 +695,11 @@ export function AssignmentEditor({
                     showSearch
                     optionFilterProp="children"
                   >
-                    <Select.Option value="">教师手填标准</Select.Option>
+                    <Select.Option value="">
+                      {q.bank_question_version_id
+                        ? "使用题库确认评分标准"
+                        : "教师手填标准"}
+                    </Select.Option>
                     {publishedResources.map((r) => {
                       const loc = formatResourceLocator(r.locator);
                       return (
@@ -859,7 +864,7 @@ export function AssignmentDetail() {
               <MetaTag>
                 {teacher
                   ? `共 ${questions.length} 题 · 已收到 ${submissions.data?.length || 0} 份提交`
-                  : `已提交 ${submittedQuestionCount}/ ${questions.length} 题`}
+                  : `已提交 ${submittedQuestionCount} / ${questions.length} 题`}
               </MetaTag>
             </>
           ) : undefined
@@ -1018,6 +1023,7 @@ function QuestionAnswer({
   teacher: boolean;
   submissions: LiveSubmission[];
 }) {
+  const [searchParams] = useSearchParams();
   const [modal, modalContext] = Modal.useModal();
   const action = useAction();
   const { course } = useLearning();
@@ -1084,6 +1090,12 @@ function QuestionAnswer({
   const remainingMs = hasValidDue ? dueMs - now : null;
   const closed = a.status !== "published" || (remainingMs !== null && remainingMs <= 0);
   closedRef.current = closed;
+  const quizLocked =
+    !teacher &&
+    !closed &&
+    q.type === "quiz" &&
+    submissions.length > 0 &&
+    !searchParams.get("task");
 
   const showCountdown =
     !teacher &&
@@ -1215,7 +1227,7 @@ function QuestionAnswer({
   }
 
   function submit() {
-    if (closed) return;
+    if (closed || quizLocked) return;
     if (q.type === "quiz" && !quizSelectionValid) {
       setError("请先选择一个测验选项后再提交。");
       return;
@@ -1363,7 +1375,7 @@ function QuestionAnswer({
                 aria-label="我的作答"
                 name={q.id}
                 value={answer}
-                disabled={!draft.ready || closed}
+                disabled={!draft.ready || closed || quizLocked}
                 onChange={(e) => updateAnswer(String(e.target.value))}
                 style={{ width: "100%" }}
               >
@@ -1437,7 +1449,9 @@ function QuestionAnswer({
             <div className="live-inline">
               <Button
                 htmlType="button"
-                disabled={saving || !draft.ready || closed || answerTooLarge}
+                disabled={
+                  saving || !draft.ready || closed || quizLocked || answerTooLarge
+                }
                 onClick={() => void saveDraft()}
               >
                 保存作答草稿
@@ -1445,6 +1459,7 @@ function QuestionAnswer({
               <Button
                 htmlType="button"
                 disabled={
+                  quizLocked ||
                   action.busy ||
                   saving ||
                   closed ||
@@ -1456,9 +1471,9 @@ function QuestionAnswer({
                 onClick={submit}
                 type="primary"
               >
-                提交本题
+                {quizLocked ? "已作答（待补学解锁）" : "提交本题"}
               </Button>
-              {latest && (
+              {latest && latest.id !== receipt?.id && (
                 <Link to={`/student/homework/submissions/${latest.id}/feedback`}>
                   查看第{latest.attempt}次提交与反馈
                 </Link>
@@ -1615,7 +1630,7 @@ export function SubmissionList() {
               rowKey="id"
               dataSource={q.data?.rows || []}
               pagination={false}
-              scroll={{ x: 825 }}
+              scroll={{ x: 860 }}
               locale={{ emptyText: "当前筛选没有提交" }}
               columns={[
                 { title: "学生", dataIndex: "student_name", width: 120 },
@@ -1632,7 +1647,7 @@ export function SubmissionList() {
                 {
                   title: "时间",
                   dataIndex: "submitted_at",
-                  width: 165,
+                  width: 185,
                   onCell: () => ({ style: { whiteSpace: "nowrap" } }),
                   render: (value: string) => when(value),
                 },

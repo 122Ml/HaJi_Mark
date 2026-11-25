@@ -111,6 +111,9 @@ func NewApp(ctx context.Context, db *pgxpool.Pool, cache *redis.Client, cfg plat
 		agentModels = models
 	}
 	harness := agent.New(db, agentModels, identity.Gateway{Handler: r})
+	if cache != nil {
+		harness.RedisAddr = cfg.RedisAddr
+	}
 	harness.Register(r.Group("/api/v1"), auth)
 	var bg sync.WaitGroup
 	if ctx != nil && db != nil {

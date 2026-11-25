@@ -860,4 +860,7 @@ func ValidateGrade(out map[string]json.RawMessage, in JobInput) error {
 	}
 	return nil
 }
-func RegisterWorker(mux *asynq.ServeMux, s *Service) { mux.HandleFunc(taskType, s.Process) }
+func RegisterWorker(mux *asynq.ServeMux, s *Service) {
+	mux.HandleFunc(taskType, s.Process)
+	mux.HandleFunc(attachmentParseTaskType, s.ParseAttachment)
+}

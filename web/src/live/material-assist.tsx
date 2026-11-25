@@ -11,6 +11,7 @@ import {
   InputNumber,
   Popconfirm,
   Progress,
+  Segmented,
   Select,
   Space,
   Steps,
@@ -756,6 +757,13 @@ function sanitizeAdoptedPaper(
   };
 }
 
+function formatUncertainNote(note: string): string {
+  return note.replace(
+    /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
+    "关联片段",
+  );
+}
+
 export function PaperImport({
   id,
   fragments,
@@ -795,6 +803,7 @@ export function PaperImport({
 
   const [selected, setSelected] = useState(0);
   const [splitAt, setSplitAt] = useState(0);
+  const [promptView, setPromptView] = useState<"edit" | "preview">("edit");
 
   const safeSelected =
     p.questions.length > 0
@@ -939,16 +948,16 @@ export function PaperImport({
       if (q.type === "quiz") {
         options = cleanTags(q.options);
         correctAnswer = q.correct_answer.trim();
-        if (options.length < 2 || options.length > 8) {
+        if (options.length > 8) {
           return {
             payload: null,
-            error: `第 ${i + 1} 题（单选）需设置 2 到 8 个非空且不重复的选项`,
+            error: `第 ${i + 1} 题（单选）选项不能超过 8 个`,
           };
         }
-        if (!correctAnswer || !options.includes(correctAnswer)) {
+        if (correctAnswer && !options.includes(correctAnswer)) {
           return {
             payload: null,
-            error: `第 ${i + 1} 题（单选）需从有效选项中选择正确答案`,
+            error: `第 ${i + 1} 题（单选）正确答案须与有效选项一致`,
           };
         }
       }
@@ -997,112 +1006,148 @@ export function PaperImport({
     };
   }
 
-  return (
-    <Collapse
-      className="card-panel"
-      defaultActiveKey={defaultExpanded ? ["content"] : []}
-      items={[
-        {
-          key: "content",
-          label: <>整卷拆题</>,
-          children: !fragments.length ? (
-            <EmptyState title="当前原件暂无已解析片段">
-              请等待原件解析完成后再进行整卷拆题。
-            </EmptyState>
-          ) : (
-            <>
-              <WorkflowJob
-                kind="paper_split"
-                target={{ source_id: id }}
-                onAdopt={async (o, j) => {
-                  if (
-                    draft.dirty &&
-                    !(await confirm("载入拆题候选并替换当前编辑？"))
-                  ) {
-                    return;
-                  }
-                  const clean = sanitizeAdoptedPaper(o, j);
-                  setJob(j);
-                  if (adoptedJobID !== j) {
-                    setAdoptedResult(null);
-                  }
-                  draft.change(clean);
-                  setSelected(0);
-                  setSplitAt(0);
-                  setValidationError("");
-                }}
-              />
-              {adoptedResult && (
-                <Alert
-                  type="success"
-                  showIcon
-                  message={`已保存 ${adoptedResult.count ?? adoptedResult.versions?.length ?? 0} 道题库草稿`}
-                  description={
-                    adoptedResult.versions?.length ? (
-                      <Space wrap size="small">
-                        {adoptedResult.versions.map((v) => (
-                          <Link
-                            key={v.id}
-                            to={`/teacher/question-bank?bank_version=${encodeURIComponent(v.id)}`}
-                          >
-                            {v.title || "查看题目草稿"}
-                          </Link>
-                        ))}
-                      </Space>
-                    ) : (
-                      <Link to="/teacher/question-bank">进入题库确认</Link>
-                    )
-                  }
-                />
-              )}
-              {p.questions.length > 0 && (
-                <div className="live-form">
-                  <DraftNotice
-                    {...draft}
-                    onDiscard={() => {
-                      draft.reset(EMPTY_PAPER);
-                      setSelected(0);
+  const incompleteQuizCount = useMemo(
+    () =>
+      p.questions.filter((q) => {
+        if (q.type !== "quiz") return false;
+        const opts = cleanTags(q.options);
+        const corr = q.correct_answer.trim();
+        return opts.length < 2 || !corr || !opts.includes(corr);
+      }).length,
+    [p.questions],
+  );
+  const stepCurrent = !p.questions.length ? 0 : alreadyAdopted ? 2 : 1;
+
+  const content = !fragments.length ? (
+    <EmptyState title="当前原件暂无已解析片段">
+      请等待原件解析完成后再进行整卷拆题。
+    </EmptyState>
+  ) : (
+    <>
+      <Steps
+        size="small"
+        current={stepCurrent}
+        items={[
+          { title: "AI 拆分试卷" },
+          { title: "校对题目与片段" },
+          { title: "保存入库" },
+        ]}
+      />
+      <WorkflowJob
+        kind="paper_split"
+        target={{ source_id: id }}
+        autoAdopt={!draft.dirty}
+        onAdopt={async (o, j) => {
+          if (
+            draft.dirty &&
+            !(await confirm("载入拆题候选并替换当前编辑？"))
+          ) {
+            return;
+          }
+          const clean = sanitizeAdoptedPaper(o, j);
+          setJob(j);
+          if (adoptedJobID !== j) {
+            setAdoptedResult(null);
+          }
+          draft.change(clean);
+          setSelected(0);
+          setSplitAt(0);
+          setPromptView("edit");
+          setValidationError("");
+        }}
+      />
+      {adoptedResult && (
+        <Alert
+          type="success"
+          showIcon
+          message={`已保存 ${adoptedResult.count ?? adoptedResult.versions?.length ?? 0} 道题库草稿`}
+          description={
+            adoptedResult.versions?.length ? (
+              <Space wrap size="small">
+                {adoptedResult.versions.map((v) => (
+                  <Link
+                    key={v.id}
+                    to={`/teacher/question-bank?bank_version=${encodeURIComponent(v.id)}`}
+                  >
+                    {v.title || "查看题目草稿"}
+                  </Link>
+                ))}
+              </Space>
+            ) : (
+              <Link to="/teacher/question-bank">进入题库确认</Link>
+            )
+          }
+        />
+      )}
+      {p.questions.length > 0 && (
+        <div className="live-form">
+          <DraftNotice
+            {...draft}
+            onDiscard={() => {
+              draft.reset(EMPTY_PAPER);
+              setSelected(0);
+              setSplitAt(0);
+              setPromptView("edit");
+              setValidationError("");
+            }}
+          />
+          <div className="paper-import-grid">
+            <div className="paper-import-list">
+              {p.questions.map((q, i) => {
+                const quizIncomplete =
+                  q.type === "quiz" &&
+                  (cleanTags(q.options).length < 2 ||
+                    !cleanTags(q.options).includes(q.correct_answer.trim()));
+                return (
+                  <Button
+                    key={`${i}-${q.title}`}
+                    htmlType="button"
+                    block
+                    className={`paper-import-item${i === safeSelected ? " is-selected" : ""}`}
+                    onClick={() => {
+                      setSelected(i);
                       setSplitAt(0);
-                      setValidationError("");
+                      setPromptView("edit");
                     }}
-                  />
-                  <div className="live-inline">
-                    <Field className="ui-field" label={<>题目</>}>
-                      <Select
-                        aria-label="题目"
-                        value={safeSelected}
-                        onChange={(val) => {
-                          setSelected(Number(val));
-                          setSplitAt(0);
-                        }}
-                        showSearch
-                        optionFilterProp="label"
-                        options={p.questions.map((q, i) => ({
-                          value: i,
-                          label: `${i + 1}. ${q.title || "未命名题目"}${q.uncertain?.length ? "（待核对）" : ""}`,
-                        }))}
-                      />
-                    </Field>
-                    <Button
-                      htmlType="button"
-                      disabled={!safeSelected}
-                      onClick={() => swap(-1)}
-                    >
-                      上移
-                    </Button>
-                    <Button
-                      htmlType="button"
-                      disabled={safeSelected === p.questions.length - 1}
-                      onClick={() => swap(1)}
-                    >
-                      下移
-                    </Button>
-                    <Button
-                      htmlType="button"
-                      disabled={
-                        !current || safeSelected === p.questions.length - 1
-                      }
-                      onClick={async () => {
+                  >
+                    <strong>
+                      {i + 1}. {q.title || "未命名题目"}
+                    </strong>
+                    <MetaTags>
+                      <MetaTag>
+                        {QUESTION_TYPE_OPTIONS.find((t) => t.value === q.type)
+                          ?.label || q.type}
+                      </MetaTag>
+                      <MetaTag>{q.max_score} 分</MetaTag>
+                      {quizIncomplete && <Tag color="warning">待补答案</Tag>}
+                      {!!q.uncertain?.length && (
+                        <Tag color="processing">待核对</Tag>
+                      )}
+                    </MetaTags>
+                  </Button>
+                );
+              })}
+            </div>
+            <div className="paper-import-editor live-form">
+              <Space wrap size="small">
+                <Button
+                  htmlType="button"
+                  disabled={!safeSelected}
+                  onClick={() => swap(-1)}
+                >
+                  上移
+                </Button>
+                <Button
+                  htmlType="button"
+                  disabled={safeSelected === p.questions.length - 1}
+                  onClick={() => swap(1)}
+                >
+                  下移
+                </Button>
+                <Button
+                  htmlType="button"
+                  disabled={!current || safeSelected === p.questions.length - 1}
+                  onClick={async () => {
                         if (!current) return;
                         const next = p.questions[safeSelected + 1];
                         if (!next) return;
@@ -1216,7 +1261,7 @@ export function PaperImport({
                     >
                       删除当前题
                     </Button>
-                  </div>
+                  </Space>
                   {current && (
                     <>
                       <Field className="ui-field" label={<>题目名称</>}>
@@ -1257,47 +1302,70 @@ export function PaperImport({
                           />
                         </Field>
                       </div>
-                      <Field className="ui-field" label={<>题干</>}>
-                        <Input.TextArea
-                          aria-label="题干"
-                          rows={9}
-                          value={current.prompt}
-                          onChange={(e) => update({ prompt: e.target.value })}
-                          onSelect={(e) =>
-                            setSplitAt(e.currentTarget.selectionStart)
+                      <div className="section-head">
+                        <Typography.Text strong>题干</Typography.Text>
+                        <Segmented
+                          size="small"
+                          value={promptView}
+                          onChange={(val) =>
+                            setPromptView(val as "edit" | "preview")
                           }
+                          options={[
+                            { value: "edit", label: "编辑题干" },
+                            { value: "preview", label: "排版预览" },
+                          ]}
                         />
-                      </Field>
-                      <Button
-                        htmlType="button"
-                        disabled={
-                          splitAt <= 0 || splitAt >= current.prompt.length
-                        }
-                        onClick={() => {
-                          const qs = [...p.questions];
-                          qs.splice(
-                            safeSelected,
-                            1,
-                            {
-                              ...current,
-                              prompt: current.prompt.slice(0, splitAt),
-                            },
-                            {
-                              ...current,
-                              title: current.title + "（拆分）",
-                              prompt: current.prompt.slice(splitAt),
-                              reference_answer: "",
-                              correct_answer: "",
-                              answer_origin: "missing",
-                            },
-                          );
-                          draft.change({ ...p, questions: qs });
-                          setSplitAt(0);
-                        }}
-                      >
-                        在光标位置拆题
-                      </Button>
-                      <RichContent text={current.prompt} />
+                      </div>
+                      {promptView === "preview" ? (
+                        <Card size="small" className="card-panel">
+                          <RichContent text={current.prompt} />
+                        </Card>
+                      ) : (
+                        <>
+                          <Field className="ui-field" label={<>题干正文</>}>
+                            <Input.TextArea
+                              aria-label="题干"
+                              rows={8}
+                              value={current.prompt}
+                              onChange={(e) =>
+                                update({ prompt: e.target.value })
+                              }
+                              onSelect={(e) =>
+                                setSplitAt(e.currentTarget.selectionStart)
+                              }
+                            />
+                          </Field>
+                          <Button
+                            htmlType="button"
+                            disabled={
+                              splitAt <= 0 || splitAt >= current.prompt.length
+                            }
+                            onClick={() => {
+                              const qs = [...p.questions];
+                              qs.splice(
+                                safeSelected,
+                                1,
+                                {
+                                  ...current,
+                                  prompt: current.prompt.slice(0, splitAt),
+                                },
+                                {
+                                  ...current,
+                                  title: current.title + "（拆分）",
+                                  prompt: current.prompt.slice(splitAt),
+                                  reference_answer: "",
+                                  correct_answer: "",
+                                  answer_origin: "missing",
+                                },
+                              );
+                              draft.change({ ...p, questions: qs });
+                              setSplitAt(0);
+                            }}
+                          >
+                            在光标位置拆题
+                          </Button>
+                        </>
+                      )}
                       {current.type === "quiz" && (
                         <>
                           <Field
@@ -1432,11 +1500,23 @@ export function PaperImport({
                       </Field>
                       {!!current.uncertain?.length && (
                         <MetaTags>
-                          <MetaTag>待核对：{current.uncertain.join("；")}</MetaTag>
+                          <MetaTag>
+                            待核对：
+                            {current.uncertain.map(formatUncertainNote).join("；")}
+                          </MetaTag>
                         </MetaTags>
                       )}
                     </>
                   )}
+                </div>
+              </div>
+              {incompleteQuizCount > 0 && (
+                <Alert
+                  type="info"
+                  showIcon
+                  message={`有 ${incompleteQuizCount} 道单选题尚未补全选项或正确答案，将先以草稿状态保存，可在题库中补齐后再确认。`}
+                />
+              )}
                   <Collapse
                     items={[
                       {
@@ -1636,16 +1716,33 @@ export function PaperImport({
                   </Space>
                 </div>
               )}
-              <Feedback
-                error={
-                  assets.error ||
-                  (validationError ? new Error(validationError) : undefined)
-                }
-                message={action.message}
-                failed={action.failed}
-              />
-            </>
-          ),
+          <Feedback
+            error={
+              assets.error ||
+              (validationError ? new Error(validationError) : undefined)
+            }
+            message={action.message}
+            failed={action.failed}
+          />
+        </>
+      );
+
+  if (defaultExpanded) {
+    return (
+      <Card className="card-panel" title="整卷拆题">
+        <div className="live-form">{content}</div>
+      </Card>
+    );
+  }
+
+  return (
+    <Collapse
+      className="card-panel"
+      items={[
+        {
+          key: "content",
+          label: <>整卷拆题</>,
+          children: <div className="live-form">{content}</div>,
         },
       ]}
     />

@@ -136,7 +136,8 @@ export function CourseManagement() {
         </Button>
       </Form>
       {error && <Alert type="error" showIcon role="alert" message={error} />}
-      <Card className="card-panel" title="课程列表">
+      <div className={course ? "course-manage-grid" : ""}>
+        <Card className="card-panel" title="课程列表">
         <div className="live-stack">
           <Input.Search
             aria-label="搜索课程"
@@ -309,6 +310,7 @@ export function CourseManagement() {
           )}
         </Card>
       )}
+      </div>
     </div>
   );
 }

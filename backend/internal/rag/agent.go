@@ -16,12 +16,48 @@ type ToolCall struct {
 		Arguments string `json:"arguments"`
 	} `json:"function"`
 }
+
+type AgentImage struct {
+	DataURL string `json:"-"`
+}
+
 type AgentMessage struct {
-	Role             string     `json:"role"`
-	Content          string     `json:"content"`
-	ToolCallID       string     `json:"tool_call_id,omitempty"`
-	ToolCalls        []ToolCall `json:"tool_calls,omitempty"`
-	ReasoningContent string     `json:"reasoning_content,omitempty"`
+	Role               string       `json:"role"`
+	Content            string       `json:"content"`
+	ImageAttachmentIDs []string     `json:"image_attachment_ids,omitempty"`
+	Images             []AgentImage `json:"-"`
+	ToolCallID         string       `json:"tool_call_id,omitempty"`
+	ToolCalls          []ToolCall   `json:"tool_calls,omitempty"`
+	ReasoningContent   string       `json:"reasoning_content,omitempty"`
+}
+
+func serializeAgentWireMessages(messages []AgentMessage) ([]any, int) {
+	wire := make([]any, 0, len(messages))
+	imageCount := 0
+	for _, m := range messages {
+		if len(m.Images) == 0 {
+			wire = append(wire, m)
+			continue
+		}
+		text := m.Content
+		if strings.TrimSpace(text) == "" {
+			text = "请查看附图。"
+		}
+		parts := make([]any, 0, 1+len(m.Images))
+		parts = append(parts, map[string]any{"type": "text", "text": text})
+		for _, img := range m.Images {
+			if strings.TrimSpace(img.DataURL) == "" {
+				continue
+			}
+			parts = append(parts, map[string]any{
+				"type":      "image_url",
+				"image_url": map[string]string{"url": img.DataURL},
+			})
+			imageCount++
+		}
+		wire = append(wire, map[string]any{"role": m.Role, "content": parts})
+	}
+	return wire, imageCount
 }
 
 // AgentChat retains the full assistant/tool exchange. It uses the same call
@@ -39,7 +75,8 @@ func (m *Models) agentChat(ctx context.Context, course, actor, profile string, m
 	if err != nil {
 		return AgentMessage{}, err
 	}
-	body := map[string]any{"model": p.Model, "messages": messages, "max_tokens": 3000, "tools": tools, "stream": false}
+	wireMessages, imageCount := serializeAgentWireMessages(messages)
+	body := map[string]any{"model": p.Model, "messages": wireMessages, "max_tokens": 3000, "tools": tools, "stream": false}
 	streaming := emit != nil && !p.DisableStreaming
 	if streaming {
 		body["stream"] = true
@@ -48,7 +85,13 @@ func (m *Models) agentChat(ctx context.Context, course, actor, profile string, m
 	if p.Thinking != "" {
 		body["thinking"] = map[string]string{"type": p.Thinking}
 	}
-	raw, _ := json.Marshal(body)
+	// Estimate text payload separately from base64 image blobs; reserve bounded image token budget.
+	textRaw, _ := json.Marshal(map[string]any{"messages": messages, "tools": tools})
+	imageReserve := 1024
+	if p.ImageTokenLimit > 0 {
+		imageReserve = p.ImageTokenLimit
+	}
+	estimatedInput := len(textRaw) + imageCount*imageReserve
 	var out struct {
 		Choices []struct {
 			Message AgentMessage `json:"message"`
@@ -58,14 +101,14 @@ func (m *Models) agentChat(ctx context.Context, course, actor, profile string, m
 	var msg AgentMessage
 	finish := ""
 	if streaming {
-		err = m.callDecoded(ctx, course, actor, "agent", p, "/chat/completions", body, len(raw), 3000, func(resp *http.Response) (usage, error) {
+		err = m.callDecoded(ctx, course, actor, "agent", p, "/chat/completions", body, estimatedInput, 3000, func(resp *http.Response) (usage, error) {
 			var u usage
 			var e error
 			msg, finish, u, e = decodeAgentResponse(resp, emit)
 			return u, e
 		})
 	} else {
-		err = m.call(ctx, course, actor, "agent", p, "/chat/completions", body, len(raw), 3000, &out)
+		err = m.call(ctx, course, actor, "agent", p, "/chat/completions", body, estimatedInput, 3000, &out)
 		if len(out.Choices) == 1 {
 			msg = out.Choices[0].Message
 			finish = out.Choices[0].Finish

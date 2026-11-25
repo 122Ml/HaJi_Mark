@@ -946,6 +946,7 @@ export function KnowledgeGraph() {
           <Feedback message={action.message} failed={action.failed} />
           <Collapse
             className="card-panel"
+            defaultActiveKey={["add-edge"]}
             items={[
               {
                 key: "add-edge",

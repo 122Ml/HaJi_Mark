@@ -138,6 +138,7 @@ type ComposerDraft = {
 const emptyDraft: ComposerDraft = { text: "", attachments: [] };
 const emptyDrafts: Record<string, ComposerDraft> = {};
 
+const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp"]);
 const ALLOWED_EXTENSIONS = new Set([
   ".pdf",
   ".docx",
@@ -147,8 +148,14 @@ const ALLOWED_EXTENSIONS = new Set([
   ".html",
   ".htm",
   ".csv",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".webp",
 ]);
 const MAX_FILE_BYTES = 30 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_MESSAGE_ATTACHMENTS = 20;
 const MAX_CONVERSATION_FILES = 30;
 const MAX_CONVERSATION_BYTES = 150 * 1024 * 1024;
 
@@ -168,6 +175,34 @@ const VERIFIED_CONTEXT_MARKER = "当前业务对象（服务端已核验访问�
 function getFileExtension(name: string): string {
   const dot = name.lastIndexOf(".");
   return dot >= 0 ? name.slice(dot).toLowerCase() : "";
+}
+
+function isImageFilename(name: string): boolean {
+  return IMAGE_EXTENSIONS.has(getFileExtension(name));
+}
+
+function clipboardImageExtension(mime: string): string {
+  switch (mime.toLowerCase()) {
+    case "image/jpeg":
+    case "image/jpg":
+      return "jpg";
+    case "image/webp":
+      return "webp";
+    default:
+      return "png";
+  }
+}
+
+function fileBadgeLabel(name: string): string {
+  const ext = getFileExtension(name).replace(/^\./, "");
+  return ext ? ext.toUpperCase() : "FILE";
+}
+
+function formatFileSize(bytes?: number): string {
+  if (!bytes || bytes <= 0) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function splitVerifiedContext(content: string): {
@@ -1232,6 +1267,18 @@ export function AgentPage({
 
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const dragDepthRef = useRef(0);
+  const pickerQueueRef = useRef<{ files: File[]; scheduled: boolean }>({
+    files: [],
+    scheduled: false,
+  });
+  const [draftMode, setDraftMode] = useState("auto-review");
+  const [draftProfileID, setDraftProfileID] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [archive, setArchive] = useState<{ key: string; pages: Snapshot[] }>({
@@ -1439,8 +1486,8 @@ export function AgentPage({
   );
   const exports = allAttachments.filter((a) => a.kind === "export");
   const fileURL = useCallback(
-    (id: string) =>
-      `/api/v1${prefix}/conversations/${conversationID}/attachments/${id}/file`,
+    (id: string, convID = conversationID) =>
+      `/api/v1${prefix}/conversations/${convID}/attachments/${id}/file`,
     [prefix, conversationID],
   );
 
@@ -1512,8 +1559,11 @@ export function AgentPage({
     [cache, key],
   );
 
+  const [draftingNew, setDraftingNew] = useState(false);
+
   const selectConversation = useCallback(
     (id: string, replace = false) => {
+      if (id) setDraftingNew(false);
       activeConversationIDRef.current = id;
       if (embedded) {
         setLocalConversation(id);
@@ -1538,6 +1588,13 @@ export function AgentPage({
     [embedded, associationKey, setParams],
   );
 
+  function startDraftConversation() {
+    setDraftingNew(true);
+    setSearchInput("");
+    setDebouncedSearch("");
+    selectConversation("");
+  }
+
   function updateComposer(patch: Partial<ComposerDraft>) {
     drafts.change((all) => ({
       ...all,
@@ -1561,9 +1618,16 @@ export function AgentPage({
     preserveDraft = !conversationID,
     selectNow = true,
   ) {
+    const chosenMode = isTeacher
+      ? draftMode
+      : draftMode === "full-access"
+        ? "auto-review"
+        : draftMode;
+    const chosenProfile =
+      draftProfileID || status.data?.profiles.find((p) => p.available)?.id || "";
     const v = await write<Conversation>("/conversations", {
-      mode: "auto-review",
-      profile_id: status.data?.profiles.find((p) => p.available)?.id || "",
+      mode: chosenMode,
+      profile_id: chosenProfile,
     });
     if (scope === currentScope.current) {
       if (preserveDraft) {
@@ -1579,6 +1643,102 @@ export function AgentPage({
     }
     await cache.invalidateQueries({ queryKey: [...key, "conversations"] });
     return v.id;
+  }
+
+  async function uploadAttachmentFiles(files: File[]) {
+    if (!files.length || mutationLocked.current) return;
+    if (composer.attachments.length + files.length > MAX_MESSAGE_ATTACHMENTS) {
+      void message.error(`单条消息最多附加 ${MAX_MESSAGE_ATTACHMENTS} 份文件`);
+      return;
+    }
+    const existingUploads = allAttachments.filter((a) => a.kind === "upload");
+    if (existingUploads.length + files.length > MAX_CONVERSATION_FILES) {
+      void message.error("本对话上传附件数量已达 30 份上限");
+      return;
+    }
+    let batchBytes = 0;
+    for (const file of files) {
+      const ext = getFileExtension(file.name);
+      if (!ALLOWED_EXTENSIONS.has(ext)) {
+        void message.error(
+          "仅支持 PDF、DOCX、PPTX、TXT、MD、HTML、CSV 与 PNG/JPG/WEBP 图片",
+        );
+        return;
+      }
+      const isImg = IMAGE_EXTENSIONS.has(ext);
+      const maxBytes = isImg ? MAX_IMAGE_BYTES : MAX_FILE_BYTES;
+      if (!file.size || file.size > maxBytes) {
+        void message.error(
+          isImg ? "图片须为非空且不超过10MiB" : "文件须为非空且不超过30MiB",
+        );
+        return;
+      }
+      batchBytes += file.size;
+    }
+    const existingBytes = existingUploads.reduce(
+      (sum, a) => sum + (a.size_bytes || 0),
+      0,
+    );
+    if (existingBytes + batchBytes > MAX_CONVERSATION_BYTES) {
+      void message.error("本对话上传附件总大小超过 150MiB 上限");
+      return;
+    }
+    await runAction(async () => {
+      setUploading(true);
+      setUploadProgress({ done: 0, total: files.length });
+      try {
+        let id = conversationID;
+        let createdNow = false;
+        if (!id) {
+          id = await createConversationRecord(true, false);
+          createdNow = true;
+        }
+        const uploaded: Attachment[] = [];
+        try {
+          for (const file of files) {
+            const body = new FormData();
+            body.append("file", file);
+            const res = await requestJSON<{ data: Attachment }>(
+              `${prefix}/conversations/${id}/attachments`,
+              { method: "POST", body },
+              session?.csrf_token,
+            );
+            uploaded.push(res.data);
+            setUploadProgress({ done: uploaded.length, total: files.length });
+          }
+        } catch (err) {
+          if (scope === currentScope.current) {
+            if (uploaded.length) {
+              drafts.change((all) => ({
+                ...all,
+                [id]: {
+                  ...(all[id] || emptyDraft),
+                  attachments: [...(all[id]?.attachments || []), ...uploaded],
+                  requestID: undefined,
+                },
+              }));
+            }
+            if (createdNow) selectConversation(id);
+          }
+          throw err;
+        }
+        if (scope === currentScope.current) {
+          drafts.change((all) => ({
+            ...all,
+            [id]: {
+              ...(all[id] || emptyDraft),
+              attachments: [...(all[id]?.attachments || []), ...uploaded],
+              requestID: undefined,
+            },
+          }));
+          if (createdNow) selectConversation(id);
+        }
+        return id;
+      } finally {
+        setUploading(false);
+        setUploadProgress(null);
+      }
+    });
   }
 
   async function runAction(
@@ -1727,6 +1887,7 @@ export function AgentPage({
   useEffect(() => {
     if (
       !embedded &&
+      !draftingNew &&
       !conversationID &&
       conversations.data?.[0] &&
       !composer.text &&
@@ -1736,6 +1897,7 @@ export function AgentPage({
     }
   }, [
     embedded,
+    draftingNew,
     conversationID,
     conversations.data,
     composer.text,
@@ -2077,7 +2239,7 @@ export function AgentPage({
             type="primary"
             icon={<Plus size={14} aria-hidden="true" />}
             disabled={busy || !configured || !drafts.ready}
-            onClick={() => void runAction(() => createConversationRecord(false))}
+            onClick={startDraftConversation}
           >
             新对话
           </Button>
@@ -2131,7 +2293,51 @@ export function AgentPage({
           )}
         </aside>
       )}
-      <section className="agent-main" aria-label="课程助理对话">
+      <section
+        className={`agent-main${isDragOver ? " is-drag-over" : ""}`}
+        aria-label="课程助理对话"
+        onDragEnter={(e) => {
+          if (inputDisabled) return;
+          if (!Array.from(e.dataTransfer?.types || []).includes("Files")) {
+            return;
+          }
+          e.preventDefault();
+          e.stopPropagation();
+          dragDepthRef.current += 1;
+          setIsDragOver(true);
+        }}
+        onDragOver={(e) => {
+          if (inputDisabled) return;
+          if (!Array.from(e.dataTransfer?.types || []).includes("Files")) {
+            return;
+          }
+          e.preventDefault();
+          e.stopPropagation();
+          e.dataTransfer.dropEffect = "copy";
+        }}
+        onDragLeave={(e) => {
+          if (!dragDepthRef.current) return;
+          e.preventDefault();
+          e.stopPropagation();
+          dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+          if (dragDepthRef.current === 0) setIsDragOver(false);
+        }}
+        onDrop={(e) => {
+          dragDepthRef.current = 0;
+          setIsDragOver(false);
+          if (inputDisabled) return;
+          const dropped = Array.from(e.dataTransfer?.files || []);
+          if (!dropped.length) return;
+          e.preventDefault();
+          e.stopPropagation();
+          void uploadAttachmentFiles(dropped);
+        }}
+      >
+        {isDragOver && (
+          <div className="agent-drop-overlay">
+            松开以上传文件或图片到当前对话（支持多选）
+          </div>
+        )}
         <div className="agent-toolbar">
           {embedded && (
             <Space
@@ -2166,9 +2372,7 @@ export function AgentPage({
                   size="small"
                   icon={<Plus size={13} aria-hidden="true" />}
                   disabled={busy || !!active || !configured || !drafts.ready}
-                  onClick={() =>
-                    void runAction(() => createConversationRecord(false))
-                  }
+                  onClick={startDraftConversation}
                 >
                   新对话
                 </Button>
@@ -2192,11 +2396,15 @@ export function AgentPage({
               placeholder="选择模型"
               value={
                 current?.profile_id ||
+                draftProfileID ||
                 status.data?.profiles.find((p) => p.available)?.id
               }
-              disabled={!current || !!active || busy}
+              disabled={!!active || busy}
               onChange={(profile_id) => {
-                if (!current) return;
+                if (!current) {
+                  setDraftProfileID(profile_id);
+                  return;
+                }
                 void runAction(() =>
                   write(
                     `/conversations/${conversationID}`,
@@ -2214,13 +2422,21 @@ export function AgentPage({
             <Tooltip title="只读不写入；自动审查允许草稿并确认重要修改；完整操作仍须确认正式发布和成绩。">
               <Select
                 aria-label="权限模式"
-                value={current?.mode || "auto-review"}
-                disabled={!current || !!active || busy}
+                value={
+                  current?.mode ||
+                  (!isTeacher && draftMode === "full-access"
+                    ? "auto-review"
+                    : draftMode)
+                }
+                disabled={!!active || busy}
                 options={modes.filter(
                   (m) => isTeacher || m.value !== "full-access",
                 )}
                 onChange={(mode) => {
-                  if (!current) return;
+                  if (!current) {
+                    setDraftMode(mode);
+                    return;
+                  }
                   void runAction(() =>
                     write(
                       `/conversations/${conversationID}`,
@@ -2404,9 +2620,7 @@ export function AgentPage({
               <Button
                 size="small"
                 disabled={busy || !configured || !drafts.ready}
-                onClick={() =>
-                  void runAction(() => createConversationRecord(false))
-                }
+                onClick={startDraftConversation}
               >
                 新建独立对话
               </Button>
@@ -2503,21 +2717,34 @@ export function AgentPage({
                           styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
                         >
                           {m.attachment_ids.map((id) => {
-                            const filename =
-                              allAttachments.find((a) => a.id === id)
-                                ?.filename || "下载附件";
+                            const att = allAttachments.find((a) => a.id === id);
+                            const filename = att?.filename || "下载附件";
                             const url = fileURL(id);
+                            if (isImageFilename(filename)) {
+                              return (
+                                <div key={id} className="agent-msg-image-card">
+                                  <img
+                                    src={`${url}?inline=1`}
+                                    alt={filename}
+                                    className="agent-msg-image"
+                                  />
+                                  <Typography.Link
+                                    href={url}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      void downloadFromURL(url, filename);
+                                    }}
+                                  >
+                                    {filename}
+                                  </Typography.Link>
+                                </div>
+                              );
+                            }
                             return (
-                              <Tag
-                                key={id}
-                                className="ui-meta-tag"
-                                style={{
-                                  marginInlineEnd: 0,
-                                  maxWidth: "100%",
-                                  whiteSpace: "normal",
-                                  overflowWrap: "anywhere",
-                                }}
-                              >
+                              <div key={id} className="agent-msg-file-card">
+                                <span className="agent-file-badge">
+                                  {fileBadgeLabel(filename)}
+                                </span>
                                 <Typography.Link
                                   href={url}
                                   style={{
@@ -2531,7 +2758,12 @@ export function AgentPage({
                                 >
                                   {filename}
                                 </Typography.Link>
-                              </Tag>
+                                {att?.size_bytes ? (
+                                  <span className="agent-file-size">
+                                    {formatFileSize(att.size_bytes)}
+                                  </span>
+                                ) : null}
+                              </div>
                             );
                           })}
                         </Space>
@@ -2633,15 +2865,10 @@ export function AgentPage({
             />
           )}
           {!!composer.attachments.length && (
-            <Space
-              wrap
-              style={{ maxWidth: "100%" }}
-              styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
-            >
+            <div className="agent-composer-thumbs">
               {composer.attachments.map((a) => (
                 <Tag
                   key={a.id}
-                  className="ui-meta-tag"
                   style={{
                     marginInlineEnd: 0,
                     maxWidth: "100%",
@@ -2649,6 +2876,11 @@ export function AgentPage({
                     overflowWrap: "anywhere",
                   }}
                   closable={!busy}
+                  className={`ui-meta-tag ${
+                    isImageFilename(a.filename)
+                      ? "agent-thumb-chip"
+                      : "agent-file-chip"
+                  }`}
                   onClose={() =>
                     updateComposer({
                       attachments: composer.attachments.filter(
@@ -2657,10 +2889,31 @@ export function AgentPage({
                     })
                   }
                 >
-                  {a.filename}
+                  {isImageFilename(a.filename) ? (
+                    <>
+                      <img
+                        src={`${fileURL(a.id)}?inline=1`}
+                        alt={a.filename}
+                        className="agent-thumb-preview"
+                      />
+                      <span className="agent-thumb-name">{a.filename}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="agent-file-badge">
+                        {fileBadgeLabel(a.filename)}
+                      </span>
+                      <span className="agent-thumb-name">{a.filename}</span>
+                      {a.size_bytes ? (
+                        <span className="agent-file-size">
+                          {formatFileSize(a.size_bytes)}
+                        </span>
+                      ) : null}
+                    </>
+                  )}
                 </Tag>
               ))}
-            </Space>
+            </div>
           )}
           <Input.TextArea
             aria-label="消息"
@@ -2671,7 +2924,7 @@ export function AgentPage({
                   ? "请先确认或拒绝当前操作"
                   : active
                     ? "任务执行中，可查看执行记录或停止"
-                    : "输入要求，或上传需要导入的文件"
+                    : "输入要求，支持 Ctrl+V 粘贴或拖拽文件/截图（PDF、DOCX、PPTX、MD、TXT、CSV、图片）"
             }
             value={drafts.ready ? composer.text : ""}
             maxLength={12000}
@@ -2679,6 +2932,65 @@ export function AgentPage({
             autoSize={{ minRows: 3, maxRows: 8 }}
             disabled={inputDisabled}
             onChange={(e) => updateComposer({ text: e.target.value })}
+            onPaste={(e) => {
+              if (inputDisabled) return;
+              const items = Array.from(e.clipboardData?.items || []);
+              const pastedFiles: File[] = [];
+              let imgIdx = 0;
+              for (const item of items) {
+                if (item.kind !== "file") continue;
+                const blob = item.getAsFile();
+                if (!blob) continue;
+                const mime = (blob.type || item.type || "").toLowerCase();
+                if (mime.startsWith("image/")) {
+                  imgIdx += 1;
+                  const ext = clipboardImageExtension(mime);
+                  const rawName = (blob.name || "").trim();
+                  const name =
+                    !rawName ||
+                    rawName === "image.png" ||
+                    !IMAGE_EXTENSIONS.has(getFileExtension(rawName))
+                      ? `paste-${Date.now()}-${imgIdx}.${ext}`
+                      : rawName;
+                  pastedFiles.push(
+                    new File([blob], name, { type: mime || `image/${ext}` }),
+                  );
+                } else {
+                  const rawName = (blob.name || "").trim();
+                  if (!rawName) continue;
+                  pastedFiles.push(
+                    new File([blob], rawName, {
+                      type: mime || "application/octet-stream",
+                    }),
+                  );
+                }
+              }
+              if (!pastedFiles.length && e.clipboardData?.files?.length) {
+                for (const file of Array.from(e.clipboardData.files)) {
+                  const mime = (file.type || "").toLowerCase();
+                  if (mime.startsWith("image/")) {
+                    imgIdx += 1;
+                    const ext = clipboardImageExtension(mime);
+                    const rawName = (file.name || "").trim();
+                    const name =
+                      !rawName ||
+                      rawName === "image.png" ||
+                      !IMAGE_EXTENSIONS.has(getFileExtension(rawName))
+                        ? `paste-${Date.now()}-${imgIdx}.${ext}`
+                        : rawName;
+                    pastedFiles.push(new File([file], name, { type: mime }));
+                  } else if ((file.name || "").trim()) {
+                    pastedFiles.push(file);
+                  }
+                }
+              }
+              if (!pastedFiles.length) return;
+              const hasText = Boolean(
+                e.clipboardData?.getData("text/plain")?.trim(),
+              );
+              if (!hasText) e.preventDefault();
+              void uploadAttachmentFiles(pastedFiles);
+            }}
             onKeyDown={(e) => {
               if (
                 e.key === "Enter" &&
@@ -2703,88 +3015,39 @@ export function AgentPage({
               styles={{ item: { minWidth: 0, maxWidth: "100%" } }}
             >
               <Upload
-                accept=".pdf,.docx,.pptx,.txt,.md,.html,.htm,.csv"
+                accept=".pdf,.docx,.pptx,.txt,.md,.html,.htm,.csv,.png,.jpg,.jpeg,.webp"
+                multiple
                 showUploadList={false}
-                disabled={inputDisabled || composer.attachments.length >= 10}
+                disabled={
+                  inputDisabled ||
+                  composer.attachments.length >= MAX_MESSAGE_ATTACHMENTS
+                }
                 beforeUpload={(file) => {
-                  if (mutationLocked.current) return Upload.LIST_IGNORE;
-                  if (!file.size || file.size > MAX_FILE_BYTES) {
-                    void message.error("文件须为非空且不超过30MiB");
-                    return Upload.LIST_IGNORE;
-                  }
-                  const ext = getFileExtension(file.name);
-                  if (!ALLOWED_EXTENSIONS.has(ext)) {
-                    void message.error(
-                      "仅支持 PDF、DOCX、PPTX、TXT、MD、HTML 与 CSV 文件",
-                    );
-                    return Upload.LIST_IGNORE;
-                  }
-                  const existingUploads = allAttachments.filter(
-                    (a) => a.kind === "upload",
-                  );
-                  if (existingUploads.length >= MAX_CONVERSATION_FILES) {
-                    void message.error("本对话上传附件数量已达 30 份上限");
-                    return Upload.LIST_IGNORE;
-                  }
-                  const existingBytes = existingUploads.reduce(
-                    (sum, a) => sum + (a.size_bytes || 0),
-                    0,
-                  );
-                  if (existingBytes + file.size > MAX_CONVERSATION_BYTES) {
-                    void message.error("本对话上传附件总大小超过 150MiB 上限");
-                    return Upload.LIST_IGNORE;
-                  }
-                  void runAction(async () => {
-                    setUploading(true);
-                    try {
-                      let id = conversationID;
-                      let createdNow = false;
-                      if (!id) {
-                        id = await createConversationRecord(true, false);
-                        createdNow = true;
+                  pickerQueueRef.current.files.push(file);
+                  if (!pickerQueueRef.current.scheduled) {
+                    pickerQueueRef.current.scheduled = true;
+                    queueMicrotask(() => {
+                      const batch = pickerQueueRef.current.files.splice(0);
+                      pickerQueueRef.current.scheduled = false;
+                      if (batch.length) {
+                        void uploadAttachmentFiles(batch);
                       }
-                      const body = new FormData();
-                      body.append("file", file);
-                      let a: Attachment;
-                      try {
-                        a = (
-                          await requestJSON<{ data: Attachment }>(
-                            `${prefix}/conversations/${id}/attachments`,
-                            { method: "POST", body },
-                            session?.csrf_token,
-                          )
-                        ).data;
-                      } catch (err) {
-                        if (createdNow && scope === currentScope.current) {
-                          selectConversation(id);
-                        }
-                        throw err;
-                      }
-                      if (scope === currentScope.current) {
-                        drafts.change((all) => ({
-                          ...all,
-                          [id]: {
-                            ...(all[id] || emptyDraft),
-                            attachments: [...(all[id]?.attachments || []), a],
-                            requestID: undefined,
-                          },
-                        }));
-                        if (createdNow) selectConversation(id);
-                      }
-                      return id;
-                    } finally {
-                      setUploading(false);
-                    }
-                  });
+                    });
+                  }
                   return false;
                 }}
               >
                 <Button
                   icon={<Paperclip size={14} aria-hidden="true" />}
                   loading={uploading}
-                  disabled={inputDisabled || composer.attachments.length >= 10}
+                  disabled={
+                    inputDisabled ||
+                    composer.attachments.length >= MAX_MESSAGE_ATTACHMENTS
+                  }
                 >
-                  上传文件
+                  {uploadProgress
+                    ? `上传中 ${uploadProgress.done}/${uploadProgress.total}…`
+                    : "上传文件"}
                 </Button>
               </Upload>
               {!!reusable.length && (
@@ -2816,10 +3079,16 @@ export function AgentPage({
                       }
                     },
                   }}
-                  disabled={inputDisabled || composer.attachments.length >= 10}
+                  disabled={
+                    inputDisabled ||
+                    composer.attachments.length >= MAX_MESSAGE_ATTACHMENTS
+                  }
                 >
                   <Button
-                    disabled={inputDisabled || composer.attachments.length >= 10}
+                    disabled={
+                      inputDisabled ||
+                      composer.attachments.length >= MAX_MESSAGE_ATTACHMENTS
+                    }
                   >
                     已上传文件
                   </Button>

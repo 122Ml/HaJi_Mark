@@ -345,8 +345,8 @@ func (s *Service) send(c *gin.Context) {
 	if !bind(c, &in) {
 		return
 	}
-	if (!meaningful(in.Content, 12000) && len(in.Attachments) == 0) || len(in.Content) > 12000 || strings.ContainsRune(in.Content, '\x00') || len(in.Attachments) > 10 {
-		fail(c, 422, "请输入最多12000字节的消息，每条最多10份附件")
+	if (!meaningful(in.Content, 12000) && len(in.Attachments) == 0) || len(in.Content) > 12000 || strings.ContainsRune(in.Content, '\x00') || len(in.Attachments) > 20 {
+		fail(c, 422, "请输入最多12000字节的消息，每条最多20份附件")
 		return
 	}
 	if _, e := uuid.Parse(in.RequestID); e != nil {
@@ -449,16 +449,40 @@ func (s *Service) send(c *gin.Context) {
 		}
 	}
 	meta := []map[string]any{}
+	curImageIDs := []string{}
 	for _, id := range in.Attachments {
 		a, ok := attByID[id]
 		if !ok || a.Kind != "upload" {
 			fail(c, 422, "附件无效、重复或不属于本会话")
 			return
 		}
-		meta = append(meta, map[string]any{"attachment_id": a.ID, "filename": a.Filename, "bytes": a.SizeBytes, "sha256": a.Sha256})
+		meta = append(meta, formatAttachmentMeta(a))
+		if isImageExt(strings.ToLower(filepath.Ext(a.StoragePath))) {
+			curImageIDs = append(curImageIDs, a.ID)
+		}
+	}
+	if len(curImageIDs) > maxConversationImages {
+		curImageIDs = curImageIDs[len(curImageIDs)-maxConversationImages:]
+	}
+	remainingImageBudget := maxConversationImages - len(curImageIDs)
+	historyImages := make([][]string, len(history))
+	for i := len(history) - 1; i >= 0 && remainingImageBudget > 0; i-- {
+		var imgs []string
+		for _, id := range history[i].AttachmentIds {
+			a, ok := attByID[id]
+			if !ok || !isImageExt(strings.ToLower(filepath.Ext(a.StoragePath))) {
+				continue
+			}
+			imgs = append(imgs, a.ID)
+		}
+		if len(imgs) > remainingImageBudget {
+			imgs = imgs[len(imgs)-remainingImageBudget:]
+		}
+		historyImages[i] = imgs
+		remainingImageBudget -= len(imgs)
 	}
 	messages := []rag.AgentMessage{{Role: "system", Content: systemPrompt("coordinator", identity.Current(c).Role, conv.CourseID, conv.ProfileID)}}
-	for _, m := range history {
+	for i, m := range history {
 		content := m.Content
 		priorAttachments := []map[string]any{}
 		for _, id := range m.AttachmentIds {
@@ -466,18 +490,18 @@ func (s *Service) send(c *gin.Context) {
 			if !ok {
 				continue
 			}
-			priorAttachments = append(priorAttachments, map[string]any{"attachment_id": a.ID, "filename": a.Filename, "bytes": a.SizeBytes, "sha256": a.Sha256})
+			priorAttachments = append(priorAttachments, formatAttachmentMeta(a))
 		}
 		if len(priorAttachments) > 0 {
 			content += "\n历史消息附件（服务端登记元数据）：" + string(raw(priorAttachments))
 		}
-		messages = append(messages, rag.AgentMessage{Role: m.Role, Content: content})
+		messages = append(messages, rag.AgentMessage{Role: m.Role, Content: content, ImageAttachmentIDs: historyImages[i]})
 	}
 	content := in.Content + contextNote + formatPageContext(in.PageContext)
 	if len(meta) > 0 {
 		content += "\n本次对话附件（服务端登记元数据）：" + string(raw(meta))
 	}
-	messages = append(messages, rag.AgentMessage{Role: "user", Content: content})
+	messages = append(messages, rag.AgentMessage{Role: "user", Content: content, ImageAttachmentIDs: curImageIDs})
 	rt := runtime{Mode: conv.Mode, Profile: conv.ProfileID, Tainted: conv.LearnerContext, Frames: []frame{{Domain: "coordinator", Messages: messages}}}
 	if in.Attachments == nil {
 		in.Attachments = []string{}
@@ -509,6 +533,59 @@ func (s *Service) send(c *gin.Context) {
 	}
 	data(c, gin.H{"run_id": run.ID, "state": run.State}, e)
 }
+const (
+	maxImageBytes         = 10 << 20
+	maxConversationImages = 6
+)
+
+func isImageExt(ext string) bool {
+	return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".webp"
+}
+
+func expectedImageMIME(ext string) string {
+	switch ext {
+	case ".png":
+		return "image/png"
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".webp":
+		return "image/webp"
+	default:
+		return ""
+	}
+}
+
+func detectImageMIME(head []byte) (string, bool) {
+	if len(head) >= 12 && string(head[:4]) == "RIFF" && string(head[8:12]) == "WEBP" {
+		return "image/webp", true
+	}
+	mime := http.DetectContentType(head)
+	if mime == "image/png" || mime == "image/jpeg" || mime == "image/webp" {
+		return mime, true
+	}
+	return "", false
+}
+
+func formatAttachmentMeta(a store.AgentAttachment) map[string]any {
+	ext := strings.ToLower(filepath.Ext(a.StoragePath))
+	mediaKind := "document"
+	if isImageExt(ext) {
+		mediaKind = "image"
+	}
+	item := map[string]any{
+		"attachment_id": a.ID,
+		"filename":      a.Filename,
+		"ext":           ext,
+		"media_kind":    mediaKind,
+		"bytes":         a.SizeBytes,
+		"sha256":        a.Sha256,
+	}
+	if isImageExt(ext) {
+		item["is_image"] = true
+	}
+	return item
+}
+
 func sanitizeFilename(name, fallbackExt string) string {
 	clean := filepath.Base(name)
 	clean = strings.Map(func(r rune) rune {
@@ -568,8 +645,12 @@ func (s *Service) upload(c *gin.Context) {
 		return
 	}
 	ext := strings.ToLower(filepath.Ext(f.Filename))
-	if !strings.Contains("|.pdf|.docx|.pptx|.txt|.md|.html|.htm|.csv|", "|"+ext+"|") || ext == "" {
-		fail(c, 422, "支持PDF、DOCX、PPTX、文本、HTML与CSV")
+	if ext == "" || (!strings.Contains("|.pdf|.docx|.pptx|.txt|.md|.html|.htm|.csv|", "|"+ext+"|") && !isImageExt(ext)) {
+		fail(c, 422, "支持PDF、DOCX、PPTX、文本、HTML、CSV及PNG/JPG/WEBP图片")
+		return
+	}
+	if isImageExt(ext) && f.Size > maxImageBytes {
+		fail(c, 422, "图片附件须不超过10MiB")
 		return
 	}
 	// Perform disk I/O and SHA256 hashing outside the FOR UPDATE transaction.
@@ -585,6 +666,26 @@ func (s *Service) upload(c *gin.Context) {
 		data(c, nil, e)
 		return
 	}
+	var head [512]byte
+	headLen, headErr := io.ReadFull(input, head[:])
+	if headErr != nil && headErr != io.EOF && headErr != io.ErrUnexpectedEOF {
+		_ = input.Close()
+		fail(c, 422, "文件读取失败")
+		return
+	}
+	if headLen == 0 {
+		_ = input.Close()
+		fail(c, 422, "请选择非空文件")
+		return
+	}
+	if isImageExt(ext) {
+		detected, ok := detectImageMIME(head[:headLen])
+		if !ok || detected != expectedImageMIME(ext) {
+			_ = input.Close()
+			fail(c, 422, "文件内容与图片格式不匹配，仅支持真实PNG/JPG/WEBP")
+			return
+		}
+	}
 	out, e := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if e != nil {
 		_ = input.Close()
@@ -598,12 +699,28 @@ func (s *Service) upload(c *gin.Context) {
 		}
 	}()
 	hash := sha256.New()
-	n, e := io.Copy(io.MultiWriter(out, hash), io.LimitReader(input, 30<<20+1))
+	if _, e = out.Write(head[:headLen]); e != nil {
+		_ = input.Close()
+		_ = out.Close()
+		fail(c, 422, "文件写入失败")
+		return
+	}
+	_, _ = hash.Write(head[:headLen])
+	limit := int64(30<<20) - int64(headLen) + 1
+	if isImageExt(ext) {
+		limit = maxImageBytes - int64(headLen) + 1
+	}
+	nBody, e := io.Copy(io.MultiWriter(out, hash), io.LimitReader(input, limit))
+	n := int64(headLen) + nBody
 	_ = input.Close()
 	if closeErr := out.Close(); e == nil {
 		e = closeErr
 	}
-	if n < 1 || n > 30<<20 || e != nil {
+	maxAllowed := int64(30 << 20)
+	if isImageExt(ext) {
+		maxAllowed = maxImageBytes
+	}
+	if n < 1 || n > maxAllowed || e != nil {
 		fail(c, 422, "文件读取失败或超出大小限制")
 		return
 	}
@@ -672,6 +789,15 @@ func (s *Service) download(c *gin.Context) {
 	fallback, utf8Name := sanitizeDownloadFilename(a.Filename)
 	c.Header("X-Content-Type-Options", "nosniff")
 	c.Header("Cache-Control", "no-store")
+	ext := strings.ToLower(filepath.Ext(a.StoragePath))
+	if c.Query("inline") == "1" && isImageExt(ext) {
+		if mime := expectedImageMIME(ext); mime != "" {
+			c.Header("Content-Type", mime)
+		}
+		c.Header("Content-Disposition", fmt.Sprintf(`inline; filename="%s"; filename*=UTF-8''%s`, fallback, url.PathEscape(utf8Name)))
+		c.File(fullPath)
+		return
+	}
 	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"; filename*=UTF-8''%s`, fallback, url.PathEscape(utf8Name)))
 	c.File(fullPath)
 }

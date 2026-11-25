@@ -136,7 +136,15 @@ export function LiveRoutes({ teacher }: { teacher: boolean }) {
             />
             <Route path="quiz/new" element={<AssignmentEditor quiz />} />
             <Route
+              path="quiz/:assignmentId/edit"
+              element={<AssignmentEditor quiz />}
+            />
+            <Route
               path="homework/:assignmentId/submissions"
+              element={<SubmissionList />}
+            />
+            <Route
+              path="quiz/:assignmentId/submissions"
               element={<SubmissionList />}
             />
             <Route
@@ -146,6 +154,7 @@ export function LiveRoutes({ teacher }: { teacher: boolean }) {
           </>
         )}
         <Route path="homework/:assignmentId" element={<AssignmentDetail />} />
+        <Route path="quiz/:assignmentId" element={<AssignmentDetail />} />
         <Route
           path="homework/submissions/:submissionId/feedback"
           element={<GradePage />}

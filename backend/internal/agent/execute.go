@@ -116,7 +116,7 @@ func (s *Service) execute(ctx context.Context, run store.AgentRun, conv store.Ag
 		if !meaningful(getString(args, "goal"), 12000) {
 			return complete("failed", map[string]any{"error": "任务目标为空或过长"})
 		}
-		rt.Frames = append(rt.Frames, frame{Domain: domain, Messages: []rag.AgentMessage{{Role: "system", Content: systemPrompt(domain, role, conv.CourseID, rt.Profile)}, {Role: "user", Content: delegatedInput(rt.Frames[0].Messages, getString(args, "goal"))}}})
+		rt.Frames = append(rt.Frames, frame{Domain: domain, Messages: []rag.AgentMessage{{Role: "system", Content: systemPrompt(domain, role, conv.CourseID, rt.Profile)}, delegatedUserMessage(rt.Frames[0].Messages, getString(args, "goal"))}})
 		return s.eventTx(ctx, run, "delegated", map[string]any{"domain": domain, "step_id": id})
 	}
 	if tool.Method == "PLAN" {
@@ -198,6 +198,8 @@ func (s *Service) execute(ctx context.Context, run store.AgentRun, conv store.Ag
 	switch tool.Method {
 	case "UPLOAD":
 		value, e = s.importAttachment(ctx, run, conv, args)
+	case "ATTACHMENT_READ":
+		value, e = s.readAttachment(ctx, run, conv, args)
 	case "EXPORT":
 		value, e = s.exportFeedback(ctx, run, conv)
 	default:
@@ -708,6 +710,9 @@ func (s *Service) importAttachment(ctx context.Context, run store.AgentRun, conv
 	if e != nil || a.Kind != "upload" {
 		return map[string]any{"error": "附件不存在或不属于本会话"}, nil
 	}
+	if isImageExt(strings.ToLower(filepath.Ext(a.StoragePath))) {
+		return map[string]any{"error": "图片附件已直接传递给对话模型识别，不能作为文档原件导入"}, nil
+	}
 	fullPath, e := safeAttachmentPath(a.StoragePath)
 	if e != nil {
 		return map[string]any{"error": "附件路径无效"}, nil
@@ -737,14 +742,28 @@ func (s *Service) importAttachment(ctx context.Context, run store.AgentRun, conv
 	if n > 30<<20 || hex.EncodeToString(hasher.Sum(nil)) != a.Sha256 {
 		return map[string]any{"error": "附件内容与上传记录不一致，未导入"}, nil
 	}
-	for _, key := range []string{"source_note", "allow_derived", "title", "supersedes_id"} {
-		if v, ok := args[key]; ok {
-			if key == "supersedes_id" && strings.TrimSpace(fmt.Sprint(v)) == "" {
-				continue
-			}
-			if e = w.WriteField(key, fmt.Sprint(v)); e != nil {
-				return nil, e
-			}
+	sourceNote := strings.TrimSpace(getString(args, "source_note"))
+	if sourceNote == "" {
+		sourceNote = "教师通过课程助理上传：" + a.Filename
+	}
+	allowDerived := "false"
+	if v, ok := args["allow_derived"].(bool); ok && v {
+		allowDerived = "true"
+	}
+	if e = w.WriteField("source_note", sourceNote); e != nil {
+		return nil, e
+	}
+	if e = w.WriteField("allow_derived", allowDerived); e != nil {
+		return nil, e
+	}
+	if title := strings.TrimSpace(getString(args, "title")); title != "" {
+		if e = w.WriteField("title", title); e != nil {
+			return nil, e
+		}
+	}
+	if supersedesID := strings.TrimSpace(getString(args, "supersedes_id")); supersedesID != "" {
+		if e = w.WriteField("supersedes_id", supersedesID); e != nil {
+			return nil, e
 		}
 	}
 	if e = w.Close(); e != nil {

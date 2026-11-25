@@ -13,6 +13,7 @@ import {
   Pagination,
   Select,
   Space,
+  Steps,
   Tabs,
   Typography,
 } from "antd";
@@ -557,58 +558,88 @@ export function QuestionBankPage() {
 
       <Feedback error={linked.error} />
 
-      {!creating && activeBank && (
-        <BankDetailView key={activeBank} bankID={activeBank} />
-      )}
-
-      <Card className="card-panel">
-        {query.error ? (
-          <ErrorState
-            message={query.error.message}
-            onRetry={() => void query.refetch()}
+      <div className={creating || activeBank ? "question-bank-grid" : ""}>
+        <Card className="card-panel question-bank-master">
+          {query.error ? (
+            <ErrorState
+              message={query.error.message}
+              onRetry={() => void query.refetch()}
+            />
+          ) : query.isPending && !query.data ? (
+            <LoadingState />
+          ) : !list.length ? (
+            <EmptyState title="暂无匹配题目">
+              新建题目，或选择资料与知识后由 AI 起草。
+            </EmptyState>
+          ) : (
+            list.map((q) => (
+              <article
+                className={`live-row question-bank-row${q.bank_id === activeBank ? " is-active" : ""}`}
+                key={q.bank_id}
+              >
+                <div>
+                  <Typography.Text strong className="item-title">
+                    {q.title}
+                  </Typography.Text>
+                  <MetaTags>
+                    <StatusTag
+                      status={q.archived ? "closed" : q.state}
+                      label={
+                        q.archived ? "已停用" : labelFor(stateLabels, q.state)
+                      }
+                    />
+                    <MetaTag>{labelFor(questionTypeLabels, q.type)}</MetaTag>
+                    <MetaTag>v{q.version}</MetaTag>
+                    <MetaTag>{q.max_score} 分</MetaTag>
+                  </MetaTags>
+                </div>
+                <Button
+                  htmlType="button"
+                  type={q.bank_id === activeBank ? "primary" : "default"}
+                  onClick={() => select(q.bank_id)}
+                >
+                  {q.bank_id === activeBank ? "查看中" : "管理题目"}
+                </Button>
+              </article>
+            ))
+          )}
+          <Pagination
+            responsive
+            hideOnSinglePage
+            showLessItems
+            current={page}
+            total={query.data?.total || 0}
+            pageSize={10}
+            showSizeChanger={false}
+            onChange={setPage}
           />
-        ) : query.isPending && !query.data ? (
-          <LoadingState />
-        ) : !list.length ? (
-          <EmptyState title="暂无匹配题目">
-            新建题目，或选择资料与知识后由 AI 起草。
-          </EmptyState>
-        ) : (
-          list.map((q) => (
-            <article className="live-row" key={q.bank_id}>
-              <div>
-                <Typography.Text strong className="item-title">
-                  {q.title}
-                </Typography.Text>
-                <MetaTags>
-                  <StatusTag
-                    status={q.archived ? "closed" : q.state}
-                    label={
-                      q.archived ? "已停用" : labelFor(stateLabels, q.state)
-                    }
-                  />
-                  <MetaTag>{labelFor(questionTypeLabels, q.type)}</MetaTag>
-                  <MetaTag>v{q.version}</MetaTag>
-                  <MetaTag>{q.max_score} 分</MetaTag>
-                </MetaTags>
-              </div>
-              <Button htmlType="button" onClick={() => select(q.bank_id)}>
-                管理题目
-              </Button>
-            </article>
-          ))
+        </Card>
+
+        {(creating || activeBank) && (
+          <div className="question-bank-detail">
+            {creating ? (
+              <Card className="card-panel">
+                <BankEditor
+                  onSaved={(newBankID) => select(newBankID)}
+                  onCancel={() => setCreating(false)}
+                />
+              </Card>
+            ) : (
+              <BankDetailView
+                key={activeBank}
+                bankID={activeBank}
+                onClose={() => {
+                  const next = new URLSearchParams(params);
+                  next.delete("bank");
+                  next.delete("version");
+                  next.delete("bank_version");
+                  setParams(next);
+                }}
+              />
+            )}
+          </div>
         )}
-        <Pagination
-          responsive
-          hideOnSinglePage
-          showLessItems
-          current={page}
-          total={query.data?.total || 0}
-          pageSize={10}
-          showSizeChanger={false}
-          onChange={setPage}
-        />
-      </Card>
+      </div>
     </div>
   );
 }
@@ -665,6 +696,7 @@ function PaperSource({
               key={selected}
               id={selected}
               fragments={source.data.fragments}
+              defaultExpanded
             />
           )}
       </div>
@@ -676,10 +708,12 @@ export function BankDetailView({
   bankID,
   embedded = false,
   initialVersionID,
+  onClose,
 }: {
   bankID: string;
   embedded?: boolean;
   initialVersionID?: string;
+  onClose?: () => void;
 }) {
   const confirm = useConfirm();
   const query = useLiveQuery<BankDetail>(`/question-bank/${bankID}`);
@@ -698,6 +732,19 @@ export function BankDetailView({
       setLocalVersion(initialVersionID);
     }
   }, [embedded, initialVersionID]);
+
+  const requestedVersionPreview = embedded
+    ? localVersion
+    : params.get("version") || params.get("bank_version") || "";
+  const activeVersionPreview =
+    query.data?.versions.find((item) => item.id === requestedVersionPreview) ||
+    query.data?.versions[0];
+  const rubricsPreview = useLiveQuery<RubricVersion[]>(
+    activeVersionPreview
+      ? `/question-bank/versions/${activeVersionPreview.id}/rubrics`
+      : "",
+    !!activeVersionPreview && activeVersionPreview.type !== "quiz",
+  );
 
   if (query.error) {
     return (
@@ -727,6 +774,41 @@ export function BankDetailView({
     }
   }
 
+  const questionAndRefConfirmed =
+    v.state === "confirmed" &&
+    (!v.reference_answer || v.reference_state === "confirmed");
+  const hasConfirmedRubric =
+    v.type === "quiz" ||
+    (rubricsPreview.data || []).some((r) => r.state === "confirmed");
+  const readinessStep = !questionAndRefConfirmed
+    ? 0
+    : !hasConfirmedRubric
+      ? 1
+      : 2;
+
+  async function confirmQuestionAndReference() {
+    action.setMessage("");
+    if (v.state === "draft") {
+      const ok = await action.run(
+        `/question-bank/versions/${v.id}/confirm`,
+        undefined,
+        "POST",
+        v.reference_answer && v.reference_state === "draft"
+          ? undefined
+          : "题目版本已确认",
+      );
+      if (!ok) return;
+    }
+    if (v.reference_answer && v.reference_state === "draft") {
+      await action.run(
+        `/question-bank/versions/${v.id}/reference/confirm`,
+        undefined,
+        "POST",
+        "题目与参考解答已确认",
+      );
+    }
+  }
+
   return (
     <Card className="card-panel">
       <div className="section-head">
@@ -736,6 +818,11 @@ export function BankDetailView({
         <ContextAgent context={{ kind: "question", id: v.id, title: v.title }} />
         <Form layout="vertical" component={false}>
           <div className="live-inline">
+            {!embedded && onClose && (
+              <Button htmlType="button" onClick={onClose}>
+                关闭详情
+              </Button>
+            )}
             <Field className="ui-field" label={<>题目版本</>}>
               <Select
                 aria-label="题目版本"
@@ -806,6 +893,19 @@ export function BankDetailView({
       </div>
 
       <Feedback message={action.message} failed={action.failed} />
+      <Steps
+        size="small"
+        current={readinessStep}
+        style={{ marginBottom: 12 }}
+        items={[
+          { title: "确认题目与解答" },
+          {
+            title:
+              v.type === "quiz" ? "客观测验规则就绪" : "确认评分标准",
+          },
+          { title: "可用于组卷" },
+        ]}
+      />
       <ContentLinks kind="question" id={v.id} />
       <DecisionHistory id={v.id} />
       <BankProvenance id={v.id} />
@@ -869,21 +969,22 @@ export function BankDetailView({
                       status={v.state}
                       label={`题目${labelFor(stateLabels, v.state)}`}
                     />
-                    {v.state === "draft" && (
+                    {v.reference_answer && (
+                      <StatusTag
+                        status={v.reference_state}
+                        label={`解答${labelFor(stateLabels, v.reference_state)}`}
+                      />
+                    )}
+                    {!questionAndRefConfirmed && (
                       <Button
                         htmlType="button"
                         disabled={action.busy || entry.archived}
-                        onClick={() =>
-                          void action.run(
-                            `/question-bank/versions/${v.id}/confirm`,
-                            undefined,
-                            "POST",
-                            "题目版本已确认",
-                          )
-                        }
+                        onClick={() => void confirmQuestionAndReference()}
                         type="primary"
                       >
-                        确认题目
+                        {v.reference_answer
+                          ? "确认题目与参考解答"
+                          : "确认题目"}
                       </Button>
                     )}
                   </div>
@@ -893,28 +994,6 @@ export function BankDetailView({
                         参考解答
                       </Typography.Text>
                       <RichContent text={v.reference_answer} />
-                      <div className="live-inline">
-                        <StatusTag
-                          status={v.reference_state}
-                          label={`解答${labelFor(stateLabels, v.reference_state)}`}
-                        />
-                        {v.reference_state === "draft" && (
-                          <Button
-                            htmlType="button"
-                            disabled={action.busy || entry.archived}
-                            onClick={() =>
-                              void action.run(
-                                `/question-bank/versions/${v.id}/reference/confirm`,
-                                undefined,
-                                "POST",
-                                "参考解答已确认",
-                              )
-                            }
-                          >
-                            确认参考解答
-                          </Button>
-                        )}
-                      </div>
                     </>
                   )}
                 </div>
@@ -945,6 +1024,8 @@ export function BankDetailView({
                     key={v.id}
                     version={v}
                     archived={entry.archived}
+                    onConfirmVersion={confirmQuestionAndReference}
+                    confirmBusy={action.busy}
                   />
                 ),
             },
@@ -992,9 +1073,11 @@ export function BankDetailView({
 export function EvidencePicker({
   value,
   onChange,
+  defaultQuery,
 }: {
   value: Hit[];
   onChange: (hits: Hit[]) => void;
+  defaultQuery?: string;
 }) {
   const [params] = useSearchParams();
   const sources =
@@ -1009,7 +1092,9 @@ export function EvidencePicker({
         ? `k:${params.get("knowledge_id")}`
         : "",
   );
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() =>
+    value.length ? "" : (defaultQuery || "").trim().slice(0, 30),
+  );
   const [hits, setHits] = useState<Hit[]>([]);
   const action = useAction();
 
@@ -1932,7 +2017,7 @@ function BankAnalysis({
   );
   return (
     <div className="live-stack" style={{ gap: 12 }}>
-      <EvidencePicker value={refs} onChange={setRefs} />
+      <EvidencePicker value={refs} onChange={setRefs} defaultQuery={v.title} />
       <AIDraft
         kind="question_analyze"
         target={{ question_id: v.id, evidence_ids: refs.map((h) => h.id) }}
@@ -1978,6 +2063,7 @@ interface BankStandardSeed {
 function BankStandardDraftEditor({
   version: v,
   archived,
+  canConfirmRubric,
   seed,
   onDirtyChange,
   onSaved,
@@ -1985,6 +2071,7 @@ function BankStandardDraftEditor({
 }: {
   version: BankVersion;
   archived: boolean;
+  canConfirmRubric: boolean;
   seed: BankStandardSeed | null;
   onDirtyChange: (dirty: boolean) => void;
   onSaved: () => void;
@@ -2026,6 +2113,51 @@ function BankStandardDraftEditor({
   const { criteria, refs } = draft.value;
   const total = criteria.reduce((s, p) => s + (Number(p.max_score) || 0), 0);
 
+  async function saveRubric(confirmAfter: boolean) {
+    const err = validateBankCriteria(criteria, v.max_score, refs);
+    if (err) {
+      setValidationError(err);
+      return;
+    }
+    setValidationError("");
+    action.setMessage("");
+    const snapshot = draft.value;
+    const cleaned = pruneCriteriaEvidence(criteria, refs).criteria.map(
+      (c) => ({
+        ...c,
+        id: c.id.trim(),
+        title: c.title.trim(),
+        rule: c.rule.trim(),
+      }),
+    );
+    const saved = await action.run<RubricVersion>(
+      `/question-bank/versions/${v.id}/rubrics`,
+      {
+        criteria: cleaned,
+        evidence_ids: refs.map((h) => h.id),
+        ai_job_id: draft.value.ai_job_id,
+      },
+      "POST",
+      confirmAfter && canConfirmRubric ? undefined : "评分标准草稿已保存",
+    );
+    if (!saved) return;
+    if (confirmAfter && canConfirmRubric && saved.id) {
+      const confirmed = await action.run(
+        `/rubrics/${saved.id}/confirm`,
+        undefined,
+        "POST",
+        "评分标准已保存并确认",
+      );
+      if (!confirmed) {
+        draft.saved(snapshot);
+        return;
+      }
+    }
+    if (draft.saved(snapshot)) {
+      onSaved();
+    }
+  }
+
   return (
     <div className="live-form">
       <DraftNotice
@@ -2035,10 +2167,12 @@ function BankStandardDraftEditor({
           draft.reset(initialDraft);
           setValidationError("");
           setPruneNotice("");
+          action.setMessage("");
         }}
       />
       <EvidencePicker
         value={refs}
+        defaultQuery={v.title}
         onChange={(nextRefs) => {
           setValidationError("");
           draft.change((prev) => {
@@ -2058,6 +2192,8 @@ function BankStandardDraftEditor({
       {pruneNotice && <Alert type="info" showIcon message={pruneNotice} />}
       <AIDraft
         kind="bank_rubric"
+        autoAdopt={!draft.dirty}
+        disabled={!canConfirmRubric}
         target={{ question_id: v.id, evidence_ids: refs.map((h) => h.id) }}
         onAdopt={async (output, id) => {
           if (draft.dirty && !(await confirm("载入 AI 标准并替换当前编辑？"))) {
@@ -2083,36 +2219,7 @@ function BankStandardDraftEditor({
       />
       <Form
         className="live-form"
-        onFinish={async () => {
-          const err = validateBankCriteria(criteria, v.max_score, refs);
-          if (err) {
-            setValidationError(err);
-            return;
-          }
-          setValidationError("");
-          const snapshot = draft.value;
-          const cleaned = pruneCriteriaEvidence(criteria, refs).criteria.map(
-            (c) => ({
-              ...c,
-              id: c.id.trim(),
-              title: c.title.trim(),
-              rule: c.rule.trim(),
-            }),
-          );
-          const saved = await action.run(
-            `/question-bank/versions/${v.id}/rubrics`,
-            {
-              criteria: cleaned,
-              evidence_ids: refs.map((h) => h.id),
-              ai_job_id: draft.value.ai_job_id,
-            },
-            "POST",
-            "评分标准草稿已保存",
-          );
-          if (saved && draft.saved(snapshot)) {
-            onSaved();
-          }
-        }}
+        onFinish={() => void saveRubric(canConfirmRubric)}
         layout="vertical"
       >
         <BankCriteriaEditor
@@ -2130,6 +2237,20 @@ function BankStandardDraftEditor({
         )}
         <Feedback message={action.message} failed={action.failed} />
         <Space wrap>
+          {canConfirmRubric && (
+            <Button
+              disabled={
+                action.busy ||
+                archived ||
+                !criteria.length ||
+                total !== v.max_score
+              }
+              htmlType="submit"
+              type="primary"
+            >
+              保存并确认标准
+            </Button>
+          )}
           <Button
             disabled={
               action.busy ||
@@ -2137,10 +2258,13 @@ function BankStandardDraftEditor({
               !criteria.length ||
               total !== v.max_score
             }
-            htmlType="submit"
-            type="primary"
+            htmlType={canConfirmRubric ? "button" : "submit"}
+            type={canConfirmRubric ? "default" : "primary"}
+            onClick={
+              canConfirmRubric ? () => void saveRubric(false) : undefined
+            }
           >
-            保存标准草稿
+            {canConfirmRubric ? "仅保存草稿" : "保存标准草稿"}
           </Button>
           <Button
             htmlType="button"
@@ -2165,9 +2289,13 @@ function BankStandardDraftEditor({
 function BankStandards({
   version: v,
   archived,
+  onConfirmVersion,
+  confirmBusy = false,
 }: {
   version: BankVersion;
   archived: boolean;
+  onConfirmVersion?: () => Promise<void>;
+  confirmBusy?: boolean;
 }) {
   const confirm = useConfirm();
   const query = useLiveQuery<RubricVersion[]>(
@@ -2194,12 +2322,25 @@ function BankStandards({
         <Alert
           type="info"
           showIcon
-          message="需先确认题目版本与参考解答后，方可确认该版本下的评分标准。"
+          message="需先确认题目版本与参考解答后，方可起草和确认评分标准。"
+          action={
+            onConfirmVersion && (
+              <Button
+                size="small"
+                type="primary"
+                htmlType="button"
+                disabled={confirmBusy || action.busy}
+                onClick={() => void onConfirmVersion()}
+              >
+                一键确认题目与解答
+              </Button>
+            )
+          }
         />
       )}
       <Button
         htmlType="button"
-        disabled={archived}
+        disabled={archived || !canConfirmRubric}
         style={{ justifySelf: "start" }}
         onClick={async () => {
           if (
@@ -2219,6 +2360,7 @@ function BankStandards({
         <BankStandardDraftEditor
           version={v}
           archived={archived}
+          canConfirmRubric={canConfirmRubric}
           seed={seed}
           onDirtyChange={setEditorDirty}
           onSaved={() => {
@@ -2380,16 +2522,18 @@ export function BankQuestionPicker({
         >
           <Select
             aria-label="题目"
-            value={bank}
+            allowClear
+            placeholder="选择题目"
+            style={{ width: "100%" }}
+            value={bank || undefined}
             onChange={(e) => {
-              setBank(e);
+              setBank(e || "");
               setVersion("");
               setRubric("");
             }}
             showSearch
             optionFilterProp="children"
           >
-            <Select.Option value="">选择题目</Select.Option>
             {compatibleBankItems.map((item) => (
               <Select.Option key={item.bank_id} value={item.bank_id}>
                 {item.title}
@@ -2408,15 +2552,17 @@ export function BankQuestionPicker({
           <Field className="ui-field" label={<>确认版本</>}>
             <Select
               aria-label="确认版本"
-              value={current?.id || ""}
+              allowClear
+              placeholder="选择版本"
+              style={{ width: "100%" }}
+              value={current?.id || undefined}
               onChange={(e) => {
-                setVersion(e);
+                setVersion(e || "");
                 setRubric("");
               }}
               showSearch
               optionFilterProp="children"
             >
-              <Select.Option value="">请选择</Select.Option>
               {versions.map((ver) => (
                 <Select.Option key={ver.id} value={ver.id}>
                   v{ver.version} · {ver.max_score}分
@@ -2432,12 +2578,14 @@ export function BankQuestionPicker({
               <Field className="ui-field" label={<>确认标准</>}>
                 <Select
                   aria-label="确认标准"
-                  value={selected?.id || ""}
-                  onChange={(e) => setRubric(e)}
+                  allowClear
+                  placeholder="选择标准"
+                  style={{ width: "100%" }}
+                  value={selected?.id || undefined}
+                  onChange={(e) => setRubric(e || "")}
                   showSearch
                   optionFilterProp="children"
                 >
-                  <Select.Option value="">请选择</Select.Option>
                   {confirmed.map((r) => (
                     <Select.Option key={r.id} value={r.id}>
                       标准 v{r.version}

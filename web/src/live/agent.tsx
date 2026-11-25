@@ -756,13 +756,21 @@ function ResultCards({ steps }: { steps: Step[] }) {
         const kindLabel = labelFor(jobKindLabels, jobKind, "");
         title = kindLabel ? `后台任务 · ${kindLabel}` : "后台处理任务";
       } else if (
-        /^resource_(create|revision|publish)$|^source_publish$/.test(step.tool)
+        /^resource_(create|revision|publish)$|^source_(publish|sections_publish)$/.test(
+          step.tool,
+        )
       ) {
         path =
           role === "teacher"
             ? `/teacher/materials?tab=published&resource=${id}`
             : `/student/course-content?resource=${id}`;
         title = "学习资料";
+      } else if (
+        /^source_section(s_adopt|s_state|_update)$/.test(step.tool) &&
+        typeof row.source_id === "string"
+      ) {
+        path = `/teacher/materials?source_view=publication&source=${encodeURIComponent(String(row.source_id))}`;
+        title = "智能分段方案";
       } else if (/^knowledge_(create|update|state|decide)$/.test(step.tool)) {
         path = `/${role}/knowledge?knowledge=${id}`;
         title = "知识条目";
@@ -791,7 +799,7 @@ function ResultCards({ steps }: { steps: Step[] }) {
       } else if (/^assignment_(create|update|state)$/.test(step.tool)) {
         path = `/${role}/homework/${id}`;
         title = "作业";
-      } else if (/^intervention_(create|state)$/.test(step.tool)) {
+      } else if (/^intervention_(create|state|submit)$/.test(step.tool)) {
         path = `/${role}/intervention?task=${id}`;
         title = "补学补练任务";
       } else if (/^regrade_(create|state)$/.test(step.tool)) {

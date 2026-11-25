@@ -79,6 +79,21 @@ func TestPoliciesAndSchemas(t *testing.T) {
 		{"source_import", "coordinator", "teacher", false, false}, {"delegate", "coordinator", "teacher", false, true}, {"path_plan", "learning", "teacher", false, false},
 		{"question_editor", "questions", "teacher", true, false}, {"knowledge_editor", "materials", "student", false, false}, {"answer_submit", "assessment", "teacher", false, false},
 		{"paper_editor", "materials", "teacher", true, false}, {"paper_split", "materials", "teacher", true, false},
+		{"source_segment", "materials", "teacher", false, true}, {"source_segment", "materials", "student", false, false},
+		{"source_sections_read", "materials", "teacher", false, true}, {"source_sections_read", "materials", "student", false, false},
+		{"source_sections_adopt", "materials", "teacher", false, true}, {"source_sections_adopt", "materials", "student", false, false},
+		{"source_section_update", "materials", "teacher", false, true}, {"source_section_update", "materials", "student", false, false},
+		{"source_sections_state", "materials", "teacher", false, true}, {"source_sections_state", "materials", "student", false, false},
+		{"source_sections_publish", "materials", "teacher", false, true}, {"source_sections_publish", "materials", "student", false, false},
+		{"paper_adopt", "materials", "teacher", false, true}, {"paper_adopt", "materials", "teacher", true, false}, {"paper_adopt", "materials", "student", false, false},
+		{"resource_progress", "learning", "student", false, true}, {"resource_progress", "learning", "teacher", false, false},
+		{"intervention_submit", "learning", "student", false, true}, {"intervention_submit", "learning", "teacher", false, false},
+		{"intervention_state", "learning", "student", false, false},
+		{"diagnosis_save", "learning", "teacher", false, true}, {"diagnosis_save", "learning", "student", false, false},
+		{"diagnosis_confirm", "learning", "teacher", false, true}, {"diagnosis_confirm", "learning", "student", false, false},
+		{"members_list", "materials", "teacher", false, true}, {"members_list", "learning", "teacher", false, true}, {"members_list", "questions", "teacher", false, false}, {"members_list", "materials", "student", false, false},
+		{"member_enroll", "materials", "teacher", false, true}, {"member_enroll", "materials", "student", false, false},
+		{"course_state", "materials", "teacher", false, true}, {"course_state", "materials", "student", false, false},
 	} {
 		if got := allowed(find(tc.name), tc.domain, tc.role, tc.tainted); got != tc.want {
 			t.Errorf("%+v got %v", tc, got)
@@ -98,7 +113,7 @@ func TestPoliciesAndSchemas(t *testing.T) {
 			if !strings.Contains(tmpl, "{") {
 				continue
 			}
-			if _, e := toolPath(tmpl, map[string]any{"id": "id1", "submission_id": "sub1", "question_id": "q1"}); e != nil {
+			if _, e := toolPath(tmpl, map[string]any{"id": "id1", "submission_id": "sub1", "question_id": "q1", "section_id": "sec1"}); e != nil {
 				t.Fatalf("tool %s template %q failed placeholder check: %v", spec.Name, tmpl, e)
 			}
 		}
@@ -173,6 +188,63 @@ func TestPoliciesAndSchemas(t *testing.T) {
 	in = delegatedInput([]rag.AgentMessage{{Role: "user", Content: "先询问资料名称再导入"}, ask, {Role: "tool", ToolCallID: ask.ToolCalls[0].ID, Content: `{"title":"已回答的资料名称"}`}, {Role: "tool", ToolCallID: "other", Content: "其他专家私有内容"}}, "导入资料")
 	if !strings.Contains(in, `{"title":"已回答的资料名称"}`) || strings.Contains(in, "私有内容") {
 		t.Fatal("delegation lost a validated user answer or copied unrelated tool data", in)
+	}
+	for _, name := range []string{"source_sections_publish", "paper_adopt", "intervention_submit", "diagnosis_confirm", "course_state"} {
+		if find(name).Risk != "human" {
+			t.Fatalf("tool %s must have risk=human, got %q", name, find(name).Risk)
+		}
+	}
+	if d, ok := jobDomain("source_segment"); !ok || d != "materials" {
+		t.Fatalf("jobDomain(source_segment) = (%q, %v), want (materials, true)", d, ok)
+	}
+	if p, e := toolPath("/sources/{id}/sections/{section_id}", map[string]any{"id": "src1", "section_id": "sec1"}); e != nil || p != "/sources/src1/sections/sec1" {
+		t.Fatalf("section_id placeholder broken: path=%q err=%v", p, e)
+	}
+	if _, e := toolPath("/sources/{id}/sections/{section_id}", map[string]any{"id": "src1", "section_id": "../bad"}); e == nil {
+		t.Fatal("section_id traversal allowed")
+	}
+	if e := validate(find("source_section_update").Schema, map[string]any{
+		"id": "src1", "section_id": "sec1", "title": "段1", "relation": "sequence", "time_start_ms": float64(1000), "time_end_ms": float64(120000), "edit_version": float64(1),
+	}); e != nil {
+		t.Fatalf("source_section_update valid payload rejected: %v", e)
+	}
+	if validate(find("source_section_update").Schema, map[string]any{
+		"id": "src1", "section_id": "sec1", "title": "段1", "relation": "other", "edit_version": float64(1),
+	}) == nil {
+		t.Fatal("source_section_update invalid relation accepted")
+	}
+	if e := validate(find("paper_adopt").Schema, map[string]any{
+		"id": "src1", "job_id": "job1", "review_status": "pending_teacher_review",
+		"questions": []any{map[string]any{
+			"title": "Q1", "prompt": "P1", "type": "subjective", "max_score": float64(10),
+			"answer_origin": "extracted", "source_fragment_ids": []any{"f1"},
+		}},
+	}); e != nil {
+		t.Fatalf("paper_adopt valid payload rejected: %v", e)
+	}
+	if validate(find("paper_adopt").Schema, map[string]any{
+		"id": "src1", "job_id": "job1", "review_status": "pending_teacher_review",
+		"questions": []any{map[string]any{
+			"title": "Q1", "prompt": "P1", "type": "subjective", "max_score": float64(10),
+			"answer_origin": "invalid", "source_fragment_ids": []any{"f1"},
+		}},
+	}) == nil {
+		t.Fatal("paper_adopt invalid answer_origin accepted")
+	}
+	if e := validate(find("resource_progress").Schema, map[string]any{"id": "res1", "verb": "completed"}); e != nil {
+		t.Fatalf("resource_progress valid payload rejected: %v", e)
+	}
+	if e := validate(find("intervention_submit").Schema, map[string]any{"id": "int1", "content": "已完成复习并重交满分"}); e != nil {
+		t.Fatalf("intervention_submit valid payload rejected: %v", e)
+	}
+	if e := validate(find("diagnosis_confirm").Schema, map[string]any{
+		"id": "rep1", "edit_version": float64(1),
+		"output": map[string]any{"findings": []any{map[string]any{
+			"label_id": "lbl1", "title": "概念混淆", "explanation": "混淆平均耗时与P95",
+			"evidence": []any{map[string]any{"submission_id": "sub1", "quote": "P95 就是请求平均耗时"}},
+		}}},
+	}); e != nil {
+		t.Fatalf("diagnosis_confirm valid payload rejected: %v", e)
 	}
 }
 

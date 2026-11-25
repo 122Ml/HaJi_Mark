@@ -131,6 +131,9 @@ func (s *Service) execute(ctx context.Context, run store.AgentRun, conv store.Ag
 			risk = "human"
 		}
 	}
+	if tool.Name == "source_import" && strings.TrimSpace(getString(args, "supersedes_id")) != "" && risk != "human" {
+		risk = "approval"
+	}
 	if tool.Method == "INPUT" || tool.Method == "EDITOR" || risk == "human" || risk == "approval" && rt.Mode != "full-access" {
 		proceed, result, e := s.request(ctx, run, conv, rt, tool, step, args)
 		if e != nil {
@@ -280,8 +283,11 @@ func (s *Service) invoke(ctx context.Context, run store.AgentRun, conv store.Age
 			delete(body, "attachment_id")
 		}
 	}
-	if t.Name == "grade_save" || t.Name == "submission_import_confirm" || t.Name == "answer_submit" || t.Name == "intelligence_create" || t.Name == "course_answer" {
+	if t.Name == "grade_save" || t.Name == "submission_import_confirm" || t.Name == "answer_submit" || t.Name == "intelligence_create" || t.Name == "course_answer" || t.Name == "resource_progress" {
 		body["request_id"] = requestID
+	}
+	if t.Name == "intervention_submit" {
+		body["state"] = "submitted"
 	}
 	if method == "JOB" {
 		method = "POST"
@@ -544,7 +550,7 @@ func validFields(args map[string]any) error {
 }
 func jobDomain(kind string) (string, bool) {
 	switch kind {
-	case "parse", "index", "extract", "source_suggest", "knowledge_compare", "paper_split", "vision":
+	case "parse", "index", "extract", "source_suggest", "source_segment", "knowledge_compare", "paper_split", "vision":
 		return "materials", true
 	case "question_generate", "question_analyze", "bank_rubric", "rubric":
 		return "questions", true
@@ -731,8 +737,11 @@ func (s *Service) importAttachment(ctx context.Context, run store.AgentRun, conv
 	if n > 30<<20 || hex.EncodeToString(hasher.Sum(nil)) != a.Sha256 {
 		return map[string]any{"error": "附件内容与上传记录不一致，未导入"}, nil
 	}
-	for _, key := range []string{"source_note", "allow_derived", "title"} {
+	for _, key := range []string{"source_note", "allow_derived", "title", "supersedes_id"} {
 		if v, ok := args[key]; ok {
+			if key == "supersedes_id" && strings.TrimSpace(fmt.Sprint(v)) == "" {
+				continue
+			}
 			if e = w.WriteField(key, fmt.Sprint(v)); e != nil {
 				return nil, e
 			}

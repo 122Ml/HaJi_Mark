@@ -31,6 +31,9 @@ func str(desc string) Schema {
 func integer(desc string) Schema {
 	return Schema{"type": "integer", "description": desc, "minimum": 0, "maximum": 10000}
 }
+func integerMax(desc string, max int) Schema {
+	return Schema{"type": "integer", "description": desc, "minimum": 0, "maximum": max}
+}
 func boolean(desc string) Schema   { return Schema{"type": "boolean", "description": desc} }
 func array(item Schema) Schema     { return Schema{"type": "array", "items": item, "maxItems": 50} }
 func enum(values ...string) Schema { return Schema{"type": "string", "enum": values} }
@@ -103,7 +106,18 @@ func buildCatalog() []Tool {
 	add("course_answer", "根据可见资料回答并校验引用", "learning", "read", "POST", "/assist", "", true, false, object(props("topic", str("问题"), "profile_id", str("可选生成profile")), "topic"))
 	read("answer_history", "查看本人检索问答历史", "learning", "/assist/history", true, true, object(props("page", integer("页码，从1开始"), "size", integer("每页1到100条"))))
 	read("answer_history_read", "查看本人历史回答与引用快照", "learning", "/assist/history/{id}", true, true, withID)
-	add("source_import", "将对话附件导入为原件并解析", "materials", "create", "UPLOAD", "/sources", "", false, false, object(props("attachment_id", id, "source_note", str("教师确认的来源说明，不能编造"), "allow_derived", boolean("是否明确允许知识提炼，未授权取false"), "title", str("可选标题")), "attachment_id", "source_note", "allow_derived"))
+	add("source_import", "将对话附件导入为原件并解析（可传supersedes_id上传已有原件的新版本）", "materials", "create", "UPLOAD", "/sources", "", false, false, object(props("attachment_id", id, "source_note", str("教师确认的来源说明，不能编造"), "allow_derived", boolean("是否明确允许知识提炼，未授权取false"), "title", str("可选标题"), "supersedes_id", str("可选；被替换的已有原件ID，传入后上传为该原件的新版本")), "attachment_id", "source_note", "allow_derived"))
+	read("source_sections_read", "查看原件当前版本的智能分段方案", "materials", "/sources/{id}/sections", false, false, withID)
+	add("source_sections_adopt", "采纳AI智能分段结果为待确认方案", "materials", "approval", "POST", "/sources/{id}/sections/adopt", "/sources/{id}/sections", false, false, object(props("id", id, "job_id", id), "id", "job_id"))
+	add("source_section_update", "编辑单个待确认切分段", "materials", "approval", "PUT", "/sources/{id}/sections/{section_id}", "/sources/{id}/sections", false, false, object(props("id", id, "section_id", id, "title", str("切分段标题"), "relation", enum("point", "sequence"), "knowledge_point_id", id, "time_start_ms", integerMax("视频起始毫秒", 2147483647), "time_end_ms", integerMax("视频结束毫秒", 2147483647), "reason", str("切分依据"), "edit_version", integer("当前编辑版本")), "id", "section_id", "title", "relation", "edit_version"))
+	add("source_sections_state", "接受、驳回或退回整套智能分段方案", "materials", "approval", "POST", "/sources/{id}/sections/state", "/sources/{id}/sections", false, false, object(props("id", id, "state", enum("accepted", "rejected", "proposed")), "id", "state"))
+	add("source_sections_publish", "教师按已接受切分方案批量发布学习资料", "materials", "human", "POST", "/sources/{id}/sections/publish", "/sources/{id}/sections", false, false, withID)
+	paperQuestion := object(props("title", str("题目标题"), "prompt", str("题干"), "type", enum("subjective", "quiz", "code"), "max_score", integer("满分"), "options", array(str("单选题选项")), "correct_answer", str("客观题正确选项"), "reference_answer", str("参考解答"), "answer_origin", enum("missing", "extracted", "teacher"), "source_fragment_ids", ids, "asset_ids", ids, "uncertain", array(str("待核对项"))), "title", "prompt", "type", "max_score", "answer_origin", "source_fragment_ids")
+	paperExcluded := object(props("fragment_id", id, "reason", str("排除原因")), "fragment_id", "reason")
+	add("paper_adopt", "教师核对并采纳整卷拆题结果入库", "materials", "human", "POST", "/sources/{id}/paper/adopt", "/sources/{id}", false, false, object(props("id", id, "job_id", id, "questions", array(paperQuestion), "excluded", array(paperExcluded), "review_status", enum("pending_teacher_review")), "id", "job_id", "questions", "review_status"))
+	read("members_list", "列出当前课程已加入学生名单", "materials", "/members", false, false, empty)
+	add("member_enroll", "按学生用户名加入当前课程", "materials", "approval", "POST", "/members", "/members", false, false, object(props("username", str("已存在的学生用户名")), "username"))
+	add("course_state", "教师发布、归档或切换当前课程状态", "materials", "human", "POST", "/state", "", false, false, object(props("state", enum("draft", "published", "archived")), "state"))
 	add("source_url_import", "导入公开单页或直链文档", "materials", "approval", "POST", "/sources/url", "", false, false, object(props("url", str("教师指定的公开HTTP网址"), "source_note", str("来源说明"), "allow_derived", boolean("提炼许可"), "title", str("标题")), "url", "source_note", "allow_derived"))
 	add("resource_create", "创建私有学习资料草稿", "materials", "create", "POST", "/resources", "", false, false, object(props("title", str("资料标题"), "content", str("完整正文"), "source_note", str("来源"), "source_url", str("来源链接"), "locator", str("原件页码或段落定位"), "knowledge_point_id", id), "title", "content", "locator", "source_note"))
 	add("resource_revision", "新建学习资料修订", "materials", "approval", "POST", "/resources/{id}/revisions", "/resources", false, false, object(props("id", id, "title", str("标题"), "content", str("正文"), "source_note", str("来源"), "source_url", str("链接"), "locator", str("定位"), "knowledge_point_id", id), "id", "title", "content", "source_note", "locator"))
@@ -146,7 +160,7 @@ func buildCatalog() []Tool {
 	add("question_analyze", "分析题目要求歧义与依据", "questions", "create", "JOB", "question_analyze", "", false, false, object(props("question_id", id, "evidence_ids", ids, "profile_id", str("生成profile")), "question_id", "evidence_ids"))
 	add("rubric_generate", "独立起草题库评分标准", "questions", "create", "JOB", "bank_rubric", "", false, false, object(props("question_id", id, "evidence_ids", ids, "profile_id", str("生成profile")), "question_id", "evidence_ids"))
 	for _, j := range []struct{ name, label, kind string }{
-		{"source_parse", "解析原件", "parse"}, {"source_suggest", "生成目录分类关联建议", "source_suggest"}, {"knowledge_extract", "提炼所选原文片段", "extract"}, {"knowledge_compare", "比较重复冲突知识", "knowledge_compare"}, {"image_recognize", "识别所选公式图表", "vision"}, {"paper_split", "拆分题卷候选", "paper_split"}, {"index_build", "重建检索索引", "index"},
+		{"source_parse", "解析原件", "parse"}, {"source_suggest", "生成目录分类关联建议", "source_suggest"}, {"source_segment", "发起AI智能分段建议", "source_segment"}, {"knowledge_extract", "提炼所选原文片段", "extract"}, {"knowledge_compare", "比较重复冲突知识", "knowledge_compare"}, {"image_recognize", "识别所选公式图表", "vision"}, {"paper_split", "拆分题卷候选", "paper_split"}, {"index_build", "重建检索索引", "index"},
 	} {
 		add(j.name, j.label, "materials", "create", "JOB", j.kind, "", false, false, object(props("source_id", id, "fragment_ids", ids, "knowledge_id", id, "related_ids", ids, "asset_id", id, "profile_id", str("按任务选择chat/vision/embedding profile"))))
 	}
@@ -206,8 +220,14 @@ func buildCatalog() []Tool {
 	read("intelligence_read", "查看本人分析报告和证据", "learning", "/intelligence/{id}", true, true, withID)
 	add("intelligence_create", "生成诊断或规则候选推荐草稿", "learning", "create", "POST", "/intelligence", "", true, true, object(props("kind", enum("diagnosis", "recommendation"), "question_id", id, "rubric_id", id, "profile_id", str("生成模型profile")), "kind"))
 	read("diagnosis_labels", "查看问题标签", "learning", "/diagnosis-labels", false, true, empty)
+	diagnosisFinding := object(props("label_id", id, "title", str("问题标题"), "explanation", str("分析说明"), "evidence", array(object(props("submission_id", id, "quote", str("学生作答逐字引文")), "submission_id", "quote"))), "label_id", "title", "explanation", "evidence")
+	diagnosisOutput := object(props("findings", array(diagnosisFinding), "unclassified", ids, "ranking", array(object(props("id", id, "reason", str("排序理由")), "id", "reason"))), "findings")
+	add("diagnosis_save", "保存共性问题诊断修订草稿", "learning", "approval", "PUT", "/intelligence/{id}", "/intelligence/{id}", false, true, object(props("id", id, "edit_version", integer("当前编辑版本"), "output", diagnosisOutput), "id", "edit_version", "output"))
+	add("diagnosis_confirm", "教师确认共性问题诊断报告与标签证据", "learning", "human", "POST", "/intelligence/{id}/confirm", "/intelligence/{id}", false, true, object(props("id", id, "edit_version", integer("当前编辑版本"), "output", diagnosisOutput), "id", "edit_version", "output"))
+	add("resource_progress", "记录本人已打开或已完成学习资料阅读", "learning", "approval", "POST", "/resources/{id}/events", "/resources", true, true, object(props("id", id, "verb", enum("opened", "completed")), "id", "verb"))
 	add("note_save", "保存本人的学习笔记", "learning", "approval", "PUT", "/resources/{id}/note", "/notes", true, true, object(props("id", id, "note", str("笔记内容"), "favorite", boolean("收藏")), "id", "note", "favorite"))
-	add("intervention_create", "创建补学补练任务草稿", "learning", "create", "POST", "/interventions", "", false, true, object(props("student_id", id, "title", str("任务标题"), "description", str("任务说明"), "resource_id", id, "assignment_id", id), "student_id", "title", "description"))
+	add("intervention_create", "创建补学补练任务草稿", "learning", "create", "POST", "/interventions", "", false, true, object(props("student_id", id, "title", str("任务标题"), "description", str("任务说明"), "resource_id", id, "assignment_id", id, "source_submission_id", id, "diagnosis_report_id", id, "diagnosis_label_id", id), "student_id", "title", "description"))
+	add("intervention_submit", "学生提交补学补练任务完成说明与执行心得", "learning", "human", "POST", "/interventions/{id}/state", "/interventions", true, true, object(props("id", id, "content", str("任务完成说明与执行心得")), "id", "content"))
 	add("intervention_state", "下发或复核补学补练任务", "learning", "human", "POST", "/interventions/{id}/state", "/interventions", false, true, object(props("id", id, "state", enum("assigned", "reviewed"), "content", str("复核说明")), "id", "state"))
 	read("interactions_read", "查看课程答疑", "learning", "/interactions", true, false, empty)
 	add("interaction_send", "发送课程提问或回复", "learning", "human", "POST", "/interactions", "/interactions", true, false, object(props("kind", enum("question", "reply", "announcement", "discussion"), "title", str("标题"), "content", str("发送内容"), "parent_id", id), "kind", "content"))
@@ -230,7 +250,10 @@ func allowed(t Tool, domain, role string, tainted bool) bool {
 	if role == "teacher" && (t.Name == "answer_draft_save" || t.Name == "answer_submit") {
 		return false
 	}
-	if tainted && (t.Domain == "questions" || t.Name == "paper_editor" || t.Name == "paper_split") {
+	if role == "teacher" && (t.Name == "resource_progress" || t.Name == "intervention_submit") {
+		return false
+	}
+	if tainted && (t.Domain == "questions" || t.Name == "paper_editor" || t.Name == "paper_split" || t.Name == "paper_adopt") {
 		return false
 	}
 	if domain == "coordinator" {
@@ -252,6 +275,9 @@ func allowed(t Tool, domain, role string, tainted bool) bool {
 		return true
 	}
 	// Specialists can retrieve evidence without accessing student work.
+	if role == "teacher" && domain != "questions" && t.Name == "members_list" {
+		return true
+	}
 	return !t.Learner && t.Risk == "read" && (t.Name == "course_context" || t.Name == "retrieval_search" || t.Name == "resources_list" || t.Name == "curriculum_read" || t.Name == "knowledge_list")
 }
 func (t Tool) definition() any {
@@ -364,7 +390,7 @@ var safeID = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,200}$`)
 
 func toolPath(template string, args map[string]any) (string, error) {
 	path := template
-	for _, name := range []string{"id", "submission_id", "question_id"} {
+	for _, name := range []string{"id", "submission_id", "question_id", "section_id"} {
 		if strings.Contains(path, "{"+name+"}") {
 			v, _ := args[name].(string)
 			if !safeID.MatchString(v) {
